@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>后厨大屏看单 - 鼎恒餐饮</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      font-family: "Microsoft YaHei", "PingFang SC", -apple-system, sans-serif;
+      background: #1a1a2e;
+      color: #fff;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ============ 顶部 ============ */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 40px;
+      background: #16213e;
+      border-bottom: 3px solid #ff6b35;
+      flex-shrink: 0;
+    }
+    .shop-name {
+      font-size: 40px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: 2px;
+    }
+    .shop-name .accent { color: #ff6b35; }
+    .top-right {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .current-date { font-size: 16px; color: #aaa; }
+    .current-time {
+      font-size: 24px;
+      color: #fff;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .btn-fullscreen {
+      background: #ff6b35;
+      color: #fff;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-fullscreen:hover { background: #ff8e53; }
+    .btn-fullscreen:active { transform: scale(0.97); }
+
+    /* ============ 中间内容区 ============ */
+    .content {
+      flex: 1;
+      padding: 24px 40px;
+      overflow-y: auto;
+    }
+    .orders-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+      gap: 24px;
+    }
+    .order-card {
+      background: #16213e;
+      border-radius: 16px;
+      padding: 24px 28px;
+      border-left: 8px solid #ff6b35;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      position: relative;
+      overflow: hidden;
+    }
+    .order-card.new {
+      animation: cardFlash 1s ease-in-out 3;
+      border-left-color: #ff2d2d;
+    }
+    @keyframes cardFlash {
+      0%, 100% { background: #16213e; }
+      50% { background: #3a1a1a; }
+    }
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 16px;
+      padding-bottom: 14px;
+      border-bottom: 2px dashed #2a3550;
+    }
+    .table-number {
+      font-size: 84px;
+      font-weight: 900;
+      color: #ff8e53;
+      line-height: 1;
+    }
+    .table-number .suffix { font-size: 48px; color: #fff; margin-left: 4px; }
+    .order-meta { text-align: right; }
+    .order-time {
+      font-size: 30px;
+      color: #fff;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .order-total {
+      font-size: 26px;
+      color: #ff8e53;
+      margin-top: 8px;
+      font-weight: 800;
+    }
+    .order-total .label { color: #aaa; font-weight: 400; font-size: 20px; margin-right: 4px; }
+    .items-list { display: flex; flex-direction: column; gap: 4px; }
+    .item-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 36px;
+      color: #fff;
+      padding: 6px 0;
+      border-bottom: 1px solid #2a3550;
+    }
+    .item-row:last-child { border-bottom: none; }
+    .item-name { font-weight: 600; }
+    .item-qty { color: #ff8e53; font-weight: 800; font-size: 40px; }
+
+    /* ============ 底部 ============ */
+    .bottom-bar {
+      padding: 14px 40px;
+      background: #16213e;
+      border-top: 3px solid #2a3550;
+      text-align: center;
+      font-size: 20px;
+      color: #888;
+      flex-shrink: 0;
+    }
+    .bottom-bar .dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      background: #52c41a;
+      border-radius: 50%;
+      margin-right: 8px;
+      vertical-align: middle;
+      animation: blink 1.5s infinite;
+    }
+    @keyframes blink { 50% { opacity: 0.3; } }
+
+    /* ============ 空状态 ============ */
+    .empty-state {
+      text-align: center;
+      padding: 120px 20px;
+      color: #666;
+    }
+    .empty-state .icon { font-size: 120px; margin-bottom: 24px; }
+    .empty-state .text { font-size: 48px; }
+
+    /* ============ 错误提示 ============ */
+    .error-banner {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255,45,45,0.95);
+      color: #fff;
+      padding: 30px 50px;
+      border-radius: 12px;
+      font-size: 32px;
+      font-weight: 700;
+      z-index: 300;
+      text-align: center;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+      display: none;
+    }
+
+    /* ============ 新订单红框闪烁（屏幕四周） ============ */
+    .flash-overlay {
+      position: fixed;
+      inset: 0;
+      border: 10px solid transparent;
+      pointer-events: none;
+      z-index: 400;
+      box-sizing: border-box;
+    }
+    .flash-overlay.flash-active {
+      animation: flashBorder 0.5s ease-in-out 6;
+    }
+    @keyframes flashBorder {
+      0%, 100% { border-color: rgba(255,45,45,0); box-shadow: inset 0 0 0 0 rgba(255,45,45,0); }
+      50% { border-color: rgba(255,45,45,0.95); box-shadow: inset 0 0 80px rgba(255,45,45,0.3); }
+    }
+
+    /* ============ 语音解锁遮罩 ============ */
+    .voice-unlock {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .voice-unlock-box {
+      background: #16213e;
+      border: 2px solid #ff6b35;
+      border-radius: 18px;
+      padding: 48px 40px;
+      width: 86%;
+      max-width: 480px;
+      text-align: center;
+    }
+    .voice-unlock-icon { font-size: 80px; margin-bottom: 20px; animation: pulse 1.6s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+    .voice-unlock-box h2 { color: #fff; font-size: 32px; margin-bottom: 12px; }
+    .voice-unlock-box p { color: #aaa; font-size: 18px; margin-bottom: 30px; line-height: 1.6; }
+    .voice-unlock-btn {
+      background: #ff6b35;
+      color: #fff;
+      border: none;
+      padding: 16px 48px;
+      border-radius: 30px;
+      font-size: 24px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .voice-unlock-btn:active { transform: scale(0.97); }
+
+    /* 小屏适配 */
+    @media (max-width: 768px) {
+      .top-bar { padding: 14px 18px; }
+      .shop-name { font-size: 26px; }
+      .current-date { display: none; }
+      .current-time { font-size: 20px; }
+      .btn-fullscreen { padding: 8px 14px; font-size: 14px; }
+      .content { padding: 16px 18px; }
+      .orders-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+      .table-number { font-size: 60px; }
+      .item-row { font-size: 28px; }
+      .item-qty { font-size: 32px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- 顶部 -->
+  <div class="top-bar">
+    <div class="shop-name"><span id="shopName">鼎恒餐饮</span> <span class="accent">后厨看单</span></div>
+    <div class="top-right">
+      <span class="current-date" id="currentDate"></span>
+      <span class="current-time" id="currentTime">00:00:00</span>
+      <button class="btn-fullscreen" id="btnFullscreen">⤢ 进入全屏</button>
+    </div>
+  </div>
+
+  <!-- 中间：订单网格 -->
+  <div class="content">
+    <div class="orders-grid" id="ordersGrid"></div>
+    <div class="empty-state" id="emptyState" style="display:none;">
+      <div class="icon">🍳</div>
+      <div class="text">暂无待处理订单</div>
+    </div>
+  </div>
+
+  <!-- 底部 -->
+  <div class="bottom-bar">
+    <span class="dot"></span>后厨看单页面 - 每5秒自动刷新
+  </div>
+
+  <!-- 错误提示 -->
+  <div class="error-banner" id="errorBanner">连接服务器失败，正在重试...</div>
+
+  <!-- 新订单红框闪烁 -->
+  <div class="flash-overlay" id="flashOverlay"></div>
+
+  <!-- 提示音 -->
+  <audio id="beepAudio" src="https://www.soundjay.com/buttons/beep-01a.mp3" preload="auto"></audio>
+
+  <!-- 语音解锁遮罩（浏览器自动播放策略要求至少一次用户手势） -->
+  <div class="voice-unlock" id="voiceUnlock">
+    <div class="voice-unlock-box">
+      <div class="voice-unlock-icon">🔊</div>
+      <h2>点击开启语音播报</h2>
+      <p>浏览器要求先有一次点击操作才能自动播放声音<br>点击下方按钮解锁后厨语音提醒<br>解锁后新订单将自动播报，无需再点击</p>
+      <button class="voice-unlock-btn" id="voiceUnlockBtn">🔓 点击解锁语音</button>
+    </div>
+  </div>
+
+  <script src="js/bigscreen.js"></script>
+</body>
+</html>

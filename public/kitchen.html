@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>后厨看单 - 鼎恒餐饮</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f0f2f5;
+      color: #333;
+    }
+    .header {
+      background: linear-gradient(135deg, #1a88ff, #4facfe);
+      color: #fff;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 10px rgba(26,136,255,0.3);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .header a { color: #fff; text-decoration: none; font-size: 18px; }
+    .header h1 { font-size: 20px; font-weight: 700; }
+    .header-right { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+    .voice-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      background: rgba(255,255,255,0.2);
+      padding: 6px 12px;
+      border-radius: 16px;
+    }
+    .voice-toggle.on { background: rgba(255,255,255,0.35); }
+    .voice-toggle input { margin: 0; }
+    .stat-bar {
+      background: #fff;
+      padding: 12px 24px;
+      display: flex;
+      gap: 16px;
+      border-bottom: 1px solid #eee;
+      flex-wrap: wrap;
+    }
+    .stat-item {
+      padding: 6px 16px;
+      background: #f7f7f7;
+      border-radius: 12px;
+      font-size: 13px;
+    }
+    .stat-item .num { color: #ff6b35; font-weight: 700; font-size: 16px; margin-right: 4px; }
+    .orders-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px;
+      padding: 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .order-card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      border-left: 4px solid #1a88ff;
+      position: relative;
+      overflow: hidden;
+    }
+    .order-card.new {
+      animation: highlight 1s ease-in-out 3;
+      border-left-color: #ff6b35;
+    }
+    @keyframes highlight {
+      0%, 100% { background: #fff; }
+      50% { background: #ffe0d4; }
+    }
+    .order-card.completed {
+      opacity: 0.55;
+      border-left-color: #52c41a;
+    }
+    .order-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px dashed #eee;
+    }
+    .order-table { font-size: 20px; font-weight: 700; color: #ff6b35; }
+    .order-time { font-size: 12px; color: #999; }
+    .order-status { padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+    .status-pending { background: #fff4e6; color: #ff6b35; }
+    .status-completed { background: #f6ffed; color: #52c41a; }
+    .order-items { margin-bottom: 12px; }
+    .order-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 14px;
+      border-bottom: 1px dashed #f5f5f5;
+    }
+    .order-item:last-child { border-bottom: none; }
+    .item-name { font-weight: 500; }
+    .item-qty { color: #ff6b35; font-weight: 700; }
+    .order-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 10px;
+      border-top: 1px solid #eee;
+    }
+    .order-total { font-size: 14px; color: #666; }
+    .order-total strong { color: #ff6b35; font-size: 16px; }
+    .btn-done {
+      background: #ff6b35;
+      color: #fff;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn-done:active { background: #e85a25; }
+    .btn-done:disabled { background: #ccc; }
+    .empty { text-align: center; padding: 80px 20px; color: #999; font-size: 16px; }
+    .empty .icon { font-size: 60px; margin-bottom: 12px; }
+    .filter-bar {
+      padding: 12px 24px;
+      background: #fff;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      gap: 8px;
+    }
+    .filter-btn {
+      padding: 6px 16px;
+      background: #f5f5f5;
+      border: none;
+      border-radius: 14px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .filter-btn.active { background: #1a88ff; color: #fff; }
+
+    /* 新订单闪烁提醒：全屏红框脉冲 + 顶部横幅 */
+    .flash-overlay {
+      position: fixed;
+      inset: 0;
+      border: 8px solid transparent;
+      pointer-events: none;
+      z-index: 400;
+      box-sizing: border-box;
+    }
+    .flash-overlay.flash-active {
+      animation: flashBorder 0.5s ease-in-out 6;
+    }
+    @keyframes flashBorder {
+      0%, 100% { border-color: rgba(255,45,45,0); box-shadow: inset 0 0 0 0 rgba(255,45,45,0); }
+      50% { border-color: rgba(255,45,45,0.95); box-shadow: inset 0 0 60px rgba(255,45,45,0.25); }
+    }
+    .new-order-banner {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-120%);
+      background: linear-gradient(135deg, #ff2d2d, #ff6b35);
+      color: #fff;
+      padding: 12px 28px;
+      border-radius: 24px;
+      font-size: 16px;
+      font-weight: 700;
+      box-shadow: 0 8px 24px rgba(255,45,45,0.4);
+      z-index: 401;
+      transition: transform 0.4s cubic-bezier(0.22,1.36,0.36,1);
+      max-width: 90vw;
+      text-align: center;
+    }
+    .new-order-banner.show { transform: translateX(-50%) translateY(0); }
+
+    /* 语音解锁遮罩 */
+    .voice-unlock {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .voice-unlock-box {
+      background: #fff;
+      border-radius: 18px;
+      padding: 32px 28px;
+      width: 86%;
+      max-width: 360px;
+      text-align: center;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+    }
+    .voice-unlock-icon {
+      font-size: 50px;
+      margin-bottom: 14px;
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.12); }
+    }
+    .voice-unlock-box h2 { font-size: 19px; margin-bottom: 8px; }
+    .voice-unlock-box p { font-size: 13px; color: #999; margin-bottom: 22px; line-height: 1.6; }
+    .voice-unlock-btn {
+      background: linear-gradient(135deg, #ff6b35, #ff8e53);
+      color: #fff;
+      border: none;
+      padding: 12px 36px;
+      border-radius: 24px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .voice-unlock-btn:active { transform: scale(0.97); }
+    .voice-locked-tag { font-size: 11px; color: #999; margin-left: 6px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <a href="index.html">←</a>
+      <h1>👨‍🍳 后厨看单</h1>
+    </div>
+    <div class="header-right">
+      <label class="voice-toggle on" id="voiceToggle" title="点击可重新解锁语音">
+        <input type="checkbox" id="voiceCheck" checked> 语音播报<span class="voice-locked-tag" id="voiceLockTag">（未解锁）</span>
+      </label>
+      <span id="updateTime"></span>
+    </div>
+  </div>
+
+  <div class="stat-bar">
+    <div class="stat-item"><span class="num" id="pendingCount">0</span>待处理</div>
+    <div class="stat-item"><span class="num" id="totalCount">0</span>今日订单</div>
+    <div class="stat-item"><span class="num" id="completedCount">0</span>已完成</div>
+  </div>
+
+  <div class="filter-bar">
+    <button class="filter-btn active" data-filter="pending">待处理</button>
+    <button class="filter-btn" data-filter="completed">已完成</button>
+    <button class="filter-btn" data-filter="all">全部</button>
+  </div>
+
+  <div class="orders-grid" id="ordersGrid"></div>
+
+  <div class="empty" id="emptyState" style="display:none;">
+    <div class="icon">🍳</div>
+    <div>暂无订单</div>
+  </div>
+
+  <!-- 新订单闪烁提醒 -->
+  <div class="flash-overlay" id="flashOverlay"></div>
+  <div class="new-order-banner" id="newOrderBanner">🔔 <span id="newOrderText">新订单</span></div>
+
+  <!-- 语音解锁遮罩 -->
+  <div class="voice-unlock" id="voiceUnlock">
+    <div class="voice-unlock-box">
+      <div class="voice-unlock-icon">🔊</div>
+      <h2>点击开启语音播报</h2>
+      <p>浏览器要求先有用户操作才能自动播放声音<br>点击下方按钮解锁后厨语音提醒<br>解锁后新订单将自动播报，无需再点击</p>
+      <button class="voice-unlock-btn" id="voiceUnlockBtn">🔓 点击解锁语音</button>
+    </div>
+  </div>
+
+  <script src="kitchen.js"></script>
+</body>
+</html>

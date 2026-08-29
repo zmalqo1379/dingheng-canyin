@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>点餐 - 鼎恒餐饮</title>
+  <style>
+    :root {
+      --primary: #ff6b35;
+      --primary-dark: #f0521c;
+      --primary-light: #fff6f2;
+      --primary-border: #ffe0d4;
+      --text: #333;
+      --text-light: #999;
+      --bg-gray: #f7f7f7;
+      --header-h: 52px;
+      --cart-h: 60px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #fff;
+      color: var(--text);
+      font-size: 14px;
+      padding-top: var(--header-h);
+      padding-bottom: 100px;
+      padding-bottom: calc(var(--cart-h) + 12px);
+    }
+
+    /* 顶部固定头部 */
+    .header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--header-h);
+      background: var(--primary);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(255,107,53,0.25);
+    }
+    .header .back { color: #fff; text-decoration: none; font-size: 22px; line-height: 1; width: 24px; }
+    .header .title { font-size: 17px; font-weight: 600; }
+    .header .table-info {
+      font-size: 13px;
+      background: rgba(255,255,255,0.22);
+      padding: 4px 12px;
+      border-radius: 14px;
+      font-weight: 500;
+    }
+
+    /* 主体：左侧分类 + 右侧菜品 */
+    .main {
+      display: flex;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .sidebar {
+      width: 82px;
+      flex-shrink: 0;
+      position: sticky;
+      top: var(--header-h);
+      height: calc(100vh - var(--header-h) - var(--cart-h) - 12px);
+      overflow-y: auto;
+      background: var(--bg-gray);
+      border-right: 1px solid #f0f0f0;
+    }
+    .sidebar-item {
+      padding: 16px 6px;
+      text-align: center;
+      font-size: 13px;
+      color: #666;
+      border-left: 3px solid transparent;
+      cursor: pointer;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .sidebar-item.active {
+      background: #fff;
+      color: var(--primary);
+      border-left-color: var(--primary);
+      font-weight: 600;
+    }
+    .sidebar-empty { padding: 20px 6px; text-align: center; font-size: 12px; color: var(--text-light); }
+
+    .content {
+      flex: 1;
+      padding: 10px 10px calc(var(--cart-h) + 24px);
+      min-width: 0;
+    }
+    .category-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 4px 0 10px;
+      padding-left: 4px;
+    }
+    .empty { text-align: center; padding: 50px 20px; color: var(--text-light); font-size: 13px; }
+
+    /* 菜品网格：一排 2 个 */
+    .dish-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    .dish-card {
+      background: #fff;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+      border: 1px solid #f3f3f3;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+    }
+    .dish-img-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border-radius: 8px;
+      overflow: hidden;
+      background: linear-gradient(135deg, #ffe0d4, #ffb88c);
+    }
+    .dish-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .soldout-mask {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .dish-card.soldout { opacity: 0.9; }
+    .dish-name {
+      font-size: 14px;
+      font-weight: 600;
+      margin-top: 8px;
+      line-height: 1.3;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .dish-desc {
+      font-size: 11px;
+      color: var(--text-light);
+      margin-top: 2px;
+      line-height: 1.3;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .dish-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+    }
+    .dish-price { color: var(--primary); font-size: 16px; font-weight: 700; }
+    .dish-stepper { display: flex; align-items: center; gap: 6px; }
+    .btn-stepper {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      border: none;
+      background: var(--primary);
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+    }
+    .btn-stepper:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-stepper.btn-minus {
+      background: #fff;
+      color: var(--primary);
+      border: 1px solid var(--primary-border);
+    }
+    .stepper-num { font-size: 13px; min-width: 16px; text-align: center; font-weight: 600; }
+
+    /* 底部固定购物车栏 */
+    .cart-bar {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      height: var(--cart-h);
+      background: #fff;
+      padding: 8px 14px;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 200;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .cart-icon {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      position: relative;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .cart-badge {
+      position: absolute;
+      top: -4px; right: -4px;
+      background: #ff2d2d;
+      color: #fff;
+      font-size: 11px;
+      min-width: 18px;
+      height: 18px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+    }
+    .cart-info { flex: 1; min-width: 0; }
+    .cart-count { font-size: 12px; color: var(--text-light); }
+    .cart-total { font-size: 18px; color: var(--primary); font-weight: 700; }
+    .cart-btn {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 0 26px;
+      height: 40px;
+      border-radius: 20px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .cart-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+    /* 确认订单弹窗 */
+    .modal-mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 300;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .modal-mask.show { display: flex; }
+    .modal {
+      width: 100%;
+      max-width: 600px;
+      background: #fff;
+      border-radius: 16px 16px 0 0;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      animation: slideUp 0.25s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .modal-title {
+      padding: 14px;
+      text-align: center;
+      font-size: 16px;
+      font-weight: 600;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .modal-body { padding: 12px 16px; overflow-y: auto; }
+    .modal-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      padding: 8px 0;
+    }
+    .modal-row > span:first-child { color: #666; }
+    .modal-row > span:last-child { font-weight: 600; }
+    .modal-items { border-top: 1px dashed #eee; margin: 4px 0; }
+    .modal-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 0;
+      font-size: 13px;
+      border-bottom: 1px solid #f7f7f7;
+    }
+    .modal-item .mi-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .modal-item .mi-qty { color: #666; margin: 0 10px; }
+    .modal-item .mi-price { color: var(--text-light); width: 50px; text-align: right; }
+    .modal-item .mi-sub { color: var(--primary); width: 60px; text-align: right; font-weight: 600; }
+    .modal-total { border-top: 1px solid #eee; margin-top: 4px; padding-top: 12px; }
+    .modal-total > span:last-child { color: var(--primary); font-size: 18px; }
+    .modal-footer {
+      display: flex;
+      gap: 10px;
+      padding: 12px 16px;
+      border-top: 1px solid #f0f0f0;
+    }
+    .modal-footer button {
+      flex: 1;
+      height: 44px;
+      border-radius: 22px;
+      border: none;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-cancel { background: #f5f5f5; color: #666; }
+    .btn-confirm { background: var(--primary); color: #fff; }
+    .btn-confirm:disabled { background: #ccc; }
+
+    /* 下单成功提示 */
+    .success-mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 400;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .success-mask.show { display: flex; }
+    .success-box {
+      background: #fff;
+      border-radius: 16px;
+      padding: 28px 36px;
+      text-align: center;
+      animation: pop 0.3s ease;
+    }
+    @keyframes pop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .success-icon {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      font-size: 32px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 12px;
+    }
+    .success-text { font-size: 16px; font-weight: 600; color: var(--text); }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.8);
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      z-index: 999;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
+
+    /* 超小屏适配 */
+    @media (max-width: 350px) {
+      .sidebar { width: 70px; }
+      .dish-grid { gap: 8px; }
+      .dish-price { font-size: 15px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- 顶部固定头部 -->
+  <div class="header">
+    <a class="back" href="index.html">←</a>
+    <div class="title">点餐</div>
+    <div class="table-info" id="tableInfo">未选桌</div>
+  </div>
+
+  <!-- 主体：左侧分类 + 右侧菜品 -->
+  <div class="main">
+    <div class="sidebar" id="sidebar"></div>
+    <div class="content" id="content"></div>
+  </div>
+
+  <!-- 底部固定购物车栏 -->
+  <div class="cart-bar" id="cartBar">
+    <div class="cart-icon" id="cartIcon">
+      🛒
+      <div class="cart-badge" id="cartBadge">0</div>
+    </div>
+    <div class="cart-info">
+      <div class="cart-count" id="cartCount">已选 0 件</div>
+      <div class="cart-total">¥<span id="cartTotal">0</span></div>
+    </div>
+    <button class="cart-btn" id="checkoutBtn" disabled>去结算</button>
+  </div>
+
+  <!-- 确认订单弹窗 -->
+  <div class="modal-mask" id="modalMask">
+    <div class="modal">
+      <div class="modal-title">确认订单</div>
+      <div class="modal-body">
+        <div class="modal-row"><span>桌号</span><span id="modalTable"></span></div>
+        <div class="modal-items" id="modalItems"></div>
+        <div class="modal-row modal-total"><span>合计</span><span id="modalTotal">¥0</span></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" id="modalCancel">取消</button>
+        <button class="btn-confirm" id="modalConfirm">确认下单</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 下单成功提示 -->
+  <div class="success-mask" id="successMask">
+    <div class="success-box">
+      <div class="success-icon">✓</div>
+      <div class="success-text">下单成功，请稍等！</div>
+    </div>
+  </div>
+
+  <!-- 轻提示 -->
+  <div class="toast" id="toast"></div>
+
+  <script src="js/customer.js"></script>
+</body>
+</html>

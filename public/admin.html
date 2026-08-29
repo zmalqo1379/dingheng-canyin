@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理后台 - 鼎恒餐饮</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --nav: #1f2937;
+      --nav-2: #111827;
+      --accent: #ff6b35;
+      --accent-2: #ff8e53;
+      --blue: #1a88ff;
+      --green: #16a34a;
+      --gray: #9ca3af;
+      --red: #ef4444;
+      --bg: #f5f6fa;
+      --line: #e5e7eb;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: #1f2937;
+      -webkit-font-smoothing: antialiased;
+    }
+    button { font-family: inherit; }
+
+    /* ============ 登录页 ============ */
+    .login {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1f2937, #374151 60%, #ff6b35);
+    }
+    .login-box {
+      background: #fff;
+      padding: 40px 36px;
+      border-radius: 20px;
+      width: 90%;
+      max-width: 380px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    }
+    .login-box .logo {
+      width: 60px; height: 60px;
+      margin: 0 auto 16px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+    }
+    .login-box h1 { font-size: 22px; text-align: center; margin-bottom: 6px; }
+    .login-box .sub { text-align: center; color: #9ca3af; font-size: 13px; margin-bottom: 28px; }
+    .login-input {
+      width: 100%;
+      padding: 13px 16px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      font-size: 15px;
+      margin-bottom: 14px;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .login-input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(255,107,53,.15); }
+    .login-error {
+      color: var(--red);
+      font-size: 13px;
+      margin-bottom: 12px;
+      text-align: center;
+      display: none;
+      background: #fef2f2;
+      padding: 8px;
+      border-radius: 8px;
+    }
+    .login-btn {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform .1s, box-shadow .2s;
+    }
+    .login-btn:hover { box-shadow: 0 8px 20px rgba(255,107,53,.35); }
+    .login-btn:active { transform: scale(0.98); }
+    .login-tip { text-align: center; margin-top: 18px; font-size: 12px; color: #bbb; }
+    .login-back { text-align: center; margin-top: 10px; }
+    .login-back a { font-size: 12px; color: #9ca3af; text-decoration: none; }
+
+    /* ============ 主框架 ============ */
+    .admin { display: none; min-height: 100vh; }
+    .admin.show { display: block; }
+
+    /* 顶部栏（移动端） */
+    .topbar {
+      display: none;
+      position: sticky; top: 0; z-index: 60;
+      background: var(--nav);
+      color: #fff;
+      padding: 12px 16px;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    }
+    .topbar .hamburger {
+      background: rgba(255,255,255,.15);
+      border: none; color: #fff;
+      width: 38px; height: 38px;
+      border-radius: 10px; font-size: 20px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .topbar .title { font-size: 16px; font-weight: 600; }
+
+    /* 侧边栏 */
+    .layout { display: flex; align-items: flex-start; }
+    .sidebar {
+      width: 230px;
+      min-height: 100vh;
+      background: linear-gradient(180deg, var(--nav), var(--nav-2));
+      color: #cbd5e1;
+      position: sticky; top: 0;
+      display: flex; flex-direction: column;
+      flex-shrink: 0;
+    }
+    .sidebar .brand {
+      padding: 22px 20px 18px;
+      font-size: 18px; font-weight: 700; color: #fff;
+      display: flex; align-items: center; gap: 10px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .sidebar .brand .dot {
+      width: 32px; height: 32px; border-radius: 9px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      display: flex; align-items: center; justify-content: center; font-size: 16px;
+    }
+    .nav { padding: 12px 10px; flex: 1; }
+    .nav-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      color: #cbd5e1;
+      margin-bottom: 4px;
+      border-left: 3px solid transparent;
+      transition: background .15s, color .15s;
+    }
+    .nav-item .icon { font-size: 18px; width: 22px; text-align: center; }
+    .nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+    .nav-item.active {
+      background: rgba(255,107,53,.15);
+      color: #fff;
+      border-left-color: var(--accent);
+      font-weight: 600;
+    }
+    .sidebar .logout {
+      margin: 10px;
+      padding: 12px;
+      text-align: center;
+      background: rgba(255,255,255,.08);
+      color: #fff;
+      border: none; border-radius: 10px;
+      cursor: pointer; font-size: 14px;
+    }
+    .sidebar .logout:hover { background: rgba(255,255,255,.16); }
+
+    /* 内容区 */
+    .main {
+      flex: 1; min-width: 0;
+      padding: 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .pane { display: none; }
+    .pane.active { display: block; }
+    .pane-title {
+      font-size: 20px; font-weight: 700;
+      margin-bottom: 18px;
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 10px;
+    }
+
+    /* 统计卡片 */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+    .stat-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 26px 24px;
+      box-shadow: 0 4px 14px rgba(0,0,0,.06);
+      border-top: 4px solid var(--blue);
+    }
+    .stat-card.green { border-top-color: var(--green); }
+    .stat-card.orange { border-top-color: var(--accent); }
+    .stat-card .label { font-size: 14px; color: #6b7280; margin-bottom: 10px; }
+    .stat-card .value {
+      font-size: 40px; font-weight: 800; line-height: 1.1;
+      color: var(--blue);
+    }
+    .stat-card.green .value { color: var(--green); }
+    .stat-card.orange .value { color: var(--accent); }
+    .stat-card .value small { font-size: 18px; font-weight: 600; color: inherit; }
+
+    /* 卡片容器 */
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.05);
+      overflow: hidden;
+    }
+    .card-head {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 10px; flex-wrap: wrap;
+    }
+    .card-head h3 { font-size: 16px; font-weight: 600; }
+
+    /* 表格 */
+    .table-wrap { overflow-x: auto; }
+    table.data {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      min-width: 640px;
+    }
+    table.data th, table.data td {
+      padding: 13px 16px;
+      text-align: left;
+      border-bottom: 1px solid #f3f4f6;
+      white-space: nowrap;
+    }
+    table.data thead th {
+      background: #f9fafb;
+      color: #6b7280;
+      font-weight: 600;
+      font-size: 13px;
+    }
+    table.data tbody tr:hover { background: #fafbfc; }
+    .dish-thumb {
+      width: 40px; height: 40px;
+      border-radius: 8px; object-fit: cover;
+      background: #f3f4f6;
+      vertical-align: middle;
+    }
+    .thumb-ph {
+      width: 40px; height: 40px; border-radius: 8px;
+      background: linear-gradient(135deg, #ffd9c2, #ffb88c);
+      display: inline-flex; align-items: center; justify-content: center; font-size: 18px;
+    }
+    .name-cell { display: flex; align-items: center; gap: 10px; }
+    .name-cell .nm { font-weight: 500; }
+    .name-cell .desc { font-size: 12px; color: #9ca3af; }
+
+    /* 状态标签 */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .b-green { background: #dcfce7; color: #16a34a; }
+    .b-gray { background: #f3f4f6; color: #9ca3af; }
+    .b-red { background: #fee2e2; color: #ef4444; }
+    .b-orange { background: #ffedd5; color: #ea580c; }
+
+    /* 按钮 */
+    .btn {
+      padding: 7px 14px;
+      border-radius: 8px;
+      border: none;
+      font-size: 13px;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn-blue { background: #e0efff; color: var(--blue); }
+    .btn-red { background: #fee2e2; color: var(--red); }
+    .btn-orange { background: var(--accent); color: #fff; }
+    .btn-gray { background: #f3f4f6; color: #6b7280; }
+    .btn-add {
+      background: var(--accent); color: #fff;
+      padding: 9px 18px; border-radius: 9px;
+      border: none; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .btn-add:hover { opacity: .9; }
+    .row-actions { display: flex; gap: 8px; }
+
+    /* 桌台 */
+    .table-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 14px;
+      padding: 18px;
+    }
+    .table-cell {
+      background: #fff;
+      border: 2px solid var(--line);
+      border-radius: 14px;
+      padding: 18px 12px;
+      text-align: center;
+      position: relative;
+      transition: transform .12s;
+    }
+    .table-cell:hover { transform: translateY(-2px); }
+    .table-cell.idle { border-color: #bbf7d0; background: #f0fdf4; }
+    .table-cell.occupied { border-color: #fecaca; background: #fef2f2; }
+    .table-cell .num { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+    .table-cell .del {
+      position: absolute; top: 6px; right: 8px;
+      color: #d1d5db; cursor: pointer; font-size: 16px;
+      line-height: 1;
+    }
+    .table-cell .del:hover { color: var(--red); }
+    .add-row { display: flex; gap: 10px; padding: 18px; }
+    .add-row input {
+      flex: 1; padding: 9px 12px;
+      border: 1px solid var(--line); border-radius: 9px; font-size: 14px;
+    }
+    .add-row input:focus { outline: none; border-color: var(--accent); }
+
+    /* 订单行 */
+    .order-row {
+      padding: 14px 20px;
+      border-bottom: 1px solid #f3f4f6;
+      display: flex; align-items: center; gap: 14px;
+      flex-wrap: wrap;
+    }
+    .order-row:last-child { border-bottom: none; }
+    .order-row.pending {
+      background: #fef2f2;
+      border-left: 4px solid var(--red);
+      font-weight: 700;
+    }
+    .order-row.pending .o-table, .order-row.pending .o-total { color: var(--red); }
+    .order-row.completed { color: #6b7280; }
+    .order-row.completed .o-total { color: var(--green); }
+    .o-main { flex: 1; min-width: 200px; }
+    .o-table { font-size: 15px; font-weight: 600; }
+    .o-items { font-size: 13px; color: #6b7280; margin-top: 4px; }
+    .order-row.pending .o-items { color: #b91c1c; }
+    .o-time { font-size: 12px; color: #9ca3af; margin-top: 3px; }
+    .o-total { font-size: 16px; font-weight: 700; }
+    .o-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+    .empty { text-align: center; padding: 50px 20px; color: #9ca3af; font-size: 14px; }
+
+    /* 弹窗 */
+    .mask {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 300;
+      display: none;
+      align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    .mask.show { display: flex; }
+    .modal {
+      background: #fff;
+      border-radius: 16px;
+      width: 100%; max-width: 440px;
+      max-height: 90vh; overflow-y: auto;
+      box-shadow: 0 20px 50px rgba(0,0,0,.25);
+    }
+    .modal-head {
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--line);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .modal-head h3 { font-size: 17px; font-weight: 600; }
+    .modal-head .x {
+      background: none; border: none; font-size: 22px;
+      color: #9ca3af; cursor: pointer; line-height: 1;
+    }
+    .modal-body { padding: 20px 22px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label {
+      display: block; font-size: 13px; color: #4b5563;
+      margin-bottom: 6px; font-weight: 500;
+    }
+    .form-input, .form-select {
+      width: 100%; padding: 10px 12px;
+      border: 1px solid var(--line); border-radius: 9px; font-size: 14px;
+      background: #fff;
+    }
+    .form-input:focus, .form-select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,107,53,.12); }
+    .modal-foot {
+      padding: 14px 22px;
+      border-top: 1px solid var(--line);
+      display: flex; justify-content: flex-end; gap: 10px;
+    }
+
+    .toast {
+      position: fixed; top: 24px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(31,41,55,.95);
+      color: #fff;
+      padding: 10px 22px;
+      border-radius: 10px; font-size: 14px;
+      z-index: 999; opacity: 0;
+      transition: opacity .25s, top .25s;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; top: 30px; }
+    .toast.err { background: rgba(239,68,68,.95); }
+
+    /* ============ 店铺设置 ============ */
+    .settings-card { padding: 22px 24px; }
+    .settings-card .form-group { margin-bottom: 22px; }
+    .settings-card .form-input {
+      max-width: 360px;
+    }
+    .setting-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 0;
+      border-bottom: 1px solid #f3f4f6;
+      gap: 16px;
+    }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-row .meta { flex: 1; min-width: 0; }
+    .setting-row .meta .t { font-size: 15px; font-weight: 600; color: #1f2937; }
+    .setting-row .meta .d { font-size: 13px; color: #9ca3af; margin-top: 4px; }
+    /* 开关 toggle */
+    .toggle { position: relative; display: inline-block; width: 46px; height: 26px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle .slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background: #d1d5db; border-radius: 26px;
+      transition: background .2s;
+    }
+    .toggle .slider::before {
+      content: ""; position: absolute;
+      width: 20px; height: 20px; left: 3px; top: 3px;
+      background: #fff; border-radius: 50%;
+      transition: transform .2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    }
+    .toggle input:checked + .slider { background: var(--green); }
+    .toggle input:checked + .slider::before { transform: translateX(20px); }
+    .setting-sub-fields {
+      margin-top: 12px; padding: 14px 16px;
+      background: #f9fafb; border-radius: 10px;
+      display: none;
+    }
+    .setting-sub-fields.show { display: block; }
+    .setting-sub-fields .sub-row { margin-bottom: 10px; }
+    .setting-sub-fields .sub-row:last-child { margin-bottom: 0; }
+    .setting-sub-fields .sub-row label {
+      display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px;
+    }
+    .setting-sub-fields .sub-row input {
+      width: 100%; max-width: 320px; padding: 9px 12px;
+      border: 1px solid var(--line); border-radius: 8px; font-size: 14px;
+      background: #fff;
+    }
+    .setting-sub-fields .sub-row input:focus { outline: none; border-color: var(--accent); }
+    .settings-save-bar {
+      margin-top: 24px; display: flex; justify-content: flex-end;
+    }
+
+    /* 遮罩（移动端侧边栏打开时） */
+    .scrim {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.4);
+      z-index: 40;
+    }
+    .scrim.show { display: block; }
+
+    /* ============ 响应式 ============ */
+    @media (max-width: 768px) {
+      .topbar { display: flex; }
+      .sidebar {
+        position: fixed; top: 0; left: 0; bottom: 0;
+        z-index: 50;
+        transform: translateX(-100%);
+        transition: transform .25s;
+        min-height: 100vh;
+      }
+      .sidebar.open { transform: translateX(0); }
+      .main { padding: 16px; max-width: 100%; }
+      .stat-grid { grid-template-columns: 1fr; }
+      .stat-card .value { font-size: 34px; }
+      .pane-title { font-size: 18px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ============ 登录页 ============ -->
+<div class="login" id="loginPage">
+  <div class="login-box">
+    <div class="logo">⚙️</div>
+    <h1>管理后台</h1>
+    <p class="sub">鼎恒餐饮 · 扫码点餐系统</p>
+    <div class="login-error" id="loginError">密码错误</div>
+    <input type="password" class="login-input" id="pwdInput" placeholder="请输入管理密码" autocomplete="current-password">
+    <button class="login-btn" id="loginBtn">登 录</button>
+    <div class="login-tip">默认密码：admin123</div>
+    <div class="login-back"><a href="index.html">← 返回首页</a></div>
+  </div>
+</div>
+
+<!-- ============ 管理主界面 ============ -->
+<div class="admin" id="adminPage">
+  <!-- 移动端顶部栏 -->
+  <div class="topbar">
+    <button class="hamburger" id="menuToggle">☰</button>
+    <span class="title">⚙️ 管理后台</span>
+  </div>
+
+  <div class="layout">
+    <!-- 侧边栏 -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand"><span class="dot">鼎</span> 鼎恒餐饮</div>
+      <nav class="nav">
+        <div class="nav-item active" data-tab="dishes"><span class="icon">📋</span> 菜单管理</div>
+        <div class="nav-item" data-tab="tables"><span class="icon">🪑</span> 桌台管理</div>
+        <div class="nav-item" data-tab="orders"><span class="icon">📦</span> 订单管理</div>
+        <div class="nav-item" data-tab="stats"><span class="icon">📊</span> 数据统计</div>
+        <div class="nav-item" data-tab="settings"><span class="icon">⚙️</span> 店铺设置</div>
+      </nav>
+      <button class="logout" id="logoutBtn">退出登录</button>
+    </aside>
+    <div class="scrim" id="scrim"></div>
+
+    <!-- 内容区 -->
+    <main class="main">
+      <!-- 1. 菜单管理 -->
+      <section class="pane active" id="pane-dishes">
+        <div class="pane-title">
+          <span>📋 菜单管理</span>
+          <button class="btn-add" id="addDishBtn">+ 新增菜品</button>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>菜品列表</h3></div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>菜品</th>
+                  <th>价格</th>
+                  <th>分类</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="dishesBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. 桌台管理 -->
+      <section class="pane" id="pane-tables">
+        <div class="pane-title"><span>🪑 桌台管理</span></div>
+        <div class="card">
+          <div class="card-head"><h3>新增桌台</h3></div>
+          <div class="add-row">
+            <input type="text" id="newTableInput" placeholder="输入桌号，如 12">
+            <button class="btn-add" id="addTableBtn">添加</button>
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px;">
+          <div class="card-head"><h3>桌台列表</h3></div>
+          <div class="table-grid" id="tablesList"></div>
+        </div>
+      </section>
+
+      <!-- 3. 订单管理 -->
+      <section class="pane" id="pane-orders">
+        <div class="pane-title"><span>📦 订单管理</span></div>
+        <div class="card">
+          <div class="card-head"><h3>所有订单（按时间倒序）</h3></div>
+          <div id="ordersList"></div>
+        </div>
+      </section>
+
+      <!-- 4. 数据统计 -->
+      <section class="pane" id="pane-stats">
+        <div class="pane-title"><span>📊 数据统计</span></div>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="label">今日订单数</div>
+            <div class="value" id="statTodayCount">0<small> 单</small></div>
+          </div>
+          <div class="stat-card green">
+            <div class="label">今日营业额</div>
+            <div class="value">¥<span id="statTodayRevenue">0</span></div>
+          </div>
+          <div class="stat-card orange">
+            <div class="label">本月营业额</div>
+            <div class="value">¥<span id="statMonthRevenue">0</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. 店铺设置 -->
+      <section class="pane" id="pane-settings">
+        <div class="pane-title"><span>⚙️ 店铺设置</span></div>
+        <div class="card">
+          <div class="card-head"><h3>基本设置</h3></div>
+          <div class="settings-card">
+            <div class="form-group">
+              <label>店铺名称</label>
+              <input type="text" class="form-input" id="setShopName" placeholder="店铺名称">
+            </div>
+
+            <div class="setting-row">
+              <div class="meta">
+                <div class="t">🔊 语音播报</div>
+                <div class="d">后厨页面自动播报新订单</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="setEnableVoice">
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-row">
+              <div class="meta">
+                <div class="t">📺 大屏弹窗</div>
+                <div class="d">大屏页面自动显示新订单</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="setEnableBigscreen">
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-row">
+              <div class="meta">
+                <div class="t">🖨️ 云打印机</div>
+                <div class="d">自动打印小票</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="setEnablePrinter">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="setting-sub-fields" id="printerFields">
+              <div class="sub-row">
+                <label>打印机编号（SN）</label>
+                <input type="text" id="setPrinterSN" placeholder="打印机编号">
+              </div>
+              <div class="sub-row">
+                <label>打印机密钥（Key）</label>
+                <input type="text" id="setPrinterKey" placeholder="打印机密钥">
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="meta">
+                <div class="t">💬 微信通知</div>
+                <div class="d">新订单发送到手机</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="setEnableWechat">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="setting-sub-fields" id="wechatFields">
+              <div class="sub-row">
+                <label>通知手机号</label>
+                <input type="text" id="setNotifyPhone" placeholder="接收通知的手机号">
+              </div>
+            </div>
+
+            <div class="settings-save-bar">
+              <button class="btn-add" id="saveSettingsBtn">保存设置</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- ============ 菜品弹窗 ============ -->
+<div class="mask" id="dishModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="dishModalTitle">新增菜品</h3>
+      <button class="x" id="dishCloseBtn">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="dishId">
+      <div class="form-group">
+        <label>菜品名称</label>
+        <input type="text" class="form-input" id="dishName" placeholder="如：宫保鸡丁">
+      </div>
+      <div class="form-group">
+        <label>价格（元）</label>
+        <input type="number" class="form-input" id="dishPrice" placeholder="0.00" min="0" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>分类</label>
+        <select class="form-select" id="dishCategory"></select>
+      </div>
+      <div class="form-group">
+        <label>图片 URL（可选）</label>
+        <input type="text" class="form-input" id="dishImage" placeholder="https://...">
+      </div>
+      <div class="form-group">
+        <label>描述（可选）</label>
+        <input type="text" class="form-input" id="dishDesc" placeholder="菜品简介">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-gray" id="dishCancelBtn">取消</button>
+      <button class="btn btn-orange" id="dishSaveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/js/admin.js"></script>
+</body>
+</html>
