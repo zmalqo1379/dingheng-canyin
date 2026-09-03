@@ -577,6 +577,7 @@
         <div class="nav-item" data-tab="products"><span class="icon">📋</span> 商品管理</div>
         <div class="nav-item" data-tab="notify"><span class="icon">🔔</span> 通知设置</div>
         <div class="nav-item" data-tab="stats"><span class="icon">📊</span> 数据统计</div>
+        <div class="nav-item" data-tab="settle"><span class="icon">💰</span> 合作结算</div>
       </nav>
       <div class="nav-tip">鼎恒供应链 · 供应商接单后台</div>
     </aside>
@@ -718,6 +719,63 @@
           <div class="ico">📊</div>
           <h3>数据统计（开发中）</h3>
           <p>供应商经营数据统计将在后续阶段开放</p>
+        </div>
+      </section>
+
+      <!-- 合作结算与月度对账 -->
+      <section class="pane" id="pane-settle">
+        <div class="pane-title">💰 合作结算与月度对账</div>
+        <p style="font-size:13px;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;margin:0 0 14px;">
+          每月 1 号自动结算，按双方合作协议约定的阶梯比例执行
+        </p>
+        <div class="filter-bar" style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+          <label style="font-size:13px;">月份 <input type="month" id="settleMonth" style="padding:6px 8px;border:1px solid #e5e7eb;border-radius:8px;"></label>
+          <button class="btn btn-primary" id="settleQueryBtn">查询</button>
+        </div>
+
+        <!-- 概览卡片：本月累计采购额 / 当前档位与返点率 / 本月合作服务费 -->
+        <div class="stat-grid" id="settleStatGrid">
+          <div class="stat-card"><div class="label">本月累计订单金额（已完成）</div><div class="value">¥<span id="settleTotalPurchase">0.00</span></div></div>
+          <div class="stat-card"><div class="label">当前返点档位 / 返点率</div><div class="value" id="settleTier">—</div></div>
+          <div class="stat-card"><div class="label">本月合作服务费（按协议阶梯返点）</div><div class="value" style="color:#dc2626;">¥<span id="settleTotalRebate">0.00</span></div></div>
+        </div>
+
+        <!-- 分品类采购金额明细 -->
+        <div class="section-title" style="margin-top:18px;font-size:14px;font-weight:600;color:#374151;">分品类采购金额明细</div>
+        <div class="table-wrap">
+          <table class="order-table">
+            <thead>
+              <tr>
+                <th>品类</th>
+                <th>当月采购额</th>
+                <th>当前档位</th>
+                <th>返点率</th>
+                <th>累进方式</th>
+                <th>应返金额</th>
+              </tr>
+            </thead>
+            <tbody id="settleCatTbody">
+              <tr><td colspan="6" class="no-data">加载中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 历史月度结算记录 -->
+        <div class="section-title" style="margin-top:18px;font-size:14px;font-weight:600;color:#374151;">历史月度结算记录</div>
+        <div class="table-wrap">
+          <table class="order-table">
+            <thead>
+              <tr>
+                <th>月份</th>
+                <th>采购总额</th>
+                <th>返点金额</th>
+                <th>结算时间</th>
+              </tr>
+            </thead>
+            <tbody id="settleHistoryTbody">
+              <tr><td colspan="4" class="no-data">加载中...</td></tr>
+            </tbody>
+          </table>
         </div>
       </section>
     </main>
@@ -867,6 +925,7 @@
       if (tab === 'orders') loadOrders();
       if (tab === 'products') loadProducts();
       if (tab === 'notify') loadNotifySettings();
+      if (tab === 'settle') loadSettle();
     }
     document.querySelectorAll('.nav-item').forEach(t => t.onclick = () => switchTab(t.dataset.tab));
 
@@ -943,12 +1002,8 @@
       } else if (o.status === '已发货') {
         act = `<span class="wait-text">已发货，等待商家确认收货</span>`;
       } else if (o.status === '已完成') {
-        // 返点一律取后端数据：已月度结算显示实际返点，否则显示订单完成时的预估返点 preRebate（费率来自 RebateRule，页面不写死）
-        const settled = o.actualRebateAmount != null && Number(o.actualRebateAmount) >= 0;
-        const rebate = settled
-          ? Number(o.actualRebateAmount || 0).toFixed(2)
-          : Number(o.preRebate != null ? o.preRebate : (o.rebateAmount || 0)).toFixed(2);
-        act = `<span class="rebate-tag">已完成 · ${settled ? '实际返点' : '预估返点'} ¥${rebate}</span>`;
+        // 单笔订单不再展示任何返点数字，返点统一在「合作结算」栏目按月汇总查看
+        act = `<span class="rebate-tag">已完成</span>`;
       }
 
       return `
@@ -1116,6 +1171,93 @@
           $('setVoice').checked = res.data.voice === true;
         }
       } catch (e) { /* 使用默认值 */ }
+    }
+
+    // ============ 合作结算与月度对账 ============
+    // 数据全部来自 /api/supplier/settle（后端实时计算：RebateRule + 订单数据，不写死）
+    let settleInited = false;
+    function curMonthStr() {
+      const n = new Date();
+      return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0');
+    }
+    function pct(v) { return (Number(v || 0) * 100).toFixed(1) + '%'; }
+    function modeText(m) {
+      return m === 'marginal' ? '超额累进' : (m === 'full' ? '全额累进' : (m === 'default' ? '默认兜底' : '—'));
+    }
+    async function loadSettle() {
+      const monthInput = $('settleMonth');
+      if (!monthInput.value) monthInput.value = curMonthStr();
+      if (!settleInited) {
+        settleInited = true;
+        $('settleQueryBtn').onclick = loadSettle;
+        monthInput.onchange = loadSettle;
+      }
+      const month = monthInput.value || curMonthStr();
+      // 概览卡片占位
+      $('settleTotalPurchase').textContent = '0.00';
+      $('settleTotalRebate').textContent = '0.00';
+      $('settleTier').textContent = '加载中...';
+      $('settleCatTbody').innerHTML = '<tr><td colspan="6" class="no-data">加载中...</td></tr>';
+      $('settleHistoryTbody').innerHTML = '<tr><td colspan="4" class="no-data">加载中...</td></tr>';
+
+      const res = await api('/api/supplier/settle?month=' + encodeURIComponent(month));
+      if (!res.success || !res.data) {
+        $('settleTier').textContent = '—';
+        $('settleCatTbody').innerHTML = `<tr><td colspan="6" class="no-data">${esc(res.message || '加载失败')}</td></tr>`;
+        $('settleHistoryTbody').innerHTML = `<tr><td colspan="4" class="no-data">${esc(res.message || '加载失败')}</td></tr>`;
+        return;
+      }
+      const d = res.data;
+      $('settleTotalPurchase').textContent = Number(d.totalPurchase || 0).toFixed(2);
+      $('settleTotalRebate').textContent = Number(d.totalRebate || 0).toFixed(2);
+
+      // 当前返点档位 / 返点率（读取平台配置的 RebateRule，实时定档）
+      const t = d.currentTier || {};
+      let tierText;
+      if (t.mode === 'default') {
+        tierText = `默认兜底 · ${pct(t.tierRate)}`;
+      } else if (t.tierMinAmount != null) {
+        tierText = `满 ¥${Number(t.tierMinAmount).toLocaleString()} 档 · ${pct(t.tierRate)}`;
+      } else {
+        tierText = `未达首档 · 0%`;
+      }
+      $('settleTier').textContent = tierText;
+
+      // 分品类采购金额明细
+      const cats = d.categories || [];
+      if (!cats.length) {
+        $('settleCatTbody').innerHTML = `<tr><td colspan="6" class="no-data">「${esc(month)}」暂无已完成采购</td></tr>`;
+      } else {
+        $('settleCatTbody').innerHTML = cats.map(c => {
+          const tierCell = c.mode === 'default'
+            ? '默认兜底'
+            : (c.tierMinAmount != null ? `满 ¥${Number(c.tierMinAmount).toLocaleString()}` : '未达首档');
+          const rateCell = c.mode === 'default' ? pct(c.tierRate) : (c.tierMinAmount != null ? pct(c.tierRate) : '0%');
+          return `
+            <tr>
+              <td>${esc(c.category || '未分类')}</td>
+              <td>${fmtMoney(c.purchaseAmount)}</td>
+              <td>${tierCell}</td>
+              <td>${rateCell}</td>
+              <td>${modeText(c.mode)}</td>
+              <td style="color:#dc2626;">${fmtMoney(c.rebateAmount)}</td>
+            </tr>`;
+        }).join('');
+      }
+
+      // 历史月度结算记录
+      const hist = d.history || [];
+      if (!hist.length) {
+        $('settleHistoryTbody').innerHTML = `<tr><td colspan="4" class="no-data">暂无历史结算记录</td></tr>`;
+      } else {
+        $('settleHistoryTbody').innerHTML = hist.map(h => `
+          <tr>
+            <td><b>${esc(h.month)}</b></td>
+            <td>${fmtMoney(h.totalPurchaseAmount)}</td>
+            <td style="color:#dc2626;">${fmtMoney(h.totalRebateAmount)}</td>
+            <td>${fmtTime(h.settledAt)}</td>
+          </tr>`).join('');
+      }
     }
 
     // 保存通知设置（PATCH /api/supplier/settings）

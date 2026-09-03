@@ -362,7 +362,7 @@
         <div class="nav-item active" data-tab="overview"><span class="icon">🏠</span> 总览</div>
         <div class="nav-item" data-tab="merchants"><span class="icon">🏪</span> 商家管理</div>
         <div class="nav-item" data-tab="suppliers"><span class="icon">🚚</span> 供应商管理</div>
-        <div class="nav-item" data-tab="rebate"><span class="icon">📊</span> 返点规则</div>
+        <div class="nav-item" data-tab="rebate"><span class="icon">📊</span> 返点中心</div>
         <div class="nav-item" data-tab="coinrules"><span class="icon">🪙</span> 得币倍率</div>
         <div class="nav-item" data-tab="reconcile"><span class="icon">💰</span> 对账中心</div>
         <div class="nav-item" data-tab="system"><span class="icon">⚙️</span> 系统设置</div>
@@ -437,9 +437,44 @@
         </div>
       </section>
 
-      <!-- 4. 返点规则 -->
+      <!-- 4. 返点中心（统一整合：月度结算操作 + 供应商返点概览 + 结算历史 + 规则配置） -->
       <section class="pane" id="pane-rebate">
-        <div class="pane-title">📊 返点规则</div>
+        <div class="pane-title">📊 返点中心</div>
+
+        <!-- 4.1 月度结算操作 -->
+        <div class="filter-bar">
+          <label>月份 <input type="month" id="rbMonth"></label>
+          <button class="btn" id="rbSettleBtn" style="background:#16a34a;color:#fff;">📦 执行月度结算</button>
+        </div>
+
+        <!-- 4.2 供应商返点概览（各供应商本月采购额与档位、应返金额、距下一档差额） -->
+        <div class="section-title" style="margin-top:4;">供应商返点概览</div>
+        <div id="rebateOverview">
+          <div class="placeholder"><div class="ico">📊</div><p>选择月份后加载</p></div>
+        </div>
+
+        <!-- 4.3 结算历史 -->
+        <div class="section-title">结算历史</div>
+        <div class="table-wrap">
+          <table class="dtable" style="min-width:760px;">
+            <thead>
+              <tr>
+                <th>结算月份</th>
+                <th>供应商</th>
+                <th>当月采购总额</th>
+                <th>实际返点合计</th>
+                <th>分品类明细</th>
+                <th>结算时间</th>
+              </tr>
+            </thead>
+            <tbody id="settleTbody">
+              <tr><td colspan="6" class="no-data">加载中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 4.4 规则配置入口 -->
+        <div class="section-title">返点规则配置</div>
         <div class="section-title" style="margin-top:0;">
           供应商阶梯返点规则
           <button class="btn btn-primary" id="addRuleBtn">＋ 新增规则</button>
@@ -499,7 +534,7 @@
         </p>
       </section>
 
-      <!-- 6. 对账中心 -->
+      <!-- 6. 对账中心（订单明细与平台净利；返点概览/结算/历史已整合至「返点中心」） -->
       <section class="pane" id="pane-reconcile">
         <div class="pane-title">💰 对账中心</div>
         <div class="filter-bar">
@@ -510,33 +545,6 @@
             </select>
           </label>
           <button class="btn btn-primary" id="rcQueryBtn">查询</button>
-          <button class="btn" id="rcSettleBtn" style="background:#16a34a;color:#fff;">📦 执行月度结算</button>
-        </div>
-
-        <!-- 供应商返点概览（本月采购总额/分品类/当前档位/预估返点/距下一档差额） -->
-        <div class="section-title" style="margin-top:4;">供应商返点概览</div>
-        <div id="rebateOverview">
-          <div class="placeholder"><div class="ico">📊</div><p>选择月份后加载</p></div>
-        </div>
-
-        <!-- 历史结算记录 -->
-        <div class="section-title">历史结算记录</div>
-        <div class="table-wrap">
-          <table class="dtable" style="min-width:760px;">
-            <thead>
-              <tr>
-                <th>结算月份</th>
-                <th>供应商</th>
-                <th>当月采购总额</th>
-                <th>实际返点合计</th>
-                <th>分品类明细</th>
-                <th>结算时间</th>
-              </tr>
-            </thead>
-            <tbody id="settleTbody">
-              <tr><td colspan="6" class="no-data">加载中...</td></tr>
-            </tbody>
-          </table>
         </div>
 
         <!-- 订单明细 -->
@@ -929,7 +937,7 @@
       if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
     }
 
-    // ============ 对账中心 ============
+    // ============ 对账中心（仅订单明细与平台净利；返点概览/结算/历史在「返点中心」）============
     let rcInited = false;
     function initReconcile() {
       // 默认本月
@@ -941,24 +949,20 @@
         $('rcQueryBtn').onclick = refreshReconcileAll;
         $('rcMonth').onchange = refreshReconcileAll;
         $('rcSupplier').onchange = refreshReconcileAll;
-        $('rcSettleBtn').onclick = doSettleMonth;
       }
       refreshReconcileAll();
     }
 
-    // 月份/供应商变化或查询时：刷新返点概览 + 历史结算 + 订单明细
+    // 月份/供应商变化或查询时：仅刷新订单明细（返点概览与结算历史在「返点中心」栏目）
     function refreshReconcileAll() {
-      const month = $('rcMonth').value || curMonth();
-      loadRebateOverview(month);
-      loadSettlements(month);
       loadReconciliation();
     }
 
-    // 执行月度结算
+    // 执行月度结算（在「返点中心」栏目触发）
     async function doSettleMonth() {
-      const month = $('rcMonth').value || curMonth();
+      const month = $('rbMonth').value || curMonth();
       if (!confirm(`确认对 ${month} 执行月度返点结算？\n\n结算后将：\n1. 生成各供应商结算记录（实际返点）\n2. 回写当月已完成订单的实际返点\n3. 实际返点计入供应商应付余额\n\n该操作幂等，已结算的供应商会自动跳过。`)) return;
-      const btn = $('rcSettleBtn');
+      const btn = $('rbSettleBtn');
       btn.disabled = true; btn.textContent = '结算中...';
       const res = await api('/api/dev/rebate/settle', {
         method: 'POST',
@@ -968,7 +972,9 @@
       btn.disabled = false; btn.textContent = '📦 执行月度结算';
       if (!res.success) { alert('结算失败：' + (res.message || '未知错误')); return; }
       alert(res.message || '结算完成');
-      refreshReconcileAll();
+      // 刷新返点中心的概览与结算历史
+      loadRebateOverview(month);
+      loadSettlements(month);
     }
 
     // 供应商返点概览：采购总额/分品类明细/当前档位/预估返点/距下一档差额
@@ -1043,10 +1049,8 @@
     async function loadSettlements(month) {
       const tbody = $('settleTbody');
       tbody.innerHTML = '<tr><td colspan="6" class="no-data">加载中...</td></tr>';
-      const supplierFilter = $('rcSupplier').value || '';
       const qs = new URLSearchParams();
       if (month) qs.set('month', month);
-      if (supplierFilter) qs.set('supplierId', supplierFilter);
       const res = await api('/api/dev/rebate/settlements?' + qs.toString());
       if (!res.success || !Array.isArray(res.data)) {
         tbody.innerHTML = `<tr><td colspan="6" class="no-data">${esc(res.message || '加载失败')}</td></tr>`;
@@ -1133,12 +1137,28 @@
     // ============ 返点规则管理 ============
     let allSuppliers = [];
 
+    // 返点中心初始化：月份/结算控件 + 概览 + 结算历史 + 规则配置
+    let rbInited = false;
     async function initRebateTab() {
       // 拉取供应商列表供规则编辑器使用
       if (!allSuppliers.length) {
         const res = await api('/api/dev/suppliers');
         if (res.success && Array.isArray(res.data)) allSuppliers = res.data;
       }
+      // 默认本月
+      if (!$('rbMonth').value) $('rbMonth').value = curMonth();
+      if (!rbInited) {
+        rbInited = true;
+        $('rbSettleBtn').onclick = doSettleMonth;
+        $('rbMonth').onchange = () => {
+          const m = $('rbMonth').value || curMonth();
+          loadRebateOverview(m);
+          loadSettlements(m);
+        };
+      }
+      const m = $('rbMonth').value || curMonth();
+      loadRebateOverview(m);
+      loadSettlements(m);
       loadRebateRules();
     }
 

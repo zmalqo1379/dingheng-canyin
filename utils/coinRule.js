@@ -84,17 +84,28 @@ async function getRuleView() {
 
 /**
  * 逐行计算订单采购返币
+ * 发币口径：券不返币——按实付金额计算。若订单使用了抵用券，券抵扣额按各行金额占比
+ * 分摊到各行（ratio = actualPayAmount / totalAmount），每行实付金额 × 返币率 × 品类倍率，
+ * 汇总后向下取整。无券时 ratio=1，与原逻辑一致。
  * @param {Array} items 订单明细 [{ category, totalPrice, productId }]
  * @param {number} rate 会员返币率（币/元），0 表示不发币
  * @param {Map} [map] 品类倍率映射（不传则现查）
+ * @param {{totalAmount:number, actualPayAmount:number}} [opts] 券抵扣分摊用：订单原价与实付金额
  * @returns {Promise<{rewardCoin:number, baseCoin:number, boosted:boolean, lines:Array}>}
- *   rewardCoin 实发鼎恒币（含倍率）；baseCoin 不含倍率的基准币；boosted 是否存在 >1 倍品类
+ *   rewardCoin 实发鼎恒币（含倍率，按实付金额）；baseCoin 不含倍率的基准币；boosted 是否存在 >1 倍品类
  */
-async function calcOrderRewardCoin(items, rate, map) {
+async function calcOrderRewardCoin(items, rate, map, opts) {
   if (!rate || rate <= 0) {
     return { rewardCoin: 0, baseCoin: 0, boosted: false, lines: [] };
   }
   const multMap = map || (await getMultiplierMap());
+  // 券抵扣分摊比例：用券时 <1（券抵扣部分不发币），无券时 =1
+  const totalAmt = opts && Number(opts.totalAmount) > 0 ? Number(opts.totalAmount) : 0;
+  const actualAmt = opts && Number(opts.actualPayAmount) >= 0 ? Number(opts.actualPayAmount) : 0;
+  let payRatio = 1;
+  if (totalAmt > 0 && actualAmt > 0 && actualAmt < totalAmt) {
+    payRatio = actualAmt / totalAmt;
+  }
   const productCache = new Map();
   let weightedSum = 0;
   let baseSum = 0;
@@ -115,11 +126,13 @@ async function calcOrderRewardCoin(items, rate, map) {
     }
     const mult = multiplierFor(multMap, category);
     if (mult > 1) boosted = true;
-    const base = amount * rate;
+    // 实付金额 = 行原价 × 分摊比例（券抵扣部分不计入发币基数）
+    const effAmount = amount * payRatio;
+    const base = effAmount * rate;
     const weighted = base * mult;
     weightedSum += weighted;
     baseSum += base;
-    lines.push({ category: category || FALLBACK_CATEGORY, amount, multiplier: mult, coin: weighted });
+    lines.push({ category: category || FALLBACK_CATEGORY, amount: effAmount, multiplier: mult, coin: weighted });
   }
 
   return {

@@ -3,6 +3,8 @@ const router = express.Router();
 
 const Supplier = require('../models/Supplier');
 const PurchaseOrder = require('../models/PurchaseOrder');
+const RebateSettlement = require('../models/RebateSettlement');
+const rebate = require('../utils/rebate');
 const { requireSupplier } = require('../middlewares/auth');
 
 // 所有供应商接口均需供应商身份鉴权
@@ -120,5 +122,61 @@ router.put('/notification-settings', saveSettingsHandler);
 router.get('/settings', getSettingsHandler);
 router.put('/settings', saveSettingsHandler);
 router.patch('/settings', saveSettingsHandler);
+
+// ============ GET /api/supplier/settle 合作结算与月度对账 ============
+// 供应商自有返点中心：本月累计采购额（已完成订单）/ 分品类明细 / 当前档位与返点率
+// （读取平台配置的 RebateRule）/ 本月应付平台返点（按阶梯规则实时计算）/ 历史月度结算记录
+// 全部数字实时计算（RebateRule + 订单数据），不写死任何费率
+router.get('/settle', async (req, res) => {
+  try {
+    const supplierId = req.user.supplierId;
+    const month = (req.query.month && /^\d{4}-\d{2}$/.test(req.query.month))
+      ? req.query.month : rebate.monthKeyOf(new Date());
+
+    // 本月分品类返点（实时预估口径：按当月已完成订单分品类累计额定档）
+    const calc = await rebate.calcSupplierMonthRebate(supplierId, month);
+
+    // 当前所在档位 / 当前返点率：按「全部」通用规则 + 本月采购总额定档
+    const generalRule = await rebate.getEffectiveRule(supplierId, rebate.ALL_CATEGORY);
+    const tierInfo = rebate.calcRebate(generalRule, calc.totalPurchase);
+
+    // 历史月度结算记录
+    const history = await RebateSettlement.find({ supplierId })
+      .sort({ month: -1, settledAt: -1 })
+      .lean();
+
+    res.json({
+      success: true,
+      data: {
+        month,
+        supplierId,
+        totalPurchase: calc.totalPurchase,       // 本月累计订单金额（已完成订单）
+        totalRebate: calc.totalRebate,           // 本月合作服务费（按阶梯规则实时计算）
+        orderCount: calc.orderCount,
+        categories: calc.categories,             // 分品类采购金额明细（含档位/费率）
+        currentTier: {                           // 当前所在返点档位、当前返点率
+          hasRule: tierInfo.hasRule,
+          tierMinAmount: tierInfo.tierMinAmount,
+          tierRate: tierInfo.tierRate,
+          mode: tierInfo.mode,
+          rate: tierInfo.rate,                   // 综合费率（返点/采购额）
+          nextTierMinAmount: tierInfo.nextTierMinAmount,
+          gapToNext: tierInfo.gapToNext,
+          gainToNext: tierInfo.gainToNext,
+          tiers: tierInfo.tiers
+        },
+        history: history.map(h => ({
+          month: h.month,
+          totalPurchaseAmount: h.totalPurchaseAmount,
+          totalRebateAmount: h.totalRebateAmount,
+          settledAt: h.settledAt,
+          details: h.details
+        }))
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 module.exports = router;

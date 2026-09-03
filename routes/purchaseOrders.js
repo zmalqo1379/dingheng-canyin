@@ -334,10 +334,17 @@ async function confirmReceiveHandler(req, res) {
     if (!member) member = await Member.create({ shopId: order.shopId, shopName: order.shopName });
     const rate = dhConfig.coinRate[member.memberLevel] ?? 0;
 
-    // 发币：按订单明细逐行计算「商品金额 × 会员返币率 × 品类得币倍率」，逐行汇总后向下取整
+    // 发币：券不返币——严格按实付金额计算。若本单用了抵用券，券抵扣额按各行金额占比
+    // 分摊到各行（actualPayAmount/totalAmount），每行实付金额 × 会员返币率 × 品类得币倍率，
+    // 逐行汇总后向下取整。券抵扣部分绝不发币；前后端规则完全一致。
     // 基础版 2元=1币 => rate 0.5；进阶/尊享 1元=1币 => rate 1；倍率来自 CoinRule（未配置按 1 倍）
+    // 未用券时 actualPayAmount 取 totalAmount（兼容老订单缺 actualPayAmount 字段，避免误判为 0 实付）
+    const hasCoupon = Number(order.discountAmount) > 0 || !!order.appliedCouponId;
     const coinMultMap = await coinRule.getMultiplierMap();
-    const coinCalc = await coinRule.calcOrderRewardCoin(order.items, rate, coinMultMap);
+    const coinCalc = await coinRule.calcOrderRewardCoin(order.items, rate, coinMultMap, {
+      totalAmount: order.totalAmount,
+      actualPayAmount: hasCoupon ? order.actualPayAmount : order.totalAmount
+    });
     const rewardCoin = coinCalc.rewardCoin;
     const pointsGenerated = +(order.totalAmount).toFixed(2);
     const receiveAt = new Date();
@@ -452,7 +459,7 @@ router.post('/:id/confirm-receive', requireMerchant, confirmReceiveHandler);
 router.put('/:id/receive', requireMerchant, confirmReceiveHandler);
 
 // ============ POST /api/purchase-orders/:id/apply-coupon 下单时应用券 ============
-// 每笔订单限用一张券，不可叠加；用券后 actualPayAmount 减少，但收货仍按 totalAmount 发币
+// 每笔订单限用一张券，不可叠加；用券后 actualPayAmount 减少，收货发币按实付金额计算（券不返币）
 // 仅下单商家本人可对本单用券
 
 router.post('/:id/apply-coupon', requireMerchant, async (req, res) => {

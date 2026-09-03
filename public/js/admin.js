@@ -585,10 +585,26 @@ async function exchangeMembership(targetLevel) {
     }
     const after = coin - payCoin;
 
+    // 兑换场景判定：同等级续费 / 升级折算 / 新开通
+    const isRenewal = (curLevel === targetLevel && isActive);
+    const isUpgrade = (curLevel === 'advanced' && targetLevel === 'premium');
+
     // 填充明细字段
     $('exchCurLevel').textContent = LEVEL_NAME[curLevel] || '基础版';
-    $('exchDaysLeft').textContent = isActive ? (daysLeft + ' 天') : '未生效/已过期';
+    // 剩余天数：续费场景用对比式展示「当前剩余 X 天 → 兑换后 (X+30) 天（+30 天）」，+30 天橙色加粗
+    if (isRenewal) {
+      const afterDays = daysLeft + 30;
+      $('exchDaysLeft').innerHTML =
+        `当前剩余 ${daysLeft} 天 → 兑换后 ${afterDays} 天` +
+        `（<b style="color:#f97316;">+30 天</b>）`;
+    } else {
+      $('exchDaysLeft').textContent = isActive ? (daysLeft + ' 天') : '未生效/已过期';
+    }
     $('exchTargetLevel').textContent = LEVEL_NAME[targetLevel];
+    // 兑换方式：续费 / 升级折算 / 新开通
+    $('exchMethod').textContent = isRenewal
+      ? '续费（在现有有效期上延长 30 天）'
+      : (isUpgrade ? '升级（剩余价值折算抵扣差价）' : '新开通（有效期 30 天）');
     $('exchPrice').textContent = `${price} 币`;
     $('exchOffset').innerHTML = offset > 0
       ? `剩余 ${daysLeft} 天 × 100 币/天 = 抵扣 <b>${offset}</b> 币`
@@ -1075,27 +1091,7 @@ function renderCart() {
   }
   empty.style.display = 'none';
 
-  // 已选商品列表 + 每行预估鼎恒币（行金额 × 会员返币率 × 品类倍率，向下取整）
-  const coinRate = COIN_RATE[_mallMemberLevel] ?? 0.5;
-  let totalCoin = 0;
-  list.innerHTML = _mallCart.map(c => {
-    const lineAmt = c.quantity * c.unitPrice;
-    const mult = Number(c.coinMultiplier) > 0 ? Number(c.coinMultiplier) : 1;
-    const lineCoin = Math.floor(lineAmt * coinRate * mult);
-    totalCoin += lineCoin;
-    return `
-    <div class="cart-item">
-      <div class="cart-item-info">
-        <div class="cart-item-name">${esc(c.name)}</div>
-        <div class="cart-item-meta">${c.quantity} ${esc(c.unit)} × ¥${Number(c.unitPrice).toFixed(2)}</div>
-        <div class="cart-item-coin">🪙 预计可得 ${lineCoin} 鼎恒币</div>
-      </div>
-      <div class="cart-item-price">¥${lineAmt.toFixed(2)}</div>
-      <button class="cart-item-del" onclick="removeFromCart('${c.productId}')">×</button>
-    </div>
-    `;
-  }).join('');
-
+  // 小计
   const subtotal = _mallCart.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
   subtotalEl.textContent = subtotal.toFixed(2);
 
@@ -1152,7 +1148,7 @@ function renderCart() {
     couponSelect.onchange = null;
   }
 
-  // 折扣与应付
+  // 折扣与实付
   let discount = 0;
   if (couponSection.style.display !== 'none' && couponSelect.value) {
     const opt = couponSelect.querySelector(`option[value="${couponSelect.value}"]`);
@@ -1163,13 +1159,50 @@ function renderCart() {
   discountEl.textContent = discount.toFixed(2);
   totalEl.textContent = actual.toFixed(2);
 
-  // 本单预计共得鼎恒币（各行汇总；与后端发币口径一致，基于行小计金额，不受抵用券影响）
+  // 预估鼎恒币：按实付金额计算，券抵扣额按各行金额占比分摊到各行
+  // 与后端 confirm-receive 发币口径完全一致：每行实付金额 × 会员返币率 × 品类倍率，汇总后向下取整
+  // 券抵扣部分绝不发币；券选中变化时实时刷新（couponSelect.onchange = renderCart）
+  const coinRate = COIN_RATE[_mallMemberLevel] ?? 0.5;
+  const payRatio = subtotal > 0 ? (actual / subtotal) : 0; // 用券时 <1，无券时 =1
+  const lineWeighted = _mallCart.map(c => {
+    const lineAmt = c.quantity * c.unitPrice;
+    const mult = Number(c.coinMultiplier) > 0 ? Number(c.coinMultiplier) : 1;
+    return { lineAmt, mult, weighted: lineAmt * payRatio * coinRate * mult };
+  });
+  const totalCoin = Math.floor(lineWeighted.reduce((s, x) => s + x.weighted, 0));
+  // 各行展示币数：按最大余数法分摊，使各行预估币之和 = totalCoin（与实付总额计算的币数一致）
+  const lineCoins = lineWeighted.map(x => Math.floor(x.weighted));
+  let remainder = totalCoin - lineCoins.reduce((s, x) => s + x, 0);
+  if (remainder > 0) {
+    const fracs = lineWeighted
+      .map((x, i) => ({ i, frac: x.weighted - Math.floor(x.weighted) }))
+      .sort((a, b) => b.frac - a.frac);
+    for (let k = 0; k < remainder && k < fracs.length; k++) lineCoins[fracs[k].i]++;
+  }
+  list.innerHTML = _mallCart.map((c, i) => {
+    const lineAmt = c.quantity * c.unitPrice;
+    const lineCoin = lineCoins[i];
+    return `
+    <div class="cart-item">
+      <div class="cart-item-info">
+        <div class="cart-item-name">${esc(c.name)}</div>
+        <div class="cart-item-meta">${c.quantity} ${esc(c.unit)} × ¥${Number(c.unitPrice).toFixed(2)}</div>
+        <div class="cart-item-coin">🪙 预计可得 ${lineCoin} 鼎恒币</div>
+      </div>
+      <div class="cart-item-price">¥${lineAmt.toFixed(2)}</div>
+      <button class="cart-item-del" onclick="removeFromCart('${c.productId}')">×</button>
+    </div>
+    `;
+  }).join('');
+
+  // 本单预计共得鼎恒币（按实付金额计算，与后端发币口径一致）
   if (coinTotalEl) {
     coinTotalEl.style.display = totalCoin > 0 ? 'flex' : 'none';
     coinTotalEl.innerHTML = `本单预计共得 <b>${totalCoin}</b> 鼎恒币`;
   }
   if (coinHintEl) {
     coinHintEl.style.display = totalCoin > 0 ? 'block' : 'none';
+    coinHintEl.textContent = '按实付金额计算，确认收货后自动到账';
   }
 
   // 提交按钮状态：未满起送价则禁用并提示差额
