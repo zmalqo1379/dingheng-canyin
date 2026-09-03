@@ -550,6 +550,153 @@
     .ms-cost { font-size: 22px; font-weight: 800; color: var(--accent); margin-bottom: 14px; }
     .membership-card.premium .ms-cost { color: #b45309; }
 
+    /* ============ 会员中心 ============ */
+    .trial-banner {
+      display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff; border-radius: 14px; padding: 14px 20px; margin-bottom: 16px;
+      box-shadow: 0 6px 18px rgba(255,107,53,.25);
+    }
+    .trial-text { font-size: 14px; line-height: 1.7; }
+    .trial-text b { font-size: 20px; padding: 0 3px; }
+    .trial-btn {
+      background: #fff; color: var(--accent); border: none; border-radius: 20px;
+      padding: 9px 18px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;
+      transition: transform .12s;
+    }
+    .trial-btn:hover { transform: translateY(-1px); }
+
+    .member-status-card {
+      display: flex; align-items: center; gap: 26px; flex-wrap: wrap;
+      background: linear-gradient(135deg, #fff8f3, #fff);
+      border: 1px solid #ffe0d0; border-radius: 16px; padding: 22px 26px;
+    }
+    .msc-label { font-size: 12px; color: #9ca3af; margin-bottom: 6px; }
+    .msc-level {
+      font-size: 26px; font-weight: 800; line-height: 1.2;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .msc-value { font-size: 18px; font-weight: 700; color: #1f2937; }
+    .msc-divider { width: 1px; height: 42px; background: #ffe0d0; }
+
+    /* 鼎恒币兑换专区 */
+    .exchange-zone {
+      margin-top: 18px;
+      background: linear-gradient(135deg, #fff3ea, #ffe9db);
+      border: 2px solid var(--accent);
+      border-radius: 18px; padding: 22px 22px 24px;
+      box-shadow: 0 8px 24px rgba(255,107,53,.15);
+    }
+    .ez-head {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 10px; margin-bottom: 20px;
+    }
+    .ez-title { font-size: 20px; font-weight: 800; color: var(--accent); }
+    .ez-sub { font-size: 12px; font-weight: 500; color: #b45309; margin-left: 10px; }
+    .ez-balance {
+      font-size: 13px; color: #7c2d12; background: #fff;
+      border: 1px solid #ffd9c2; padding: 6px 14px; border-radius: 20px;
+    }
+    .ez-balance b { color: var(--accent); font-size: 16px; }
+    .ez-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .ez-card {
+      position: relative; background: #fff; border-radius: 14px;
+      padding: 26px 20px 20px; text-align: center;
+      border: 2px solid #ffd9c2;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .ez-card:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(255,107,53,.18); }
+    .ez-card.premium { border-color: #fcd34d; background: linear-gradient(180deg, #fffbeb, #fff); }
+    .ez-badge {
+      position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff; font-size: 12px; font-weight: 700; white-space: nowrap;
+      padding: 4px 14px; border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(255,107,53,.35);
+    }
+    .ez-badge.gold {
+      background: linear-gradient(135deg, #f59e0b, #fbbf24);
+      box-shadow: 0 4px 10px rgba(245,158,11,.35);
+    }
+    .ez-name { font-size: 16px; font-weight: 700; color: #7c2d12; margin-top: 2px; }
+    .ez-price { margin-top: 8px; }
+    .ez-price del { font-size: 20px; color: #9ca3af; font-weight: 600; }
+    .ez-coin { font-size: 12px; color: #6b7280; margin-top: 10px; }
+    .ez-coin-num { font-size: 44px; font-weight: 800; color: var(--accent); line-height: 1.25; }
+    .ez-coin-num small { font-size: 18px; font-weight: 600; }
+    .ez-card.premium .ez-coin-num { color: #d97706; }
+    .ez-tip {
+      font-size: 12px; color: #92400e; background: #fff7ed;
+      border: 1px dashed #fdba74; border-radius: 8px;
+      padding: 8px 10px; margin: 12px 0 14px;
+      line-height: 1.7; text-align: left;
+    }
+    .ez-btn {
+      width: 100%; border: none; cursor: pointer;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff; font-size: 16px; font-weight: 800; padding: 12px;
+      border-radius: 10px; box-shadow: 0 6px 14px rgba(255,107,53,.3);
+      transition: transform .12s, box-shadow .12s;
+    }
+    .ez-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(255,107,53,.4); }
+    .ez-btn:disabled { background: #d1d5db; box-shadow: none; cursor: not-allowed; transform: none; }
+    .ez-btn.gold { background: linear-gradient(135deg, #f59e0b, #fbbf24); box-shadow: 0 6px 14px rgba(245,158,11,.3); }
+    .ez-btn.gold:disabled { background: #d1d5db; box-shadow: none; }
+
+    /* 权益对比表 */
+    .plan-table .col-hot { background: #fff7ed; }
+    .plan-table .col-gold { background: #fffbeb; }
+    .plan-badge {
+      display: inline-block; font-size: 11px; font-weight: 700; color: #fff;
+      padding: 2px 10px; border-radius: 10px; margin-bottom: 4px;
+    }
+    .plan-badge.hot { background: linear-gradient(135deg, var(--accent), var(--accent-2)); }
+    .plan-badge.gold { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+    .plan-btn {
+      border: none; cursor: pointer; border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff; font-weight: 700; font-size: 13px; padding: 8px 22px;
+      transition: opacity .12s;
+    }
+    .plan-btn.gold { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+    .plan-btn:hover { opacity: .88; }
+
+    .member-footer-link { text-align: center; margin-top: 18px; }
+    .member-footer-link a { color: var(--accent); font-size: 14px; font-weight: 600; text-decoration: none; }
+    .member-footer-link a:hover { text-decoration: underline; }
+
+    /* 支付提示弹窗 */
+    .pay-modal-mask {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(17,24,39,.55); align-items: center; justify-content: center;
+    }
+    .pay-modal-mask.show { display: flex; }
+    .pay-modal {
+      background: #fff; border-radius: 16px; padding: 30px 34px;
+      text-align: center; max-width: 340px; width: calc(100% - 40px);
+      box-shadow: 0 20px 50px rgba(0,0,0,.25);
+    }
+    .pay-modal .pm-icon { font-size: 42px; }
+    .pay-modal h3 { font-size: 18px; margin: 10px 0 8px; color: #1f2937; }
+    .pay-modal p { font-size: 14px; color: #6b7280; line-height: 1.7; }
+    .pay-modal .pm-phone {
+      display: inline-block; margin: 14px 0 18px;
+      font-size: 22px; font-weight: 800; color: var(--accent);
+      background: #fff3ea; border: 1px dashed var(--accent);
+      padding: 8px 22px; border-radius: 10px; letter-spacing: 1px;
+    }
+    .pay-modal .pm-close {
+      width: 100%; border: none; border-radius: 10px; padding: 11px; cursor: pointer;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff; font-size: 15px; font-weight: 700;
+    }
+    @media (max-width: 768px) {
+      .ez-cards { grid-template-columns: 1fr; }
+      .msc-divider { display: none; }
+      .member-status-card { gap: 18px; }
+    }
+
     /* ============ 采购商城 ============ */
     /* —— 店铺列表层 —— */
     .mall-subtitle { font-size: 14px; color: #6b7280; margin-bottom: 16px; }
@@ -822,6 +969,7 @@
         <div class="nav-item" data-tab="stats"><span class="icon">📊</span> 数据统计</div>
         <div class="nav-item" data-tab="settings"><span class="icon">⚙️</span> 店铺设置</div>
         <div class="nav-divider"></div>
+        <div class="nav-item" data-tab="member"><span class="icon">👑</span> 会员中心</div>
         <div class="nav-item" data-tab="coin"><span class="icon">🪙</span> 鼎恒币中心</div>
         <div class="nav-item" data-tab="mall"><span class="icon">🛒</span> 采购商城</div>
         <div class="nav-item" data-tab="purchase"><span class="icon">📑</span> 采购订单</div>
@@ -982,6 +1130,103 @@
               <button class="btn-add" id="saveSettingsBtn">保存设置</button>
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- 5.5 会员中心 -->
+      <section class="pane" id="pane-member">
+        <div class="pane-title"><span>👑 会员中心</span></div>
+
+        <!-- 体验期倒计时条（仅赠送体验期显示，由 js 控制） -->
+        <div class="trial-banner" id="trialBanner" style="display:none;">
+          <div class="trial-text">
+            🎁 首月进阶版免费体验中，还剩 <b id="trialDaysLeft">0</b> 天，到期后将降为基础版
+            —— 提前用鼎恒币锁定会员，权益不中断
+          </div>
+          <button class="trial-btn" onclick="scrollToExchange()">用鼎恒币锁定会员 →</button>
+        </div>
+
+        <!-- 顶部：当前会员状态卡片 -->
+        <div class="member-status-card">
+          <div class="msc-left">
+            <div class="msc-label">当前会员等级</div>
+            <div class="msc-level" id="msLevel">基础版</div>
+          </div>
+          <div class="msc-divider"></div>
+          <div class="msc-item">
+            <div class="msc-label">到期时间</div>
+            <div class="msc-value" id="msExpire">—</div>
+          </div>
+          <div class="msc-divider"></div>
+          <div class="msc-item">
+            <div class="msc-label">剩余天数</div>
+            <div class="msc-value" id="msDaysLeft">—</div>
+          </div>
+        </div>
+
+        <!-- 鼎恒币兑换专区（页面视觉重点） -->
+        <div class="exchange-zone" id="exchangeZone">
+          <div class="ez-head">
+            <div class="ez-title">🪙 鼎恒币兑换专区<span class="ez-sub">正常进货攒币，会员白送</span></div>
+            <div class="ez-balance">当前余额 <b id="ezCoinBalance">0</b> DH</div>
+          </div>
+          <div class="ez-cards">
+            <div class="ez-card">
+              <div class="ez-badge">🔥热门推荐</div>
+              <div class="ez-name">进阶版月卡</div>
+              <div class="ez-price"><del>原价 ¥99/月</del></div>
+              <div class="ez-coin">鼎恒币兑换仅需</div>
+              <div class="ez-coin-num">3000<small> 币</small></div>
+              <div class="ez-tip">💡 本月采购满3000元即可免费攒够（会员1元=1币），相当于：正常进货，会员白送！</div>
+              <button class="ez-btn" id="ezBtnAdvanced" onclick="exchangeMembership('advanced')">立即兑换进阶版</button>
+            </div>
+            <div class="ez-card premium">
+              <div class="ez-badge gold">👑超值尊享</div>
+              <div class="ez-name">尊享版月卡</div>
+              <div class="ez-price"><del>原价 ¥199/月</del></div>
+              <div class="ez-coin">鼎恒币兑换仅需</div>
+              <div class="ez-coin-num">5000<small> 币</small></div>
+              <div class="ez-tip">💡 本月采购满5000元即可免费攒够（会员1元=1币），相当于：正常进货，会员白送！</div>
+              <button class="ez-btn gold" id="ezBtnPremium" onclick="exchangeMembership('premium')">立即兑换尊享版</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 三档会员权益对比表 -->
+        <div class="card" style="margin-top:18px;">
+          <div class="card-head"><h3>📊 会员权益对比</h3></div>
+          <div class="table-wrap">
+            <table class="data plan-table">
+              <thead>
+                <tr>
+                  <th>对比项</th>
+                  <th>基础版</th>
+                  <th class="col-hot"><span class="plan-badge hot">🔥热门推荐</span><br>进阶版</th>
+                  <th class="col-gold"><span class="plan-badge gold">👑超值尊享</span><br>尊享版</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>月卡价格</td><td>¥0 永久</td><td class="col-hot"><b>¥99/月</b></td><td class="col-gold"><b>¥199/月</b></td></tr>
+                <tr><td>返币比例</td><td>2元=1币</td><td class="col-hot"><b>1元=1币</b></td><td class="col-gold"><b>1元=1币</b></td></tr>
+                <tr><td>可兑券面额</td><td>10-30元</td><td class="col-hot">50-100元</td><td class="col-gold">200元</td></tr>
+                <tr><td>顾客积分</td><td>—</td><td class="col-hot">✓</td><td class="col-gold">✓</td></tr>
+                <tr><td>经营报表</td><td>—</td><td class="col-hot">✓</td><td class="col-gold">✓</td></tr>
+                <tr><td>顾客画像</td><td>—</td><td class="col-hot">—</td><td class="col-gold">✓</td></tr>
+                <tr><td>高级营销工具</td><td>—</td><td class="col-hot">—</td><td class="col-gold">✓</td></tr>
+                <tr>
+                  <td>开通方式</td>
+                  <td>注册即享</td>
+                  <td class="col-hot"><button class="plan-btn" onclick="openPayTip()">立即开通</button></td>
+                  <td class="col-gold"><button class="plan-btn gold" onclick="openPayTip()">立即开通</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 底部：会员兑换记录 -->
+        <div class="member-footer-link">
+          <a href="javascript:void(0)" onclick="goCoinHistory()">📄 会员兑换记录</a>
         </div>
       </section>
 
@@ -1244,6 +1489,17 @@
       <button class="btn btn-gray" id="dishCancelBtn">取消</button>
       <button class="btn btn-orange" id="dishSaveBtn">保存</button>
     </div>
+  </div>
+</div>
+
+<!-- 现金支付未接入提示弹窗 -->
+<div class="pay-modal-mask" id="payTipModal" onclick="if(event.target===this)closePayTip()">
+  <div class="pay-modal">
+    <div class="pm-icon">💳</div>
+    <h3>线上支付即将上线</h3>
+    <p>现金开通功能暂未接入，可联系客服开通会员</p>
+    <div class="pm-phone" id="payTipPhone">400-888-6666</div>
+    <button class="pm-close" onclick="closePayTip()">我知道了</button>
   </div>
 </div>
 

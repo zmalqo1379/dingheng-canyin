@@ -110,6 +110,7 @@ router.post('/coin/exchange-membership', async (req, res) => {
       base.setDate(base.getDate() + 30);
       member.memberExpire = base;
       member.memberLevel = targetLevel;
+      member.memberIsTrial = false; // 鼎恒币兑换开通后不再是赠送体验期
       if (targetLevel === 'advanced' || targetLevel === 'premium') {
         member.customerPointsEnabled = true;
       }
@@ -271,6 +272,10 @@ router.get('/coin/status/:shopId', async (req, res) => {
         dinghengCoin: member.dinghengCoin,
         memberLevel: member.memberLevel,
         memberExpire: member.memberExpire,
+        // 赠送体验期标记；老数据无该字段时按"进阶版且剩余不足31天"兜底识别
+        memberIsTrial: member.memberIsTrial === true ||
+          (member.memberIsTrial == null && member.memberLevel === 'advanced' &&
+            member.memberExpire && (member.memberExpire - now) <= 31 * DAY_MS),
         totalEarnedCoin: member.totalEarnedCoin,
         customerPointsEnabled: member.customerPointsEnabled,
         coupons,

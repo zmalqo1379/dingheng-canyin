@@ -40,6 +40,11 @@ const memberSchema = new mongoose.Schema({
   customerPointsEnabled: {
     type: Boolean,
     default: false
+  },
+  // 是否为注册赠送的进阶版体验期（前端据此显示倒计时提示条）
+  memberIsTrial: {
+    type: Boolean,
+    default: false
   }
 }, { timestamps: true });
 
@@ -51,6 +56,7 @@ memberSchema.pre('save', function (next) {
     expire.setDate(expire.getDate() + 30);
     this.memberExpire = expire;
     this.customerPointsEnabled = true;
+    this.memberIsTrial = true;
   }
   next();
 });

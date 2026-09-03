@@ -85,6 +85,7 @@ function switchTab(tab) {
     if (tab === 'orders') loadOrders();
     if (tab === 'stats') loadStats();
     if (tab === 'settings') loadSettings();
+    if (tab === 'member') loadMemberCenter();
     if (tab === 'coin') loadCoinCenter();
     if (tab === 'mall') loadMall();
     if (tab === 'purchase') loadPurchaseOrders();
@@ -515,12 +516,81 @@ async function exchangeMembership(targetLevel) {
   if (res.success) {
     toast('兑换成功！');
     loadCoinCenter();
+    loadMemberCenter(); // 若停留在会员中心页，同步刷新余额与等级
   } else {
     toast(res.message || '兑换失败', true);
   }
 }
 window.exchangeMembership = exchangeMembership;
 window.exchangeCoupon = exchangeCoupon;
+
+/* ===================== 会员中心 ===================== */
+// 会员销售页：状态卡片 + 鼎恒币兑换专区 + 三档权益对比
+// 月卡价格/币成本与 utils/dhConfig.js 的 membership 配置保持一致
+const PLAN_CFG = {
+  advanced: { price: 99, coinCost: 3000 },
+  premium: { price: 199, coinCost: 5000 }
+};
+
+async function loadMemberCenter() {
+  try {
+    const res = await api(`/api/coin/status/${SHOP_ID}`);
+    const d = res.data || {};
+    const level = d.memberLevel || 'basic';
+    const expire = d.memberExpire ? new Date(d.memberExpire) : null;
+    const daysLeft = expire ? Math.max(0, Math.ceil((expire - new Date()) / 86400000)) : null;
+
+    // 顶部状态卡片：等级 / 到期时间 / 剩余天数
+    $('msLevel').textContent = LEVEL_NAME[level] || '基础版';
+    $('msExpire').textContent = expire ? fmtTime(d.memberExpire).slice(0, 10) : '永久有效';
+    $('msDaysLeft').textContent = expire ? daysLeft + ' 天' : '长期有效';
+
+    // 体验期倒计时条（仅注册赠送的进阶版体验期显示）
+    const isTrial = d.memberIsTrial === true && level === 'advanced' && expire;
+    $('trialBanner').style.display = isTrial ? 'flex' : 'none';
+    if (isTrial) $('trialDaysLeft').textContent = daysLeft;
+
+    // 兑换专区：余额 + 按钮状态（不足时禁用并提示差额）
+    const coin = d.dinghengCoin ?? 0;
+    $('ezCoinBalance').textContent = coin;
+    for (const key of ['advanced', 'premium']) {
+      const btn = $('ezBtn' + (key === 'advanced' ? 'Advanced' : 'Premium'));
+      const cost = PLAN_CFG[key].coinCost;
+      if (coin < cost) {
+        btn.disabled = true;
+        btn.textContent = `鼎恒币不足（还差 ${cost - coin} 币）`;
+      } else {
+        btn.disabled = false;
+        btn.textContent = key === 'advanced' ? '立即兑换进阶版' : '立即兑换尊享版';
+      }
+    }
+  } catch (e) {
+    console.error(e);
+    toast('加载会员数据失败', true);
+  }
+}
+
+// 现金支付暂未接入：弹窗提示联系客服
+function openPayTip() {
+  $('payTipModal').classList.add('show');
+}
+function closePayTip() {
+  $('payTipModal').classList.remove('show');
+}
+window.openPayTip = openPayTip;
+window.closePayTip = closePayTip;
+
+// 底部"会员兑换记录"→ 跳到鼎恒币中心流水
+function goCoinHistory() {
+  switchTab('coin');
+}
+window.goCoinHistory = goCoinHistory;
+
+// 体验期横幅按钮 → 滚动到兑换专区
+function scrollToExchange() {
+  $('exchangeZone').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+window.scrollToExchange = scrollToExchange;
 
 /* ===================== 采购商城 ===================== */
 // 两段式架构：供应商店铺列表 → 进入店铺 → 店内选购 → 结算
