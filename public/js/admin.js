@@ -419,7 +419,7 @@ function bindSettingsToggles() {
 }
 
 async function loadSettings() {
-  const res = await api('/api/settings');
+  const [res] = await Promise.all([api('/api/settings'), fetchMemberLevel()]);
   const s = res.data;
   if (!s) return;
   $('setShopName').value = s.shopName || '';
@@ -432,6 +432,11 @@ async function loadSettings() {
   $('setNotifyPhone').value = s.notifyPhone || '';
   $('printerFields').classList.toggle('show', !!s.enablePrinter);
   $('wechatFields').classList.toggle('show', !!s.enableWechat);
+  // 店铺装修
+  renderThemeGrid(s.theme || 'classic');
+  renderDecoLock();
+  setDecoPreview($('bannerPreview'), s.bannerImage, '未设置 · 使用主题默认');
+  setDecoPreview($('logoPreview'), s.logoImage, '未设置 · 使用主题默认');
 }
 
 $('saveSettingsBtn').onclick = async () => {
@@ -456,6 +461,152 @@ $('saveSettingsBtn').onclick = async () => {
 };
 
 bindSettingsToggles();
+
+/* ===================== 店铺装修 ===================== */
+// 主题包定义（与 models/Setting.js theme 枚举一致）；minLevel 用于会员等级锁定
+const SHOP_THEMES = [
+  { id: 'classic', name: '经典橙', desc: '暖橙渐变 · 默认风格', banner: 'linear-gradient(135deg,#ff9a44,#f55100)', bannerText: '#fff', minLevel: 'basic' },
+  { id: 'minimal', name: '简约白', desc: '黑白灰 · 极简细线条', banner: 'linear-gradient(135deg,#ffffff,#f0f0f0)', bannerText: '#1a1a1a', minLevel: 'basic' },
+  { id: 'dark',    name: '时尚暗黑', desc: '深色金点缀 · 烧烤/酒吧', banner: 'linear-gradient(135deg,#33302a,#121110)', bannerText: '#f0e3c0', minLevel: 'advanced' },
+  { id: 'green',   name: '清新绿', desc: '圆润轻快 · 轻食/茶饮', banner: 'linear-gradient(135deg,#63d68f,#1d9a55)', bannerText: '#fff', minLevel: 'advanced' },
+  { id: 'redgold', name: '国潮红金', desc: '红金大气 · 老字号/酒楼', banner: 'linear-gradient(135deg,#b23a2f,#7c1e1a)', bannerText: '#fff6e8', minLevel: 'advanced' }
+];
+let _memberLevel = 'basic'; // 当前商家会员等级
+
+// 拉取会员等级（与鼎恒币中心同一接口）
+async function fetchMemberLevel() {
+  try {
+    const res = await api(`/api/coin/status/${SHOP_ID}`);
+    _memberLevel = (res.data && res.data.memberLevel) || 'basic';
+  } catch (e) {
+    _memberLevel = 'basic';
+  }
+  return _memberLevel;
+}
+
+function renderThemeGrid(currentTheme) {
+  const rank = LEVEL_RANK[_memberLevel] ?? 0;
+  const grid = $('themeGrid');
+  if (!grid) return;
+  grid.innerHTML = SHOP_THEMES.map(t => {
+    const locked = LEVEL_RANK[t.minLevel] > rank;
+    const active = t.id === currentTheme;
+    return `<div class="theme-card ${active ? 'active' : ''}" data-theme="${t.id}" data-locked="${locked ? 1 : 0}">
+      <div class="tc-banner" style="background:${t.banner};color:${t.bannerText};"><span class="tc-logo">🍽</span>${esc(t.name)}</div>
+      <div class="tc-body"><div class="tc-name">${esc(t.name)}</div><div class="tc-desc">${esc(t.desc)}</div></div>
+      ${active ? '<span class="tc-check">✓</span>' : (locked ? '<span class="tc-lock">🔒</span>' : '')}
+    </div>`;
+  }).join('');
+  grid.querySelectorAll('.theme-card').forEach(card => {
+    card.onclick = () => handleThemeClick(card.dataset.theme, card.dataset.locked === '1');
+  });
+}
+
+async function handleThemeClick(themeId, locked) {
+  if (locked) {
+    toast('升级会员解锁全部店铺风格 →', true);
+    switchTab('member');
+    return;
+  }
+  const res = await api('/api/settings', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ theme: themeId })
+  });
+  if (res.success) {
+    toast('主题已应用，顾客端实时生效');
+    renderThemeGrid(themeId);
+  } else if (res.needUpgrade) {
+    toast(res.message || '升级会员解锁全部店铺风格 →', true);
+    switchTab('member');
+  } else {
+    toast(res.message || '设置失败', true);
+  }
+}
+
+// 装修图片预览
+function setDecoPreview(el, url, emptyText) {
+  if (!el) return;
+  el.innerHTML = url ? `<img src="${esc(url)}" alt="">` : `<span>${esc(emptyText || '未设置')}</span>`;
+}
+
+// 根据会员等级锁定/解锁自定义图片区（尊享版专属）
+function renderDecoLock() {
+  const isPremium = _memberLevel === 'premium';
+  ['decoBanner', 'decoLogo'].forEach(id => {
+    const box = $(id);
+    if (box) box.classList.toggle('locked', !isPremium);
+  });
+  ['bannerLock', 'logoLock'].forEach(id => {
+    const el = $(id);
+    if (el) el.style.display = isPremium ? 'none' : 'inline-block';
+  });
+}
+
+// 通用图片上传（尊享版专属校验在前）：kind = banner / logo
+async function uploadDecoImage(file, kind) {
+  if (_memberLevel !== 'premium') {
+    toast('尊享版专属：自定义横幅图与店铺 LOGO', true);
+    switchTab('member');
+    return;
+  }
+  try {
+    toast('图片处理中...');
+    const dataUrl = await compressImage(file);
+    const blob = await (await fetch(dataUrl)).blob();
+    const fd = new FormData();
+    fd.append('file', blob, `deco_${kind}_${Date.now()}.jpg`);
+    const up = await api('/api/admin/upload', { method: 'POST', body: fd });
+    if (!up.success || !up.data || !up.data.url) {
+      toast(up.message || '上传失败', true);
+      return;
+    }
+    const field = kind === 'banner' ? 'bannerImage' : 'logoImage';
+    const res = await api('/api/settings', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: up.data.url })
+    });
+    if (res.success) {
+      toast('已更新，顾客端实时生效');
+      setDecoPreview($(kind === 'banner' ? 'bannerPreview' : 'logoPreview'), up.data.url);
+    } else if (res.needUpgrade) {
+      toast(res.message || '尊享版专属', true);
+      switchTab('member');
+    } else {
+      toast(res.message || '保存失败', true);
+    }
+  } catch (e) {
+    toast(e.message || '上传失败', true);
+  }
+}
+
+// 恢复默认（置空字段，不限会员等级）
+async function clearDecoImage(field, previewId) {
+  const res = await api('/api/settings', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ [field]: '' })
+  });
+  if (res.success) {
+    toast('已恢复主题默认');
+    setDecoPreview($(previewId), '', '未设置 · 使用主题默认');
+  } else {
+    toast(res.message || '操作失败', true);
+  }
+}
+
+$('uploadBannerBtn').onclick = () => $('bannerFile').click();
+$('uploadLogoBtn').onclick = () => $('logoFile').click();
+$('bannerFile').onchange = (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (f) uploadDecoImage(f, 'banner');
+  e.target.value = '';
+};
+$('logoFile').onchange = (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (f) uploadDecoImage(f, 'logo');
+  e.target.value = '';
+};
+$('clearBannerBtn').onclick = () => clearDecoImage('bannerImage', 'bannerPreview');
+$('clearLogoBtn').onclick = () => clearDecoImage('logoImage', 'logoPreview');
 
 /* ===================== 鼎恒币中心 ===================== */
 const LEVEL_NAME = { basic: '基础版', advanced: '进阶版', premium: '尊享版' };

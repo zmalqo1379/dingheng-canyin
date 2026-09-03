@@ -443,6 +443,72 @@
       margin-top: 24px; display: flex; justify-content: flex-end;
     }
 
+    /* ============ 店铺装修 ============ */
+    .deco-label {
+      font-size: 13px; font-weight: 600; color: #374151;
+      margin-bottom: 12px;
+    }
+    .deco-label small { font-weight: 400; color: #9ca3af; margin-left: 8px; }
+    .theme-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 12px;
+    }
+    .theme-card {
+      position: relative;
+      border: 2px solid var(--line); border-radius: 12px;
+      overflow: hidden; cursor: pointer; background: #fff;
+      transition: transform .12s, border-color .15s, box-shadow .15s;
+    }
+    .theme-card:hover { transform: translateY(-2px); }
+    .theme-card.active { border-color: var(--accent); box-shadow: 0 6px 16px rgba(255,107,53,.18); }
+    .theme-card .tc-banner {
+      height: 54px; display: flex; align-items: center; gap: 7px;
+      padding: 0 12px; font-size: 12px; font-weight: 700;
+    }
+    .theme-card .tc-banner .tc-logo {
+      width: 18px; height: 18px; border-radius: 6px;
+      background: rgba(127,127,127,.25);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 10px; flex-shrink: 0;
+    }
+    .theme-card .tc-body { padding: 10px 12px 12px; }
+    .theme-card .tc-name { font-size: 13px; font-weight: 600; color: #1f2937; }
+    .theme-card .tc-desc { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+    .theme-card .tc-check {
+      position: absolute; top: 8px; right: 8px;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--accent); color: #fff; font-size: 12px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .theme-card .tc-lock {
+      position: absolute; top: 8px; right: 8px;
+      background: rgba(17,24,39,.72); color: #fde68a;
+      font-size: 11px; padding: 2px 8px; border-radius: 999px;
+    }
+    .deco-uploads {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 14px;
+    }
+    .deco-upload {
+      border: 1px solid var(--line); border-radius: 12px;
+      padding: 14px 16px;
+    }
+    .deco-upload.locked { background: #fafafa; }
+    .deco-upload .du-t { font-size: 14px; font-weight: 600; color: #1f2937; }
+    .deco-upload .du-d { font-size: 12px; color: #9ca3af; margin: 4px 0 10px; }
+    .deco-upload .du-lock { font-size: 11px; color: #b45309; background: #fef3c7; border-radius: 999px; padding: 2px 8px; margin-left: 6px; }
+    .deco-preview {
+      height: 64px; border-radius: 8px;
+      background: #f3f4f6 center/cover no-repeat;
+      display: flex; align-items: center; justify-content: center;
+      color: #9ca3af; font-size: 12px;
+      margin-bottom: 10px; overflow: hidden;
+    }
+    .deco-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .deco-btns { display: flex; gap: 8px; }
+
     /* 遮罩（移动端侧边栏打开时） */
     .scrim {
       display: none;
@@ -1397,6 +1463,39 @@
 
             <div class="settings-save-bar">
               <button class="btn-add" id="saveSettingsBtn">保存设置</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 店铺装修 -->
+        <div class="card" style="margin-top:20px;">
+          <div class="card-head"><h3>店铺装修</h3></div>
+          <div class="settings-card">
+            <div class="deco-label">点餐页主题<small>点击卡片即刻应用，顾客端实时生效</small></div>
+            <div class="theme-grid" id="themeGrid"></div>
+
+            <div class="deco-label" style="margin-top:24px;">自定义图片<small>头部横幅背景图与店铺 LOGO 为尊享版专属</small></div>
+            <div class="deco-uploads">
+              <div class="deco-upload" id="decoBanner">
+                <div class="du-t">🖼️ 头部横幅背景图<span class="du-lock" id="bannerLock" style="display:none;">🔒 尊享版专属</span></div>
+                <div class="du-d">点餐页顶部横幅背景，建议横图 750×360，jpg/png 2MB 内</div>
+                <div class="deco-preview" id="bannerPreview"><span>未设置 · 使用主题默认</span></div>
+                <div class="deco-btns">
+                  <button class="btn-add" id="uploadBannerBtn">上传图片</button>
+                  <button class="btn-gray" id="clearBannerBtn" style="padding:9px 18px;border-radius:9px;border:none;font-size:13px;font-weight:600;cursor:pointer;">恢复默认</button>
+                </div>
+                <input type="file" id="bannerFile" accept="image/jpeg,image/png" hidden>
+              </div>
+              <div class="deco-upload" id="decoLogo">
+                <div class="du-t">🏪 店铺 LOGO<span class="du-lock" id="logoLock" style="display:none;">🔒 尊享版专属</span></div>
+                <div class="du-d">显示在点餐页店名左侧，建议方形图 200×200，jpg/png 2MB 内</div>
+                <div class="deco-preview" id="logoPreview"><span>未设置 · 使用主题默认</span></div>
+                <div class="deco-btns">
+                  <button class="btn-add" id="uploadLogoBtn">上传图片</button>
+                  <button class="btn-gray" id="clearLogoBtn" style="padding:9px 18px;border-radius:9px;border:none;font-size:13px;font-weight:600;cursor:pointer;">恢复默认</button>
+                </div>
+                <input type="file" id="logoFile" accept="image/jpeg,image/png" hidden>
+              </div>
             </div>
           </div>
         </div>

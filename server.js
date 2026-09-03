@@ -451,6 +451,17 @@ app.get('/api/admin/merchant-stats', requireMerchant, async (req, res) => {
 
 // --- 商家后台修改设置（按 JWT shopId 匹配，绝不窜改他人店铺）---
 
+// 店铺装修权限：主题按会员等级锁定，自定义图片为尊享版专属
+const PREMIUM_THEMES = ['dark', 'green', 'redgold']; // 进阶版及以上可用
+const IMAGE_NEED_LEVEL = 'premium';                  // 自定义横幅图/LOGO 需尊享版
+
+// 读取当前商家会员等级（Member 不存在时自动创建，注册赠送进阶版体验期）
+async function getMemberLevel(shopId) {
+  let member = await Member.findOne({ shopId });
+  if (!member) member = await Member.create({ shopId });
+  return member.memberLevel;
+}
+
 app.put('/api/settings', requireMerchant, async (req, res) => {
   try {
     const shopId = req.shopId;
@@ -461,6 +472,38 @@ app.put('/api/settings', requireMerchant, async (req, res) => {
     ['enableVoice', 'enableBigscreen', 'enablePrinter', 'enableWechat'].forEach((k) => {
       if (update[k] !== undefined) update[k] = toBool(update[k]);
     });
+
+    // ---- 店铺装修：主题等级校验 ----
+    if (update.theme !== undefined) {
+      // 非法主题直接剔除（模型 enum 也会兜底）
+      if (!['classic', 'minimal', ...PREMIUM_THEMES].includes(update.theme)) {
+        delete update.theme;
+      } else if (PREMIUM_THEMES.includes(update.theme)) {
+        const level = await getMemberLevel(shopId);
+        if (!['advanced', 'premium'].includes(level)) {
+          return res.status(403).json({
+            success: false,
+            message: '升级会员解锁全部店铺风格 →',
+            needUpgrade: true
+          });
+        }
+      }
+    }
+
+    // ---- 店铺装修：自定义图片仅尊享版（置空/恢复默认不限等级）----
+    const wantsImage = (update.bannerImage && update.bannerImage !== '') ||
+                       (update.logoImage && update.logoImage !== '');
+    if (wantsImage) {
+      const level = await getMemberLevel(shopId);
+      if (level !== IMAGE_NEED_LEVEL) {
+        return res.status(403).json({
+          success: false,
+          message: '尊享版专属：自定义横幅图与店铺 LOGO',
+          needUpgrade: true
+        });
+      }
+    }
+
     const setting = await Setting.findOneAndUpdate(
       { shopId },
       update,

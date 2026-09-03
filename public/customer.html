@@ -18,11 +18,148 @@
       --nav-h: 0px;
       --radius: 14px;
       --cart-space: 96px;
+      /* ===== 店铺风格主题变量（默认值 = 经典橙）===== */
+      --accent: #ff5e00;
+      --accent-2: #ff8a3d;
+      --accent-deep: #f04b00;
+      --accent-bg: #fff3ea;
+      --btn-bg: linear-gradient(135deg, #ff8a3d, #ff5e00);
+      --btn-text: #fff;
+      --banner-grad: linear-gradient(135deg, #ff9a44 0%, #ff6a1f 55%, #f55100 100%);
+      --banner-text: #fff;
+      --banner-radius: 0 0 22px 22px;
+      --success-grad: linear-gradient(160deg, #ff9a44, #f55100);
+      --card-shadow: 0 1px 4px rgba(30,30,30,.04);
+      --accent-shadow-color: rgba(255,94,0,.35);
+      --line: #f5f5f5;
+      --line-strong: #e8e8e8;
+      --input-bg: #fafafa;
+      --sk1: #ececec;
+      --sk2: #f6f6f6;
+      --font-body: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+      --font-title: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
     }
+
+    /* ================= 店铺风格主题包（body.theme-* 覆盖变量即可整套换肤） ================= */
+
+    /* 简约白：现代极简、黑白灰 + 细线条 */
+    body.theme-minimal {
+      --accent: #1a1a1a;
+      --accent-2: #4d4d4d;
+      --accent-deep: #000000;
+      --accent-bg: #f4f4f4;
+      --btn-bg: #1a1a1a;
+      --btn-text: #fff;
+      --banner-grad: #ffffff;
+      --banner-text: #1a1a1a;
+      --banner-radius: 0;
+      --success-grad: linear-gradient(160deg, #fbfbfb, #e9e9e9);
+      --card-shadow: 0 0 0 1px #ececec;
+      --accent-shadow-color: rgba(0,0,0,.14);
+      --text: #1a1a1a;
+      --text-2: #666666;
+      --text-3: #9a9a9a;
+      --bg: #fafafa;
+      --radius: 10px;
+      --line: #f0f0f0;
+      --line-strong: #e6e6e6;
+      --input-bg: #fafafa;
+    }
+    body.theme-minimal .banner { border-bottom: 1px solid #ececec; }
+    body.theme-minimal .banner::before, body.theme-minimal .banner::after { display: none; }
+    body.theme-minimal .shop-name { text-shadow: none; }
+    body.theme-minimal .shop-logo { background: #f4f4f4; }
+    body.theme-minimal .table-pill { background: #1a1a1a; border-color: #1a1a1a; }
+    body.theme-minimal .banner-slogan { color: #9a9a9a; opacity: 1; }
+
+    /* 时尚暗黑：深色底、金色点缀、高级感 */
+    body.theme-dark {
+      --accent: #e6c068;
+      --accent-2: #d4af37;
+      --accent-deep: #a8842c;
+      --accent-bg: rgba(230,192,104,.12);
+      --btn-bg: linear-gradient(135deg, #e6c068, #c49a3a);
+      --btn-text: #241a05;
+      --banner-grad: linear-gradient(135deg, #33302a 0%, #1d1b17 60%, #121110 100%);
+      --banner-text: #f0e3c0;
+      --banner-radius: 0 0 18px 18px;
+      --success-grad: linear-gradient(160deg, #33302a, #121110);
+      --card-shadow: 0 2px 8px rgba(0,0,0,.45);
+      --accent-shadow-color: rgba(0,0,0,.5);
+      --text: #f2f0ea;
+      --text-2: #b8b4aa;
+      --text-3: #86837b;
+      --bg: #131313;
+      --card: #1f1e1b;
+      --radius: 12px;
+      --line: rgba(255,255,255,.07);
+      --line-strong: rgba(255,255,255,.14);
+      --input-bg: #2a2926;
+      --sk1: #2b2a27;
+      --sk2: #35342f;
+    }
+    body.theme-dark .banner::before { background: rgba(230,192,104,.10); }
+    body.theme-dark .banner::after { background: rgba(230,192,104,.07); }
+    body.theme-dark .shop-name { text-shadow: 0 2px 6px rgba(0,0,0,.55); }
+    body.theme-dark .table-pill { background: rgba(230,192,104,.14); border-color: rgba(230,192,104,.4); }
+
+    /* 清新绿：浅绿圆润可爱，适合轻食/茶饮 */
+    body.theme-green {
+      --accent: #22a45d;
+      --accent-2: #3cbf72;
+      --accent-deep: #178a4c;
+      --accent-bg: #e6f7ec;
+      --btn-bg: linear-gradient(135deg, #3cbf72, #22a45d);
+      --btn-text: #fff;
+      --banner-grad: linear-gradient(135deg, #63d68f 0%, #2fae66 55%, #1d9a55 100%);
+      --banner-text: #fff;
+      --banner-radius: 0 0 26px 26px;
+      --success-grad: linear-gradient(160deg, #63d68f, #1d9a55);
+      --card-shadow: 0 2px 10px rgba(34,164,93,.10);
+      --accent-shadow-color: rgba(34,164,93,.30);
+      --text: #24382b;
+      --text-2: #5d7466;
+      --text-3: #8fa396;
+      --bg: #f1faf3;
+      --radius: 18px;
+      --line: #eef6f0;
+      --line-strong: #e2efe6;
+      --input-bg: #f6fbf8;
+      --font-body: -apple-system, BlinkMacSystemFont, "PingFang SC", "Yuanti SC", "YouYuan", "Microsoft YaHei", sans-serif;
+    }
+    body.theme-green .shop-name { text-shadow: 0 2px 6px rgba(20,110,60,.28); }
+
+    /* 国潮红金：中国红 + 金，传统大气 */
+    body.theme-redgold {
+      --accent: #c0272d;
+      --accent-2: #d64541;
+      --accent-deep: #9e1c22;
+      --accent-bg: #fbeeec;
+      --btn-bg: linear-gradient(135deg, #d64541, #ad262c);
+      --btn-text: #fff;
+      --banner-grad: linear-gradient(135deg, #b23a2f 0%, #9e2a25 55%, #7c1e1a 100%);
+      --banner-text: #fff6e8;
+      --banner-radius: 0 0 14px 14px;
+      --success-grad: linear-gradient(160deg, #c0272d, #7c1e1a);
+      --card-shadow: 0 2px 8px rgba(158,28,34,.08);
+      --accent-shadow-color: rgba(158,28,34,.28);
+      --text: #2d1d1a;
+      --text-2: #7c625a;
+      --text-3: #a8928a;
+      --bg: #faf4ef;
+      --radius: 10px;
+      --line: #f6ece7;
+      --line-strong: #edddd6;
+      --input-bg: #fdf9f6;
+      --font-title: "Noto Serif SC", "STSong", "Songti SC", "SimSun", serif;
+    }
+    body.theme-redgold .banner::before { background: rgba(255,215,130,.16); }
+    body.theme-redgold .banner::after { background: rgba(255,215,130,.10); }
+    body.theme-redgold .table-pill { background: rgba(255,255,255,.18); border-color: rgba(255,214,130,.55); }
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html { -webkit-text-size-adjust: 100%; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+      font-family: var(--font-body);
       background: var(--bg);
       color: var(--text);
       font-size: 14px;
@@ -52,10 +189,13 @@
     /* ---------- 顶部店铺横幅 ---------- */
     .banner {
       position: relative;
-      background: linear-gradient(135deg, #ff9a44 0%, #ff6a1f 55%, #f55100 100%);
-      color: #fff;
+      background-color: var(--accent-deep);
+      background-image: var(--banner-layer, var(--banner-grad));
+      background-size: cover;
+      background-position: center;
+      color: var(--banner-text);
       padding: 22px 18px 20px;
-      border-radius: 0 0 22px 22px;
+      border-radius: var(--banner-radius);
       overflow: hidden;
     }
     .banner::before, .banner::after {
@@ -74,8 +214,15 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 24px; flex-shrink: 0;
       backdrop-filter: blur(4px);
+      overflow: hidden;
+    }
+    .shop-logo img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
     }
     .shop-name {
+      font-family: var(--font-title);
       font-size: 22px; font-weight: 800; letter-spacing: .5px;
       text-shadow: 0 2px 6px rgba(180,60,0,.25);
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -94,7 +241,7 @@
 
     /* ---------- 骨架屏 ---------- */
     .sk-wrap { display: flex; padding: 14px 0 calc(var(--cart-space) + 14px); min-height: 70vh; }
-    .sk { background: linear-gradient(90deg, #ececec 25%, #f6f6f6 37%, #ececec 63%); background-size: 400% 100%; animation: sk 1.2s ease infinite; border-radius: 8px; }
+    .sk { background: linear-gradient(90deg, var(--sk1) 25%, var(--sk2) 37%, var(--sk1) 63%); background-size: 400% 100%; animation: sk 1.2s ease infinite; border-radius: 8px; }
     @keyframes sk { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
     .sk-side { width: 84px; flex-shrink: 0; padding: 0 8px; display: flex; flex-direction: column; gap: 14px; }
     .sk-side .sk { height: 46px; }
@@ -127,7 +274,7 @@
     }
     .sidebar-item.active {
       background: var(--card);
-      color: var(--orange);
+      color: var(--accent);
       font-weight: 700;
       border-radius: 12px 0 0 12px;
     }
@@ -136,7 +283,7 @@
       position: absolute; left: 10px; top: 50%;
       transform: translateY(-50%);
       width: 3px; height: 16px;
-      background: var(--orange); border-radius: 2px;
+      background: var(--accent); border-radius: 2px;
     }
     .sidebar-empty { padding: 24px 8px; text-align: center; font-size: 12px; color: var(--text-3); }
 
@@ -157,7 +304,7 @@
       padding: 11px;
       display: flex; gap: 11px;
       margin-bottom: 11px;
-      box-shadow: 0 1px 4px rgba(30,30,30,.04);
+      box-shadow: var(--card-shadow);
     }
     .dish-img {
       position: relative;
@@ -203,7 +350,7 @@
     .dish-meta { margin-top: auto; }
     .sales { font-size: 11px; color: var(--text-3); }
     .dish-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 5px; }
-    .price { color: var(--orange); font-weight: 800; }
+    .price { color: var(--accent); font-weight: 800; }
     .price .sym { font-size: 12px; margin-right: 1px; }
     .price .num { font-size: 19px; letter-spacing: -.5px; }
     .price.big .num { font-size: 22px; }
@@ -222,15 +369,15 @@
     .step-btn:active { transform: scale(.86); }
     .step-btn:disabled { opacity: .4; cursor: not-allowed; }
     .step-btn.plus {
-      background: linear-gradient(135deg, var(--orange-2), var(--orange));
-      color: #fff;
-      box-shadow: 0 3px 8px rgba(255,94,0,.35);
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      box-shadow: 0 3px 8px var(--accent-shadow-color);
       font-weight: 600;
     }
     .step-btn.minus {
-      background: #fff;
-      color: var(--orange);
-      border: 1.5px solid var(--orange);
+      background: var(--card);
+      color: var(--accent);
+      border: 1.5px solid var(--accent);
       font-weight: 700;
     }
     .step-num { font-size: 14px; font-weight: 700; min-width: 18px; text-align: center; color: var(--text); }
@@ -246,7 +393,7 @@
     }
     .cart-bar-inner {
       pointer-events: auto;
-      background: #fff;
+      background: var(--card);
       border-radius: 999px;
       box-shadow: 0 8px 28px rgba(0,0,0,.14);
       display: flex; align-items: center;
@@ -257,11 +404,11 @@
       position: relative;
       width: 46px; height: 46px;
       border-radius: 50%;
-      background: linear-gradient(135deg, var(--orange-2), var(--orange));
+      background: var(--btn-bg);
       display: flex; align-items: center; justify-content: center;
       cursor: pointer; flex-shrink: 0;
       margin-top: -22px;
-      box-shadow: 0 6px 16px rgba(255,94,0,.4);
+      box-shadow: 0 6px 16px var(--accent-shadow-color);
       border: 4px solid var(--bg);
     }
     .cart-icon.bump { animation: bump .45s ease; }
@@ -277,17 +424,17 @@
       font-size: 11px; font-weight: 700;
       border-radius: 10px;
       display: none; align-items: center; justify-content: center;
-      border: 2px solid #fff;
+      border: 2px solid var(--card);
     }
     .cart-mid { flex: 1; min-width: 0; }
     .cart-sub { font-size: 11px; color: var(--text-3); }
     .cart-go {
       height: 42px; padding: 0 26px;
       border: none; border-radius: 999px;
-      background: linear-gradient(135deg, var(--orange-2), var(--orange));
-      color: #fff; font-size: 15px; font-weight: 700;
+      background: var(--btn-bg);
+      color: var(--btn-text); font-size: 15px; font-weight: 700;
       cursor: pointer; flex-shrink: 0;
-      box-shadow: 0 4px 12px rgba(255,94,0,.3);
+      box-shadow: 0 4px 12px var(--accent-shadow-color);
     }
     .cart-go:active { transform: scale(.97); }
     .cart-go:disabled { background: #e5e6ea; color: #b0b3ba; box-shadow: none; cursor: not-allowed; }
@@ -296,8 +443,8 @@
     .btn-primary {
       height: 42px; padding: 0 22px;
       border: none; border-radius: 999px;
-      background: linear-gradient(135deg, var(--orange-2), var(--orange));
-      color: #fff; font-size: 15px; font-weight: 700;
+      background: var(--btn-bg);
+      color: var(--btn-text); font-size: 15px; font-weight: 700;
       cursor: pointer;
     }
     .btn-primary:active { transform: scale(.97); }
@@ -313,7 +460,7 @@
     .mask.show { display: flex; }
     .sheet {
       width: 100%; max-width: 430px;
-      background: #fff;
+      background: var(--card);
       border-radius: 20px 20px 0 0;
       max-height: 68vh;
       display: flex; flex-direction: column;
@@ -332,7 +479,7 @@
       padding: 4px 2px;
     }
     .sheet-list { overflow-y: auto; padding: 0 16px; flex: 1; }
-    .sheet-item { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid #f5f5f5; }
+    .sheet-item { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--line); }
     .sheet-item:last-child { border-bottom: none; }
     .si-thumb {
       width: 46px; height: 46px; border-radius: 10px;
@@ -341,12 +488,12 @@
     .si-thumb .dish-photo { position: static; width: 100%; height: 100%; }
     .si-thumb .mini-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 22px; border-radius: 10px; }
     .si-info { flex: 1; min-width: 0; }
-    .si-name { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .si-price { font-size: 13px; color: var(--orange); font-weight: 700; margin-top: 3px; }
+    .si-name { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+    .si-price { font-size: 13px; color: var(--accent); font-weight: 700; margin-top: 3px; }
     .sheet-foot {
       display: flex; align-items: center; justify-content: space-between;
       padding: 12px 18px calc(12px + env(safe-area-inset-bottom));
-      border-top: 1px solid #f5f5f5;
+      border-top: 1px solid var(--line);
     }
     .sheet-total { font-size: 13px; color: var(--text-2); }
 
@@ -361,11 +508,11 @@
     .page.show { display: flex; animation: pageIn .25s ease; }
     @keyframes pageIn { from { opacity: 0; transform: translateX(-50%) translateY(14px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
     .page-head {
-      background: #fff;
+      background: var(--card);
       display: flex; align-items: center;
       padding: 12px 14px;
       padding-top: calc(12px + env(safe-area-inset-top));
-      border-bottom: 1px solid #f2f2f2;
+      border-bottom: 1px solid var(--line);
       position: relative;
     }
     .page-back {
@@ -378,7 +525,7 @@
     .page-title { flex: 1; text-align: center; font-size: 16px; font-weight: 700; }
     .page-body { flex: 1; overflow-y: auto; padding: 12px 12px 20px; }
     .page-foot {
-      background: #fff;
+      background: var(--card);
       padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
       box-shadow: 0 -4px 16px rgba(0,0,0,.05);
     }
@@ -387,60 +534,62 @@
     .ck-total .price .num { font-size: 24px; }
     .ck-submit { padding: 0 34px; }
 
-    .ck-card { background: #fff; border-radius: var(--radius); padding: 14px 16px; margin-bottom: 11px; }
+    .ck-card { background: var(--card); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 11px; }
     .ck-row { display: flex; align-items: center; padding: 6px 0; font-size: 14px; }
     .ck-label { color: var(--text-3); width: 76px; flex-shrink: 0; }
-    .ck-value { font-weight: 700; font-size: 15px; }
+    .ck-value { font-weight: 700; font-size: 15px; color: var(--text); }
     .ck-select, .ck-input {
       flex: 1; height: 38px;
-      border: 1px solid #e8e8e8; border-radius: 10px;
+      border: 1px solid var(--line-strong); border-radius: 10px;
       padding: 0 10px; font-size: 14px;
-      background: #fafafa; outline: none;
+      background: var(--input-bg); outline: none;
+      color: var(--text);
     }
-    .ck-select:focus, .ck-input:focus { border-color: var(--orange-2); }
+    .ck-select:focus, .ck-input:focus { border-color: var(--accent-2); }
     .ck-hint { font-size: 11px; color: var(--text-3); margin-top: 4px; }
     .ck-card-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
-    .ck-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f7f7f7; }
+    .ck-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
     .ck-item:last-child { border-bottom: none; }
     .ck-item .si-thumb { width: 50px; height: 50px; }
-    .ck-item-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ck-item-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
     .ck-item-sub { font-size: 12px; color: var(--text-3); margin-top: 2px; }
     .ck-item-total { font-size: 14px; font-weight: 700; color: var(--text); }
     .ck-textarea {
       width: 100%; min-height: 70px;
-      border: 1px solid #e8e8e8; border-radius: 10px;
+      border: 1px solid var(--line-strong); border-radius: 10px;
       padding: 10px 12px; font-size: 13px;
       font-family: inherit; resize: none; outline: none;
-      background: #fafafa;
+      background: var(--input-bg);
+      color: var(--text);
     }
-    .ck-textarea:focus { border-color: var(--orange-2); }
+    .ck-textarea:focus { border-color: var(--accent-2); }
 
     /* ---------- 下单成功页 ---------- */
-    .success-page { background: linear-gradient(160deg, #ff9a44, #f55100); justify-content: center; align-items: center; }
+    .success-page { background: var(--success-grad); justify-content: center; align-items: center; }
     .success-card {
-      background: #fff; border-radius: 24px;
+      background: var(--card); border-radius: 24px;
       width: 82%; max-width: 330px;
       padding: 36px 26px 30px;
       text-align: center;
       animation: pop .4s cubic-bezier(.22,1.4,.36,1);
-      box-shadow: 0 20px 60px rgba(120,40,0,.3);
+      box-shadow: 0 20px 60px rgba(0,0,0,.28);
     }
     @keyframes pop { from { transform: scale(.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     .success-ring {
       width: 76px; height: 76px; margin: 0 auto 18px;
       border-radius: 50%;
-      background: linear-gradient(135deg, #ff9a44, #f55100);
+      background: var(--btn-bg);
       display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 10px 26px rgba(255,94,0,.4);
+      box-shadow: 0 10px 26px var(--accent-shadow-color);
       animation: ringIn .5s cubic-bezier(.22,1.4,.36,1) .1s backwards;
     }
     @keyframes ringIn { from { transform: scale(0); } to { transform: scale(1); } }
-    .success-check { color: #fff; font-size: 40px; font-weight: 800; line-height: 1; }
-    .success-card h2 { font-size: 21px; font-weight: 800; margin-bottom: 8px; }
+    .success-check { color: var(--btn-text); font-size: 40px; font-weight: 800; line-height: 1; }
+    .success-card h2 { font-size: 21px; font-weight: 800; margin-bottom: 8px; color: var(--text); }
     .success-card p { font-size: 13px; color: var(--text-2); margin-bottom: 6px; }
     .success-table {
       display: inline-block; margin: 6px 0 20px;
-      background: var(--orange-bg); color: var(--orange-deep);
+      background: var(--accent-bg); color: var(--accent-deep);
       font-size: 14px; font-weight: 700;
       padding: 6px 18px; border-radius: 999px;
     }
@@ -470,10 +619,10 @@
 
   <div class="app">
     <!-- 顶部店铺横幅 -->
-    <div class="banner">
+    <div class="banner" id="shopBanner">
       <div class="banner-content">
         <div class="shop-line">
-          <span class="shop-logo">🍽️</span>
+          <span class="shop-logo" id="shopLogo">🍽️</span>
           <h1 class="shop-name" id="shopName">加载中…</h1>
         </div>
         <div class="banner-sub">

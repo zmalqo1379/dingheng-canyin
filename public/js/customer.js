@@ -80,10 +80,40 @@ function ensureShopId() {
   return false;
 }
 
+/* ---------- 店铺风格主题 ---------- */
+// 与 models/Setting.js theme 枚举保持一致
+const THEME_LIST = ['classic', 'minimal', 'dark', 'green', 'redgold'];
+function applyShopTheme(setting) {
+  const s = setting || {};
+  const t = THEME_LIST.includes(s.theme) ? s.theme : 'classic';
+  THEME_LIST.forEach(x => document.body.classList.remove('theme-' + x));
+  document.body.classList.add('theme-' + t);
+  // 自定义横幅背景图：加深色遮罩保证文字可读；未上传则用主题默认渐变
+  const banner = $('shopBanner');
+  if (banner) {
+    if (s.bannerImage) {
+      banner.style.setProperty('--banner-layer',
+        `linear-gradient(rgba(0,0,0,.28), rgba(0,0,0,.28)), url("${s.bannerImage}")`);
+    } else {
+      banner.style.removeProperty('--banner-layer');
+    }
+  }
+  // 自定义店铺 LOGO：显示在店名左侧；未上传保留主题默认图标
+  const logo = $('shopLogo');
+  if (logo) {
+    if (s.logoImage) {
+      logo.innerHTML = `<img src="${esc(s.logoImage)}" alt="店铺LOGO" onerror="this.remove()">`;
+    } else {
+      logo.textContent = '🍽️';
+    }
+  }
+}
+
 /* ---------- 数据加载 ---------- */
 async function loadShopInfo() {
   try {
     const res = await fetch(`/api/settings?shopId=${encodeURIComponent(SHOP_ID)}`).then(r => r.json());
+    applyShopTheme(res.success ? res.data : null);
     if (res.success && res.data && res.data.shopName) {
       $('shopName').textContent = res.data.shopName;
       document.title = `${res.data.shopName} · 扫码点餐`;
@@ -91,6 +121,7 @@ async function loadShopInfo() {
       $('shopName').textContent = '欢迎光临';
     }
   } catch (e) {
+    applyShopTheme(null);
     $('shopName').textContent = '欢迎光临';
   }
 }
