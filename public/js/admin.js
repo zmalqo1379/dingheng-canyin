@@ -383,6 +383,8 @@ bindSettingsToggles();
 const LEVEL_NAME = { basic: '基础版', advanced: '进阶版', premium: '尊享版' };
 const LEVEL_RANK = { basic: 0, advanced: 1, premium: 2 };
 const LEVEL_COUPON_MAX = { basic: 'purchase_30', advanced: 'purchase_100', premium: 'purchase_200' };
+// 会员采购返币率（币/元）：与后端 utils/dhConfig.js coinRate 保持一致
+const COIN_RATE = { basic: 0.5, advanced: 1, premium: 1 };
 
 // 鼎恒币中心页面加载
 let _coinCenterData = null; // 缓存，方便兑换后刷新
@@ -555,29 +557,91 @@ async function exchangeCoupon(couponType) {
   }
 }
 
-// 兑换会员（在 HTML 的 onclick 中引用，必须挂到 window）
+// 兑换会员：先弹明细确认框，数字实时按后端同口径计算（不预先写死差价）
+// 升级折算规则与后端 routes/coin.js 一致：进阶→尊享 = 剩余天数 × 100 币/天 抵扣差价
+const EXCH_DAILY_COIN = { advanced: 100, premium: 167 }; // 与后端 DAILY_COIN 一致（advanced 3000/30=100，premium 5000/30≈167）
 async function exchangeMembership(targetLevel) {
-  const { memberLevel } = await api(`/api/coin/status/${SHOP_ID}`).then(r => r.data || {});
-  if (memberLevel === 'premium' && targetLevel === 'advanced') {
-    toast('当前已是更高等级会员，无法降兑', true);
-    return;
+  try {
+    const res = await api(`/api/coin/status/${SHOP_ID}`);
+    const d = res.data || {};
+    const curLevel = d.memberLevel || 'basic';
+    if (curLevel === 'premium' && targetLevel === 'advanced') {
+      toast('当前已是更高等级会员，无法降兑', true);
+      return;
+    }
+    const coin = Number(d.dinghengCoin) || 0;
+    const expire = d.memberExpire ? new Date(d.memberExpire) : null;
+    const isActive = expire && expire > new Date();
+    const daysLeft = isActive ? Math.max(0, Math.ceil((expire - new Date()) / 86400000)) : 0;
+
+    const cfg = PLAN_CFG[targetLevel];
+    const price = cfg.coinCost; // 进阶 3000 / 尊享 5000
+    let offset = 0;
+    let payCoin = price;
+    // 仅「进阶→尊享」升级走剩余价值折算；同等级续费 / basic→目标 / 已过期均按全价
+    if (curLevel === 'advanced' && targetLevel === 'premium') {
+      offset = daysLeft * EXCH_DAILY_COIN.advanced; // 剩余天数 × 100 币/天
+      payCoin = Math.max(0, price - offset);
+    }
+    const after = coin - payCoin;
+
+    // 填充明细字段
+    $('exchCurLevel').textContent = LEVEL_NAME[curLevel] || '基础版';
+    $('exchDaysLeft').textContent = isActive ? (daysLeft + ' 天') : '未生效/已过期';
+    $('exchTargetLevel').textContent = LEVEL_NAME[targetLevel];
+    $('exchPrice').textContent = `${price} 币`;
+    $('exchOffset').innerHTML = offset > 0
+      ? `剩余 ${daysLeft} 天 × 100 币/天 = 抵扣 <b>${offset}</b> 币`
+      : '无';
+    $('exchPayCoin').textContent = payCoin;
+    $('exchCurBalance').textContent = `${coin} 币`;
+    $('exchAfterBalance').innerHTML = after < 0
+      ? `${after} 币（余额不足）`
+      : `${after} 币`;
+
+    const confirmBtn = $('exchConfirmBtn');
+    confirmBtn.disabled = after < 0;
+    confirmBtn.textContent = after < 0 ? '鼎恒币不足' : '确认兑换';
+    confirmBtn.onclick = () => doExchangeMembership(targetLevel);
+
+    $('exchangeConfirmModal').classList.add('show');
+  } catch (e) {
+    console.error(e);
+    toast('获取会员信息失败', true);
   }
-  const levelName = LEVEL_NAME[targetLevel];
-  if (!confirm(`确定${memberLevel === targetLevel ? '续费' : '兑换'}${levelName}月卡？鼎恒币将立即扣减。`)) return;
-  const res = await api('/api/coin/exchange-membership', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ shopId: SHOP_ID, targetLevel })
-  });
-  if (res.success) {
-    toast(res.data && res.data.message ? res.data.message : '操作成功！');
-    loadCoinCenter();
-    loadMemberCenter(); // 若停留在会员中心页，同步刷新余额与等级
-  } else {
-    toast(res.message || '操作失败', true);
+}
+function closeExchangeConfirm() {
+  $('exchangeConfirmModal').classList.remove('show');
+}
+// 实际提交兑换（明细确认后调用）
+async function doExchangeMembership(targetLevel) {
+  const confirmBtn = $('exchConfirmBtn');
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = '兑换中...';
+  try {
+    const res = await api('/api/coin/exchange-membership', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shopId: SHOP_ID, targetLevel })
+    });
+    if (res.success) {
+      closeExchangeConfirm();
+      toast(res.data && res.data.message ? res.data.message : '操作成功！');
+      loadCoinCenter();
+      loadMemberCenter(); // 若停留在会员中心页，同步刷新余额与等级
+    } else {
+      toast(res.message || '兑换失败', true);
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = '确认兑换';
+    }
+  } catch (e) {
+    toast(e.message || '兑换失败', true);
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = '确认兑换';
   }
 }
 window.exchangeMembership = exchangeMembership;
+window.closeExchangeConfirm = closeExchangeConfirm;
 window.exchangeCoupon = exchangeCoupon;
 
 /* ===================== 会员中心 ===================== */
@@ -657,7 +721,8 @@ let _mallSuppliers = [];      // 供应商店铺列表
 let _mallCurrentStore = null; // 当前进入的供应商对象
 let _mallProducts = [];       // 当前店铺的商品
 let _mallCategory = 'all';    // 当前分类筛选
-let _mallCart = [];           // 当前店铺采购车 [{ productId, name, unit, quantity, unitPrice }]
+let _mallCart = [];           // 当前店铺采购车 [{ productId, name, unit, quantity, unitPrice, category, coinMultiplier }]
+let _mallPendingQty = {};     // 商品卡片「本次拟加入数量」映射 productId → N（与采购车数量解耦，加入后重置为 1）
 let _mallCoupons = [];        // 当前商家可用抵用券（status=unused 且未过期）
 let _mallMemberLevel = 'basic'; // 当前商家会员等级（用于横幅差异化文案）
 let _mallSearchKey = '';      // 店铺列表搜索关键词
@@ -701,6 +766,7 @@ async function loadMall() {
     _mallMemberLevel = (statusRes.data && statusRes.data.memberLevel) || 'basic';
     _mallCurrentStore = null;
     _mallCart = [];
+    _mallPendingQty = {};
     _mallCategory = 'all';
     _mallSearchKey = '';
     _mallStoreCat = 'all';
@@ -818,6 +884,7 @@ async function enterStore(supplierId) {
   if (!s) { toast('店铺不存在', true); return; }
   _mallCurrentStore = s;
   _mallCart = [];
+  _mallPendingQty = {};
   _mallCategory = 'all';
   $('mallStoreName').textContent = s.name;
   $('mallProductsTitle').textContent = s.name + ' · 店铺商品';
@@ -838,6 +905,7 @@ async function enterStore(supplierId) {
 function backToStoreList() {
   _mallCurrentStore = null;
   _mallCart = [];
+  _mallPendingQty = {};
   _mallProducts = [];
   showStoreListView();
 }
@@ -875,8 +943,7 @@ function renderStoreProducts() {
     return;
   }
   grid.innerHTML = list.map(p => {
-    const inCart = _mallCart.find(c => c.productId === p._id);
-    const qtyVal = inCart ? inCart.quantity : 1;
+    const qtyVal = _mallPendingQty[p._id] || 1;
     const unit = p.unit || '个';
     const desc = p.description ? `<div class="product-supplier">${esc(p.description)}</div>` : '';
     // 品类得币倍率标注：接口返回 coinMultiplier（未配置默认 1）；>1 高亮激励，=1 普通展示
@@ -897,10 +964,10 @@ function renderStoreProducts() {
           <div class="product-actions">
             <div class="qty-ctrl">
               <button onclick="adjustQty('${p._id}', -1)">−</button>
-              <input type="number" min="1" value="${qtyVal}" onchange="setQty('${p._id}', this.value)">
+              <input type="number" min="1" value="${qtyVal}" data-pid="${p._id}" oninput="setQty('${p._id}', this.value)">
               <button onclick="adjustQty('${p._id}', 1)">+</button>
             </div>
-            <button class="btn-cart ${inCart ? 'added' : ''}" onclick="addToCart('${p._id}')">${inCart ? '✓ 已加' : '加入采购车'}</button>
+            <button class="btn-cart" data-add="${p._id}" onclick="addToCart('${p._id}')">加入采购车</button>
           </div>
         </div>
       </div>
@@ -908,44 +975,63 @@ function renderStoreProducts() {
   }).join('');
 }
 
-// 数量加减器（最小 1）
+// 数量加减器：仅调整商品卡片「本次拟加入数量」，不直接改采购车（加入动作由 addToCart 完成）
 function adjustQty(productId, delta) {
-  const p = _mallProducts.find(x => x._id === productId);
-  if (!p) return;
-  const inCart = _mallCart.find(c => c.productId === productId);
-  let qty = (inCart ? inCart.quantity : 1) + delta;
+  const cur = Number(_mallPendingQty[productId]) || 1;
+  let qty = cur + delta;
   if (qty < 1) qty = 1;
-  if (inCart) inCart.quantity = qty;
-  const input = document.querySelector(`input[onchange="setQty('${productId}', this.value)"]`);
+  _mallPendingQty[productId] = qty;
+  const input = document.querySelector(`input[data-pid="${productId}"]`);
   if (input) input.value = qty;
-  renderCart();
 }
+// 手动输入数量：仅记录「本次拟加入数量」，0/负数/非数字一律按 1 处理
+// 不在输入过程中改写 DOM，避免与用户正在输入的内容冲突；归一在加入时完成
 function setQty(productId, val) {
-  const qty = Math.max(1, parseInt(val) || 1);
-  const p = _mallProducts.find(x => x._id === productId);
-  if (!p) return;
-  const inCart = _mallCart.find(c => c.productId === productId);
-  if (inCart) inCart.quantity = qty;
-  renderCart();
+  const n = parseInt(val);
+  const qty = (isNaN(n) || n < 1) ? 1 : n;
+  _mallPendingQty[productId] = qty;
 }
 
-// 加入采购车（只加当前店铺商品，切换店铺已清空）
+// 加入采购车：读取商品卡片「本次数量」N，新商品入车 N 件，已在车则 +N；
+// 非法值（0/负/非数字）按 1 处理；加入后数量选择器重置为 1，按钮短暂显示「✓已加」
 function addToCart(productId) {
   const p = _mallProducts.find(x => x._id === productId);
   if (!p) return;
+  const input = document.querySelector(`input[data-pid="${productId}"]`);
+  let n = parseInt(input ? input.value : _mallPendingQty[productId]);
+  if (isNaN(n) || n < 1) n = 1;
+  const mult = Number(p.coinMultiplier);
+  const coinMultiplier = (!isNaN(mult) && mult > 0) ? mult : 1;
   const idx = _mallCart.findIndex(c => c.productId === productId);
   if (idx >= 0) {
-    _mallCart[idx].quantity += 1;
+    _mallCart[idx].quantity += n;                    // 已在车：在现有基础上增加 N 件
+    _mallCart[idx].coinMultiplier = coinMultiplier;  // 同步最新倍率（开发者可能改过规则）
+    _mallCart[idx].category = p.category || _mallCart[idx].category || '';
   } else {
     _mallCart.push({
       productId: p._id,
       name: p.name,
       unit: p.unit || '个',
-      quantity: 1,
-      unitPrice: p.costPrice
+      quantity: n,
+      unitPrice: p.costPrice,
+      category: p.category || '',
+      coinMultiplier
     });
   }
-  renderStoreProducts();
+  // 重置该商品数量选择器为 1
+  _mallPendingQty[productId] = 1;
+  if (input) input.value = 1;
+  // 按钮短暂反馈「✓已加」
+  const btn = document.querySelector(`button[data-add="${productId}"]`);
+  if (btn) {
+    btn.textContent = '✓已加';
+    btn.classList.add('just-added');
+    clearTimeout(btn._addTimer);
+    btn._addTimer = setTimeout(() => {
+      btn.textContent = '加入采购车';
+      btn.classList.remove('just-added');
+    }, 1200);
+  }
   renderCart();
 }
 
@@ -967,6 +1053,8 @@ function renderCart() {
   const totalEl = $('cartTotal');
   const submitBtn = $('submitPurchaseBtn');
   const minOrderEl = $('cartMinOrder');
+  const coinTotalEl = $('cartCoinTotal');
+  const coinHintEl = $('cartCoinHint');
 
   const store = _mallCurrentStore;
   const minOrder = store ? storeMinOrder(store) : 300;
@@ -977,6 +1065,8 @@ function renderCart() {
     couponSection.style.display = 'none';
     discountRow.style.display = 'none';
     minOrderEl.style.display = 'none';
+    if (coinTotalEl) coinTotalEl.style.display = 'none';
+    if (coinHintEl) coinHintEl.style.display = 'none';
     subtotalEl.textContent = '0.00';
     totalEl.textContent = '0.00';
     submitBtn.disabled = true;
@@ -985,17 +1075,26 @@ function renderCart() {
   }
   empty.style.display = 'none';
 
-  // 已选商品列表
-  list.innerHTML = _mallCart.map(c => `
+  // 已选商品列表 + 每行预估鼎恒币（行金额 × 会员返币率 × 品类倍率，向下取整）
+  const coinRate = COIN_RATE[_mallMemberLevel] ?? 0.5;
+  let totalCoin = 0;
+  list.innerHTML = _mallCart.map(c => {
+    const lineAmt = c.quantity * c.unitPrice;
+    const mult = Number(c.coinMultiplier) > 0 ? Number(c.coinMultiplier) : 1;
+    const lineCoin = Math.floor(lineAmt * coinRate * mult);
+    totalCoin += lineCoin;
+    return `
     <div class="cart-item">
       <div class="cart-item-info">
         <div class="cart-item-name">${esc(c.name)}</div>
         <div class="cart-item-meta">${c.quantity} ${esc(c.unit)} × ¥${Number(c.unitPrice).toFixed(2)}</div>
+        <div class="cart-item-coin">🪙 预计可得 ${lineCoin} 鼎恒币</div>
       </div>
-      <div class="cart-item-price">¥${(c.quantity * c.unitPrice).toFixed(2)}</div>
+      <div class="cart-item-price">¥${lineAmt.toFixed(2)}</div>
       <button class="cart-item-del" onclick="removeFromCart('${c.productId}')">×</button>
     </div>
-  `).join('');
+    `;
+  }).join('');
 
   const subtotal = _mallCart.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
   subtotalEl.textContent = subtotal.toFixed(2);
@@ -1063,6 +1162,15 @@ function renderCart() {
   discountRow.style.display = discount > 0 ? 'flex' : 'none';
   discountEl.textContent = discount.toFixed(2);
   totalEl.textContent = actual.toFixed(2);
+
+  // 本单预计共得鼎恒币（各行汇总；与后端发币口径一致，基于行小计金额，不受抵用券影响）
+  if (coinTotalEl) {
+    coinTotalEl.style.display = totalCoin > 0 ? 'flex' : 'none';
+    coinTotalEl.innerHTML = `本单预计共得 <b>${totalCoin}</b> 鼎恒币`;
+  }
+  if (coinHintEl) {
+    coinHintEl.style.display = totalCoin > 0 ? 'block' : 'none';
+  }
 
   // 提交按钮状态：未满起送价则禁用并提示差额
   if (subtotal < minOrder) {

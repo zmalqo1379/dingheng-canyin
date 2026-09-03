@@ -194,7 +194,7 @@ router.post('/coin/exchange-membership', async (req, res) => {
 
       const scenario = (currentLevel === targetLevel) ? 'renewal' : 'basic_upgrade';
       const scenarioText = (currentLevel === targetLevel)
-        ? `${cfg.name}续费（${daysBetween(today, base)}天后续期）`
+        ? `${cfg.name}续费（+30天）`
         : `${cfg.name}开通`;
 
       await CoinHistory.create([{
