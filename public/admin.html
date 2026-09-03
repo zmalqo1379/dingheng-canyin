@@ -525,6 +525,39 @@
     .coupon-locked-tip {
       font-size: 11px; color: #9ca3af; margin-bottom: 8px;
     }
+    /* 未开放预告券：金色渐变 + 锁定徽章，比普通券更华丽但明显不可用 */
+    .coupon-item.coupon-upcoming {
+      border: 2px solid #f5c542;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #fff7e0 0%, #ffe9a8 60%, #f7c948 100%);
+      box-shadow: 0 6px 18px rgba(245,197,66,.28);
+      position: relative;
+      overflow: hidden;
+      cursor: not-allowed;
+      opacity: 1; /* 覆盖 locked 的 0.7，保持华丽感 */
+    }
+    .coupon-item.coupon-upcoming::after {
+      content: ''; position: absolute; inset: 0;
+      background: repeating-linear-gradient(45deg, rgba(255,255,255,.18) 0 10px, transparent 10px 20px);
+      pointer-events: none;
+    }
+    .coupon-item.coupon-upcoming:hover { transform: none; }
+    .coupon-item.coupon-upcoming .coupon-face { color: #92400e; }
+    .coupon-item.coupon-upcoming .coupon-cost span { color: #92400e; }
+    .coupon-item.coupon-upcoming .coupon-condition { color: #7c2d12; }
+    .coupon-upcoming-badge {
+      display: inline-block;
+      background: linear-gradient(90deg, #b45309, #f59e0b);
+      color: #fff; font-size: 11px; font-weight: 700;
+      padding: 3px 12px; border-radius: 999px;
+      margin-bottom: 10px; letter-spacing: .5px;
+      box-shadow: 0 2px 6px rgba(180,83,9,.4);
+    }
+    .coupon-upcoming-foot {
+      grid-column: 1 / -1;
+      text-align: center; font-size: 12px; color: #92400e;
+      margin-top: 4px; padding: 8px 0;
+    }
 
     /* 会员续费 */
     .membership-grid {
@@ -773,42 +806,110 @@
     }
 
     /* ============ 采购商城 ============ */
+    /* 顶部鼎恒币激励横幅 */
+    .mall-coin-banner {
+      background: linear-gradient(90deg, #ff7a18 0%, #ff9926 50%, #ff6b35 100%);
+      color: #fff;
+      border-radius: 14px;
+      padding: 14px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.5;
+      margin-bottom: 18px;
+      box-shadow: 0 6px 18px rgba(255,107,53,.28);
+      display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
+    }
+    .mall-coin-banner.basic { background: linear-gradient(90deg, #fb923c 0%, #ffb45a 100%); }
+    .mall-coin-banner a {
+      color: #fff; font-weight: 700; text-decoration: underline;
+      cursor: pointer; white-space: nowrap;
+    }
+    .mall-coin-banner a:hover { text-shadow: 0 1px 4px rgba(0,0,0,.25); }
+
+    /* 搜索框 + 品类筛选标签栏 */
+    .mall-toolbar {
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .mall-search {
+      position: relative; flex: 1; min-width: 220px; max-width: 360px;
+    }
+    .mall-search-icon {
+      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      font-size: 14px; color: #9ca3af; pointer-events: none;
+    }
+    .mall-search input {
+      width: 100%; padding: 10px 12px 10px 34px;
+      border: 1px solid var(--line); border-radius: 22px;
+      font-size: 13px; background: #fff;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .mall-search input:focus {
+      outline: none; border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(255,107,53,.12);
+    }
+    .mall-cat-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+    .mall-cat-tab {
+      padding: 7px 14px; border: 1px solid var(--line);
+      border-radius: 20px; background: #fff; color: #6b7280;
+      font-size: 12px; cursor: pointer; transition: all .15s;
+    }
+    .mall-cat-tab:hover { color: var(--accent); border-color: var(--accent); }
+    .mall-cat-tab.active {
+      background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600;
+    }
+
     /* —— 店铺列表层 —— */
     .mall-subtitle { font-size: 14px; color: #6b7280; margin-bottom: 16px; }
     .store-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 20px;
     }
     .store-card {
-      display: flex; align-items: center; gap: 16px;
+      display: flex; align-items: center; gap: 18px;
       background: #fff; border: 1px solid var(--line);
-      border-radius: 14px; padding: 18px;
+      border-radius: 16px; padding: 22px;
       cursor: pointer;
-      transition: transform .15s, border-color .15s, box-shadow .15s;
+      transition: transform .2s ease, border-color .2s, box-shadow .2s;
+      position: relative; overflow: hidden;
+    }
+    .store-card::before {
+      content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+      background: linear-gradient(180deg, var(--accent), var(--accent-2));
+      opacity: 0; transition: opacity .2s;
     }
     .store-card:hover {
-      transform: translateY(-2px);
+      transform: translateY(-4px);
       border-color: var(--accent);
-      box-shadow: 0 8px 20px rgba(255,107,53,.12);
+      box-shadow: 0 12px 28px rgba(255,107,53,.18);
     }
+    .store-card:hover::before { opacity: 1; }
     .store-logo {
-      width: 56px; height: 56px; border-radius: 14px;
+      width: 64px; height: 64px; border-radius: 16px;
       background: linear-gradient(135deg, var(--accent), var(--accent-2));
-      color: #fff; font-size: 24px; font-weight: 700;
+      color: #fff; font-size: 26px; font-weight: 700;
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(255,107,53,.25);
     }
     .store-info { flex: 1; min-width: 0; }
-    .store-name { font-size: 17px; font-weight: 700; color: #1f2937; margin-bottom: 4px; }
-    .store-cats { font-size: 12px; color: #9ca3af; line-height: 1.5; }
-    .store-minorder {
-      display: inline-block; margin-top: 8px;
-      background: #ffedd5; color: #ea580c;
-      font-size: 12px; font-weight: 600;
-      padding: 3px 10px; border-radius: 20px;
+    .store-name { font-size: 18px; font-weight: 700; color: #1f2937; margin-bottom: 8px; }
+    .store-cats { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+    .store-cat-badge {
+      display: inline-block; font-size: 11px; font-weight: 600;
+      padding: 2px 9px; border-radius: 999px; line-height: 1.6;
     }
-    .store-foot { font-size: 12px; color: #9ca3af; margin-top: 8px; }
+    .store-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .store-minorder {
+      display: inline-block;
+      background: linear-gradient(90deg, #fff7ed, #ffedd5);
+      color: #ea580c;
+      font-size: 12px; font-weight: 700;
+      padding: 4px 11px; border-radius: 20px;
+      border: 1px solid #fed7aa;
+    }
+    .store-enter { font-size: 12px; color: var(--accent); font-weight: 600; }
 
     /* —— 店铺内页：面包屑 + 三栏 —— */
     .mall-breadcrumb { font-size: 14px; color: #6b7280; margin-bottom: 16px; }
@@ -835,43 +936,55 @@
     .mall-products-area { flex: 1; min-width: 0; }
     .product-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 14px;
-      padding: 16px;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+      padding: 18px;
     }
     .product-card {
       border: 1px solid var(--line);
-      border-radius: 12px;
+      border-radius: 14px;
       overflow: hidden;
-      transition: transform .15s, border-color .15s;
+      transition: transform .2s ease, border-color .2s, box-shadow .2s;
       background: #fff;
+      display: flex; flex-direction: column;
     }
-    .product-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+    .product-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--accent);
+      box-shadow: 0 10px 24px rgba(255,107,53,.15);
+    }
     .product-img {
-      width: 100%; height: 120px;
-      background: linear-gradient(135deg, #ffe0d0, #ffd9c2);
+      width: 100%; height: 150px;
+      background: linear-gradient(135deg, #ffe8d6, #ffd9c2);
       display: flex; align-items: center; justify-content: center;
-      font-size: 40px;
+      font-size: 46px;
       color: var(--accent);
     }
     .product-img img { width: 100%; height: 100%; object-fit: cover; }
-    .product-body { padding: 12px; }
-    .product-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
-    .product-category { font-size: 11px; color: #9ca3af; margin-bottom: 6px; }
-    .product-price { font-size: 18px; font-weight: 800; color: var(--accent); }
-    .product-price small { font-size: 11px; color: #9ca3af; font-weight: 400; }
-    .product-supplier { font-size: 11px; color: #6b7280; margin: 4px 0; }
-    /* 品类得币倍率激励标注（商家可见，只展示倍率，不涉及任何返点率信息） */
+    .product-body { padding: 14px; display: flex; flex-direction: column; flex: 1; }
+    .product-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; color: #1f2937; }
+    .product-category { font-size: 11px; color: #9ca3af; margin-bottom: 8px; }
+    .product-price { font-size: 22px; font-weight: 800; color: var(--accent); line-height: 1.1; }
+    .product-price small { font-size: 11px; color: #9ca3af; font-weight: 400; margin-left: 2px; }
+    .product-supplier { font-size: 11px; color: #6b7280; margin: 6px 0; }
+    /* 品类得币倍率激励标注（橙色醒目，>1 倍高亮，=1 倍普通灰） */
     .coin-boost {
       display: inline-block; font-size: 11px; font-weight: 700;
-      color: #b45309; background: #fef3c7; border: 1px solid #fde68a;
-      padding: 2px 9px; border-radius: 999px; margin: 2px 0 6px;
+      color: #fff; background: linear-gradient(90deg, #ff7a18, #ff9a3c);
+      border: none;
+      padding: 3px 10px; border-radius: 999px; margin: 4px 0 8px;
+      box-shadow: 0 2px 6px rgba(255,122,24,.3);
+      align-self: flex-start;
     }
-    .coin-boost-normal { color: #6b7280; background: #f3f4f6; border-color: #e5e7eb; font-weight: 500; }
+    .coin-boost-normal {
+      color: #6b7280; background: #f3f4f6; font-weight: 500;
+      box-shadow: none;
+    }
     .product-actions {
-      display: flex; gap: 6px;
+      display: flex; gap: 8px;
       align-items: center;
-      margin-top: 10px;
+      margin-top: auto;
+      padding-top: 10px;
     }
     .qty-ctrl {
       display: flex; align-items: center;
@@ -879,27 +992,31 @@
       overflow: hidden;
     }
     .qty-ctrl button {
-      width: 28px; height: 28px;
+      width: 30px; height: 30px;
       border: none; background: #f9fafb;
       cursor: pointer; font-size: 14px; color: #6b7280;
     }
     .qty-ctrl button:hover { background: #f3f4f6; }
     .qty-ctrl input {
-      width: 36px; height: 28px;
+      width: 38px; height: 30px;
       border: none; border-left: 1px solid var(--line); border-right: 1px solid var(--line);
       text-align: center; font-size: 13px;
     }
     .qty-ctrl input:focus { outline: none; }
     .btn-cart {
       flex: 1;
-      padding: 7px 10px;
-      background: var(--accent); color: #fff;
-      border: none; border-radius: 8px;
-      font-size: 12px; font-weight: 600;
+      padding: 9px 12px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      color: #fff;
+      border: none; border-radius: 9px;
+      font-size: 13px; font-weight: 700;
       cursor: pointer;
+      box-shadow: 0 3px 8px rgba(255,107,53,.28);
+      transition: transform .15s, box-shadow .15s;
     }
-    .btn-cart:hover { opacity: .9; }
-    .btn-cart.added { background: var(--green); }
+    .btn-cart:hover { transform: translateY(-1px); box-shadow: 0 5px 12px rgba(255,107,53,.35); }
+    .btn-cart:active { transform: translateY(0); }
+    .btn-cart.added { background: var(--green); box-shadow: 0 3px 8px rgba(34,197,94,.25); }
 
     /* 采购车 */
     .mall-cart {
@@ -1249,10 +1366,10 @@
               <li>后厨语音看单</li>
               <li>大屏展示</li>
               <li>采购商城</li>
-              <li>鼎恒币（2元=1币）</li>
-              <li>可兑 10-30 元抵用券</li>
+              <li>鼎恒币（采购 2元=1币）</li>
+              <li>可兑 10-30 元采购抵用券</li>
             </ul>
-            <div class="vplan-footer-note">永久免费，比市面上免费点餐软件更好用</div>
+            <div class="vplan-footer-note">永久免费 · 注册即享，无需任何门槛</div>
             <button class="vplan-btn ghost" disabled>已默认开通</button>
           </div>
 
@@ -1280,7 +1397,7 @@
             <div class="vplan-price">¥199<small>/月</small></div>
             <div class="vplan-tagline">进阶版全部功能，再加四项旗舰能力</div>
             <ul class="vplan-features">
-              <li class="vplan-feature-highlight">可兑 200 元超大额券</li>
+              <li class="vplan-feature-highlight">可兑 200 元采购抵用券</li>
               <li>顾客画像</li>
               <li>损耗分析</li>
               <li>高级营销工具</li>
@@ -1309,7 +1426,7 @@
             </div>
             <div class="coin-intro-card highlight">
               <div class="coin-intro-icon">💰</div>
-              <div class="coin-intro-text">一句话总结：进货的钱，花两次。</div>
+              <div class="coin-intro-text">一句话总结：一笔采购的钱，用出二次价值</div>
             </div>
           </div>
         </div>
@@ -1423,8 +1540,19 @@
       <section class="pane" id="pane-mall">
         <div class="pane-title"><span>🛒 采购商城</span></div>
 
+        <!-- 顶部鼎恒币激励横幅（按会员等级差异化文案） -->
+        <div class="mall-coin-banner" id="mallCoinBanner"></div>
+
         <!-- ===== 第1层：供应商店铺列表 ===== -->
         <div id="mallStoreList">
+          <!-- 搜索框 + 品类筛选标签栏 -->
+          <div class="mall-toolbar">
+            <div class="mall-search">
+              <span class="mall-search-icon">🔍</span>
+              <input type="text" id="mallSearchInput" placeholder="搜索供应商店铺 / 商品关键词…" autocomplete="off">
+            </div>
+            <div class="mall-cat-tabs" id="mallCatTabs"></div>
+          </div>
           <div class="mall-subtitle">选择供应商店铺进行采购</div>
           <div class="store-grid" id="storeGrid"></div>
         </div>

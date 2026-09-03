@@ -408,7 +408,7 @@ async function loadCoinCenter() {
     const currentLevel = d.memberLevel || 'basic';
     const coupons = d.coupons || [];
 
-    // 渲染抵用券兑换网格（固定 6 张，与 dhConfig 一致）
+    // 渲染抵用券兑换网格（固定 6 张，与 dhConfig 一致）+ 2 张未开放预告卡
     const couponConfigs = [
       { type: 'purchase_10', faceValue: 10, coinCost: 600, minOrder: 300, needLevel: 'basic' },
       { type: 'purchase_20', faceValue: 20, coinCost: 1100, minOrder: 500, needLevel: 'basic' },
@@ -417,7 +417,12 @@ async function loadCoinCenter() {
       { type: 'purchase_100', faceValue: 100, coinCost: 4500, minOrder: 2500, needLevel: 'advanced' },
       { type: 'purchase_200', faceValue: 200, coinCost: 8000, minOrder: 4000, needLevel: 'premium' }
     ];
-    $('couponGrid').innerHTML = couponConfigs.map(c => {
+    // 未开放预告券（平台商家采购规模达标后开放，仅展示不可兑换）
+    const upcomingConfigs = [
+      { faceValue: 300, coinCost: 12000, minOrder: 6000 },
+      { faceValue: 500, coinCost: 20000, minOrder: 10000 }
+    ];
+    const normalHtml = couponConfigs.map(c => {
       const locked = LEVEL_RANK[currentLevel] < LEVEL_RANK[c.needLevel];
       const notEnough = (d.dinghengCoin ?? 0) < c.coinCost;
       const canExchange = !locked && !notEnough;
@@ -432,6 +437,17 @@ async function loadCoinCenter() {
         </div>
       `;
     }).join('');
+    const upcomingHtml = upcomingConfigs.map(c => `
+      <div class="coupon-item coupon-upcoming" aria-disabled="true">
+        <div class="coupon-upcoming-badge">🔒 即将开放</div>
+        <div class="coupon-face">¥${c.faceValue}<small> 抵</small></div>
+        <div class="coupon-cost">需 <span>${c.coinCost} DH</span></div>
+        <div class="coupon-condition">满 ¥${c.minOrder} 可用</div>
+        <button class="btn btn-gray" disabled>未开放</button>
+      </div>
+    `).join('');
+    const upcomingFoot = `<div class="coupon-upcoming-foot">平台商家采购规模达标后开放，敬请期待</div>`;
+    $('couponGrid').innerHTML = normalHtml + upcomingHtml + upcomingFoot;
 
     // 我的抵用券表格
     const couponsBody = $('couponsBody');
@@ -595,6 +611,9 @@ let _mallProducts = [];       // 当前店铺的商品
 let _mallCategory = 'all';    // 当前分类筛选
 let _mallCart = [];           // 当前店铺采购车 [{ productId, name, unit, quantity, unitPrice }]
 let _mallCoupons = [];        // 当前商家可用抵用券（status=unused 且未过期）
+let _mallMemberLevel = 'basic'; // 当前商家会员等级（用于横幅差异化文案）
+let _mallSearchKey = '';      // 店铺列表搜索关键词
+let _mallStoreCat = 'all';    // 店铺列表品类筛选标签
 
 // 供应商名兜底（取不到显示"平台直供"，绝不出现 undefined/????）
 function getStoreName(s) {
@@ -631,15 +650,56 @@ async function loadMall() {
     ]);
     _mallSuppliers = (supRes.data || []).filter(s => s && s.name);
     _mallCoupons = ((statusRes.data && statusRes.data.coupons) || []).filter(couponUsable);
+    _mallMemberLevel = (statusRes.data && statusRes.data.memberLevel) || 'basic';
     _mallCurrentStore = null;
     _mallCart = [];
     _mallCategory = 'all';
+    _mallSearchKey = '';
+    _mallStoreCat = 'all';
+    renderMallCoinBanner();
+    renderMallStoreCatTabs();
     renderStoreList();
     showStoreListView();
   } catch (e) {
     console.error(e);
     toast('加载采购商城失败', true);
   }
+}
+
+// 顶部鼎恒币激励横幅：基础版用户看到升级引导文案，进阶/尊享版看到通用文案
+function renderMallCoinBanner() {
+  const isBasic = _mallMemberLevel === 'basic';
+  const basicTail = `（基础版 2 元 = 1 币，<a id="mallBannerUpgrade">升级会员返币翻倍 →</a>）`;
+  const head = `🎁 采购即得鼎恒币：会员每采购 1 元 = 1 币，币可兑采购抵用券、兑会员月卡——进货的钱，花得出去，回得来`;
+  const el = $('mallCoinBanner');
+  el.innerHTML = isBasic ? (head + basicTail) : head;
+  el.classList.toggle('basic', isBasic);
+  const upg = $('mallBannerUpgrade');
+  if (upg) upg.onclick = () => switchTab('member');
+}
+
+// 店铺列表品类筛选标签栏 + 搜索框绑定
+function renderMallStoreCatTabs() {
+  const tabs = [
+    { label: '全部', dc: 'all' },
+    { label: '蔬菜', dc: '蔬菜' },
+    { label: '肉类', dc: '肉类' },
+    { label: '冻品', dc: '冻品' },
+    { label: '海鲜', dc: '海鲜' },
+    { label: '粮油酱料', dc: '粮油酱料' },
+    { label: '一次性用品', dc: '一次性用品' }
+  ];
+  $('mallCatTabs').innerHTML = tabs.map(t => `
+    <button class="mall-cat-tab ${t.dc === _mallStoreCat ? 'active' : ''}" onclick="setMallStoreCat('${t.dc}')">${t.label}</button>
+  `).join('');
+  const si = $('mallSearchInput');
+  si.value = _mallSearchKey;
+  si.oninput = (e) => { _mallSearchKey = e.target.value.trim(); renderStoreList(); };
+}
+function setMallStoreCat(cat) {
+  _mallStoreCat = cat || 'all';
+  renderMallStoreCatTabs();
+  renderStoreList();
 }
 
 function showStoreListView() {
@@ -651,23 +711,57 @@ function showStoreDetailView() {
   $('mallStoreDetail').style.display = 'block';
 }
 
-// 渲染供应商店铺列表
+// 品类徽章配色（按品类返回彩色小徽章样式）
+const CAT_BADGE_COLORS = {
+  '蔬菜':   { bg: '#dcfce7', fg: '#15803d' },
+  '肉类':   { bg: '#fee2e2', fg: '#b91c1c' },
+  '冻品':   { bg: '#e0f2fe', fg: '#0369a1' },
+  '海鲜':   { bg: '#cffafe', fg: '#0e7490' },
+  '粮油酱料': { bg: '#fef3c7', fg: '#b45309' },
+  '一次性用品': { bg: '#f3e8ff', fg: '#7c3aed' }
+};
+function catBadgeStyle(cat) {
+  const c = CAT_BADGE_COLORS[cat] || { bg: '#f3f4f6', fg: '#4b5563' };
+  return `background:${c.bg};color:${c.fg};`;
+}
+
+// 渲染供应商店铺列表（支持搜索 + 品类筛选）
 function renderStoreList() {
   const grid = $('storeGrid');
   if (!_mallSuppliers.length) {
     grid.innerHTML = `<div class="empty" style="grid-column:1/-1;">暂无供应商店铺</div>`;
     return;
   }
-  grid.innerHTML = _mallSuppliers.map(s => {
+  // 关键词搜索（店名 + 品类）+ 品类筛选标签
+  const key = _mallSearchKey.toLowerCase();
+  let list = _mallSuppliers.filter(s => {
+    const cats = Array.isArray(s.categories) ? s.categories : [];
+    const matchKey = !key
+      || String(s.name || '').toLowerCase().includes(key)
+      || cats.some(c => String(c).toLowerCase().includes(key));
+    const matchCat = _mallStoreCat === 'all' || cats.includes(_mallStoreCat);
+    return matchKey && matchCat;
+  });
+  if (!list.length) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1;">没有匹配的供应商店铺</div>`;
+    return;
+  }
+  grid.innerHTML = list.map(s => {
     const minOrder = storeMinOrder(s);
+    const cats = Array.isArray(s.categories) ? s.categories.slice(0, 4) : [];
+    const catBadges = cats.length
+      ? cats.map(c => `<span class="store-cat-badge" style="${catBadgeStyle(c)}">${esc(c)}</span>`).join('')
+      : `<span class="store-cat-badge" style="${catBadgeStyle('')}">综合供应商</span>`;
     return `
       <div class="store-card" onclick="enterStore('${esc(String(s._id))}')">
         <div class="store-logo">${esc(storeInitial(s.name))}</div>
         <div class="store-info">
           <div class="store-name">${esc(s.name)}</div>
-          <div class="store-cats">${esc(storeCatsText(s))}</div>
-          <div class="store-minorder">¥${minOrder} 起送</div>
-          <div class="store-foot">点击进入店铺 ›</div>
+          <div class="store-cats">${catBadges}</div>
+          <div class="store-meta">
+            <span class="store-minorder">¥${minOrder} 起送</span>
+            <span class="store-enter">进入店铺 ›</span>
+          </div>
         </div>
       </div>
     `;
