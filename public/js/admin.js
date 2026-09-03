@@ -545,10 +545,10 @@ async function loadMemberCenter() {
     $('msExpire').textContent = expire ? fmtTime(d.memberExpire).slice(0, 10) : '永久有效';
     $('msDaysLeft').textContent = expire ? daysLeft + ' 天' : '长期有效';
 
-    // 体验期倒计时条（仅注册赠送的进阶版体验期显示）
+    // 体验期倒计时胶囊（仅注册赠送的进阶版体验期显示，挂在顶部状态条右侧）
     const isTrial = d.memberIsTrial === true && level === 'advanced' && expire;
-    $('trialBanner').style.display = isTrial ? 'flex' : 'none';
-    if (isTrial) $('trialDaysLeft').textContent = daysLeft;
+    $('msTrialPill').style.display = isTrial ? 'flex' : 'none';
+    if (isTrial) $('msTrialDays').textContent = daysLeft;
 
     // 兑换专区：余额 + 按钮状态（不足时禁用并提示差额）
     const coin = d.dinghengCoin ?? 0;
@@ -585,12 +585,6 @@ function goCoinHistory() {
   switchTab('coin');
 }
 window.goCoinHistory = goCoinHistory;
-
-// 体验期横幅按钮 → 滚动到兑换专区
-function scrollToExchange() {
-  $('exchangeZone').scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-window.scrollToExchange = scrollToExchange;
 
 /* ===================== 采购商城 ===================== */
 // 两段式架构：供应商店铺列表 → 进入店铺 → 店内选购 → 结算
