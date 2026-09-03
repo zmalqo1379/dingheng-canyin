@@ -451,9 +451,9 @@ app.get('/api/admin/merchant-stats', requireMerchant, async (req, res) => {
 
 // --- 商家后台修改设置（按 JWT shopId 匹配，绝不窜改他人店铺）---
 
-// 店铺装修权限：主题按会员等级锁定，自定义图片为尊享版专属
+// 店铺装修权限：主题按会员等级锁定，自定义图片为进阶版及以上可用
 const PREMIUM_THEMES = ['dark', 'green', 'redgold']; // 进阶版及以上可用
-const IMAGE_NEED_LEVEL = 'premium';                  // 自定义横幅图/LOGO 需尊享版
+const IMAGE_NEED_LEVEL = 'advanced';                 // 自定义横幅图/LOGO 需进阶版及以上
 
 // 读取当前商家会员等级（Member 不存在时自动创建，注册赠送进阶版体验期）
 async function getMemberLevel(shopId) {
@@ -490,15 +490,15 @@ app.put('/api/settings', requireMerchant, async (req, res) => {
       }
     }
 
-    // ---- 店铺装修：自定义图片仅尊享版（置空/恢复默认不限等级）----
+    // ---- 店铺装修：自定义图片进阶版及以上（置空/恢复默认不限等级）----
     const wantsImage = (update.bannerImage && update.bannerImage !== '') ||
                        (update.logoImage && update.logoImage !== '');
     if (wantsImage) {
       const level = await getMemberLevel(shopId);
-      if (level !== IMAGE_NEED_LEVEL) {
+      if (!['advanced', 'premium'].includes(level)) {
         return res.status(403).json({
           success: false,
-          message: '尊享版专属：自定义横幅图与店铺 LOGO',
+          message: '开通会员，上传你店的专属头图与 logo，让顾客记住你的店',
           needUpgrade: true
         });
       }

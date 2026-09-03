@@ -25,6 +25,8 @@
       --accent-bg: #fff3ea;
       --btn-bg: linear-gradient(135deg, #ff8a3d, #ff5e00);
       --btn-text: #fff;
+      --plus-bg: linear-gradient(135deg, #ff8a3d, #ff5e00);
+      --plus-text: #fff;
       --banner-grad: linear-gradient(135deg, #ff9a44 0%, #ff6a1f 55%, #f55100 100%);
       --banner-text: #fff;
       --banner-radius: 0 0 22px 22px;
@@ -34,6 +36,9 @@
       --line: #f5f5f5;
       --line-strong: #e8e8e8;
       --input-bg: #fafafa;
+      --badge-bg: #ff3141;
+      --btn-disabled-bg: #e5e6ea;
+      --btn-disabled-text: #b0b3ba;
       --sk1: #ececec;
       --sk2: #f6f6f6;
       --font-body: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
@@ -42,120 +47,144 @@
 
     /* ================= 店铺风格主题包（body.theme-* 覆盖变量即可整套换肤） ================= */
 
-    /* 简约白：现代极简、黑白灰 + 细线条 */
+    /* 简约白（modern-white）：苹果官网式克制、大留白
+       注意：--banner-grad 必须是合法 background-image（渐变），
+       若写纯色值整条 background-image 会失效并露出 accent-deep 底色 */
     body.theme-minimal {
-      --accent: #1a1a1a;
-      --accent-2: #4d4d4d;
-      --accent-deep: #000000;
-      --accent-bg: #f4f4f4;
-      --btn-bg: #1a1a1a;
+      --accent: #FF6B35;            /* 点缀色：仅价格、加号按钮、选中态 */
+      --accent-2: #ff8a5c;
+      --accent-deep: #e05528;
+      --accent-bg: #FFF1EA;
+      --btn-bg: #1A1A1A;            /* 主色 #1A1A1A：文字与按钮 */
       --btn-text: #fff;
-      --banner-grad: #ffffff;
-      --banner-text: #1a1a1a;
+      --plus-bg: #FF6B35;           /* 加号按钮用点缀色 */
+      --plus-text: #fff;
+      --banner-grad: linear-gradient(180deg, #ffffff, #ffffff); /* 纯白底、无渐变 */
+      --banner-text: #1A1A1A;
       --banner-radius: 0;
-      --success-grad: linear-gradient(160deg, #fbfbfb, #e9e9e9);
-      --card-shadow: 0 0 0 1px #ececec;
-      --accent-shadow-color: rgba(0,0,0,.14);
-      --text: #1a1a1a;
-      --text-2: #666666;
-      --text-3: #9a9a9a;
-      --bg: #fafafa;
-      --radius: 10px;
-      --line: #f0f0f0;
-      --line-strong: #e6e6e6;
-      --input-bg: #fafafa;
-    }
-    body.theme-minimal .banner { border-bottom: 1px solid #ececec; }
-    body.theme-minimal .banner::before, body.theme-minimal .banner::after { display: none; }
-    body.theme-minimal .shop-name { text-shadow: none; }
-    body.theme-minimal .shop-logo { background: #f4f4f4; }
-    body.theme-minimal .table-pill { background: #1a1a1a; border-color: #1a1a1a; }
-    body.theme-minimal .banner-slogan { color: #9a9a9a; opacity: 1; }
-
-    /* 时尚暗黑：深色底、金色点缀、高级感 */
-    body.theme-dark {
-      --accent: #e6c068;
-      --accent-2: #d4af37;
-      --accent-deep: #a8842c;
-      --accent-bg: rgba(230,192,104,.12);
-      --btn-bg: linear-gradient(135deg, #e6c068, #c49a3a);
-      --btn-text: #241a05;
-      --banner-grad: linear-gradient(135deg, #33302a 0%, #1d1b17 60%, #121110 100%);
-      --banner-text: #f0e3c0;
-      --banner-radius: 0 0 18px 18px;
-      --success-grad: linear-gradient(160deg, #33302a, #121110);
-      --card-shadow: 0 2px 8px rgba(0,0,0,.45);
-      --accent-shadow-color: rgba(0,0,0,.5);
-      --text: #f2f0ea;
-      --text-2: #b8b4aa;
-      --text-3: #86837b;
-      --bg: #131313;
-      --card: #1f1e1b;
+      --success-grad: linear-gradient(160deg, #ffffff, #eef0f3);
+      --card-shadow: 0 2px 8px rgba(0,0,0,.06);
+      --accent-shadow-color: rgba(255,107,53,.25);
+      --text: #1A1A1A;
+      --text-2: #55555C;
+      --text-3: #9A9AA0;
+      --bg: #F7F8FA;
       --radius: 12px;
-      --line: rgba(255,255,255,.07);
-      --line-strong: rgba(255,255,255,.14);
-      --input-bg: #2a2926;
-      --sk1: #2b2a27;
-      --sk2: #35342f;
+      --line: #f0f1f3;
+      --line-strong: #e8e9ec;
+      --input-bg: #F7F8FA;
     }
-    body.theme-dark .banner::before { background: rgba(230,192,104,.10); }
-    body.theme-dark .banner::after { background: rgba(230,192,104,.07); }
-    body.theme-dark .shop-name { text-shadow: 0 2px 6px rgba(0,0,0,.55); }
-    body.theme-dark .table-pill { background: rgba(230,192,104,.14); border-color: rgba(230,192,104,.4); }
+    body.theme-minimal .banner { background-color: #ffffff; border-bottom: 1px solid #ececec; }
+    body.theme-minimal .banner::before, body.theme-minimal .banner::after { display: none; }
+    body.theme-minimal .shop-name { text-shadow: none; font-size: 20px; }
+    body.theme-minimal .shop-logo { background: #f4f4f4; }
+    body.theme-minimal .table-pill { background: #1a1a1a; border-color: #1a1a1a; color: #fff; }
+    body.theme-minimal .banner-slogan { color: #9a9a9a; opacity: 1; }
+    /* 分类栏：白底，选中项左侧 3px 黑色竖条 + 文字加粗 */
+    body.theme-minimal .sidebar { background: #ffffff; }
+    body.theme-minimal .sidebar-item.active { color: var(--text); }
+    body.theme-minimal .sidebar-item.active::before { background: #1a1a1a; }
 
-    /* 清新绿：浅绿圆润可爱，适合轻食/茶饮 */
+    /* 时尚暗黑（stylish-dark）：高级感、酒吧/烧鸟店风格，不是纯黑、要带金 */
+    body.theme-dark {
+      --accent: #D4AF7A;            /* 香槟金：价格、加号按钮、选中态、购物车栏 */
+      --accent-2: #E2C391;
+      --accent-deep: #B8905A;
+      --accent-bg: rgba(212,175,122,.14);
+      --btn-bg: linear-gradient(135deg, #E2C391, #C89B62);
+      --btn-text: #201709;
+      --plus-bg: linear-gradient(135deg, #E2C391, #C89B62);
+      --plus-text: #201709;
+      --banner-grad: linear-gradient(160deg, #141416 0%, #1B1813 55%, #2A2419 100%);
+      --banner-text: #E8CD9C;       /* 店名用金色 */
+      --banner-radius: 0 0 16px 16px;
+      --success-grad: linear-gradient(160deg, #262119, #141416);
+      --card-shadow: 0 2px 8px rgba(0,0,0,.45);
+      --accent-shadow-color: rgba(212,175,122,.22);
+      --text: #F5F5F5;              /* 主文字 */
+      --text-2: #9A9AA0;            /* 次要文字 */
+      --text-3: #6E6E76;
+      --bg: #141416;                /* 页面背景 */
+      --card: #1E1E22;              /* 卡片背景 */
+      --radius: 14px;
+      --line: rgba(255,255,255,.08);
+      --line-strong: rgba(255,255,255,.16);
+      --input-bg: #26262B;
+      --sk1: #232327;
+      --sk2: #2C2C31;
+      --btn-disabled-bg: #2B2B30;
+      --btn-disabled-text: #6A6A72;
+    }
+    body.theme-dark .banner::before { background: rgba(212,175,122,.10); }
+    body.theme-dark .banner::after { background: rgba(212,175,122,.07); }
+    body.theme-dark .shop-name { text-shadow: 0 2px 6px rgba(0,0,0,.55); }
+    body.theme-dark .table-pill { background: rgba(212,175,122,.14); border-color: rgba(212,175,122,.4); }
+
+    /* 清新绿（fresh-green）：圆角偏大、气质年轻轻盈，适合轻食/茶饮 */
     body.theme-green {
-      --accent: #22a45d;
-      --accent-2: #3cbf72;
-      --accent-deep: #178a4c;
-      --accent-bg: #e6f7ec;
-      --btn-bg: linear-gradient(135deg, #3cbf72, #22a45d);
+      --accent: #2FA66A;            /* 主色：按钮、价格、选中态 */
+      --accent-2: #34C38F;
+      --accent-deep: #1F7A4D;
+      --accent-bg: #E3F5EB;
+      --btn-bg: linear-gradient(135deg, #34C38F, #2FA66A);
       --btn-text: #fff;
-      --banner-grad: linear-gradient(135deg, #63d68f 0%, #2fae66 55%, #1d9a55 100%);
+      --plus-bg: linear-gradient(135deg, #34C38F, #2FA66A);
+      --plus-text: #fff;
+      --banner-grad: linear-gradient(135deg, #34C38F 0%, #2FA66A 100%); /* 头部柔和渐变 */
       --banner-text: #fff;
       --banner-radius: 0 0 26px 26px;
-      --success-grad: linear-gradient(160deg, #63d68f, #1d9a55);
-      --card-shadow: 0 2px 10px rgba(34,164,93,.10);
-      --accent-shadow-color: rgba(34,164,93,.30);
-      --text: #24382b;
-      --text-2: #5d7466;
-      --text-3: #8fa396;
-      --bg: #f1faf3;
-      --radius: 18px;
-      --line: #eef6f0;
-      --line-strong: #e2efe6;
-      --input-bg: #f6fbf8;
-      --font-body: -apple-system, BlinkMacSystemFont, "PingFang SC", "Yuanti SC", "YouYuan", "Microsoft YaHei", sans-serif;
+      --success-grad: linear-gradient(160deg, #34C38F, #2FA66A);
+      --card-shadow: 0 2px 10px rgba(47,166,106,.10);
+      --accent-shadow-color: rgba(47,166,106,.30);
+      --text: #2D3A32;
+      --text-2: #5C7263;
+      --text-3: #8AA292;
+      --bg: #F2F9F4;                /* 页面背景 */
+      --radius: 16px;               /* 卡片圆角偏大 */
+      --line: #E4F0E8;
+      --line-strong: #D5E7DC;
+      --input-bg: #F6FBF8;
     }
     body.theme-green .shop-name { text-shadow: 0 2px 6px rgba(20,110,60,.28); }
 
-    /* 国潮红金：中国红 + 金，传统大气 */
+    /* 国潮红金（china-red）：酒楼/老字号，热烈但克制 */
     body.theme-redgold {
-      --accent: #c0272d;
-      --accent-2: #d64541;
-      --accent-deep: #9e1c22;
-      --accent-bg: #fbeeec;
-      --btn-bg: linear-gradient(135deg, #d64541, #ad262c);
+      --accent: #C0392B;            /* 主色：价格、按钮 */
+      --accent-2: #D0493A;
+      --accent-deep: #96281B;
+      --accent-bg: #F9E9E5;
+      --btn-bg: linear-gradient(135deg, #C0392B, #96281B);
       --btn-text: #fff;
-      --banner-grad: linear-gradient(135deg, #b23a2f 0%, #9e2a25 55%, #7c1e1a 100%);
-      --banner-text: #fff6e8;
+      --plus-bg: linear-gradient(135deg, #C0392B, #96281B);
+      --plus-text: #fff;
+      --banner-grad: linear-gradient(135deg, #C0392B 0%, #96281B 100%); /* 头部渐变 */
+      --banner-text: #FFE9B0;       /* 店名 */
       --banner-radius: 0 0 14px 14px;
-      --success-grad: linear-gradient(160deg, #c0272d, #7c1e1a);
-      --card-shadow: 0 2px 8px rgba(158,28,34,.08);
-      --accent-shadow-color: rgba(158,28,34,.28);
-      --text: #2d1d1a;
-      --text-2: #7c625a;
-      --text-3: #a8928a;
-      --bg: #faf4ef;
+      --success-grad: linear-gradient(160deg, #C0392B, #96281B);
+      --card-shadow: 0 0 0 1px #E8D5C0, 0 2px 8px rgba(150,90,40,.06); /* 细边框 1px #E8D5C0 */
+      --accent-shadow-color: rgba(150,40,27,.28);
+      --text: #3A2A22;
+      --text-2: #8A6F5C;
+      --text-3: #A98F7B;
+      --bg: #FAF3EC;                /* 页面背景 */
       --radius: 10px;
-      --line: #f6ece7;
-      --line-strong: #edddd6;
-      --input-bg: #fdf9f6;
+      --line: rgba(184,134,11,.22);       /* 点缀金 #B8860B 分割线 */
+      --line-strong: #E4CFA8;
+      --input-bg: #FDF8F2;
+      --badge-bg: #B8860B;                /* 点缀金：徽章 */
       --font-title: "Noto Serif SC", "STSong", "Songti SC", "SimSun", serif;
     }
-    body.theme-redgold .banner::before { background: rgba(255,215,130,.16); }
-    body.theme-redgold .banner::after { background: rgba(255,215,130,.10); }
-    body.theme-redgold .table-pill { background: rgba(255,255,255,.18); border-color: rgba(255,214,130,.55); }
+    body.theme-redgold .banner::before { background: rgba(255,233,176,.14); }
+    body.theme-redgold .banner::after { background: rgba(255,233,176,.09); }
+    body.theme-redgold .table-pill { background: rgba(255,233,176,.16); border-color: rgba(255,233,176,.5); }
+    /* 分类栏选中项：红底白字圆角胶囊 */
+    body.theme-redgold .sidebar-item.active {
+      background: linear-gradient(135deg, #C0392B, #96281B);
+      color: #fff;
+      border-radius: 999px;
+      margin: 5px 8px;
+    }
+    body.theme-redgold .sidebar-item.active::before { display: none; }
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html { -webkit-text-size-adjust: 100%; }
     body {
@@ -369,8 +398,8 @@
     .step-btn:active { transform: scale(.86); }
     .step-btn:disabled { opacity: .4; cursor: not-allowed; }
     .step-btn.plus {
-      background: var(--btn-bg);
-      color: var(--btn-text);
+      background: var(--plus-bg);
+      color: var(--plus-text);
       box-shadow: 0 3px 8px var(--accent-shadow-color);
       font-weight: 600;
     }
@@ -420,7 +449,7 @@
       position: absolute; top: -6px; right: -6px;
       min-width: 19px; height: 19px;
       padding: 0 5px;
-      background: #ff3141; color: #fff;
+      background: var(--badge-bg); color: #fff;
       font-size: 11px; font-weight: 700;
       border-radius: 10px;
       display: none; align-items: center; justify-content: center;
@@ -437,7 +466,7 @@
       box-shadow: 0 4px 12px var(--accent-shadow-color);
     }
     .cart-go:active { transform: scale(.97); }
-    .cart-go:disabled { background: #e5e6ea; color: #b0b3ba; box-shadow: none; cursor: not-allowed; }
+    .cart-go:disabled { background: var(--btn-disabled-bg); color: var(--btn-disabled-text); box-shadow: none; cursor: not-allowed; }
 
     /* ---------- 通用按钮 ---------- */
     .btn-primary {
@@ -448,7 +477,7 @@
       cursor: pointer;
     }
     .btn-primary:active { transform: scale(.97); }
-    .btn-primary:disabled { background: #e5e6ea; color: #b0b3ba; cursor: not-allowed; }
+    .btn-primary:disabled { background: var(--btn-disabled-bg); color: var(--btn-disabled-text); cursor: not-allowed; }
 
     /* ---------- 购物车清单弹层 ---------- */
     .mask {

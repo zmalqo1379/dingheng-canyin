@@ -18,12 +18,12 @@ const settingSchema = new mongoose.Schema({
     enum: ['classic', 'minimal', 'dark', 'green', 'redgold'],
     default: 'classic'
   },
-  // 头部横幅背景图（尊享版专属可自定义，空 = 使用主题默认）
+  // 头部横幅背景图（进阶版及以上可自定义，空 = 使用主题默认）
   bannerImage: {
     type: String,
     default: ''
   },
-  // 店铺 LOGO（尊享版专属可自定义，显示在店名左侧，空 = 使用主题默认）
+  // 店铺 LOGO（进阶版及以上可自定义，显示在店名左侧，空 = 使用主题默认）
   logoImage: {
     type: String,
     default: ''
