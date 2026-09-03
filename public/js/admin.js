@@ -2,7 +2,6 @@
 /* 注意：后端实际接口为 /api/admin/dishes、/api/admin/tables（非 /api/dishes、/api/dishes），
    本文件按 server.js 中真实存在的接口调用，未改动 server.js。 */
 
-const ADMIN_PASSWORD = 'admin123'; // 硬编码，不连数据库
 // 当前登录商家的 shopId（来自商家登录返回），用于鼎恒币/会员/券等以 shopId 为参数的接口
 const SHOP_ID = localStorage.getItem('merchantShopId') || 'shop_default_001';
 
@@ -60,22 +59,7 @@ async function api(url, opts) {
   }
 }
 
-/* ---------- 登录 ---------- */
-function tryLogin() {
-  const pwd = $('pwdInput').value.trim();
-  if (pwd !== ADMIN_PASSWORD) {
-    $('loginError').style.display = 'block';
-    $('pwdInput').focus();
-    return;
-  }
-  $('loginError').style.display = 'none';
-  $('loginPage').style.display = 'none';
-  $('adminPage').classList.add('show');
-  switchTab('dishes'); // 默认打开菜单管理
-}
-
-$('loginBtn').onclick = tryLogin;
-$('pwdInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') tryLogin(); });
+/* ---------- 登出 ---------- */
 $('logoutBtn').onclick = () => {
   // 清除商家登录凭证并跳转回商家登录页
   localStorage.removeItem('merchantToken');
@@ -84,12 +68,9 @@ $('logoutBtn').onclick = () => {
   location.href = '/merchant-login.html';
 };
 
-// 已通过 JWT 登录（存在 merchantToken）则跳过密码登录直接进入管理界面
+// 已通过 JWT 登录（存在 merchantToken）则直接进入管理界面；无 token 已在上方跳转登录页
 if (MERCHANT_TOKEN) {
-  const _loginPage = document.getElementById('loginPage');
-  const _adminPage = document.getElementById('adminPage');
-  if (_loginPage) _loginPage.style.display = 'none';
-  if (_adminPage) _adminPage.classList.add('show');
+  document.getElementById('adminPage').classList.add('show');
   try { switchTab('dishes'); } catch (e) { console.error('初始化失败', e); }
 }
 

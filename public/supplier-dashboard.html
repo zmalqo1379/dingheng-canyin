@@ -392,6 +392,94 @@
     .wait-text { font-size: 12px; color: #6b7280; }
     .rebate-tag { font-size: 12px; color: var(--green); font-weight: 600; }
 
+    /* ============ 商品管理 ============ */
+    .product-toolbar {
+      display: flex; justify-content: flex-end;
+      margin-bottom: 12px;
+    }
+    .btn-add-product {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff;
+      border: none; cursor: pointer;
+      padding: 9px 20px; border-radius: 9px;
+      font-size: 13px; font-weight: 600;
+      box-shadow: 0 4px 12px rgba(255,107,53,.25);
+      transition: opacity .15s;
+    }
+    .btn-add-product:hover { opacity: .92; }
+    .btn-red { background: var(--red); color: #fff; }
+    .badge.on { background: #dcfce7; color: #166534; }
+    .badge.off { background: #f3f4f6; color: #6b7280; }
+    .prod-name .nm { font-weight: 600; color: #1f2937; }
+    .prod-name .desc {
+      font-size: 12px; color: #9ca3af; margin-top: 2px;
+      max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .order-table td.price { font-weight: 600; color: #1f2937; }
+    .order-table td.cost { color: #6b7280; }
+
+    /* 商品新增/编辑弹窗 */
+    .modal-scrim {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 150;
+      align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .modal-scrim.show { display: flex; }
+    .modal-box {
+      background: #fff;
+      border-radius: 18px;
+      width: 100%; max-width: 540px;
+      max-height: 90vh; overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,.3);
+      animation: modalPop .22s ease;
+    }
+    @keyframes modalPop {
+      from { transform: scale(.92); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .modal-head {
+      padding: 18px 24px;
+      border-bottom: 1px solid #f3f4f6;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .modal-head h3 { font-size: 16px; color: #1f2937; }
+    .modal-close {
+      background: none; border: none;
+      font-size: 20px; color: #9ca3af; cursor: pointer;
+      line-height: 1;
+    }
+    .modal-close:hover { color: #1f2937; }
+    .modal-body { padding: 20px 24px 4px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-item { margin-bottom: 16px; }
+    .form-item label {
+      display: block;
+      font-size: 13px; color: #374151; font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .form-item label .req { color: var(--red); margin-left: 2px; }
+    .form-item input, .form-item select, .form-item textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      font-size: 14px; font-family: inherit;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .form-item input:focus, .form-item select:focus, .form-item textarea:focus {
+      border-color: var(--accent); outline: none;
+      box-shadow: 0 0 0 3px rgba(255,107,53,.12);
+    }
+    .form-item textarea { resize: vertical; min-height: 60px; }
+    .modal-foot {
+      padding: 6px 24px 20px;
+      display: flex; justify-content: flex-end; gap: 10px;
+    }
+    @media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
+
     /* ============ 新订单弹窗提醒 ============ */
     .new-order-scrim {
       display: none;
@@ -556,10 +644,27 @@
       <!-- 2. 商品管理 -->
       <section class="pane" id="pane-products">
         <div class="pane-title">📋 商品管理</div>
-        <div class="placeholder">
-          <div class="ico">📋</div>
-          <h3>商品管理（开发中）</h3>
-          <p>供应商商品管理功能将在后续阶段开放</p>
+        <div class="product-toolbar">
+          <button class="btn-add-product" id="addProductBtn">＋ 新增商品</button>
+        </div>
+        <div class="table-wrap">
+          <table class="order-table">
+            <thead>
+              <tr>
+                <th>商品名</th>
+                <th>品类</th>
+                <th>单位</th>
+                <th>成本价</th>
+                <th>市场价</th>
+                <th>库存</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="productTbody">
+              <tr><td colspan="8" class="no-data">商品加载中...</td></tr>
+            </tbody>
+          </table>
         </div>
       </section>
 
@@ -619,6 +724,61 @@
   </div>
 
   <div class="toast" id="toast"></div>
+
+  <!-- 商品新增/编辑弹窗 -->
+  <div class="modal-scrim" id="productModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3 id="productModalTitle">新增商品</h3>
+        <button class="modal-close" id="productModalClose" title="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="prodId">
+        <div class="form-item">
+          <label>商品名称<span class="req">*</span></label>
+          <input type="text" id="prodName" maxlength="40" placeholder="如：五花肉">
+        </div>
+        <div class="form-row">
+          <div class="form-item">
+            <label>品类<span class="req">*</span></label>
+            <select id="prodCategory"></select>
+          </div>
+          <div class="form-item">
+            <label>单位<span class="req">*</span></label>
+            <input type="text" id="prodUnit" maxlength="10" placeholder="如：斤、箱、桶">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-item">
+            <label>成本价（元）<span class="req">*</span></label>
+            <input type="number" id="prodCostPrice" min="0.01" step="0.01" placeholder="大于 0">
+          </div>
+          <div class="form-item">
+            <label>市场价（元）<span class="req">*</span></label>
+            <input type="number" id="prodMarketPrice" min="0.01" step="0.01" placeholder="大于 0">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-item">
+            <label>库存<span class="req">*</span></label>
+            <input type="number" id="prodStock" min="0" step="1" placeholder="非负整数">
+          </div>
+          <div class="form-item">
+            <label>图片链接（选填）</label>
+            <input type="text" id="prodImage" maxlength="300" placeholder="http://...">
+          </div>
+        </div>
+        <div class="form-item">
+          <label>商品描述（选填）</label>
+          <textarea id="prodDesc" maxlength="200" placeholder="规格、产地等信息"></textarea>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" id="prodCancelBtn">取消</button>
+        <button class="btn btn-primary" id="prodSaveBtn">保存</button>
+      </div>
+    </div>
+  </div>
 
   <!-- 新订单弹窗提醒（遮罩层） -->
   <div class="new-order-scrim" id="newOrderScrim">
@@ -705,6 +865,7 @@
       document.querySelectorAll('.pane').forEach(x => x.classList.toggle('active', x.id === 'pane-' + tab));
       closeSidebar();
       if (tab === 'orders') loadOrders();
+      if (tab === 'products') loadProducts();
       if (tab === 'notify') loadNotifySettings();
     }
     document.querySelectorAll('.nav-item').forEach(t => t.onclick = () => switchTab(t.dataset.tab));
@@ -975,6 +1136,170 @@
         toast('网络错误', true);
       }
     };
+
+    // ============ 商品管理 ============
+    const PRODUCT_CATEGORIES = ['肉类', '蔬菜', '粮油', '酒水', '冻品', '调料', '其他'];
+    let productsCache = []; // 已加载的商品列表，供编辑时取值
+
+    // 拉取当前供应商的商品（后端按 supplierId query 过滤，公开接口）
+    async function loadProducts() {
+      const tbody = $('productTbody');
+      const myId = localStorage.getItem('supplierId');
+      if (!myId) { location.href = '/supplier-login.html'; return; }
+
+      const res = await api('/api/supply-products?supplierId=' + encodeURIComponent(myId));
+      if (!res.success) {
+        tbody.innerHTML = `<tr><td colspan="8" class="no-data">商品加载失败：${esc(res.message || '未知错误')}</td></tr>`;
+        return;
+      }
+      productsCache = res.data || [];
+
+      if (!productsCache.length) {
+        tbody.innerHTML = `<tr><td colspan="8" class="no-data">📦 暂无商品，点击右上角「新增商品」添加</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = productsCache.map(p => `
+        <tr>
+          <td>
+            <div class="prod-name">
+              <div class="nm">${esc(p.name)}</div>
+              ${p.description ? `<div class="desc" title="${esc(p.description)}">${esc(p.description)}</div>` : ''}
+            </div>
+          </td>
+          <td>${esc(p.category)}</td>
+          <td>${esc(p.unit)}</td>
+          <td class="cost">${fmtMoney(p.costPrice)}</td>
+          <td class="price">${fmtMoney(p.marketPrice)}</td>
+          <td>${Number(p.stock || 0)}</td>
+          <td><span class="badge ${p.status === '上架' ? 'on' : 'off'}">${esc(p.status)}</span></td>
+          <td class="act">
+            <button class="btn btn-ghost" data-act="edit" data-id="${esc(String(p._id))}">编辑</button>
+            <button class="btn ${p.status === '上架' ? 'btn-ghost' : 'btn-green'}" data-act="toggle" data-id="${esc(String(p._id))}" data-status="${p.status === '上架' ? '下架' : '上架'}">${p.status === '上架' ? '下架' : '上架'}</button>
+            <button class="btn btn-red" data-act="del" data-id="${esc(String(p._id))}">删除</button>
+          </td>
+        </tr>
+      `).join('');
+
+      tbody.querySelectorAll('button[data-act]').forEach(btn => {
+        btn.onclick = () => {
+          const act = btn.dataset.act, id = btn.dataset.id;
+          if (act === 'edit') openProductModal(id);
+          else if (act === 'toggle') toggleProduct(id, btn.dataset.status);
+          else if (act === 'del') deleteProduct(id);
+        };
+      });
+    }
+
+    // 打开弹窗（id 为空 = 新增）
+    function openProductModal(id) {
+      const sel = $('prodCategory');
+      sel.innerHTML = PRODUCT_CATEGORIES.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+
+      if (id) {
+        const p = productsCache.find(x => String(x._id) === String(id));
+        if (!p) { toast('商品数据已过期，请刷新后重试', true); loadProducts(); return; }
+        $('productModalTitle').textContent = '编辑商品';
+        $('prodId').value = p._id;
+        $('prodName').value = p.name || '';
+        // 历史品类不在固定选项中时补一个选项，避免保存时被悄悄改掉
+        if (p.category && !PRODUCT_CATEGORIES.includes(p.category)) {
+          sel.insertAdjacentHTML('beforeend', `<option value="${esc(p.category)}">${esc(p.category)}（历史品类）</option>`);
+        }
+        sel.value = p.category || '其他';
+        $('prodUnit').value = p.unit || '';
+        $('prodCostPrice').value = p.costPrice ?? '';
+        $('prodMarketPrice').value = p.marketPrice ?? '';
+        $('prodStock').value = p.stock ?? 0;
+        $('prodImage').value = p.image || '';
+        $('prodDesc').value = p.description || '';
+      } else {
+        $('productModalTitle').textContent = '新增商品';
+        $('prodId').value = '';
+        $('prodName').value = '';
+        sel.value = '肉类';
+        $('prodUnit').value = '';
+        $('prodCostPrice').value = '';
+        $('prodMarketPrice').value = '';
+        $('prodStock').value = '';
+        $('prodImage').value = '';
+        $('prodDesc').value = '';
+      }
+      $('productModal').classList.add('show');
+      setTimeout(() => $('prodName').focus(), 50);
+    }
+
+    function closeProductModal() { $('productModal').classList.remove('show'); }
+    $('addProductBtn').onclick = () => openProductModal(null);
+    $('productModalClose').onclick = closeProductModal;
+    $('prodCancelBtn').onclick = closeProductModal;
+    $('productModal').addEventListener('click', (e) => { if (e.target.id === 'productModal') closeProductModal(); });
+
+    // 保存（新增 / 编辑），带表单校验
+    $('prodSaveBtn').onclick = async () => {
+      const id = $('prodId').value;
+      const name = $('prodName').value.trim();
+      const category = $('prodCategory').value;
+      const unit = $('prodUnit').value.trim();
+      const costPrice = parseFloat($('prodCostPrice').value);
+      const marketPrice = parseFloat($('prodMarketPrice').value);
+      const stockStr = $('prodStock').value.trim();
+      const stock = Number(stockStr);
+
+      if (!name) { toast('请输入商品名称', true); $('prodName').focus(); return; }
+      if (!category) { toast('请选择品类', true); return; }
+      if (!unit) { toast('请输入单位', true); $('prodUnit').focus(); return; }
+      if (isNaN(costPrice) || costPrice <= 0) { toast('成本价必须是大于 0 的数字', true); $('prodCostPrice').focus(); return; }
+      if (isNaN(marketPrice) || marketPrice <= 0) { toast('市场价必须是大于 0 的数字', true); $('prodMarketPrice').focus(); return; }
+      if (stockStr === '' || !Number.isInteger(stock) || stock < 0) { toast('库存必须是非负整数', true); $('prodStock').focus(); return; }
+
+      const body = {
+        name, category, unit, costPrice, marketPrice, stock,
+        image: $('prodImage').value.trim(),
+        description: $('prodDesc').value.trim()
+      };
+
+      const res = await api(id ? '/api/supply-products/' + id : '/api/supply-products', {
+        method: id ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (res.success) {
+        toast(id ? '商品已更新' : '商品已新增');
+        closeProductModal();
+        loadProducts();
+      } else {
+        toast(res.message || '保存失败', true);
+      }
+    };
+
+    // 上架 / 下架切换
+    async function toggleProduct(id, nextStatus) {
+      const res = await api('/api/supply-products/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus })
+      });
+      if (res.success) {
+        toast(nextStatus === '上架' ? '已上架' : '已下架');
+        loadProducts();
+      } else {
+        toast(res.message || '操作失败', true);
+      }
+    }
+
+    // 删除（带确认）
+    async function deleteProduct(id) {
+      const p = productsCache.find(x => String(x._id) === String(id));
+      if (!confirm(`确定删除商品「${p ? p.name : ''}」？此操作不可恢复。`)) return;
+      const res = await api('/api/supply-products/' + id, { method: 'DELETE' });
+      if (res.success) {
+        toast('已删除');
+        loadProducts();
+      } else {
+        toast(res.message || '删除失败', true);
+      }
+    }
 
     // 启动：首次加载订单 + 建立轮询基线
     loadOrders();

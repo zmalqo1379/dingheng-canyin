@@ -26,70 +26,6 @@
     }
     button { font-family: inherit; }
 
-    /* ============ 登录页 ============ */
-    .login {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      background: linear-gradient(135deg, #1f2937, #374151 60%, #ff6b35);
-    }
-    .login-box {
-      background: #fff;
-      padding: 40px 36px;
-      border-radius: 20px;
-      width: 90%;
-      max-width: 380px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
-    }
-    .login-box .logo {
-      width: 60px; height: 60px;
-      margin: 0 auto 16px;
-      border-radius: 16px;
-      background: linear-gradient(135deg, var(--accent), var(--accent-2));
-      display: flex; align-items: center; justify-content: center;
-      font-size: 28px;
-    }
-    .login-box h1 { font-size: 22px; text-align: center; margin-bottom: 6px; }
-    .login-box .sub { text-align: center; color: #9ca3af; font-size: 13px; margin-bottom: 28px; }
-    .login-input {
-      width: 100%;
-      padding: 13px 16px;
-      border: 1px solid #e5e7eb;
-      border-radius: 12px;
-      font-size: 15px;
-      margin-bottom: 14px;
-      transition: border-color .2s, box-shadow .2s;
-    }
-    .login-input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(255,107,53,.15); }
-    .login-error {
-      color: var(--red);
-      font-size: 13px;
-      margin-bottom: 12px;
-      text-align: center;
-      display: none;
-      background: #fef2f2;
-      padding: 8px;
-      border-radius: 8px;
-    }
-    .login-btn {
-      width: 100%;
-      padding: 13px;
-      background: linear-gradient(135deg, var(--accent), var(--accent-2));
-      color: #fff;
-      border: none;
-      border-radius: 12px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform .1s, box-shadow .2s;
-    }
-    .login-btn:hover { box-shadow: 0 8px 20px rgba(255,107,53,.35); }
-    .login-btn:active { transform: scale(0.98); }
-    .login-tip { text-align: center; margin-top: 18px; font-size: 12px; color: #bbb; }
-    .login-back { text-align: center; margin-top: 10px; }
-    .login-back a { font-size: 12px; color: #9ca3af; text-decoration: none; }
-
     /* ============ 主框架 ============ */
     /* sidebar 固定 100vh、main 也 100vh 且内部滚动，二者互不影响、不产生页面级滚动条 */
     .admin { display: none; }
@@ -867,21 +803,7 @@
 </head>
 <body>
 
-<!-- ============ 登录页 ============ -->
-<div class="login" id="loginPage">
-  <div class="login-box">
-    <div class="logo">⚙️</div>
-    <h1>管理后台</h1>
-    <p class="sub">鼎恒餐饮 · 扫码点餐系统</p>
-    <div class="login-error" id="loginError">密码错误</div>
-    <input type="password" class="login-input" id="pwdInput" placeholder="请输入管理密码" autocomplete="current-password">
-    <button class="login-btn" id="loginBtn">登 录</button>
-    <div class="login-tip">默认密码：admin123</div>
-    <div class="login-back"><a href="index.html">← 返回首页</a></div>
-  </div>
-</div>
-
-<!-- ============ 管理主界面 ============ -->
+<!-- ============ 管理主界面（JWT 鉴权，未登录由 js 跳转商家登录页） ============ -->
 <div class="admin" id="adminPage">
   <!-- 移动端顶部栏 -->
   <div class="topbar">

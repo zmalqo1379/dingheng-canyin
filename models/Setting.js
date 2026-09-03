@@ -12,10 +12,6 @@ const settingSchema = new mongoose.Schema({
     type: String,
     default: '鼎恒餐饮'
   },
-  adminPassword: {
-    type: String,
-    default: 'admin123'
-  },
   enableVoice: {
     type: Boolean,
     default: true

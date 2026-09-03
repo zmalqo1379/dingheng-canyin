@@ -11,10 +11,6 @@
         <text class="label">店铺名称</text>
         <input class="input" v-model="form.shopName" placeholder="请输入店铺名称" />
       </view>
-      <view class="row">
-        <text class="label">管理密码</text>
-        <input class="input" v-model="form.adminPassword" password placeholder="管理后台密码" />
-      </view>
     </view>
 
     <view class="card">
@@ -65,7 +61,6 @@ import { get, put } from '@/utils/request.js';
 
 const form = ref({
   shopName: '',
-  adminPassword: '',
   enableVoice: true,
   enableBigscreen: true,
   enablePrinter: false,
