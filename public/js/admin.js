@@ -396,16 +396,45 @@ async function loadCoinCenter() {
     // 顶部余额与会员
     _coinCenterData = status.data || {};
     const d = _coinCenterData;
+    const currentLevel = d.memberLevel || 'basic';
     $('coinBalance').textContent = d.dinghengCoin ?? 0;
     $('coinTotalEarned').textContent = d.totalEarnedCoin ?? 0;
-    $('coinMemberLevel').textContent = LEVEL_NAME[d.memberLevel] || '基础版';
+    $('coinMemberLevel').textContent = LEVEL_NAME[currentLevel] || '基础版';
     if (d.memberExpire) {
       $('coinMemberExpire').textContent = '到期 ' + fmtTime(d.memberExpire).slice(0, 10);
     } else {
       $('coinMemberExpire').textContent = '永久有效';
     }
 
-    const currentLevel = d.memberLevel || 'basic';
+    // 会员续费卡片按钮状态更新
+    const renewAdvBtn = $('coinRenewAdvanced');
+    const renewPreBtn = $('coinRenewPremium');
+    const coinNow = d.dinghengCoin ?? 0;
+    if (renewAdvBtn) {
+      if (currentLevel === 'premium') {
+        renewAdvBtn.disabled = true;
+        renewAdvBtn.textContent = '当前已是更高等级';
+        renewAdvBtn.title = '尊享版无法降兑为进阶版';
+      } else if (coinNow < 3000) {
+        renewAdvBtn.disabled = true;
+        renewAdvBtn.textContent = `鼎恒币不足（差 ${3000 - coinNow} 币）`;
+        renewAdvBtn.title = '';
+      } else {
+        renewAdvBtn.disabled = false;
+        renewAdvBtn.textContent = '兑换进阶版月卡';
+        renewAdvBtn.title = '';
+      }
+    }
+    if (renewPreBtn) {
+      if (coinNow < 5000 && currentLevel !== 'advanced') {
+        renewPreBtn.disabled = true;
+        renewPreBtn.textContent = `鼎恒币不足（差 ${5000 - coinNow} 币）`;
+      } else {
+        renewPreBtn.disabled = false;
+        renewPreBtn.textContent = currentLevel === 'advanced' ? '升级到尊享版' : '兑换尊享版月卡';
+      }
+    }
+
     const coupons = d.coupons || [];
 
     // 渲染抵用券兑换网格（固定 6 张，与 dhConfig 一致）+ 2 张未开放预告卡
@@ -417,10 +446,10 @@ async function loadCoinCenter() {
       { type: 'purchase_100', faceValue: 100, coinCost: 4500, minOrder: 2500, needLevel: 'advanced' },
       { type: 'purchase_200', faceValue: 200, coinCost: 8000, minOrder: 4000, needLevel: 'premium' }
     ];
-    // 未开放预告券（平台商家采购规模达标后开放，仅展示不可兑换）
+    // 未开放预告券（平台商家采购规模达标后开放，仅展示不可兑换；金卡，金色锁定样式）
     const upcomingConfigs = [
-      { faceValue: 300, coinCost: 12000, minOrder: 6000 },
-      { faceValue: 500, coinCost: 20000, minOrder: 10000 }
+      { faceValue: 300, coinCost: 11100, minOrder: 5000 },
+      { faceValue: 500, coinCost: 17500, minOrder: 6000 }
     ];
     const normalHtml = couponConfigs.map(c => {
       const locked = LEVEL_RANK[currentLevel] < LEVEL_RANK[c.needLevel];
@@ -446,8 +475,13 @@ async function loadCoinCenter() {
         <button class="btn btn-gray" disabled>未开放</button>
       </div>
     `).join('');
-    const upcomingFoot = `<div class="coupon-upcoming-foot">平台商家采购规模达标后开放，敬请期待</div>`;
-    $('couponGrid').innerHTML = normalHtml + upcomingHtml + upcomingFoot;
+    const upcomingSection = `
+      <div class="coupon-gold-row">
+        ${upcomingHtml}
+        <div class="coupon-upcoming-foot">平台商家采购规模达标后开放，敬请期待</div>
+      </div>
+    `;
+    $('couponGrid').innerHTML = normalHtml + upcomingSection;
 
     // 我的抵用券表格
     const couponsBody = $('couponsBody');
@@ -523,18 +557,24 @@ async function exchangeCoupon(couponType) {
 
 // 兑换会员（在 HTML 的 onclick 中引用，必须挂到 window）
 async function exchangeMembership(targetLevel) {
-  if (!confirm(`确定兑换${LEVEL_NAME[targetLevel]}月卡？鼎恒币将立即扣减。`)) return;
+  const { memberLevel } = await api(`/api/coin/status/${SHOP_ID}`).then(r => r.data || {});
+  if (memberLevel === 'premium' && targetLevel === 'advanced') {
+    toast('当前已是更高等级会员，无法降兑', true);
+    return;
+  }
+  const levelName = LEVEL_NAME[targetLevel];
+  if (!confirm(`确定${memberLevel === targetLevel ? '续费' : '兑换'}${levelName}月卡？鼎恒币将立即扣减。`)) return;
   const res = await api('/api/coin/exchange-membership', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ shopId: SHOP_ID, targetLevel })
   });
   if (res.success) {
-    toast('兑换成功！');
+    toast(res.data && res.data.message ? res.data.message : '操作成功！');
     loadCoinCenter();
     loadMemberCenter(); // 若停留在会员中心页，同步刷新余额与等级
   } else {
-    toast(res.message || '兑换失败', true);
+    toast(res.message || '操作失败', true);
   }
 }
 window.exchangeMembership = exchangeMembership;
@@ -566,18 +606,26 @@ async function loadMemberCenter() {
     $('msTrialPill').style.display = isTrial ? 'flex' : 'none';
     if (isTrial) $('msTrialDays').textContent = daysLeft;
 
-    // 兑换专区：余额 + 按钮状态（不足时禁用并提示差额）
+    // 兑换专区：余额 + 按钮状态（不足时禁用并提示差额；premium 时 advanced 按钮置灰）
     const coin = d.dinghengCoin ?? 0;
+    const isPremium = level === 'premium';
     $('ezCoinBalance').textContent = coin;
     for (const key of ['advanced', 'premium']) {
       const btn = $('ezBtn' + (key === 'advanced' ? 'Advanced' : 'Premium'));
       const cost = PLAN_CFG[key].coinCost;
-      if (coin < cost) {
+      // premium 时，advanced 按钮置灰不可点
+      if (isPremium && key === 'advanced') {
+        btn.disabled = true;
+        btn.textContent = '当前已是更高等级会员';
+        btn.title = '尊享版无法降兑为进阶版';
+      } else if (coin < cost) {
         btn.disabled = true;
         btn.textContent = `鼎恒币不足（还差 ${cost - coin} 币）`;
+        btn.title = '';
       } else {
         btn.disabled = false;
         btn.textContent = key === 'advanced' ? '立即兑换进阶版' : '立即兑换尊享版';
+        btn.title = '';
       }
     }
   } catch (e) {
@@ -666,16 +714,12 @@ async function loadMall() {
   }
 }
 
-// 顶部鼎恒币激励横幅：基础版用户看到升级引导文案，进阶/尊享版看到通用文案
+// 顶部鼎恒币激励横幅：统一展示（按规则只保留指定文案）
 function renderMallCoinBanner() {
-  const isBasic = _mallMemberLevel === 'basic';
-  const basicTail = `（基础版 2 元 = 1 币，<a id="mallBannerUpgrade">升级会员返币翻倍 →</a>）`;
-  const head = `🎁 采购即得鼎恒币：会员每采购 1 元 = 1 币，币可兑采购抵用券、兑会员月卡——进货的钱，花得出去，回得来`;
+  const head = `🎁 采购即得鼎恒币：会员每采购 1 元 = 1 币，币可兑采购抵用券、兑会员月卡`;
   const el = $('mallCoinBanner');
-  el.innerHTML = isBasic ? (head + basicTail) : head;
-  el.classList.toggle('basic', isBasic);
-  const upg = $('mallBannerUpgrade');
-  if (upg) upg.onclick = () => switchTab('member');
+  el.innerHTML = head;
+  el.classList.remove('basic');
 }
 
 // 店铺列表品类筛选标签栏 + 搜索框绑定

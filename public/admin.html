@@ -554,9 +554,18 @@
       box-shadow: 0 2px 6px rgba(180,83,9,.4);
     }
     .coupon-upcoming-foot {
-      grid-column: 1 / -1;
       text-align: center; font-size: 12px; color: #92400e;
-      margin-top: 4px; padding: 8px 0;
+      margin-top: 12px; padding: 8px 0;
+    }
+    /* 金卡预告独立一行 */
+    .coupon-gold-row {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 14px;
+      padding: 14px 16px 0;
+      border-top: 1px dashed #e5e7eb;
+      margin-top: 6px;
     }
 
     /* 会员续费 */
@@ -1367,7 +1376,7 @@
               <li>大屏展示</li>
               <li>采购商城</li>
               <li>鼎恒币（采购 2元=1币）</li>
-              <li>可兑 10-30 元采购抵用券</li>
+              <li>可兑 10-30 元 采购抵用券</li>
             </ul>
             <div class="vplan-footer-note">永久免费 · 注册即享，无需任何门槛</div>
             <button class="vplan-btn ghost" disabled>已默认开通</button>
@@ -1381,7 +1390,7 @@
             <div class="vplan-tagline">基础版全部功能，再加四项升级</div>
             <ul class="vplan-features">
               <li class="vplan-feature-highlight">返币翻倍！1元=1币</li>
-              <li class="vplan-feature-highlight">可兑 50/100 元大额券</li>
+              <li class="vplan-feature-highlight">可兑 50/100 元 大额券</li>
               <li>顾客积分系统</li>
               <li>经营报表</li>
               <li>基础版全部功能</li>
@@ -1397,7 +1406,7 @@
             <div class="vplan-price">¥199<small>/月</small></div>
             <div class="vplan-tagline">进阶版全部功能，再加四项旗舰能力</div>
             <ul class="vplan-features">
-              <li class="vplan-feature-highlight">可兑 200 元采购抵用券</li>
+              <li class="vplan-feature-highlight">可兑 200 元 采购抵用券</li>
               <li>顾客画像</li>
               <li>损耗分析</li>
               <li>高级营销工具</li>
@@ -1511,13 +1520,13 @@
               <div class="ms-title">进阶版月卡</div>
               <div class="ms-desc">解锁顾客积分、经营报表等功能</div>
               <div class="ms-cost">3000 DH</div>
-              <button class="btn-add" onclick="exchangeMembership('advanced')">兑换进阶版月卡</button>
+              <button class="btn-add" id="coinRenewAdvanced" onclick="exchangeMembership('advanced')">兑换进阶版月卡</button>
             </div>
             <div class="membership-card premium">
               <div class="ms-title">尊享版月卡</div>
               <div class="ms-desc">解锁全部高级营销与分析功能</div>
               <div class="ms-cost">5000 DH</div>
-              <button class="btn-add" onclick="exchangeMembership('premium')">兑换尊享版月卡</button>
+              <button class="btn-add" id="coinRenewPremium" onclick="exchangeMembership('premium')">兑换尊享版月卡</button>
             </div>
           </div>
         </div>

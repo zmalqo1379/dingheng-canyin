@@ -45,6 +45,13 @@ const memberSchema = new mongoose.Schema({
   memberIsTrial: {
     type: Boolean,
     default: false
+  },
+  // 会员开通/续费的支付方式，未来现金支付接口接入后扩展使用
+  // coin = 鼎恒币兑换（默认），cash = 人民币购买
+  memberSource: {
+    type: String,
+    enum: ['coin', 'cash'],
+    default: 'coin'
   }
 }, { timestamps: true });
 
