@@ -27,6 +27,11 @@ const orderSchema = new mongoose.Schema({
     required: true,
     default: 0
   },
+  remark: {
+    type: String,
+    default: '',
+    maxlength: 200
+  },
   status: {
     type: String,
     enum: ['pending', 'completed'],

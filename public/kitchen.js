@@ -47,6 +47,7 @@
     .order-item { font-size: 20px !important; padding: 10px 0 !important; color: #fff !important; border-bottom: 1px dashed #3a3f4a !important; }
     .item-name { font-weight: 600 !important; }
     .item-qty { color: #ff8e53 !important; font-size: 22px !important; font-weight: 800 !important; }
+    .order-remark { background: rgba(255,107,53,0.16) !important; color: #ff8e53 !important; font-size: 16px !important; }
     .order-total { font-size: 18px !important; color: #ccc !important; }
     .order-total strong { color: #ff8e53 !important; font-size: 26px !important; }
     .btn-done { background: #ff6b35 !important; color: #fff !important; padding: 12px 28px !important; font-size: 18px !important; border-radius: 10px !important; font-weight: 700 !important; }
@@ -78,6 +79,21 @@ let voiceEnabled = false;            // 当前页面语音开关（加载时由 
 let voiceUnlocked = false;           // 浏览器自动播放策略：是否已通过用户手势解锁
 let userToggledVoice = false;        // 用户是否已手动切换过按钮（手动切换后不再被全局设置覆盖）
 let firstLoad = true;                // 首次加载标记：先把历史 pending 订单 _id 全部记入 announcedIds，不播报
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// -------- 2.x 菜品图片映射：按菜名索引，订单项据此显示菜品图片 --------
+let dishImgMap = {}; // { 菜名: 图片地址 }
+async function loadDishImages() {
+  try {
+    const res = await fetch(`/api/dishes?shopId=${encodeURIComponent(SHOP_ID)}`).then(r => r.json());
+    (res.data || []).forEach(d => { dishImgMap[d.name] = d.image || ''; });
+  } catch (e) {}
+}
 let announcedIds = [];               // 已播报过的订单 _id
 let highlightIds = new Set();        // 当前高亮中的订单 id（3秒）
 let lastRenderKey = '';              // 渲染指纹，避免无变化重渲染打断闪烁
@@ -308,11 +324,19 @@ function renderOrders(orders) {
 
   grid.innerHTML = orders.map(o => {
     const isNew = o.status === 'pending' && highlightIds.has(o._id);
-    const itemsHtml = o.items.map(i => `
+    const itemsHtml = o.items.map(i => {
+      const img = dishImgMap[i.dishName] || '';
+      const thumb = img
+        ? `<img class="item-thumb" src="${esc(img)}" alt="" onerror="this.outerHTML='<span class=&quot;item-ph&quot;>🍽️</span>'">`
+        : `<span class="item-ph">🍽️</span>`;
+      return `
       <div class="order-item">
-        <span class="item-name">${i.dishName}</span>
+        ${thumb}
+        <span class="item-name">${esc(i.dishName)}</span>
         <span class="item-qty">×${i.quantity}</span>
-      </div>`).join('');
+      </div>`;
+    }).join('');
+    const remarkHtml = o.remark ? `<div class="order-remark">📝 备注：${esc(o.remark)}</div>` : '';
     return `
       <div class="order-card ${o.status === 'completed' ? 'completed' : ''} ${isNew ? 'new' : ''}" data-id="${o._id}">
         <div class="order-header">
@@ -325,6 +349,7 @@ function renderOrders(orders) {
           </span>
         </div>
         <div class="order-items">${itemsHtml}</div>
+        ${remarkHtml}
         <div class="order-footer">
           <div class="order-total">合计: <strong>¥${o.totalPrice}</strong></div>
           ${o.status === 'pending'
@@ -382,6 +407,7 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 //   缺少 shopId 时停止加载业务内容
 if (ensureShopId()) {
   loadVoiceSettingFromServer();               // 拉取一次全局语音设置（不再周期性刷新，避免覆盖厨师临时切换）
+  loadDishImages();                           // 拉取菜品图片映射（订单项显示图片用）
   fetchOrders();                              // 立即拉取一次
   pollTimer = setInterval(fetchOrders, 2000); // 每 2 秒轮询，不受语音按钮影响
 

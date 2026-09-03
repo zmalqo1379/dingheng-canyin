@@ -171,6 +171,7 @@ async function openDishModal(id) {
     $('dishImage').value = d.image || '';
     $('dishDesc').value = d.description || '';
     sel.value = d.category;
+    updateDishImgPreview();
   } else {
     $('dishModalTitle').textContent = '新增菜品';
     $('dishId').value = '';
@@ -178,6 +179,7 @@ async function openDishModal(id) {
     $('dishPrice').value = '';
     $('dishImage').value = '';
     $('dishDesc').value = '';
+    updateDishImgPreview();
   }
   $('dishModal').classList.add('show');
   setTimeout(() => $('dishName').focus(), 50);
@@ -188,6 +190,82 @@ $('dishCloseBtn').onclick = closeDishModal;
 $('dishCancelBtn').onclick = closeDishModal;
 function closeDishModal() { $('dishModal').classList.remove('show'); }
 $('dishModal').addEventListener('click', (e) => { if (e.target.id === 'dishModal') closeDishModal(); });
+
+/* ---------- 菜品图片上传（前端压缩到 2MB 内后上传） ---------- */
+function updateDishImgPreview() {
+  const url = $('dishImage').value.trim();
+  const img = $('dishImgPreview');
+  const empty = $('dishImgEmpty');
+  if (url) {
+    img.src = url; img.style.display = 'block'; empty.style.display = 'none';
+  } else {
+    img.removeAttribute('src'); img.style.display = 'none'; empty.style.display = 'flex';
+  }
+}
+
+// 压缩图片：最长边 800px，JPEG 质量 0.82；若仍超 2MB 则逐步降低质量
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    if (!['image/jpeg', 'image/png'].includes(file.type)) { reject(new Error('仅支持 jpg/png 格式')); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 800;
+        let width = img.width, height = img.height;
+        if (width > MAX || height > MAX) {
+          const r = Math.min(MAX / width, MAX / height);
+          width = Math.round(width * r);
+          height = Math.round(height * r);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        let quality = 0.82;
+        let dataUrl = canvas.toDataURL('image/jpeg', quality);
+        while (dataUrl.length * 0.75 > 2 * 1024 * 1024 && quality > 0.4) {
+          quality -= 0.12;
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+        resolve(dataUrl);
+      };
+      img.onerror = () => reject(new Error('图片读取失败'));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error('文件读取失败'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadDishImage(file) {
+  try {
+    toast('图片处理中...');
+    const dataUrl = await compressImage(file);
+    // dataURL 转 Blob 后以 multipart/form-data 上传
+    const blob = await (await fetch(dataUrl)).blob();
+    const fd = new FormData();
+    fd.append('file', blob, `dish_${Date.now()}.jpg`);
+    const res = await api('/api/admin/upload', { method: 'POST', body: fd });
+    if (res.success && res.data && res.data.url) {
+      $('dishImage').value = res.data.url;
+      updateDishImgPreview();
+      toast('图片已上传');
+    } else {
+      toast(res.message || '上传失败', true);
+    }
+  } catch (e) {
+    toast(e.message || '上传失败', true);
+  }
+}
+
+$('imgUploadBox').onclick = () => $('dishImgFile').click();
+$('dishImgPickBtn').onclick = () => $('dishImgFile').click();
+$('dishImgRemoveBtn').onclick = () => { $('dishImage').value = ''; updateDishImgPreview(); };
+$('dishImgFile').onchange = (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (f) uploadDishImage(f);
+  e.target.value = ''; // 允许重复选择同一文件
+};
 
 $('dishSaveBtn').onclick = async () => {
   const id = $('dishId').value;

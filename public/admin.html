@@ -221,6 +221,21 @@
     .name-cell .nm { font-weight: 500; }
     .name-cell .desc { font-size: 12px; color: #9ca3af; }
 
+    /* 菜品图片上传控件 */
+    .img-upload {
+      width: 120px; height: 120px;
+      border: 2px dashed #e5e7eb;
+      border-radius: 12px;
+      background: #fafafa;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      overflow: hidden;
+      transition: border-color .2s;
+    }
+    .img-upload:hover { border-color: #ff6b35; }
+    .img-upload .img-preview { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .img-upload .img-empty { text-align: center; line-height: 1.6; }
+
     /* 状态标签 */
     .badge {
       display: inline-block;
@@ -1790,9 +1805,21 @@
         <select class="form-select" id="dishCategory"></select>
       </div>
       <div class="form-group">
-        <label>图片 URL（可选）</label>
-        <input type="text" class="form-input" id="dishImage" placeholder="https://...">
-        <div style="color:#ef4444; font-size:12px; margin-top:6px; line-height:1.5;">注意：当前为本地存储模式，上传后请勿删除电脑中的原图片文件，否则图片将无法显示。</div>
+        <label>菜品图片（可选）</label>
+        <input type="hidden" id="dishImage">
+        <div class="img-upload" id="imgUploadBox">
+          <img id="dishImgPreview" class="img-preview" style="display:none;" alt="图片预览">
+          <div class="img-empty" id="dishImgEmpty">
+            <div style="font-size:26px;">🖼️</div>
+            <div style="font-size:12px;color:#999;">点击上传图片</div>
+          </div>
+        </div>
+        <input type="file" id="dishImgFile" accept="image/jpeg,image/png" style="display:none;">
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button type="button" class="btn btn-gray" id="dishImgPickBtn" style="flex:0 0 auto;">选择图片</button>
+          <button type="button" class="btn btn-red" id="dishImgRemoveBtn" style="flex:0 0 auto;">移除</button>
+        </div>
+        <div style="color:#999; font-size:12px; margin-top:6px; line-height:1.5;">支持 jpg/png，自动压缩后上传（≤2MB）。图片存储在服务器 uploads 目录，本地部署时请勿删除该目录。</div>
       </div>
       <div class="form-group">
         <label>描述（可选）</label>
@@ -1852,7 +1879,7 @@
   (function () {
     var shopId = localStorage.getItem('merchantShopId') || '';
     var map = {
-      customer: '/customer.html?shopId=' + encodeURIComponent(shopId),
+      customer: '/customer.html?shopId=' + encodeURIComponent(shopId) + '&preview=1',
       kitchen: '/kitchen.html?shopId=' + encodeURIComponent(shopId),
       bigscreen: '/bigscreen.html?shopId=' + encodeURIComponent(shopId)
     };

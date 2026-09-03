@@ -119,12 +119,37 @@
     .order-item {
       display: flex;
       justify-content: space-between;
+      align-items: center;
+      gap: 8px;
       padding: 6px 0;
       font-size: 14px;
       border-bottom: 1px dashed #f5f5f5;
     }
     .order-item:last-child { border-bottom: none; }
-    .item-name { font-weight: 500; }
+    .item-thumb {
+      width: 30px; height: 30px;
+      border-radius: 8px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: #f3f4f6;
+    }
+    .item-ph {
+      width: 30px; height: 30px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #ffe0d4, #ffb88c);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 15px; flex-shrink: 0;
+    }
+    .item-name { font-weight: 500; flex: 1; }
+    .order-remark {
+      font-size: 13px;
+      color: #e8590c;
+      background: #fff4e6;
+      border-radius: 8px;
+      padding: 7px 10px;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
     .item-qty { color: #ff6b35; font-weight: 700; }
     .order-footer {
       display: flex;

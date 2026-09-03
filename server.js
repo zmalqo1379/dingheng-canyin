@@ -3,6 +3,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 
 const Category = require('./models/Category');
 const Dish = require('./models/Dish');
@@ -38,6 +40,41 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ============ 菜品图片上传 ============
+// 图片统一存到项目 uploads/ 目录，通过 /uploads/xxx.jpg 静态访问
+const UPLOAD_DIR = path.join(__dirname, 'uploads');
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+app.use('/uploads', express.static(UPLOAD_DIR));
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+    filename: (req, file, cb) => {
+      // 统一重命名为 时间戳+随机串，避免中文/重名问题
+      const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+      cb(null, `dish_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`);
+    }
+  }),
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB 上限（前端已压缩）
+  fileFilter: (req, file, cb) => {
+    const ok = ['image/jpeg', 'image/png'].includes(file.mimetype);
+    if (!ok) return cb(new Error('仅支持 jpg/png 格式图片'));
+    cb(null, true);
+  }
+});
+
+// 菜品图片上传（商家后台专用，需登录；前端已压缩到 2MB 内）
+app.post('/api/admin/upload', requireMerchant, (req, res) => {
+  upload.single('file')(req, res, (err) => {
+    if (err) {
+      const msg = err.code === 'LIMIT_FILE_SIZE' ? '图片超过 2MB，请压缩后再试' : err.message;
+      return res.status(400).json({ success: false, message: msg });
+    }
+    if (!req.file) return res.status(400).json({ success: false, message: '未收到图片文件' });
+    res.json({ success: true, data: { url: `/uploads/${req.file.filename}` } });
+  });
+});
 // 全局公开接口 shopId 提取中间件（只提取不校验，需要校验的路由再套 requirePublicShopId）
 app.use(extractPublicShopId);
 
@@ -80,7 +117,7 @@ app.get('/api/tables', requirePublicShopId, async (req, res) => {
 // 创建订单（顾客端）：shopId 取自公开标识，下单时写入订单
 app.post('/api/orders', requirePublicShopId, async (req, res) => {
   try {
-    const { tableNumber, items } = req.body;
+    const { tableNumber, items, remark } = req.body;
     if (!tableNumber || !items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ success: false, message: '桌号和菜品不能为空' });
     }
@@ -93,6 +130,7 @@ app.post('/api/orders', requirePublicShopId, async (req, res) => {
       tableNumber,
       items,
       totalPrice,
+      remark: String(remark || '').slice(0, 200),
       status: 'pending',
       shopId
     });
