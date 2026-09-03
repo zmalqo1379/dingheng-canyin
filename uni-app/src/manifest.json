@@ -1,0 +1,45 @@
+{
+  "name": "鼎恒餐饮",
+  "appid": "",
+  "description": "鼎恒餐饮扫码点餐 + 管理后台（微信小程序）",
+  "versionName": "1.0.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "mp-weixin": {
+    "appid": "",
+    "setting": {
+      "urlCheck": false,
+      "es6": true,
+      "postcss": true,
+      "minified": true,
+      "lazyload": true
+    },
+    "usingComponents": true,
+    "darkmode": true,
+    "themeLocation": "theme.json",
+    "permission": {
+      "scope.userLocation": {
+        "desc": "你的位置信息将用于门店推荐"
+      }
+    },
+    "requiredPrivateInfos": [],
+    "lazyCodeLoading": "requiredComponents"
+  },
+  "h5": {
+    "title": "鼎恒餐饮",
+    "router": {
+      "mode": "hash"
+    },
+    "devServer": {
+      "port": 5173,
+      "proxy": {
+        "/api": {
+          "target": "http://localhost:3000",
+          "changeOrigin": true,
+          "secure": false
+        }
+      }
+    }
+  },
+  "vueVersion": "3"
+}

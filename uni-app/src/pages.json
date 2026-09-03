@@ -1,0 +1,98 @@
+{
+  "easycom": {
+    "autoscan": true
+  },
+  "pages": [
+    {
+      "path": "pages/customer/index",
+      "style": {
+        "navigationBarTitleText": "扫码点餐",
+        "navigationBarBackgroundColor": "#FF6B35",
+        "navigationBarTextStyle": "white",
+        "enablePullDownRefresh": true,
+        "backgroundColor": "#f5f5f5"
+      }
+    },
+    {
+      "path": "pages/admin/index",
+      "style": {
+        "navigationBarTitleText": "店铺",
+        "navigationBarBackgroundColor": "#FF6B35",
+        "navigationBarTextStyle": "white",
+        "enablePullDownRefresh": false,
+        "backgroundColor": "#f5f5f5"
+      }
+    },
+    {
+      "path": "pages/admin/menu",
+      "style": {
+        "navigationBarTitleText": "菜单管理",
+        "navigationBarBackgroundColor": "#FF6B35",
+        "navigationBarTextStyle": "white",
+        "enablePullDownRefresh": true,
+        "backgroundColor": "#f5f5f5"
+      }
+    },
+    {
+      "path": "pages/admin/order",
+      "style": {
+        "navigationBarTitleText": "订单管理",
+        "navigationBarBackgroundColor": "#1f1f1f",
+        "navigationBarTextStyle": "white",
+        "enablePullDownRefresh": true,
+        "backgroundColor": "#121212"
+      }
+    },
+    {
+      "path": "pages/admin/stats",
+      "style": {
+        "navigationBarTitleText": "数据统计",
+        "navigationBarBackgroundColor": "#FF6B35",
+        "navigationBarTextStyle": "white",
+        "enablePullDownRefresh": false,
+        "backgroundColor": "#f5f5f5"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarBackgroundColor": "#FF6B35",
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "鼎恒餐饮",
+    "backgroundColor": "#F8F8F8",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#FF6B35",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/admin/index",
+        "text": "店铺",
+        "iconPath": "static/tabbar/shop.png",
+        "selectedIconPath": "static/tabbar/shop-active.png"
+      },
+      {
+        "pagePath": "pages/admin/menu",
+        "text": "菜单",
+        "iconPath": "static/tabbar/menu.png",
+        "selectedIconPath": "static/tabbar/menu-active.png"
+      },
+      {
+        "pagePath": "pages/admin/order",
+        "text": "订单",
+        "iconPath": "static/tabbar/order.png",
+        "selectedIconPath": "static/tabbar/order-active.png"
+      },
+      {
+        "pagePath": "pages/admin/stats",
+        "text": "数据统计",
+        "iconPath": "static/tabbar/stats.png",
+        "selectedIconPath": "static/tabbar/stats-active.png"
+      }
+    ]
+  },
+  "darkmode": true,
+  "themeLocation": "theme.json"
+}

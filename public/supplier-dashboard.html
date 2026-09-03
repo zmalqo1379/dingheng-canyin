@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>供应商控制台 - 鼎恒餐饮</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --nav: #1f2937;
+      --nav-2: #111827;
+      --accent: #ff6b35;
+      --accent-2: #ff8e53;
+      --green: #16a34a;
+      --gray: #9ca3af;
+      --red: #ef4444;
+      --bg: #f5f6fa;
+      --line: #e5e7eb;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: #1f2937;
+      -webkit-font-smoothing: antialiased;
+    }
+    button { font-family: inherit; }
+
+    /* ============ 顶部导航栏 ============ */
+    .topbar {
+      position: sticky; top: 0; z-index: 60;
+      background: linear-gradient(135deg, var(--nav), var(--nav-2));
+      color: #fff;
+      padding: 0 20px;
+      display: flex; align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.2);
+    }
+    .topbar .left { display: flex; align-items: center; gap: 12px; }
+    .topbar .hamburger {
+      background: rgba(255,255,255,.12);
+      border: none; color: #fff;
+      width: 38px; height: 38px;
+      border-radius: 10px; font-size: 20px; cursor: pointer;
+      display: none; align-items: center; justify-content: center;
+    }
+    .topbar .brand {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 17px; font-weight: 700;
+    }
+    .topbar .brand .dot {
+      width: 30px; height: 30px; border-radius: 9px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      display: flex; align-items: center; justify-content: center; font-size: 15px;
+    }
+    .topbar .who { font-size: 13px; color: #cbd5e1; font-weight: 400; }
+    .topbar .who span { color: var(--accent-2); font-weight: 600; }
+    .topbar .logout {
+      background: rgba(255,107,53,.2);
+      border: 1px solid rgba(255,107,53,.4);
+      color: #fff;
+      padding: 8px 16px; border-radius: 9px;
+      font-size: 13px; cursor: pointer;
+      transition: background .2s;
+    }
+    .topbar .logout:hover { background: var(--accent); }
+
+    /* ============ 布局 ============ */
+    .layout { display: flex; align-items: flex-start; }
+    .sidebar {
+      width: 220px;
+      min-height: calc(100vh - 60px);
+      background: linear-gradient(180deg, var(--nav), var(--nav-2));
+      color: #cbd5e1;
+      position: sticky; top: 60px;
+      display: flex; flex-direction: column;
+      flex-shrink: 0;
+    }
+    .nav { padding: 14px 10px; flex: 1; }
+    .nav-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 13px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      color: #cbd5e1;
+      margin-bottom: 4px;
+      border-left: 3px solid transparent;
+      transition: background .15s, color .15s;
+    }
+    .nav-item .icon { font-size: 18px; width: 22px; text-align: center; }
+    .nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+    .nav-item.active {
+      background: rgba(255,107,53,.15);
+      color: #fff;
+      border-left-color: var(--accent);
+      font-weight: 600;
+    }
+    .nav-tip {
+      padding: 14px 16px;
+      font-size: 11px; color: #6b7280;
+      border-top: 1px solid rgba(255,255,255,.06);
+    }
+
+    /* ============ 内容区 ============ */
+    .main {
+      flex: 1; min-width: 0;
+      padding: 26px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .pane { display: none; }
+    .pane.active { display: block; }
+    .pane-title {
+      font-size: 20px; font-weight: 700;
+      margin-bottom: 20px;
+    }
+
+    /* 欢迎卡片 */
+    .welcome {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff;
+      border-radius: 18px;
+      padding: 32px 30px;
+      box-shadow: 0 10px 28px rgba(255,107,53,.28);
+      margin-bottom: 22px;
+    }
+    .welcome h2 { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+    .welcome p { font-size: 14px; opacity: .92; }
+
+    /* 统计卡片 */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 18px;
+    }
+    .stat-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 26px 24px;
+      box-shadow: 0 4px 14px rgba(0,0,0,.06);
+      border-top: 4px solid var(--accent);
+    }
+    .stat-card .label { font-size: 14px; color: #6b7280; margin-bottom: 10px; }
+    .stat-card .value { font-size: 40px; font-weight: 800; color: var(--accent); line-height: 1.1; }
+    .stat-card .value small { font-size: 16px; font-weight: 600; }
+
+    /* 通知设置卡片 */
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.05);
+      overflow: hidden;
+    }
+    .card-head {
+      padding: 16px 22px;
+      border-bottom: 1px solid var(--line);
+    }
+    .card-head h3 { font-size: 16px; font-weight: 600; }
+    .settings-card { padding: 22px 24px; }
+    .setting-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 0;
+      border-bottom: 1px solid #f3f4f6;
+      gap: 16px;
+    }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-row .meta { flex: 1; min-width: 0; }
+    .setting-row .meta .t { font-size: 15px; font-weight: 600; color: #1f2937; }
+    .setting-row .meta .d { font-size: 13px; color: #9ca3af; margin-top: 4px; }
+    .toggle { position: relative; display: inline-block; width: 46px; height: 26px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle .slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background: #d1d5db; border-radius: 26px;
+      transition: background .2s;
+    }
+    .toggle .slider::before {
+      content: ""; position: absolute;
+      width: 20px; height: 20px; left: 3px; top: 3px;
+      background: #fff; border-radius: 50%;
+      transition: transform .2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    }
+    .toggle input:checked + .slider { background: var(--green); }
+    .toggle input:checked + .slider::before { transform: translateX(20px); }
+    .save-bar { margin-top: 22px; display: flex; justify-content: flex-end; }
+    .btn-save {
+      background: var(--accent); color: #fff;
+      padding: 10px 22px; border-radius: 10px;
+      border: none; font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    .btn-save:hover { opacity: .9; }
+
+    .placeholder {
+      background: #fff;
+      border-radius: 14px;
+      padding: 60px 30px;
+      text-align: center;
+      color: #9ca3af;
+      box-shadow: 0 2px 10px rgba(0,0,0,.05);
+    }
+    .placeholder .ico { font-size: 44px; margin-bottom: 14px; }
+    .placeholder h3 { font-size: 17px; color: #4b5563; margin-bottom: 8px; }
+    .placeholder p { font-size: 13px; }
+
+    /* ============ 订单过滤标签条 ============ */
+    .filter-bar {
+      display: flex; gap: 8px; flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .filter-chip {
+      padding: 8px 16px;
+      border-radius: 20px;
+      background: #fff;
+      border: 1px solid var(--line);
+      font-size: 13px; color: #6b7280;
+      cursor: pointer; user-select: none;
+      transition: all .15s;
+    }
+    .filter-chip:hover { border-color: var(--accent); color: var(--accent); }
+    .filter-chip.active {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+      font-weight: 600;
+    }
+    .filter-chip .cnt {
+      display: inline-block; min-width: 18px;
+      margin-left: 4px; padding: 0 5px;
+      border-radius: 10px; font-size: 11px;
+      background: rgba(0,0,0,.08);
+    }
+    .filter-chip.active .cnt { background: rgba(255,255,255,.3); }
+
+    /* ============ 订单卡片 ============ */
+    .order-list { display: flex; flex-direction: column; gap: 14px; }
+    .order-card {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.05);
+      overflow: hidden;
+      border-left: 4px solid var(--gray);
+    }
+    .order-card.s-pending { border-left-color: #f59e0b; }
+    .order-card.s-confirmed { border-left-color: #3b82f6; }
+    .order-card.s-delivered { border-left-color: #8b5cf6; }
+    .order-card.s-done { border-left-color: var(--green); }
+
+    .order-head {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 20px;
+      border-bottom: 1px solid #f3f4f6;
+      gap: 12px; flex-wrap: wrap;
+    }
+    .order-head .left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .order-head .no { font-size: 15px; font-weight: 700; color: #1f2937; }
+    .order-head .shop {
+      font-size: 13px; color: #6b7280;
+    }
+    .order-head .shop b { color: #1f2937; }
+    .badge {
+      display: inline-block; padding: 3px 10px;
+      border-radius: 12px; font-size: 12px;
+      font-weight: 600;
+    }
+    .badge.s-pending { background: #fef3c7; color: #92400e; }
+    .badge.s-confirmed { background: #dbeafe; color: #1e40af; }
+    .badge.s-delivered { background: #ede9fe; color: #5b21b6; }
+    .badge.s-done { background: #dcfce7; color: #166534; }
+
+    .order-body {
+      padding: 16px 20px;
+      display: grid;
+      grid-template-columns: 1fr 220px;
+      gap: 20px;
+    }
+    @media (max-width: 768px) { .order-body { grid-template-columns: 1fr; } }
+
+    .item-list { display: flex; flex-direction: column; gap: 8px; }
+    .item-row {
+      display: flex; justify-content: space-between;
+      font-size: 14px; color: #374151;
+      padding: 6px 0;
+      border-bottom: 1px dashed #f3f4f6;
+    }
+    .item-row:last-child { border-bottom: none; }
+    .item-row .name { flex: 1; }
+    .item-row .qty { color: #6b7280; margin: 0 12px; }
+    .item-row .price { font-weight: 600; color: #1f2937; }
+
+    .order-meta { display: flex; flex-direction: column; gap: 8px; }
+    .meta-row {
+      display: flex; justify-content: space-between;
+      font-size: 13px;
+      padding: 4px 0;
+    }
+    .meta-row .k { color: #9ca3af; }
+    .meta-row .v { color: #1f2937; font-weight: 500; }
+    .meta-row.total .v { color: var(--accent); font-size: 16px; font-weight: 700; }
+    .meta-row .v.discount { color: var(--red); }
+
+    .contact-box {
+      margin-top: 6px;
+      padding: 10px 12px;
+      background: #f9fafb;
+      border-radius: 8px;
+      font-size: 12px; color: #6b7280;
+      line-height: 1.6;
+    }
+    .contact-box b { color: #1f2937; }
+
+    .order-foot {
+      padding: 12px 20px;
+      background: #f9fafb;
+      display: flex; justify-content: flex-end; gap: 10px;
+      border-top: 1px solid #f3f4f6;
+    }
+    .btn {
+      padding: 9px 20px;
+      border-radius: 9px;
+      border: none; cursor: pointer;
+      font-size: 14px; font-weight: 600;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff;
+    }
+    .btn-primary:hover:not(:disabled) { opacity: .92; }
+    .btn-ghost {
+      background: #fff; color: #6b7280;
+      border: 1px solid var(--line);
+    }
+    .btn-green {
+      background: var(--green); color: #fff;
+    }
+
+    .empty-tip {
+      background: #fff;
+      border-radius: 14px;
+      padding: 50px 30px;
+      text-align: center;
+      color: #9ca3af;
+      box-shadow: 0 2px 10px rgba(0,0,0,.05);
+    }
+    .empty-tip .ico { font-size: 40px; margin-bottom: 10px; }
+    .empty-tip p { font-size: 14px; }
+
+    .order-refresh {
+      display: flex; justify-content: flex-end;
+      margin-bottom: 12px;
+    }
+    .btn-refresh {
+      background: #fff; border: 1px solid var(--line);
+      color: #6b7280; padding: 7px 16px;
+      border-radius: 8px; font-size: 13px;
+      cursor: pointer;
+    }
+    .btn-refresh:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ============ 订单表格 ============ */
+    .table-wrap {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.05);
+      overflow-x: auto; /* 小屏横向滚动 */
+    }
+    .order-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 960px;
+      font-size: 13px;
+    }
+    .order-table th, .order-table td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid #f3f4f6;
+      white-space: nowrap;
+    }
+    .order-table th {
+      background: #f9fafb;
+      color: #6b7280;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .order-table tbody tr:hover { background: #fffaf6; }
+    .order-table td.summary { max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+    .order-table td.pay { font-weight: 700; color: var(--accent); }
+    .order-table td.mono { font-family: Consolas, Menlo, monospace; }
+    .order-table td.act { min-width: 170px; }
+    .order-table .no-data { text-align: center; color: #9ca3af; padding: 40px 0; white-space: normal; }
+    .wait-text { font-size: 12px; color: #6b7280; }
+    .rebate-tag { font-size: 12px; color: var(--green); font-weight: 600; }
+
+    /* ============ 新订单弹窗提醒 ============ */
+    .new-order-scrim {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.5);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    .new-order-scrim.show { display: flex; }
+    .alert-box {
+      background: #fff;
+      border-radius: 18px;
+      padding: 36px 42px;
+      text-align: center;
+      width: 90%;
+      max-width: 380px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.28);
+      animation: alertPop .22s ease;
+    }
+    @keyframes alertPop {
+      from { transform: scale(.85); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .alert-box .ico {
+      width: 64px; height: 64px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      background: #ffedd5;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 30px;
+    }
+    .alert-box h3 { font-size: 18px; color: #1f2937; margin-bottom: 8px; }
+    .alert-box p { font-size: 13px; color: #9ca3af; margin-bottom: 22px; }
+    .alert-btns { display: flex; gap: 12px; justify-content: center; }
+
+    .toast {
+      position: fixed; top: 24px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(31,41,55,.95);
+      color: #fff;
+      padding: 10px 22px;
+      border-radius: 10px; font-size: 14px;
+      z-index: 999; opacity: 0;
+      transition: opacity .25s, top .25s;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; top: 30px; }
+    .toast.err { background: rgba(239,68,68,.95); }
+
+    .scrim {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.4);
+      z-index: 40;
+    }
+    .scrim.show { display: block; }
+
+    @media (max-width: 768px) {
+      .topbar .hamburger { display: flex; }
+      .topbar .who { display: none; }
+      .sidebar {
+        position: fixed; top: 60px; left: 0; bottom: 0;
+        z-index: 50;
+        transform: translateX(-100%);
+        transition: transform .25s;
+        min-height: calc(100vh - 60px);
+      }
+      .sidebar.open { transform: translateX(0); }
+      .main { padding: 18px; max-width: 100%; }
+      .welcome { padding: 24px 22px; }
+      .welcome h2 { font-size: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 顶部导航栏 -->
+  <div class="topbar">
+    <div class="left">
+      <button class="hamburger" id="menuToggle">☰</button>
+      <div class="brand"><span class="dot">🚚</span> 供应商控制台</div>
+    </div>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <span class="who">您好，<span id="supplierName">供应商</span></span>
+      <button class="logout" id="logoutBtn">退出登录</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <!-- 侧边栏 -->
+    <aside class="sidebar" id="sidebar">
+      <nav class="nav">
+        <div class="nav-item active" data-tab="orders"><span class="icon">📦</span> 待处理订单</div>
+        <div class="nav-item" data-tab="products"><span class="icon">📋</span> 商品管理</div>
+        <div class="nav-item" data-tab="notify"><span class="icon">🔔</span> 通知设置</div>
+        <div class="nav-item" data-tab="stats"><span class="icon">📊</span> 数据统计</div>
+      </nav>
+      <div class="nav-tip">鼎恒供应链 · 供应商接单后台</div>
+    </aside>
+    <div class="scrim" id="scrim"></div>
+
+    <!-- 内容区 -->
+    <main class="main">
+      <!-- 1. 待处理订单 -->
+      <section class="pane active" id="pane-orders">
+        <div class="pane-title">📦 待处理订单</div>
+        <div class="welcome">
+          <h2 id="welcomeText">欢迎来到供应商控制台</h2>
+          <p id="welcomeSub">订单加载中...</p>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="label">今日新订单</div>
+            <div class="value"><span id="todayNewCount">0</span><small> 单</small></div>
+          </div>
+          <div class="stat-card">
+            <div class="label">待确认订单</div>
+            <div class="value"><span id="pendingCount">0</span><small> 单</small></div>
+          </div>
+          <div class="stat-card">
+            <div class="label">本月累计订单金额</div>
+            <div class="value">¥<span id="monthPayTotal">0.00</span></div>
+          </div>
+        </div>
+
+        <!-- 状态过滤 + 刷新 -->
+        <div class="order-refresh">
+          <button class="btn-refresh" id="refreshBtn">↻ 刷新订单</button>
+        </div>
+        <div class="filter-bar" id="filterBar">
+          <div class="filter-chip active" data-status="all">全部 <span class="cnt" id="cnt-all">0</span></div>
+          <div class="filter-chip" data-status="待确认">待确认 <span class="cnt" id="cnt-pending">0</span></div>
+          <div class="filter-chip" data-status="已确认">已确认 <span class="cnt" id="cnt-confirmed">0</span></div>
+          <div class="filter-chip" data-status="已发货">已发货 <span class="cnt" id="cnt-delivered">0</span></div>
+          <div class="filter-chip" data-status="已完成">已完成 <span class="cnt" id="cnt-done">0</span></div>
+        </div>
+
+        <!-- 订单列表（表格，支持横向滚动） -->
+        <div class="table-wrap" id="orderListWrap">
+          <table class="order-table">
+            <thead>
+              <tr>
+                <th>订单号</th>
+                <th>商家名称</th>
+                <th>商品摘要</th>
+                <th>订单总额</th>
+                <th>券抵扣</th>
+                <th>实付金额</th>
+                <th>状态</th>
+                <th>下单时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="orderTbody">
+              <tr><td colspan="9" class="no-data">订单加载中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 2. 商品管理 -->
+      <section class="pane" id="pane-products">
+        <div class="pane-title">📋 商品管理</div>
+        <div class="placeholder">
+          <div class="ico">📋</div>
+          <h3>商品管理（开发中）</h3>
+          <p>供应商商品管理功能将在后续阶段开放</p>
+        </div>
+      </section>
+
+      <!-- 3. 通知设置 -->
+      <section class="pane" id="pane-notify">
+        <div class="pane-title">🔔 通知设置</div>
+        <div class="card">
+          <div class="card-head"><h3>提醒方式设置</h3></div>
+          <div class="settings-card">
+            <div class="setting-row">
+              <div class="meta">
+                <div class="t">新订单页面弹窗提醒</div>
+                <div class="d">控制台收到新订单时自动弹窗提示</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="setPopup" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="setting-row">
+              <div class="meta">
+                <div class="t">短信通知提醒</div>
+                <div class="d">新订单通过短信发送至手机（预留，暂未接入真实短信）</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="setSms">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="setting-row">
+              <div class="meta">
+                <div class="t">语音电话提醒</div>
+                <div class="d">新订单通过语音电话播报（预留，暂未接入真实语音）</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="setVoice">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="save-bar">
+              <button class="btn-save" id="saveNotifyBtn">保存设置</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. 数据统计 -->
+      <section class="pane" id="pane-stats">
+        <div class="pane-title">📊 数据统计</div>
+        <div class="placeholder">
+          <div class="ico">📊</div>
+          <h3>数据统计（开发中）</h3>
+          <p>供应商经营数据统计将在后续阶段开放</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- 新订单弹窗提醒（遮罩层） -->
+  <div class="new-order-scrim" id="newOrderScrim">
+    <div class="alert-box">
+      <div class="ico">🔔</div>
+      <h3>您有新的采购订单</h3>
+      <p>请及时处理，避免超时影响商家备货</p>
+      <div class="alert-btns">
+        <button class="btn btn-ghost" id="alertCloseBtn">稍后处理</button>
+        <button class="btn btn-primary" id="alertViewBtn">立即查看</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 权限控制：无 token 强制跳转登录
+    const token = localStorage.getItem('supplierToken');
+    if (!token) { location.href = '/supplier-login.html'; }
+    const supplierName = localStorage.getItem('supplierName') || '供应商';
+    document.getElementById('supplierName').textContent = supplierName;
+    document.getElementById('welcomeText').textContent = '欢迎来到供应商控制台，' + supplierName;
+
+    const $ = (id) => document.getElementById(id);
+    function toast(msg, isErr) {
+      const el = $('toast');
+      el.textContent = msg;
+      el.classList.toggle('err', !!isErr);
+      el.classList.add('show');
+      clearTimeout(el._t);
+      el._t = setTimeout(() => el.classList.remove('show'), 1600);
+    }
+
+    // 统一 API 调用：自动携带供应商 JWT，后端按 supplierId 过滤订单
+    async function api(url, opts) {
+      try {
+        const finalOpts = opts || {};
+        const headers = Object.assign({}, finalOpts.headers || {});
+        if (token && !headers['Authorization']) {
+          headers['Authorization'] = 'Bearer ' + token;
+        }
+        finalOpts.headers = headers;
+        const res = await fetch(url, finalOpts).then(r => r.json());
+        return res;
+      } catch (e) {
+        toast('网络错误', true);
+        return { success: false, message: 'network' };
+      }
+    }
+
+    function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function fmtTime(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return '—';
+      const p = (n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+    }
+
+    function fmtMoney(n) {
+      const v = Number(n || 0);
+      return '¥' + v.toFixed(2);
+    }
+
+    // 状态 → 样式类名映射
+    function statusClass(s) {
+      switch (s) {
+        case '待确认': return 's-pending';
+        case '已确认': return 's-confirmed';
+        case '已发货': return 's-delivered';
+        case '已完成': return 's-done';
+        case '已收货': return 's-delivered';
+        default: return '';
+      }
+    }
+
+    // 侧边栏导航
+    function switchTab(tab) {
+      document.querySelectorAll('.nav-item').forEach(x => x.classList.toggle('active', x.dataset.tab === tab));
+      document.querySelectorAll('.pane').forEach(x => x.classList.toggle('active', x.id === 'pane-' + tab));
+      closeSidebar();
+      if (tab === 'orders') loadOrders();
+      if (tab === 'notify') loadNotifySettings();
+    }
+    document.querySelectorAll('.nav-item').forEach(t => t.onclick = () => switchTab(t.dataset.tab));
+
+    function openSidebar() { $('sidebar').classList.add('open'); $('scrim').classList.add('show'); }
+    function closeSidebar() { $('sidebar').classList.remove('open'); $('scrim').classList.remove('show'); }
+    $('menuToggle').onclick = openSidebar;
+    $('scrim').onclick = closeSidebar;
+
+    // 退出登录
+    $('logoutBtn').onclick = () => {
+      localStorage.removeItem('supplierToken');
+      localStorage.removeItem('supplierId');
+      localStorage.removeItem('supplierName');
+      location.href = '/supplier-login.html';
+    };
+
+    // ============ 订单列表 ============
+    let allOrders = [];        // 全部订单（已按 supplierId 过滤）
+    let currentFilter = 'all'; // 当前状态过滤
+
+    // 渲染状态过滤标签的计数
+    function renderCounts() {
+      const c = { all: allOrders.length, '待确认': 0, '已确认': 0, '已发货': 0, '已完成': 0 };
+      allOrders.forEach(o => {
+        if (c[o.status] != null) c[o.status]++;
+      });
+      $('cnt-all').textContent = c.all;
+      $('cnt-pending').textContent = c['待确认'];
+      $('cnt-confirmed').textContent = c['已确认'];
+      $('cnt-delivered').textContent = c['已发货'];
+      $('cnt-done').textContent = c['已完成'];
+
+      // 顶部统计卡片：今日新订单 / 待确认 / 本月累计订单金额（实付总和）
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const todayNew = allOrders.filter(o => o.createdAt && new Date(o.createdAt) >= todayStart).length;
+      const monthPay = allOrders
+        .filter(o => o.createdAt && new Date(o.createdAt) >= monthStart)
+        .reduce((s, o) => s + Number(o.actualPayAmount != null ? o.actualPayAmount : (o.totalAmount || 0)), 0);
+      $('todayNewCount').textContent = todayNew;
+      $('pendingCount').textContent = c['待确认'];
+      $('monthPayTotal').textContent = monthPay.toFixed(2);
+
+      // 欢迎语
+      const pending = c['待确认'];
+      const confirmed = c['已确认'];
+      if (pending > 0) {
+        $('welcomeSub').textContent = `当前有 ${pending} 单待确认、${confirmed} 单待发货，请及时处理`;
+      } else if (confirmed > 0) {
+        $('welcomeSub').textContent = `当前有 ${confirmed} 单已确认待发货`;
+      } else {
+        $('welcomeSub').textContent = '暂无待处理订单，状态正常';
+      }
+    }
+
+    // 渲染订单表格行
+    function renderOrderRow(o) {
+      const sCls = statusClass(o.status);
+      // 订单号只显示后 6 位
+      const orderNoTail = String(o.orderNo || '—').slice(-6);
+      const shopName = esc(o.shopName || '未命名商家');
+      // 商品摘要：五花肉×10、西红柿×20
+      const summary = (o.items || []).map(it => `${it.name}×${it.quantity}`).join('、') || '—';
+      const discount = Number(o.discountAmount || 0);
+      const actual = Number(o.actualPayAmount || 0) || Number(o.totalAmount || 0);
+
+      // 操作按钮（按状态流转）
+      let act = '';
+      if (o.status === '待确认') {
+        act = `<button class="btn btn-primary" data-act="confirm" data-id="${esc(String(o._id))}">确认订单</button>`;
+      } else if (o.status === '已确认') {
+        act = `<button class="btn btn-green" data-act="ship" data-id="${esc(String(o._id))}">发货</button>`;
+      } else if (o.status === '已发货') {
+        act = `<span class="wait-text">已发货，等待商家确认收货</span>`;
+      } else if (o.status === '已完成') {
+        // 返点一律取后端数据：已月度结算显示实际返点，否则显示订单完成时的预估返点 preRebate（费率来自 RebateRule，页面不写死）
+        const settled = o.actualRebateAmount != null && Number(o.actualRebateAmount) >= 0;
+        const rebate = settled
+          ? Number(o.actualRebateAmount || 0).toFixed(2)
+          : Number(o.preRebate != null ? o.preRebate : (o.rebateAmount || 0)).toFixed(2);
+        act = `<span class="rebate-tag">已完成 · ${settled ? '实际返点' : '预估返点'} ¥${rebate}</span>`;
+      }
+
+      return `
+        <tr>
+          <td class="mono" title="${esc(o.orderNo || '')}">…${esc(orderNoTail)}</td>
+          <td>${shopName}</td>
+          <td class="summary" title="${esc(summary)}">${esc(summary)}</td>
+          <td>${fmtMoney(o.totalAmount)}</td>
+          <td>${discount > 0 ? '-' + fmtMoney(discount) : '—'}</td>
+          <td class="pay">${fmtMoney(actual)}</td>
+          <td><span class="badge ${sCls}">${esc(o.status)}</span></td>
+          <td>${fmtTime(o.createdAt)}</td>
+          <td class="act">${act}</td>
+        </tr>
+      `;
+    }
+
+    // 渲染订单列表（表格）
+    function renderOrders() {
+      renderCounts();
+      const tbody = $('orderTbody');
+
+      const list = currentFilter === 'all'
+        ? allOrders
+        : allOrders.filter(o => o.status === currentFilter);
+
+      if (!list || list.length === 0) {
+        const tip = currentFilter === 'all'
+          ? '暂无任何采购订单'
+          : `暂无「${currentFilter}」状态的订单`;
+        tbody.innerHTML = `<tr><td colspan="9" class="no-data">📭 ${tip}</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = list.map(renderOrderRow).join('');
+
+      // 绑定操作按钮
+      tbody.querySelectorAll('button[data-act]').forEach(btn => {
+        btn.onclick = () => handleOrderAction(btn.dataset.act, btn.dataset.id, btn);
+      });
+    }
+
+    // 加载订单（供应商专属接口，后端按 JWT supplierId 过滤并补全商家信息）
+    async function loadOrders() {
+      const res = await api('/api/purchase-orders/supplier');
+      if (res.success && Array.isArray(res.data)) {
+        allOrders = res.data;
+        renderOrders();
+        // 首次加载时同步轮询基线，避免刚进页面就误报"新订单"
+        if (lastPendingCount === null) {
+          lastPendingCount = allOrders.filter(o => o.status === '待确认').length;
+        }
+      } else {
+        allOrders = [];
+        renderOrders();
+        if (res.message && res.message !== 'network') {
+          toast(res.message || '订单加载失败', true);
+        }
+      }
+    }
+
+    // ============ 新订单实时提醒（30 秒轮询） ============
+    let lastPendingCount = null; // 上次记录的"待确认"数量
+
+    // 提示音：Web Audio 合成蜂鸣声（无需外部文件）；失败时 console.log 兜底
+    function playBeep() {
+      try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) { console.log('当前环境不支持音频播放'); return; }
+        if (!window._dhAudioCtx) window._dhAudioCtx = new Ctx();
+        const ctx = window._dhAudioCtx;
+        if (ctx.state === 'suspended') { ctx.resume().catch(() => {}); }
+        // 双响蜂鸣
+        [0, 0.75].forEach(delay => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = 880;
+          const t0 = ctx.currentTime + delay;
+          gain.gain.setValueAtTime(0.001, t0);
+          gain.gain.exponentialRampToValueAtTime(0.35, t0 + 0.03);
+          gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.55);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(t0);
+          osc.stop(t0 + 0.6);
+        });
+      } catch (e) {
+        console.log('提示音播放失败：', e);
+      }
+    }
+
+    function showNewOrderAlert() {
+      $('newOrderScrim').classList.add('show');
+    }
+    $('alertViewBtn').onclick = () => {
+      $('newOrderScrim').classList.remove('show');
+      switchTab('orders');
+      loadOrders();
+    };
+    $('alertCloseBtn').onclick = () => $('newOrderScrim').classList.remove('show');
+
+    // 每 30 秒轮询待确认订单数量，发现新增立即提醒
+    async function pollNewOrders() {
+      const res = await api('/api/purchase-orders/supplier?status=' + encodeURIComponent('待确认'));
+      if (res.success && Array.isArray(res.data)) {
+        const cnt = res.data.length;
+        if (lastPendingCount !== null && cnt > lastPendingCount) {
+          playBeep();
+          // 页面弹窗提醒开关打开时才弹遮罩（提示音始终播放）
+          const popupOn = !$('setPopup') || $('setPopup').checked;
+          if (popupOn) showNewOrderAlert();
+          loadOrders(); // 同步刷新列表
+        }
+        lastPendingCount = cnt;
+      }
+    }
+    setInterval(pollNewOrders, 30000);
+
+    // 处理订单操作（确认 / 发货），POST 动词
+    async function handleOrderAction(act, id, btn) {
+      const url = act === 'confirm'
+        ? `/api/purchase-orders/${id}/confirm`
+        : `/api/purchase-orders/${id}/ship`;
+      const verb = act === 'confirm' ? '确认' : '发货';
+
+      if (!confirm(`确定要${verb}该订单吗？`)) return;
+
+      const original = btn ? btn.textContent : '';
+      if (btn) { btn.disabled = true; btn.textContent = '处理中...'; }
+
+      const res = await api(url, { method: 'POST' });
+      if (res.success) {
+        toast(`已${verb}成功`);
+        // 重新加载列表以反映最新状态
+        await loadOrders();
+      } else {
+        toast(res.message || `${verb}失败`, true);
+        if (btn) { btn.disabled = false; btn.textContent = original; }
+      }
+    }
+
+    // 状态过滤标签点击
+    $('filterBar').addEventListener('click', (e) => {
+      const chip = e.target.closest('.filter-chip');
+      if (!chip) return;
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      currentFilter = chip.dataset.status;
+      renderOrders();
+    });
+
+    // 刷新按钮
+    $('refreshBtn').onclick = loadOrders;
+
+    // 加载通知设置（GET /api/supplier/settings）
+    async function loadNotifySettings() {
+      try {
+        const res = await fetch('/api/supplier/settings', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        }).then(r => r.json());
+        if (res.success && res.data) {
+          $('setPopup').checked = res.data.popup !== false;
+          $('setSms').checked = res.data.sms === true;
+          $('setVoice').checked = res.data.voice === true;
+        }
+      } catch (e) { /* 使用默认值 */ }
+    }
+
+    // 保存通知设置（PATCH /api/supplier/settings）
+    $('saveNotifyBtn').onclick = async () => {
+      try {
+        const res = await fetch('/api/supplier/settings', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({
+            popup: $('setPopup').checked,
+            sms: $('setSms').checked,
+            voice: $('setVoice').checked
+          })
+        }).then(r => r.json());
+        if (res.success) toast('保存成功');
+        else toast(res.message || '保存失败', true);
+      } catch (e) {
+        toast('网络错误', true);
+      }
+    };
+
+    // 启动：首次加载订单 + 建立轮询基线
+    loadOrders();
+    pollNewOrders();
+  </script>
+</body>
+</html>

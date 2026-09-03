@@ -1,6 +1,13 @@
 const mongoose = require('mongoose');
 
 const settingSchema = new mongoose.Schema({
+  shopId: {
+    type: String,
+    required: true,
+    index: true,
+    trim: true,
+    unique: true
+  },
   shopName: {
     type: String,
     default: '鼎恒餐饮'

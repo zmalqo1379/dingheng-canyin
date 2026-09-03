@@ -2,122 +2,173 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>鼎恒餐饮 - 扫码点餐</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>鼎恒餐饮·智能餐饮管理平台</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
-      background: #fff;
-      color: #333;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
       min-height: 100vh;
+    }
+    /* ============ 全屏海报区 ============ */
+    .hero {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 60px 24px;
+      /* CSS 渐变模拟全屏大图，预留背景图位置 */
+      background:
+        radial-gradient(circle at 20% 20%, rgba(255,255,255,0.12), transparent 40%),
+        radial-gradient(circle at 80% 70%, rgba(255,255,255,0.10), transparent 45%),
+        linear-gradient(135deg, #ff6b35 0%, #ff8e53 45%, #e8542a 100%);
+      position: relative;
+    }
+    /* 预留背景图位置：如需替换为真实海报图，将 url() 填入即可
+    .hero {
+      background-image: linear-gradient(135deg, rgba(255,107,53,.85), rgba(232,84,42,.85)), url('/img/hero.jpg');
+      background-size: cover;
+      background-position: center;
+    }
+    */
+    .hero .logo {
+      width: 96px; height: 96px;
+      border-radius: 26px;
+      background: rgba(255,255,255,0.18);
+      backdrop-filter: blur(6px);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 48px;
+      margin-bottom: 24px;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.18);
+    }
+    .hero h1 {
+      font-size: 42px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      margin-bottom: 16px;
+      text-shadow: 0 4px 18px rgba(0,0,0,0.2);
+    }
+    .hero .subtitle {
+      font-size: 18px;
+      opacity: 0.95;
+      letter-spacing: 1px;
+      font-weight: 500;
+    }
+    .hero .tag {
+      margin-top: 22px;
+      font-size: 13px;
+      opacity: 0.85;
+      letter-spacing: 4px;
+    }
+
+    /* ============ 三大入口按钮 ============ */
+    .entries {
+      display: flex;
+      gap: 18px;
+      justify-content: center;
+      padding: 40px 24px 56px;
+      background: #fff7f3;
+      flex-wrap: wrap;
+    }
+    .entry {
+      flex: 1 1 220px;
+      max-width: 320px;
+      min-height: 180px;
+      border-radius: 22px;
+      padding: 28px 22px;
+      text-decoration: none;
+      color: #fff;
       display: flex;
       flex-direction: column;
       align-items: center;
-    }
-    .header {
-      width: 100%;
-      background: linear-gradient(135deg, #ff6b35 0%, #ff8e53 100%);
-      color: #fff;
-      padding: 60px 20px 80px;
-      text-align: center;
-      border-bottom-left-radius: 30px;
-      border-bottom-right-radius: 30px;
-    }
-    .header h1 { font-size: 32px; margin-bottom: 8px; font-weight: 700; }
-    .header p { font-size: 15px; opacity: 0.9; }
-    .container {
-      width: 100%;
-      max-width: 480px;
-      padding: 0 20px;
-      margin-top: -40px;
-      flex: 1;
-    }
-    .entry-card {
-      background: #fff;
-      border-radius: 18px;
-      padding: 24px;
-      margin-bottom: 16px;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      cursor: pointer;
-      transition: transform 0.2s, box-shadow 0.2s;
-      text-decoration: none;
-      color: #333;
-    }
-    .entry-card:active { transform: scale(0.98); }
-    .entry-card:hover { box-shadow: 0 8px 24px rgba(255,107,53,0.2); }
-    .entry-icon {
-      width: 56px;
-      height: 56px;
-      border-radius: 14px;
-      display: flex;
-      align-items: center;
       justify-content: center;
-      font-size: 28px;
-      color: #fff;
-      flex-shrink: 0;
+      gap: 10px;
+      box-shadow: 0 12px 28px rgba(255,107,53,0.25);
+      transition: transform 0.2s, box-shadow 0.2s;
     }
-    .icon-customer { background: linear-gradient(135deg, #ff6b35, #ff8e53); }
-    .icon-kitchen { background: linear-gradient(135deg, #4facfe, #00f2fe); }
-    .icon-admin { background: linear-gradient(135deg, #667eea, #764ba2); }
-    .entry-text h3 { font-size: 18px; margin-bottom: 4px; }
-    .entry-text p { font-size: 13px; color: #999; }
+    .entry:hover { transform: translateY(-4px); box-shadow: 0 18px 36px rgba(255,107,53,0.32); }
+    .entry:active { transform: scale(0.99); }
+    .entry-merchant { background: linear-gradient(135deg, #ff6b35, #ff8e53); }
+    .entry-supplier { background: linear-gradient(135deg, #1f2937, #374151 70%, #ff6b35); }
+    .entry-dev { background: linear-gradient(135deg, #0f766e, #14b8a6); }
+    .entry .ico { font-size: 38px; }
+    .entry .t { font-size: 22px; font-weight: 700; letter-spacing: 1px; }
+    .entry .d { font-size: 13px; opacity: 0.9; }
+
+    /* ============ Footer ============ */
     .footer {
+      background: #1f2937;
+      color: #9ca3af;
+      padding: 26px 20px;
       text-align: center;
-      padding: 30px 20px;
-      color: #bbb;
-      font-size: 12px;
+      font-size: 13px;
     }
-    .shop-name {
-      margin-top: 12px;
-      font-size: 14px;
-      color: rgba(255,255,255,0.85);
+    .footer .links { margin-bottom: 10px; }
+    .footer .links a {
+      color: #cbd5e1;
+      text-decoration: none;
+      margin: 0 10px;
+      transition: color 0.2s;
+    }
+    .footer .links a:hover { color: #ff8e53; }
+    .footer .copyright { font-size: 12px; color: #6b7280; }
+
+    /* ============ 响应式 ============ */
+    @media (max-width: 768px) {
+      .hero { padding: 50px 20px; }
+      .hero .logo { width: 76px; height: 76px; font-size: 38px; border-radius: 20px; margin-bottom: 18px; }
+      .hero h1 { font-size: 28px; letter-spacing: 1px; }
+      .hero .subtitle { font-size: 14px; }
+      .entries { padding: 28px 16px 40px; gap: 14px; }
+      .entry { flex: 1 1 100%; min-height: 120px; padding: 22px; }
+      .entry .ico { font-size: 30px; }
+      .entry .t { font-size: 18px; }
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>🍽️ 鼎恒餐饮</h1>
-    <p>扫码点餐 · 智能餐厅</p>
-    <div class="shop-name" id="shopName">鼎恒餐饮</div>
-  </div>
-  <div class="container">
-    <a class="entry-card" href="customer.html">
-      <div class="entry-icon icon-customer">🍴</div>
-      <div class="entry-text">
-        <h3>顾客点餐</h3>
-        <p>扫码下单，便捷快速</p>
-      </div>
-    </a>
-    <a class="entry-card" href="kitchen.html">
-      <div class="entry-icon icon-kitchen">👨‍🍳</div>
-      <div class="entry-text">
-        <h3>后厨看单</h3>
-        <p>实时接单，语音播报</p>
-      </div>
-    </a>
-    <a class="entry-card" href="admin.html">
-      <div class="entry-icon icon-admin">⚙️</div>
-      <div class="entry-text">
-        <h3>管理后台</h3>
-        <p>数据统计 · 菜单管理</p>
-      </div>
-    </a>
-  </div>
-  <div class="footer">
-    © 2026 鼎恒餐饮 扫码点餐系统
-  </div>
 
-  <script>
-    fetch('/api/settings').then(r => r.json()).then(res => {
-      if (res.success && res.data && res.data.shopName) {
-        document.getElementById('shopName').textContent = res.data.shopName;
-        document.title = res.data.shopName + ' - 扫码点餐';
-      }
-    }).catch(() => {});
-  </script>
+  <!-- ============ 全屏海报区 ============ -->
+  <section class="hero">
+    <div class="logo">🍽️</div>
+    <h1>鼎恒餐饮·智能餐饮管理平台</h1>
+    <p class="subtitle">扫码点餐 · 供应链采购 · 数字化经营</p>
+    <div class="tag">全链路餐饮数字化解决方案</div>
+  </section>
+
+  <!-- ============ 三大入口按钮 ============ -->
+  <section class="entries">
+    <a class="entry entry-merchant" href="/merchant-login.html">
+      <span class="ico">🏪</span>
+      <span class="t">我是商家</span>
+      <span class="d">管理后台 · 菜单订单 · 数据统计</span>
+    </a>
+    <a class="entry entry-supplier" href="/supplier-login.html">
+      <span class="ico">🚚</span>
+      <span class="t">我是供应商</span>
+      <span class="d">接单发货 · 商品管理 · 通知设置</span>
+    </a>
+    <a class="entry entry-dev" href="/dev-login.html">
+      <span class="ico">🛠️</span>
+      <span class="t">我是开发者</span>
+      <span class="d">平台总览 · 商家与供应商管理</span>
+    </a>
+  </section>
+
+  <!-- ============ Footer ============ -->
+  <footer class="footer">
+    <div class="links">
+      <a href="/privacy.html">隐私协议</a>
+      <a href="/terms.html">服务协议</a>
+    </div>
+    <div class="copyright">© 2026 鼎恒餐饮·智能餐饮管理平台 · 扫码点餐系统</div>
+  </footer>
+
 </body>
 </html>

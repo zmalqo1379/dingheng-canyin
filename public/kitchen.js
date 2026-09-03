@@ -61,6 +61,17 @@
   document.head.appendChild(el);
 })();
 
+// -------- 1.x shopId 缺失校验：缺少店铺标识则提示并停止加载业务内容 --------
+const SHOP_ID = new URLSearchParams(location.search).get('shopId') || '';
+function ensureShopId() {
+  if (SHOP_ID) return true;
+  const mask = document.createElement('div');
+  mask.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;';
+  mask.innerHTML = '<div style="background:#16213e;color:#fff;border:2px solid #ff6b35;border-radius:16px;padding:32px 26px;max-width:340px;"><div style="font-size:44px;margin-bottom:12px;">👨‍🍳</div><h2 style="font-size:18px;margin-bottom:10px;">缺少店铺标识</h2><p style="font-size:14px;color:#cbd5e1;line-height:1.6;">请从商家后台「店铺运营 → 后厨看单」进入，链接需带 <b style="color:#ff8e53;">shopId</b> 参数。</p></div>';
+  document.body.appendChild(mask);
+  return false;
+}
+
 // -------- 2. 全局状态 --------
 let currentFilter = 'pending';
 let voiceEnabled = false;            // 当前页面语音开关（加载时由 /api/settings 决定，可被按钮临时覆盖）
@@ -159,7 +170,8 @@ function speakOrder(order) {
 // -------- 4.1 拉取店铺设置：读取全局 enableVoice，决定本页是否播报 --------
 async function loadVoiceSettingFromServer() {
   try {
-    const res = await fetch('/api/settings');
+    // 按 URL 的 shopId 取对应商家的设置
+    const res = await fetch(`/api/settings?shopId=${encodeURIComponent(SHOP_ID)}`);
     const data = await res.json();
     if (data && data.success && data.data) {
       const enableVoice = data.data.enableVoice !== false;   // 默认 true（仅当显式 false 时关闭）
@@ -211,7 +223,8 @@ function parseOrders(data) {
 // -------- 7. 轮询：每 2 秒拉取 pending 订单 --------
 async function fetchOrders() {
   try {
-    const res = await fetch('/api/orders?status=pending');
+    const qs = `shopId=${encodeURIComponent(SHOP_ID)}`;
+    const res = await fetch(`/api/orders?status=pending&${qs}`);
     const data = await res.json();
     const pendingOrders = parseOrders(data);
 
@@ -248,10 +261,10 @@ async function fetchOrders() {
     // 根据当前过滤视图准备渲染数据
     let renderList = pendingOrders;
     if (currentFilter === 'completed') {
-      const cRes = await fetch('/api/orders?status=completed');
+      const cRes = await fetch(`/api/orders?status=completed&${qs}`);
       renderList = parseOrders(await cRes.json());
     } else if (currentFilter === 'all') {
-      const aRes = await fetch('/api/orders');
+      const aRes = await fetch(`/api/orders?${qs}`);
       renderList = parseOrders(await aRes.json());
     }
 
@@ -271,7 +284,7 @@ async function fetchOrders() {
 // -------- 8. 统计 --------
 async function loadStats() {
   try {
-    const res = await fetch('/api/admin/stats');
+    const res = await fetch(`/api/admin/stats?shopId=${encodeURIComponent(SHOP_ID)}`);
     const data = await res.json();
     if (!data || !data.success) return;
     const d = data.data;
@@ -327,7 +340,11 @@ function renderOrders(orders) {
       btn.disabled = true;
       btn.textContent = '处理中...';
       try {
-        const res = await fetch(`/api/orders/${btn.dataset.id}/complete`, { method: 'PUT' });
+        // 完成订单必须带 x-shop-id，后端按 {_id, shopId} 双重条件匹配，防止窜改
+        const res = await fetch(`/api/orders/${btn.dataset.id}/complete`, {
+          method: 'PUT',
+          headers: { 'x-shop-id': SHOP_ID }
+        });
         const data = await res.json();
         if (data && data.success) {
           // 标记完成后从 announcedIds 移除，下次轮询同步
@@ -362,11 +379,14 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 //   enableVoice=true  → 自动开始轮询+播报（无需弹窗确认）
 //   enableVoice=false → 只轮询显示订单，不播报
 //   厨师可点击右上角按钮临时切换当前页面语音状态
-loadVoiceSettingFromServer();               // 拉取一次全局语音设置（不再周期性刷新，避免覆盖厨师临时切换）
-fetchOrders();                              // 立即拉取一次
-pollTimer = setInterval(fetchOrders, 2000); // 每 2 秒轮询，不受语音按钮影响
+//   缺少 shopId 时停止加载业务内容
+if (ensureShopId()) {
+  loadVoiceSettingFromServer();               // 拉取一次全局语音设置（不再周期性刷新，避免覆盖厨师临时切换）
+  fetchOrders();                              // 立即拉取一次
+  pollTimer = setInterval(fetchOrders, 2000); // 每 2 秒轮询，不受语音按钮影响
 
-// 页面从后台切回前台时立即刷新一次
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') fetchOrders();
-});
+  // 页面从后台切回前台时立即刷新一次
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') fetchOrders();
+  });
+}

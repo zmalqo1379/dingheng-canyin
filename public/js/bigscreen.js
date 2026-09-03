@@ -4,6 +4,17 @@
 // ============================================================
 
 // -------- 全局状态 --------
+// 店铺标识：必须从 URL 带 shopId 进入（由商家后台「大屏展示」新标签打开）
+const SHOP_ID = new URLSearchParams(location.search).get('shopId') || '';
+function ensureShopId() {
+  if (SHOP_ID) return true;
+  const mask = document.createElement('div');
+  mask.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;';
+  mask.innerHTML = '<div style="background:#16213e;color:#fff;border:2px solid #ff6b35;border-radius:18px;padding:40px 32px;max-width:420px;"><div style="font-size:64px;margin-bottom:16px;">📺</div><h2 style="font-size:26px;margin-bottom:12px;">缺少店铺标识</h2><p style="font-size:18px;color:#cbd5e1;line-height:1.6;">请从商家后台「店铺运营 → 大屏展示」进入，链接需带 <b style="color:#ff8e53;">shopId</b> 参数。</p></div>';
+  document.body.appendChild(mask);
+  return false;
+}
+
 let displayedIds = [];          // 当前已显示的订单 _id（用于检测新订单）
 let firstLoad = true;          // 首次加载：1分钟前的历史订单不播报，1分钟内视为新订单
 let highlightIds = new Set();  // 新订单高亮中的卡片（3秒）
@@ -21,7 +32,7 @@ const errorBanner = document.getElementById('errorBanner');
 // -------- 1. 加载店铺名称 & 大屏开关 --------
 async function loadShopName() {
   try {
-    const res = await fetch('/api/settings');
+    const res = await fetch(`/api/settings?shopId=${encodeURIComponent(SHOP_ID)}`);
     const data = await res.json();
     if (data && data.success && data.data) {
       if (data.data.shopName) {
@@ -37,7 +48,7 @@ async function loadShopName() {
 // 定时刷新店铺设置（保证后台修改后大屏能及时生效）
 async function refreshSystemSettings() {
   try {
-    const res = await fetch('/api/settings');
+    const res = await fetch(`/api/settings?shopId=${encodeURIComponent(SHOP_ID)}`);
     const data = await res.json();
     if (data && data.success && data.data) {
       systemEnableBigscreen = data.data.enableBigscreen !== false;
@@ -167,7 +178,7 @@ function formatOrderTime(iso) {
 // -------- 9. 轮询：每 5 秒拉取 pending 订单 --------
 async function fetchOrders() {
   try {
-    const res = await fetch('/api/orders?status=pending');
+    const res = await fetch(`/api/orders?status=pending&shopId=${encodeURIComponent(SHOP_ID)}`);
     const data = await res.json();
     const orders = (data && data.data) ? data.data : [];
 
@@ -258,12 +269,15 @@ function renderOrders(orders) {
 }
 
 // -------- 11. 启动 --------
-loadShopName();                        // 拉取店铺名称 & 大屏开关
-setInterval(refreshSystemSettings, 30000); // 每 30 秒刷新一次店铺设置
-fetchOrders();                         // 立即拉取一次
-setInterval(fetchOrders, POLL_INTERVAL); // 每 5 秒轮询
+// 缺少 shopId 时停止加载业务内容（时钟/全屏按钮仍可用）
+if (ensureShopId()) {
+  loadShopName();                        // 拉取店铺名称 & 大屏开关
+  setInterval(refreshSystemSettings, 30000); // 每 30 秒刷新一次店铺设置
+  fetchOrders();                         // 立即拉取一次
+  setInterval(fetchOrders, POLL_INTERVAL); // 每 5 秒轮询
 
-// 页面从后台切回前台时立即刷新一次
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') fetchOrders();
-});
+  // 页面从后台切回前台时立即刷新一次
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') fetchOrders();
+  });
+}

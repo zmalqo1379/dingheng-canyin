@@ -1,10 +1,22 @@
 // 顾客点餐页逻辑
 const params = new URLSearchParams(location.search);
 let tableNumber = params.get('table') || params.get('t') || '';
+// 店铺标识：必须从 URL 带 shopId 进入（由商家后台「预览点餐页」新标签打开）
+const SHOP_ID = params.get('shopId') || '';
 const cart = {}; // { dishId: { dish, quantity } }
 let dishes = [];
 let categories = [];
 let currentCategory = '';
+
+// shopId 缺失校验：缺少店铺标识则提示并停止加载业务内容
+function ensureShopId() {
+  if (SHOP_ID) return true;
+  const mask = document.createElement('div');
+  mask.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;';
+  mask.innerHTML = '<div style="background:#fff;border-radius:16px;padding:32px 26px;max-width:340px;"><div style="font-size:44px;margin-bottom:12px;">🏪</div><h2 style="font-size:18px;margin-bottom:10px;">缺少店铺标识</h2><p style="font-size:14px;color:#666;line-height:1.6;">请从商家后台「店铺运营 → 预览点餐页」进入，链接需带 <b>shopId</b> 参数。</p></div>';
+  document.body.appendChild(mask);
+  return false;
+}
 
 // 桌号显示格式：纯数字 -> "5号桌"，否则 -> "A1桌"
 function formatTable(num) {
@@ -22,9 +34,11 @@ const toast = (msg) => {
 // 加载分类与菜品
 async function loadData() {
   try {
+    // 所有请求通过 query.shopId 携带店铺标识，后端按此过滤对应商家的数据
+    const qs = `shopId=${encodeURIComponent(SHOP_ID)}`;
     const [catRes, dishRes] = await Promise.all([
-      fetch('/api/categories').then(r => r.json()),
-      fetch('/api/dishes').then(r => r.json())
+      fetch(`/api/categories?${qs}`).then(r => r.json()),
+      fetch(`/api/dishes?${qs}`).then(r => r.json())
     ]);
     categories = (catRes && catRes.data) ? catRes.data : [];
     // 保留全部菜品（含售罄），由前端显示遮罩
@@ -169,9 +183,13 @@ document.getElementById('modalConfirm').onclick = async () => {
   btn.disabled = true;
   btn.textContent = '提交中...';
   try {
+    // 下单时通过 x-shop-id 请求头携带店铺标识，后端写入订单 shopId 字段
     const res = await fetch('/api/orders', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-shop-id': SHOP_ID
+      },
       body: JSON.stringify({ tableNumber, items })
     }).then(r => r.json());
     if (res.success) {
@@ -195,6 +213,6 @@ document.getElementById('modalConfirm').onclick = async () => {
   }
 };
 
-// 初始化
+// 初始化：缺少 shopId 则停止加载业务内容
 document.getElementById('tableInfo').textContent = formatTable(tableNumber);
-loadData();
+if (ensureShopId()) loadData();

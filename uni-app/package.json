@@ -1,0 +1,27 @@
+{
+  "name": "dingheng-canyin-uniapp",
+  "version": "1.0.0",
+  "description": "鼎恒餐饮 Uni-app 前端（Vue3 + Vite，微信小程序）",
+  "private": true,
+  "scripts": {
+    "dev:mp-weixin": "uni -p mp-weixin",
+    "build:mp-weixin": "uni build -p mp-weixin",
+    "dev:h5": "uni",
+    "build:h5": "uni build",
+    "gen:icons": "node scripts/gen-icons.cjs"
+  },
+  "dependencies": {
+    "@dcloudio/uni-app": "^3.0.0-alpha",
+    "@dcloudio/uni-app-mp-weixin": "^3.0.0-alpha",
+    "@dcloudio/uni-components": "^3.0.0-alpha",
+    "@dcloudio/uni-h5": "^3.0.0-alpha",
+    "vue": "^3.4.21",
+    "vue-i18n": "^9.1.9"
+  },
+  "devDependencies": {
+    "@dcloudio/uni-app-harmony": "^3.0.0-alpha",
+    "@dcloudio/uni-cli-shared": "^3.0.0-alpha",
+    "@dcloudio/vite-plugin-uni": "^3.0.0-alpha",
+    "vite": "^5.2.0"
+  }
+}

@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>供应商登录/注册 - 鼎恒餐饮</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --accent: #ff6b35;
+      --accent-2: #ff8e53;
+      --red: #ef4444;
+      --line: #e5e7eb;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1f2937 0%, #374151 50%, #ff6b35 140%);
+      padding: 24px;
+    }
+    .card {
+      width: 100%;
+      max-width: 440px;
+      background: #fff;
+      border-radius: 22px;
+      box-shadow: 0 18px 48px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+    .top {
+      background: linear-gradient(135deg, #1f2937, #374151 70%, var(--accent));
+      color: #fff;
+      padding: 28px 28px 24px;
+      text-align: center;
+    }
+    .top .logo {
+      width: 56px; height: 56px;
+      margin: 0 auto 12px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+    }
+    .top h1 { font-size: 22px; font-weight: 700; }
+    .top .sub { font-size: 13px; opacity: 0.9; margin-top: 6px; }
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--line);
+    }
+    .tab {
+      flex: 1;
+      padding: 16px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 15px;
+      color: #9ca3af;
+      font-weight: 600;
+      border-bottom: 3px solid transparent;
+      transition: color .2s, border-color .2s;
+      background: none;
+      border-top: none; border-left: none; border-right: none;
+    }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .body { padding: 24px 28px 30px; }
+    .pane { display: none; }
+    .pane.active { display: block; }
+    .form-group { margin-bottom: 13px; }
+    .form-group label {
+      display: block; font-size: 13px; color: #4b5563;
+      margin-bottom: 6px; font-weight: 500;
+    }
+    .input {
+      width: 100%; padding: 11px 14px;
+      border: 1px solid var(--line); border-radius: 11px;
+      font-size: 15px; background: #fff;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,107,53,.14); }
+    .categories {
+      display: flex; flex-wrap: wrap; gap: 8px;
+    }
+    .cat-chip {
+      padding: 7px 14px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      font-size: 13px; color: #6b7280;
+      cursor: pointer; user-select: none;
+      transition: all .15s;
+      background: #fff;
+    }
+    .cat-chip:hover { border-color: var(--accent); color: var(--accent); }
+    .cat-chip.active {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .alert {
+      color: var(--red); font-size: 13px;
+      margin-bottom: 12px; text-align: center;
+      background: #fef2f2; padding: 9px;
+      border-radius: 9px; display: none;
+    }
+    .btn {
+      width: 100%; padding: 13px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff; border: none; border-radius: 12px;
+      font-size: 16px; font-weight: 600; cursor: pointer;
+      margin-top: 6px; transition: transform .1s, box-shadow .2s;
+    }
+    .btn:hover { box-shadow: 0 8px 20px rgba(255,107,53,.35); }
+    .btn:active { transform: scale(0.99); }
+    .btn:disabled { opacity: .6; cursor: not-allowed; }
+    .back { text-align: center; margin-top: 16px; }
+    .back a { font-size: 13px; color: #9ca3af; text-decoration: none; }
+    .back a:hover { color: var(--accent); }
+    .tip { font-size: 12px; color: #bbb; text-align: center; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="top">
+      <div class="logo">🚚</div>
+      <h1>供应商登录/注册</h1>
+      <div class="sub">鼎恒餐饮·供应链采购平台</div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="login">登录</button>
+      <button class="tab" data-tab="register">注册</button>
+    </div>
+    <div class="body">
+      <!-- 登录 -->
+      <div class="pane active" id="pane-login">
+        <div class="alert" id="loginAlert"></div>
+        <div class="form-group">
+          <label>手机号</label>
+          <input type="tel" class="input" id="loginPhone" placeholder="请输入手机号" autocomplete="tel">
+        </div>
+        <div class="form-group">
+          <label>密码</label>
+          <input type="password" class="input" id="loginPwd" placeholder="请输入密码" autocomplete="current-password">
+        </div>
+        <button class="btn" id="loginBtn">登 录</button>
+        <div class="tip">登录成功后将跳转到供应商控制台</div>
+      </div>
+
+      <!-- 注册 -->
+      <div class="pane" id="pane-register">
+        <div class="alert" id="regAlert"></div>
+        <div class="form-group">
+          <label>供应商名称</label>
+          <input type="text" class="input" id="name" placeholder="如：XX农贸供应商">
+        </div>
+        <div class="form-group">
+          <label>联系人</label>
+          <input type="text" class="input" id="contact" placeholder="联系人姓名">
+        </div>
+        <div class="form-group">
+          <label>手机号</label>
+          <input type="tel" class="input" id="regPhone" placeholder="手机号（用于登录）" autocomplete="tel">
+        </div>
+        <div class="form-group">
+          <label>密码</label>
+          <input type="password" class="input" id="regPwd" placeholder="设置登录密码" autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label>确认密码</label>
+          <input type="password" class="input" id="regPwd2" placeholder="再次输入密码" autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label>主营品类（多选）</label>
+          <div class="categories" id="catList">
+            <span class="cat-chip" data-cat="蔬菜">蔬菜</span>
+            <span class="cat-chip" data-cat="肉类">肉类</span>
+            <span class="cat-chip" data-cat="冻品">冻品</span>
+            <span class="cat-chip" data-cat="粮油">粮油</span>
+            <span class="cat-chip" data-cat="酱料">酱料</span>
+            <span class="cat-chip" data-cat="一次性用品">一次性用品</span>
+          </div>
+        </div>
+        <button class="btn" id="regBtn">注 册</button>
+        <div class="tip">注册成功后将自动登录并跳转</div>
+      </div>
+
+      <div class="back"><a href="/index.html">← 返回首页</a></div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const selectedCats = new Set();
+    document.querySelectorAll('.cat-chip').forEach(c => {
+      c.onclick = () => {
+        const cat = c.dataset.cat;
+        if (selectedCats.has(cat)) {
+          selectedCats.delete(cat);
+          c.classList.remove('active');
+        } else {
+          selectedCats.add(cat);
+          c.classList.add('active');
+        }
+      };
+    });
+
+    document.querySelectorAll('.tab').forEach(t => {
+      t.onclick = () => {
+        document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
+        const tab = t.dataset.tab;
+        $('pane-login').classList.toggle('active', tab === 'login');
+        $('pane-register').classList.toggle('active', tab === 'register');
+        $('loginAlert').style.display = 'none';
+        $('regAlert').style.display = 'none';
+      };
+    });
+
+    function showAlert(el, msg) {
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    // 登录
+    $('loginBtn').onclick = async () => {
+      const phone = $('loginPhone').value.trim();
+      const password = $('loginPwd').value;
+      if (!phone || !password) return showAlert($('loginAlert'), '请输入手机号和密码');
+      $('loginBtn').disabled = true;
+      try {
+        const res = await fetch('/api/auth/supplier/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, password })
+        }).then(r => r.json());
+        if (res.success) {
+          localStorage.setItem('supplierToken', res.data.token);
+          localStorage.setItem('supplierId', res.data.supplierId);
+          localStorage.setItem('supplierName', res.data.supplierName);
+          location.href = '/supplier-dashboard.html';
+        } else {
+          showAlert($('loginAlert'), res.message || '登录失败');
+        }
+      } catch (e) {
+        showAlert($('loginAlert'), '网络错误，请重试');
+      } finally {
+        $('loginBtn').disabled = false;
+      }
+    };
+
+    // 注册
+    $('regBtn').onclick = async () => {
+      const name = $('name').value.trim();
+      const contact = $('contact').value.trim();
+      const phone = $('regPhone').value.trim();
+      const password = $('regPwd').value;
+      const confirm = $('regPwd2').value;
+      if (!name || !contact || !phone || !password) return showAlert($('regAlert'), '请填写完整信息');
+      if (password !== confirm) return showAlert($('regAlert'), '两次输入的密码不一致');
+      if (password.length < 6) return showAlert($('regAlert'), '密码至少6位');
+      if (selectedCats.size === 0) return showAlert($('regAlert'), '请至少选择一个主营品类');
+      $('regBtn').disabled = true;
+      try {
+        const res = await fetch('/api/auth/supplier/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name, contact, phone, password, confirm,
+            categories: Array.from(selectedCats)
+          })
+        }).then(r => r.json());
+        if (res.success) {
+          localStorage.setItem('supplierToken', res.data.token);
+          localStorage.setItem('supplierId', res.data.supplierId);
+          localStorage.setItem('supplierName', res.data.supplierName);
+          location.href = '/supplier-dashboard.html';
+        } else {
+          showAlert($('regAlert'), res.message || '注册失败');
+        }
+      } catch (e) {
+        showAlert($('regAlert'), '网络错误，请重试');
+      } finally {
+        $('regBtn').disabled = false;
+      }
+    };
+  </script>
+</body>
+</html>

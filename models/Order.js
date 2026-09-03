@@ -35,6 +35,12 @@ const orderSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  shopId: {
+    type: String,
+    required: true,
+    index: true,
+    trim: true
   }
 }, { timestamps: true });
 

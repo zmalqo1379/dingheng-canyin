@@ -27,6 +27,12 @@ const dishSchema = new mongoose.Schema({
   description: {
     type: String,
     default: ''
+  },
+  shopId: {
+    type: String,
+    required: true,
+    index: true,
+    trim: true
   }
 }, { timestamps: true });
 
