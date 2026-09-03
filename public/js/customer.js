@@ -83,30 +83,53 @@ function ensureShopId() {
 /* ---------- 店铺风格主题 ---------- */
 // 与 models/Setting.js theme 枚举保持一致
 const THEME_LIST = ['classic', 'minimal', 'dark', 'green', 'redgold'];
+// 店名字体（系统字体栈，与后台 NAME_FONTS / models/Setting.js shopNameFont 一致）
+const NAME_FONT_STACKS = {
+  modern: '-apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif',
+  serif: '"Noto Serif SC", "Songti SC", "STSong", "SimSun", serif',
+  round: '"Yuanti SC", "YouYuan", "幼圆", "PingFang SC", sans-serif',
+  hand: '"Kaiti SC", "STKaiti", "KaiTi", "楷体", cursive'
+};
+// 菜单排版（与 models/Setting.js layout 枚举一致）
+const LAYOUT_LIST = ['list', 'large', 'grid'];
+let currentLayout = 'list';
+
 function applyShopTheme(setting) {
   const s = setting || {};
   const t = THEME_LIST.includes(s.theme) ? s.theme : 'classic';
   THEME_LIST.forEach(x => document.body.classList.remove('theme-' + x));
   document.body.classList.add('theme-' + t);
+  // 店名字体：后台选择覆盖（系统字体栈，不加载外部字体）
+  document.body.style.setProperty('--font-shopname', NAME_FONT_STACKS[s.shopNameFont] || NAME_FONT_STACKS.modern);
+  // 菜单排版：list 经典列表 / large 大图模式 / grid 双列网格
+  currentLayout = LAYOUT_LIST.includes(s.layout) ? s.layout : 'list';
+  LAYOUT_LIST.forEach(x => document.body.classList.remove('layout-' + x));
+  document.body.classList.add('layout-' + currentLayout);
   // 自定义横幅背景图：加深色遮罩保证文字可读；未上传则用主题默认渐变
   const banner = $('shopBanner');
   if (banner) {
     if (s.bannerImage) {
       banner.style.setProperty('--banner-layer',
         `linear-gradient(rgba(0,0,0,.28), rgba(0,0,0,.28)), url("${s.bannerImage}")`);
+      banner.classList.add('has-photo');
     } else {
       banner.style.removeProperty('--banner-layer');
+      banner.classList.remove('has-photo');
     }
   }
-  // 自定义店铺 LOGO：显示在店名左侧；未上传保留主题默认图标
+  // 自定义店铺 LOGO：显示在店名左侧；未上传则不显示任何默认图标，店名放大为视觉主体
   const logo = $('shopLogo');
   if (logo) {
     if (s.logoImage) {
+      logo.style.display = 'flex';
       logo.innerHTML = `<img src="${esc(s.logoImage)}" alt="店铺LOGO" onerror="this.remove()">`;
     } else {
-      logo.textContent = '🍽️';
+      logo.style.display = 'none';
+      logo.innerHTML = '';
     }
   }
+  const shopLine = $('shopLine');
+  if (shopLine) shopLine.classList.toggle('no-logo', !s.logoImage);
 }
 
 /* ---------- 数据加载 ---------- */
@@ -205,9 +228,12 @@ function renderMenu() {
         </div>
       </div>`;
     }).join('');
+    // 双列网格布局：卡片包一层 grid 容器；其余布局直接平铺
+    const cardsHtml = currentLayout === 'grid' ? `<div class="dish-grid">${cards}</div>` : cards;
+    const bodyHtml = cards ? cardsHtml : '<div class="empty-tip">该分类暂无菜品</div>';
     return `<div class="cat-section" id="sec-${i}" data-cat="${esc(c.name)}">
       <div class="cat-title">— ${esc(c.name)} —</div>
-      ${cards || '<div class="empty-tip">该分类暂无菜品</div>'}
+      ${bodyHtml}
     </div>`;
   }).join('');
 }

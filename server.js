@@ -490,6 +490,16 @@ app.put('/api/settings', requireMerchant, async (req, res) => {
       }
     }
 
+    // ---- 店铺装修：店名字体 / 菜单排版（所有会员等级可用，非法值剔除） ----
+    if (update.shopNameFont !== undefined &&
+        !['modern', 'serif', 'round', 'hand'].includes(update.shopNameFont)) {
+      delete update.shopNameFont;
+    }
+    if (update.layout !== undefined &&
+        !['list', 'large', 'grid'].includes(update.layout)) {
+      delete update.layout;
+    }
+
     // ---- 店铺装修：自定义图片进阶版及以上（置空/恢复默认不限等级）----
     const wantsImage = (update.bannerImage && update.bannerImage !== '') ||
                        (update.logoImage && update.logoImage !== '');

@@ -42,7 +42,8 @@
       --sk1: #ececec;
       --sk2: #f6f6f6;
       --font-body: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
-      --font-title: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+      /* 店名字体：后台「店名字体」选择覆盖（JS 写到 body 上），默认现代黑体 */
+      --font-shopname: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
     }
 
     /* ================= 店铺风格主题包（body.theme-* 覆盖变量即可整套换肤） ================= */
@@ -76,7 +77,7 @@
     }
     body.theme-minimal .banner { background-color: #ffffff; border-bottom: 1px solid #ececec; }
     body.theme-minimal .banner::before, body.theme-minimal .banner::after { display: none; }
-    body.theme-minimal .shop-name { text-shadow: none; font-size: 20px; }
+    body.theme-minimal .shop-name { text-shadow: none; }
     body.theme-minimal .shop-logo { background: #f4f4f4; }
     body.theme-minimal .table-pill { background: #1a1a1a; border-color: #1a1a1a; color: #fff; }
     body.theme-minimal .banner-slogan { color: #9a9a9a; opacity: 1; }
@@ -115,8 +116,11 @@
       --btn-disabled-bg: #2B2B30;
       --btn-disabled-text: #6A6A72;
     }
-    body.theme-dark .banner::before { background: rgba(212,175,122,.10); }
-    body.theme-dark .banner::after { background: rgba(212,175,122,.07); }
+    /* 时尚暗黑：深色渐变 + 底部 1px 金色细线收边 */
+    body.theme-dark .banner::after {
+      left: 18px; right: 18px; bottom: 0; height: 1px;
+      background: linear-gradient(90deg, rgba(212,175,122,0), rgba(212,175,122,.55) 50%, rgba(212,175,122,0));
+    }
     body.theme-dark .shop-name { text-shadow: 0 2px 6px rgba(0,0,0,.55); }
     body.theme-dark .table-pill { background: rgba(212,175,122,.14); border-color: rgba(212,175,122,.4); }
 
@@ -145,6 +149,21 @@
       --line-strong: #D5E7DC;
       --input-bg: #F6FBF8;
     }
+    /* 清新绿：柔和渐变 + 右下角极淡叶子剪影（透明度 6% 以内，只作质感不作形状） */
+    body.theme-green .banner::before {
+      width: 190px; height: 190px;
+      right: -55px; bottom: -75px;
+      background: rgba(255,255,255,.06);
+      border-radius: 0 50% 0 50%;
+      transform: rotate(18deg);
+    }
+    body.theme-green .banner::after {
+      width: 110px; height: 110px;
+      right: 70px; bottom: -62px;
+      background: rgba(255,255,255,.045);
+      border-radius: 0 50% 0 50%;
+      transform: rotate(-32deg);
+    }
     body.theme-green .shop-name { text-shadow: 0 2px 6px rgba(20,110,60,.28); }
 
     /* 国潮红金（china-red）：酒楼/老字号，热烈但克制 */
@@ -172,10 +191,18 @@
       --line-strong: #E4CFA8;
       --input-bg: #FDF8F2;
       --badge-bg: #B8860B;                /* 点缀金：徽章 */
-      --font-title: "Noto Serif SC", "STSong", "Songti SC", "SimSun", serif;
     }
-    body.theme-redgold .banner::before { background: rgba(255,233,176,.14); }
-    body.theme-redgold .banner::after { background: rgba(255,233,176,.09); }
+    /* 国潮红金：红色渐变 + 底部金色细线 + 极淡回纹暗纹（SVG 平铺，透明度 4%，只见质感不见形状） */
+    body.theme-redgold .banner::before {
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cg fill='none' stroke='%23FFE9B0' stroke-width='2'%3E%3Cpath d='M10 42 V10 h32 v24 h-22 v-14 h14'/%3E%3Cpath d='M54 86 V54 h32 v24 h-22 v-14 h14'/%3E%3C/g%3E%3C/svg%3E");
+      background-size: 96px 96px;
+      opacity: .04;
+    }
+    body.theme-redgold .banner::after {
+      left: 18px; right: 18px; bottom: 0; height: 1px;
+      background: linear-gradient(90deg, rgba(255,233,176,0), rgba(255,233,176,.5) 50%, rgba(255,233,176,0));
+    }
     body.theme-redgold .table-pill { background: rgba(255,233,176,.16); border-color: rgba(255,233,176,.5); }
     /* 分类栏选中项：红底白字圆角胶囊 */
     body.theme-redgold .sidebar-item.active {
@@ -227,14 +254,21 @@
       border-radius: var(--banner-radius);
       overflow: hidden;
     }
+    /* 横幅装饰层：各主题用哑光质感处理（光泽带/细线/暗纹），杜绝圆形贴纸 */
     .banner::before, .banner::after {
       content: '';
       position: absolute;
-      border-radius: 50%;
-      background: rgba(255,255,255,.14);
+      pointer-events: none;
     }
-    .banner::before { width: 150px; height: 150px; top: -70px; right: -40px; }
-    .banner::after { width: 90px; height: 90px; bottom: -40px; left: -20px; background: rgba(255,255,255,.09); }
+    /* 经典橙：细腻对角渐变（--banner-grad）+ 极淡斜向光泽带 */
+    body.theme-classic .banner::before {
+      width: 36%; height: 280%;
+      top: -90%; left: 36%;
+      background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.10) 50%, rgba(255,255,255,0));
+      transform: rotate(22deg);
+    }
+    /* 上传自定义头图时隐藏主题装饰，避免纹理叠加在照片上 */
+    .banner.has-photo::before, .banner.has-photo::after { display: none; }
     .banner-content { position: relative; z-index: 1; }
     .shop-line { display: flex; align-items: center; gap: 10px; }
     .shop-logo {
@@ -251,12 +285,14 @@
       display: block;
     }
     .shop-name {
-      font-family: var(--font-title);
+      font-family: var(--font-shopname);
       font-size: 22px; font-weight: 800; letter-spacing: .5px;
       text-shadow: 0 2px 6px rgba(180,60,0,.25);
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
       max-width: calc(100% - 120px);
     }
+    /* 未上传 LOGO：店名作为头部视觉主体，适当放大 */
+    .shop-line.no-logo .shop-name { font-size: 24px; }
     .banner-sub { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
     .table-pill {
       display: inline-flex; align-items: center; gap: 4px;
@@ -383,6 +419,28 @@
     .price .sym { font-size: 12px; margin-right: 1px; }
     .price .num { font-size: 19px; letter-spacing: -.5px; }
     .price.big .num { font-size: 22px; }
+
+    /* ---------- 菜单排版：大图模式（单栏大卡片，图占顶部约 60%） ---------- */
+    body.layout-large .dish-card { flex-direction: column; gap: 0; padding: 0; overflow: hidden; }
+    body.layout-large .dish-img { width: 100%; height: 190px; border-radius: 0; }
+    body.layout-large .dish-info { padding: 11px 14px 13px; }
+    body.layout-large .dish-name { font-size: 16px; white-space: normal; }
+    body.layout-large .dish-meta { margin-top: 7px; }
+    body.layout-large .dish-foot { margin-top: 6px; }
+
+    /* ---------- 菜单排版：双列网格（两列方形小卡，图上文下） ---------- */
+    .dish-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .dish-grid .empty-tip { grid-column: 1 / -1; padding: 40px 12px; }
+    body.layout-grid .dish-card { flex-direction: column; gap: 0; padding: 0; margin-bottom: 0; overflow: hidden; }
+    body.layout-grid .dish-img { width: 100%; height: auto; aspect-ratio: 1 / 1; border-radius: 0; }
+    body.layout-grid .dish-info { padding: 9px 11px 11px; }
+    body.layout-grid .dish-name { font-size: 14px; }
+    body.layout-grid .dish-meta { display: none; }
+    body.layout-grid .dish-foot { margin-top: 8px; }
+    /* 只缩小卡片内的价格与加减器，不影响购物车弹层/结算页 */
+    body.layout-grid .dish-card .price .num { font-size: 16px; }
+    body.layout-grid .dish-card .step-btn { width: 22px; height: 22px; font-size: 15px; }
+    body.layout-grid .dish-card .step-num { font-size: 12px; min-width: 14px; }
 
     /* 数量加减器 */
     .stepper { display: flex; align-items: center; gap: 7px; }
@@ -650,8 +708,9 @@
     <!-- 顶部店铺横幅 -->
     <div class="banner" id="shopBanner">
       <div class="banner-content">
-        <div class="shop-line">
-          <span class="shop-logo" id="shopLogo">🍽️</span>
+        <div class="shop-line no-logo" id="shopLine">
+          <!-- 未上传 LOGO 时不显示任何默认图标，店名作为头部视觉主体 -->
+          <span class="shop-logo" id="shopLogo" style="display:none"></span>
           <h1 class="shop-name" id="shopName">加载中…</h1>
         </div>
         <div class="banner-sub">

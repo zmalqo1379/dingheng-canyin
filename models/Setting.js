@@ -28,6 +28,18 @@ const settingSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  // 店名字体（点餐页店名渲染，系统字体栈实现）：modern 现代黑体 / serif 雅致宋体 / round 圆润体 / hand 手写风格
+  shopNameFont: {
+    type: String,
+    enum: ['modern', 'serif', 'round', 'hand'],
+    default: 'modern'
+  },
+  // 点餐页菜单排版：list 经典列表（默认）/ large 大图模式 / grid 双列网格
+  layout: {
+    type: String,
+    enum: ['list', 'large', 'grid'],
+    default: 'list'
+  },
   enableVoice: {
     type: Boolean,
     default: true

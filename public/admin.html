@@ -486,6 +486,44 @@
       background: rgba(17,24,39,.72); color: #fde68a;
       font-size: 11px; padding: 2px 8px; border-radius: 999px;
     }
+    /* 店名字体 / 菜单排版 选项卡 */
+    .opt-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 12px;
+    }
+    .opt-card {
+      position: relative;
+      border: 2px solid var(--line); border-radius: 12px;
+      background: #fff; cursor: pointer;
+      padding: 12px 14px;
+      transition: transform .12s, border-color .15s, box-shadow .15s;
+    }
+    .opt-card:hover { transform: translateY(-2px); }
+    .opt-card.active { border-color: var(--accent); box-shadow: 0 6px 16px rgba(255,107,53,.18); }
+    .opt-card .oc-name { font-size: 13px; font-weight: 600; color: #1f2937; }
+    .opt-card .oc-desc { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+    .opt-card .oc-sample { font-size: 17px; font-weight: 700; color: #111827; margin-top: 9px; letter-spacing: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .opt-card .oc-check {
+      position: absolute; top: 8px; right: 8px;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--accent); color: #fff; font-size: 12px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    /* 排版小预览图（CSS 画示意图） */
+    .lc-prev {
+      height: 64px; border-radius: 8px;
+      background: #f3f4f6; padding: 8px; margin-bottom: 9px;
+      display: flex; gap: 8px; overflow: hidden;
+    }
+    .lc-prev span { display: block; }
+    .lc-prev .pl-big { width: 100%; height: 32px; background: #d7dce3; border-radius: 4px; }
+    .lc-prev .pl-line { height: 6px; background: #d7dce3; border-radius: 3px; width: 100%; }
+    .lc-prev .pl-col { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+    .lc-prev .pl-sq { height: 30px; background: #d7dce3; border-radius: 4px; }
+    .lc-prev .pl-row { flex: 1; display: flex; gap: 5px; align-items: center; }
+    .lc-prev .pl-thumb { width: 16px; height: 16px; background: #d7dce3; border-radius: 4px; flex-shrink: 0; }
+    .lc-prev .pl-rows { flex: 1; display: flex; flex-direction: column; gap: 3px; }
     .deco-uploads {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -1473,6 +1511,12 @@
           <div class="settings-card">
             <div class="deco-label">点餐页主题<small>点击卡片即刻应用，顾客端实时生效</small></div>
             <div class="theme-grid" id="themeGrid"></div>
+
+            <div class="deco-label" style="margin-top:24px;">店名字体<small>未上传 LOGO 时店名是头部视觉主体，点选即刻生效</small></div>
+            <div class="opt-grid" id="fontGrid"></div>
+
+            <div class="deco-label" style="margin-top:24px;">菜单排版<small>三种排版可与任意主题自由组合，点选即刻生效</small></div>
+            <div class="opt-grid" id="layoutGrid"></div>
 
             <div class="deco-label" style="margin-top:24px;">自定义图片<small>头部横幅背景图与店铺 LOGO 为进阶版及以上可用</small></div>
             <div class="deco-uploads">

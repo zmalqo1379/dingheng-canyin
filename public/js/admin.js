@@ -437,6 +437,8 @@ async function loadSettings() {
   renderDecoLock();
   setDecoPreview($('bannerPreview'), s.bannerImage, '未设置 · 使用主题默认');
   setDecoPreview($('logoPreview'), s.logoImage, '未设置 · 使用主题默认');
+  renderFontGrid(['modern', 'serif', 'round', 'hand'].includes(s.shopNameFont) ? s.shopNameFont : 'modern');
+  renderLayoutGrid(['list', 'large', 'grid'].includes(s.layout) ? s.layout : 'list');
 }
 
 $('saveSettingsBtn').onclick = async () => {
@@ -608,6 +610,88 @@ $('logoFile').onchange = (e) => {
 };
 $('clearBannerBtn').onclick = () => clearDecoImage('bannerImage', 'bannerPreview');
 $('clearLogoBtn').onclick = () => clearDecoImage('logoImage', 'logoPreview');
+
+/* ---------- 店名字体（系统字体栈，与 customer.js / models/Setting.js 保持一致） ---------- */
+const NAME_FONTS = [
+  { id: 'modern', name: '现代黑体', desc: '系统默认 · 大多数店铺', stack: '-apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif' },
+  { id: 'serif',  name: '雅致宋体', desc: '酒楼 / 茶楼 / 老字号', stack: '"Noto Serif SC", "Songti SC", "SimSun", serif' },
+  { id: 'round',  name: '圆润体',   desc: '茶饮 / 甜品 / 年轻店铺', stack: '"Yuanti SC", "YouYuan", "幼圆", "PingFang SC", sans-serif' },
+  { id: 'hand',   name: '手写风格', desc: '小馆子 / 私房菜',       stack: '"Kaiti SC", "STKaiti", "KaiTi", "楷体", cursive' }
+];
+
+/* ---------- 菜单排版（与 customer.js / models/Setting.js 保持一致） ---------- */
+const MENU_LAYOUTS = [
+  { id: 'list',  name: '经典列表', desc: '左图右文 · 信息均衡' },
+  { id: 'large', name: '大图模式', desc: '大图诱人 · 烧烤/火锅' },
+  { id: 'grid',  name: '双列网格', desc: '一屏多菜 · 快餐/面馆' }
+];
+
+function fontSampleText() {
+  const v = $('setShopName') && $('setShopName').value.trim();
+  return v || '鼎恒餐饮';
+}
+
+async function saveDecoOption(field, value, okMsg) {
+  const res = await api('/api/settings', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ [field]: value })
+  });
+  if (res.success) {
+    toast(okMsg);
+    if (field === 'shopNameFont') renderFontGrid(value);
+    else renderLayoutGrid(value);
+  } else {
+    toast(res.message || '设置失败', true);
+  }
+}
+
+function renderFontGrid(currentId) {
+  const grid = $('fontGrid');
+  if (!grid) return;
+  const sample = esc(fontSampleText());
+  grid.innerHTML = NAME_FONTS.map(f => `
+    <div class="opt-card ${f.id === currentId ? 'active' : ''}" data-id="${f.id}">
+      <div class="oc-name">${esc(f.name)}</div>
+      <div class="oc-desc">${esc(f.desc)}</div>
+      <div class="oc-sample" style='font-family:${f.stack}'>${sample}</div>
+      ${f.id === currentId ? '<span class="oc-check">✓</span>' : ''}
+    </div>`).join('');
+  grid.querySelectorAll('.opt-card').forEach(card => {
+    card.onclick = () => saveDecoOption('shopNameFont', card.dataset.id, '字体已应用，顾客端实时生效');
+  });
+}
+
+// 排版小预览图（CSS 示意，非真实截图）
+function layoutPreviewHtml(id) {
+  if (id === 'large') {
+    return `<div class="lc-prev" style="flex-direction:column;gap:5px;">
+      <span class="pl-big"></span>
+      <span class="pl-line" style="width:72%;"></span>
+      <span class="pl-line" style="width:45%;"></span>
+    </div>`;
+  }
+  if (id === 'grid') {
+    const col = `<span class="pl-col"><span class="pl-sq"></span><span class="pl-line"></span><span class="pl-line" style="width:60%;"></span></span>`;
+    return `<div class="lc-prev">${col}${col}</div>`;
+  }
+  const row = `<span class="pl-row"><span class="pl-thumb"></span><span class="pl-rows"><span class="pl-line"></span><span class="pl-line" style="width:55%;"></span></span></span>`;
+  return `<div class="lc-prev" style="flex-direction:column;gap:6px;">${row}${row}</div>`;
+}
+
+function renderLayoutGrid(currentId) {
+  const grid = $('layoutGrid');
+  if (!grid) return;
+  grid.innerHTML = MENU_LAYOUTS.map(l => `
+    <div class="opt-card ${l.id === currentId ? 'active' : ''}" data-id="${l.id}">
+      ${layoutPreviewHtml(l.id)}
+      <div class="oc-name">${esc(l.name)}</div>
+      <div class="oc-desc">${esc(l.desc)}</div>
+      ${l.id === currentId ? '<span class="oc-check">✓</span>' : ''}
+    </div>`).join('');
+  grid.querySelectorAll('.opt-card').forEach(card => {
+    card.onclick = () => saveDecoOption('layout', card.dataset.id, '排版已应用，顾客端实时生效');
+  });
+}
 
 /* ===================== 鼎恒币中心 ===================== */
 const LEVEL_NAME = { basic: '基础版', advanced: '进阶版', premium: '尊享版' };
