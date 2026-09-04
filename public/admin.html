@@ -221,6 +221,40 @@
     .name-cell .nm { font-weight: 500; }
     .name-cell .desc { font-size: 12px; color: #9ca3af; }
 
+    /* 手机端卡片式菜品列表（默认隐藏，<768px 显示并隐藏 table-wrap） */
+    .dish-cards-mobile { display: none; }
+    .dish-cards-mobile .dish-card-m {
+      background: #fff; border: 1px solid var(--line); border-radius: 12px;
+      padding: 12px; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.04);
+    }
+    .dish-cards-mobile .dcm-top { display: flex; gap: 10px; align-items: flex-start; }
+    .dish-cards-mobile .dcm-img {
+      width: 56px; height: 56px; border-radius: 8px; flex-shrink: 0;
+      object-fit: cover; background: #f3f4f6;
+    }
+    .dish-cards-mobile .dcm-ph {
+      width: 56px; height: 56px; border-radius: 8px; flex-shrink: 0;
+      background: linear-gradient(135deg, #ffd9c2, #ffb88c);
+      display: inline-flex; align-items: center; justify-content: center; font-size: 22px;
+    }
+    .dish-cards-mobile .dcm-info { flex: 1; min-width: 0; }
+    .dish-cards-mobile .dcm-name { font-size: 15px; font-weight: 600; color: #1f2937; }
+    .dish-cards-mobile .dcm-desc { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+    .dish-cards-mobile .dcm-meta {
+      display: flex; gap: 8px; align-items: center; margin-top: 6px; flex-wrap: wrap;
+    }
+    .dish-cards-mobile .dcm-price { color: var(--accent); font-weight: 700; font-size: 15px; }
+    .dish-cards-mobile .dcm-cat {
+      font-size: 11px; color: #6b7280; background: #f3f4f6;
+      padding: 2px 8px; border-radius: 999px;
+    }
+    .dish-cards-mobile .dcm-status { font-size: 11px; padding: 2px 8px; border-radius: 999px; }
+    .dish-cards-mobile .dcm-actions {
+      display: flex; gap: 8px; margin-top: 10px; padding-top: 10px;
+      border-top: 1px dashed #f3f4f6;
+    }
+    .dish-cards-mobile .dcm-actions .btn { flex: 1; padding: 8px 0; font-size: 13px; }
+
     /* 菜品图片上传控件 */
     .img-upload {
       width: 120px; height: 120px;
@@ -548,89 +582,39 @@
     .deco-btns { display: flex; gap: 8px; }
 
     /* ============ 店铺装修独立栏目 ============ */
-    .deco-layout {
-      display: flex; gap: 20px; align-items: flex-start;
+    .deco-layout { display: block; }
+    .deco-main { min-width: 0; }
+    /* 卡片选中态（区别于已应用的 active） */
+    .theme-card.selected, .opt-card.selected {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37,99,235,.18), 0 6px 16px rgba(37,99,235,.18);
     }
-    .deco-main { flex: 1; min-width: 0; }
-    /* 右侧实时预览面板（sticky 常驻） */
-    .deco-preview-panel {
-      width: 280px; flex-shrink: 0;
-      position: sticky; top: 20px;
-      text-align: center;
+    .theme-card.selected .tc-check, .opt-card.selected .oc-check {
+      background: #2563eb;
     }
-    .dpp-title { font-size: 14px; font-weight: 700; color: #374151; margin-bottom: 14px; }
-    .dpp-hint { font-size: 12px; color: #9ca3af; margin-top: 12px; }
-    /* 手机框 */
-    .phone-frame {
-      width: 260px; height: 480px;
-      background: #1a1a1a; border-radius: 32px;
-      padding: 10px; box-shadow: 0 12px 36px rgba(0,0,0,.18);
-      position: relative; margin: 0 auto;
+    /* 选中卡片下方浮现的操作条 */
+    .deco-actions {
+      display: none;
+      margin-top: 10px;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
     }
-    .phone-notch {
-      position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
-      width: 80px; height: 18px; background: #1a1a1a;
-      border-radius: 0 0 12px 12px; z-index: 10;
+    .deco-actions.show { display: flex; }
+    .deco-actions .da-tip {
+      font-size: 12px; color: #6b7280; flex: 1 1 100%; margin-bottom: 2px;
     }
-    .phone-screen {
-      width: 100%; height: 100%;
-      border-radius: 24px; overflow: hidden;
-      background: #f5f6f8;
-      display: flex; flex-direction: column;
+    .deco-actions .btn-preview, .deco-actions .btn-apply {
+      padding: 8px 16px; border-radius: 9px; border: none;
+      font-size: 13px; font-weight: 600; cursor: pointer;
     }
-    /* 预览内的迷你点餐页 */
-    .pv-banner {
-      padding: 14px 12px 12px; border-radius: 0 0 12px 12px;
-      background-image: var(--pv-banner-grad, linear-gradient(135deg,#FFB347,#f55100));
-      background-size: cover; background-position: center;
-      color: var(--pv-banner-text, #fff);
-      position: relative; overflow: hidden;
+    .deco-actions .btn-preview {
+      background: #fff; color: #2563eb; border: 1px solid #2563eb;
     }
-    .pv-banner::before {
-      content: ''; position: absolute; inset: 0;
-      background: var(--pv-banner-overlay, none);
+    .deco-actions .btn-apply {
+      background: #2563eb; color: #fff;
     }
-    .pv-shop-line { display: flex; align-items: center; gap: 6px; position: relative; z-index: 1; }
-    .pv-logo {
-      width: 22px; height: 22px; border-radius: 7px;
-      background: rgba(255,255,255,.22);
-      display: none; align-items: center; justify-content: center;
-      overflow: hidden; flex-shrink: 0;
-    }
-    .pv-logo img { width: 100%; height: 100%; object-fit: cover; }
-    .pv-shop-name {
-      font-size: 13px; font-weight: 800; letter-spacing: .3px;
-      font-family: var(--pv-font, sans-serif);
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-      max-width: 180px;
-    }
-    .pv-slogan { font-size: 9px; opacity: .85; margin-top: 6px; position: relative; z-index: 1; letter-spacing: .5px; }
-    .pv-body { flex: 1; padding: 8px; overflow: hidden; background: var(--pv-bg, #f5f6f8); }
-    .pv-body.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-    .pv-card {
-      background: var(--pv-card, #fff); border-radius: 8px;
-      padding: 6px; margin-bottom: 6px;
-      display: flex; gap: 6px;
-      box-shadow: 0 1px 3px rgba(0,0,0,.04);
-    }
-    .pv-body.grid .pv-card { flex-direction: column; gap: 0; padding: 0; margin: 0; overflow: hidden; }
-    .pv-card-img {
-      width: 36px; height: 36px; border-radius: 6px; flex-shrink: 0;
-      background: linear-gradient(135deg,#ffe8d2,#ffb877);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 16px;
-    }
-    .pv-body.grid .pv-card-img { width: 100%; height: 50px; border-radius: 0; }
-    .pv-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-    .pv-body.grid .pv-card-body { padding: 4px 5px 5px; }
-    .pv-card-name { font-size: 9px; font-weight: 700; color: var(--pv-text, #262626); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .pv-card-price { font-size: 10px; font-weight: 800; color: var(--pv-accent, #ff5e00); margin-top: auto; }
-    .pv-cat { font-size: 8px; color: var(--pv-text-3, #9b9b9b); margin: 4px 0 4px; }
-    @media (max-width: 900px) {
-      .deco-layout { flex-direction: column; }
-      .deco-preview-panel { width: 100%; position: static; }
-      .phone-frame { margin: 0 auto; }
-    }
+    .deco-actions .btn-preview:active, .deco-actions .btn-apply:active { opacity: .85; }
 
     /* 遮罩（移动端侧边栏打开时） */
     .scrim {
@@ -663,6 +647,40 @@
       .coupon-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
       .membership-grid { grid-template-columns: 1fr; }
       .filter-tabs { flex-wrap: wrap; }
+      /* 手机端菜品列表：表格 → 卡片 */
+      #pane-dishes .table-wrap { display: none; }
+      #pane-dishes .dish-cards-mobile { display: block; }
+      /* 手机端其它表格页通用：允许横向滚动，避免列被截断 */
+      .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      table.data { font-size: 13px; }
+      table.data th, table.data td { padding: 10px 12px; }
+      /* 订单行手机端灵活换行 */
+      .order-row { padding: 12px 14px; gap: 10px; }
+      .o-main { min-width: 0; }
+      .o-items { font-size: 12px; }
+      /* 桌台卡片手机端 2 列 */
+      .table-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; padding: 12px; }
+      .table-cell { padding: 14px 8px; }
+      .table-cell .num { font-size: 18px; }
+      /* pane 标题与新增按钮手机端 */
+      .pane-title { flex-wrap: wrap; gap: 8px; font-size: 18px; }
+      .pane-title .btn-add { font-size: 13px; padding: 6px 12px; }
+      /* card / settings 手机端 padding */
+      .card { padding: 14px; }
+      .card-head { padding: 0 0 10px; }
+      .settings-card { padding: 14px; }
+      .form-group { margin-bottom: 14px; }
+      .add-row { padding: 12px; flex-wrap: wrap; }
+      .add-row input { font-size: 14px; }
+      /* 装修卡片网格手机端单列（避免按钮挤压） */
+      .theme-grid, .opt-grid { grid-template-columns: 1fr; }
+      .deco-uploads { grid-template-columns: 1fr; }
+      /* 会员 / 鼎恒币 / 采购商城 padding */
+      .membership-grid { gap: 12px; }
+      .coupon-grid { grid-template-columns: 1fr; }
+      /* 采购商城布局 */
+      .mall-store-layout { gap: 12px; }
+      .mall-cart { padding: 12px; }
     }
 
     /* ============ 鼎恒币中心 ============ */
@@ -1467,6 +1485,8 @@
               <tbody id="dishesBody"></tbody>
             </table>
           </div>
+          <!-- 手机端卡片式列表（<768px 显示，与表格互斥） -->
+          <div class="dish-cards-mobile" id="dishesCards"></div>
         </div>
       </section>
 
@@ -1650,18 +1670,6 @@
                 </div>
               </div>
             </div>
-          </div>
-
-          <!-- 右侧：实时预览（常驻手机框） -->
-          <div class="deco-preview-panel">
-            <div class="dpp-title">📱 实时预览</div>
-            <div class="phone-frame" id="decoPhoneFrame">
-              <div class="phone-notch"></div>
-              <div class="phone-screen" id="decoPhoneScreen">
-                <!-- 预览内容由 JS 渲染 -->
-              </div>
-            </div>
-            <div class="dpp-hint">选择任意选项，预览立即更新</div>
           </div>
         </div>
       </section>

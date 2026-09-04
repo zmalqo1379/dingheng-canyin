@@ -71,7 +71,10 @@ $('logoutBtn').onclick = () => {
 // 已通过 JWT 登录（存在 merchantToken）则直接进入管理界面；无 token 已在上方跳转登录页
 if (MERCHANT_TOKEN) {
   document.getElementById('adminPage').classList.add('show');
-  try { switchTab('dishes'); } catch (e) { console.error('初始化失败', e); }
+  // 响应 URL hash：从预览返回时自动定位到装修栏目
+  const h = location.hash.replace('#', '');
+  const initTab = (h && ['dishes','tables','orders','stats','decorate','settings','member','coin','mall','purchase','points'].includes(h)) ? h : 'dishes';
+  try { switchTab(initTab); } catch (e) { console.error('初始化失败', e); }
 }
 
 /* ---------- 侧边栏导航 ---------- */
@@ -111,43 +114,79 @@ async function loadCategories() {
 async function loadDishes() {
   const res = await api('/api/dishes');
   const body = $('dishesBody');
+  const cardsBox = $('dishesCards');
   const dishes = res.data || [];
   if (!dishes.length) {
-    body.innerHTML = `<tr><td colspan="5" class="empty">暂无菜品，点击右上角“新增菜品”添加</td></tr>`;
+    if (body) body.innerHTML = `<tr><td colspan="5" class="empty">暂无菜品，点击右上角“新增菜品”添加</td></tr>`;
+    if (cardsBox) cardsBox.innerHTML = `<div class="empty" style="padding:40px 16px;text-align:center;color:#9ca3af;">暂无菜品，点击右上角“新增菜品”添加</div>`;
     return;
   }
-  body.innerHTML = dishes.map(d => `
-    <tr>
-      <td>
-        <div class="name-cell">
-          ${d.image ? `<img class="dish-thumb" src="${esc(d.image)}" alt="" onerror="this.outerHTML='<span class=&quot;thumb-ph&quot;>🍜</span>'">` : `<span class="thumb-ph">🍜</span>`}
-          <div>
-            <div class="nm">${esc(d.name)}</div>
-            <div class="desc">${esc(d.description || '—')}</div>
+  // 电脑端表格行
+  if (body) {
+    body.innerHTML = dishes.map(d => `
+      <tr>
+        <td>
+          <div class="name-cell">
+            ${d.image ? `<img class="dish-thumb" src="${esc(d.image)}" alt="" onerror="this.outerHTML='<span class=&quot;thumb-ph&quot;>🍜</span>'">` : `<span class="thumb-ph">🍜</span>`}
+            <div>
+              <div class="nm">${esc(d.name)}</div>
+              <div class="desc">${esc(d.description || '—')}</div>
+            </div>
+          </div>
+        </td>
+        <td>¥${Number(d.price).toFixed(2)}</td>
+        <td>${esc(d.category)}</td>
+        <td><span class="badge ${d.isAvailable ? 'b-green' : 'b-gray'}">${d.isAvailable ? '上架' : '下架'}</span></td>
+        <td>
+          <div class="row-actions">
+            <button class="btn btn-blue" data-act="edit" data-id="${esc(d._id)}">编辑</button>
+            <button class="btn ${d.isAvailable ? 'btn-gray' : 'btn-orange'}" data-act="toggle" data-id="${esc(d._id)}" data-avail="${d.isAvailable ? 0 : 1}">${d.isAvailable ? '下架' : '上架'}</button>
+            <button class="btn btn-red" data-act="del" data-id="${esc(d._id)}">删除</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+    body.querySelectorAll('button[data-act]').forEach(btn => {
+      btn.onclick = () => {
+        const act = btn.dataset.act, id = btn.dataset.id;
+        if (act === 'edit') openDishModal(id);
+        else if (act === 'del') deleteDish(id);
+        else if (act === 'toggle') toggleDish(id, btn.dataset.avail === '1');
+      };
+    });
+  }
+  // 手机端卡片
+  if (cardsBox) {
+    cardsBox.innerHTML = dishes.map(d => `
+      <div class="dish-card-m">
+        <div class="dcm-top">
+          ${d.image ? `<img class="dcm-img" src="${esc(d.image)}" alt="" onerror="this.outerHTML='<span class=&quot;dcm-ph&quot;>🍜</span>'">` : `<span class="dcm-ph">🍜</span>`}
+          <div class="dcm-info">
+            <div class="dcm-name">${esc(d.name)}</div>
+            ${d.description ? `<div class="dcm-desc">${esc(d.description)}</div>` : ''}
+            <div class="dcm-meta">
+              <span class="dcm-price">¥${Number(d.price).toFixed(2)}</span>
+              <span class="dcm-cat">${esc(d.category)}</span>
+              <span class="badge ${d.isAvailable ? 'b-green' : 'b-gray'} dcm-status">${d.isAvailable ? '上架' : '下架'}</span>
+            </div>
           </div>
         </div>
-      </td>
-      <td>¥${Number(d.price).toFixed(2)}</td>
-      <td>${esc(d.category)}</td>
-      <td><span class="badge ${d.isAvailable ? 'b-green' : 'b-gray'}">${d.isAvailable ? '上架' : '下架'}</span></td>
-      <td>
-        <div class="row-actions">
+        <div class="dcm-actions">
           <button class="btn btn-blue" data-act="edit" data-id="${esc(d._id)}">编辑</button>
           <button class="btn ${d.isAvailable ? 'btn-gray' : 'btn-orange'}" data-act="toggle" data-id="${esc(d._id)}" data-avail="${d.isAvailable ? 0 : 1}">${d.isAvailable ? '下架' : '上架'}</button>
           <button class="btn btn-red" data-act="del" data-id="${esc(d._id)}">删除</button>
         </div>
-      </td>
-    </tr>
-  `).join('');
-
-  body.querySelectorAll('button[data-act]').forEach(btn => {
-    btn.onclick = () => {
-      const act = btn.dataset.act, id = btn.dataset.id;
-      if (act === 'edit') openDishModal(id);
-      else if (act === 'del') deleteDish(id);
-      else if (act === 'toggle') toggleDish(id, btn.dataset.avail === '1');
-    };
-  });
+      </div>
+    `).join('');
+    cardsBox.querySelectorAll('button[data-act]').forEach(btn => {
+      btn.onclick = () => {
+        const act = btn.dataset.act, id = btn.dataset.id;
+        if (act === 'edit') openDishModal(id);
+        else if (act === 'del') deleteDish(id);
+        else if (act === 'toggle') toggleDish(id, btn.dataset.avail === '1');
+      };
+    });
+  }
 }
 
 async function openDishModal(id) {
@@ -437,6 +476,7 @@ async function loadSettings() {
 
 /* ===================== 店铺装修（独立栏目） ===================== */
 let _decoState = { theme: 'classic', shopNameFont: 'modern', layout: 'list', bannerImage: '', logoImage: '', shopName: '鼎恒餐饮' };
+let _decoSelected = { theme: null, shopNameFont: null, layout: null }; // 选中态（未应用），null 表示未选中
 
 async function loadDecorate() {
   const [res] = await Promise.all([api('/api/settings'), fetchMemberLevel()]);
@@ -449,13 +489,14 @@ async function loadDecorate() {
     logoImage: s.logoImage || '',
     shopName: s.shopName || '鼎恒餐饮'
   };
+  // 选中态：null 表示未选中（点击卡片时填入字段值，预览/应用按钮浮现于该卡片下方）
+  _decoSelected = { theme: null, shopNameFont: null, layout: null };
   renderThemeGrid(_decoState.theme);
   renderDecoLock();
   setDecoPreview($('bannerPreview'), _decoState.bannerImage, '未设置 · 使用主题默认');
   setDecoPreview($('logoPreview'), _decoState.logoImage, '未设置 · 使用主题默认');
   renderFontGrid(_decoState.shopNameFont);
   renderLayoutGrid(_decoState.layout);
-  updatePhonePreview();
 }
 
 const THEME_LIST_DECO = ['classic', 'minimal', 'dark', 'green', 'redgold'];
@@ -509,13 +550,23 @@ function renderThemeGrid(currentTheme) {
   const rank = LEVEL_RANK[_memberLevel] ?? 0;
   const grid = $('themeGrid');
   if (!grid) return;
+  const selected = _decoSelected.theme;
   grid.innerHTML = SHOP_THEMES.map(t => {
     const locked = LEVEL_RANK[t.minLevel] > rank;
     const active = t.id === currentTheme;
-    return `<div class="theme-card ${active ? 'active' : ''}" data-theme="${t.id}" data-locked="${locked ? 1 : 0}">
+    const isSelected = t.id === selected;
+    const actionHtml = isSelected
+      ? `<div class="deco-actions show">
+           <span class="da-tip">${active ? '当前已应用，可重新预览' : '已选中（未应用）。点预览看效果，应用后生效'}</span>
+           <button class="btn-preview" onclick="previewDeco('theme','${t.id}')">预览</button>
+           <button class="btn-apply" onclick="applyDeco('theme','${t.id}')">应用</button>
+         </div>`
+      : '';
+    return `<div class="theme-card ${active ? 'active' : ''} ${isSelected ? 'selected' : ''}" data-theme="${t.id}" data-locked="${locked ? 1 : 0}">
       <div class="tc-banner" style="background:${t.banner};color:${t.bannerText};"><span class="tc-logo">🍽</span>${esc(t.name)}</div>
       <div class="tc-body"><div class="tc-name">${esc(t.name)}</div><div class="tc-desc">${esc(t.desc)}</div></div>
       ${active ? '<span class="tc-check">✓</span>' : (locked ? '<span class="tc-lock">🔒</span>' : '')}
+      ${actionHtml}
     </div>`;
   }).join('');
   grid.querySelectorAll('.theme-card').forEach(card => {
@@ -523,21 +574,63 @@ function renderThemeGrid(currentTheme) {
   });
 }
 
-async function handleThemeClick(themeId, locked) {
+function handleThemeClick(themeId, locked) {
   if (locked) {
     toast('升级会员解锁全部店铺风格 →', true);
     switchTab('member');
     return;
   }
+  // 点击同一卡片再次点击取消选中
+  _decoSelected.theme = (_decoSelected.theme === themeId) ? null : themeId;
+  renderThemeGrid(_decoState.theme);
+}
+
+// 通用：选中字段 + 重渲染对应 grid（不立即保存）
+function selectDeco(field, value) {
+  _decoSelected[field] = (_decoSelected[field] === value) ? null : value;
+  if (field === 'theme') renderThemeGrid(_decoState.theme);
+  else if (field === 'shopNameFont') renderFontGrid(_decoState.shopNameFont);
+  else if (field === 'layout') renderLayoutGrid(_decoState.layout);
+}
+
+// 预览：已应用设置 + 当前选中字段叠加；其余未选中字段维持已应用
+async function previewDeco(field, value) {
+  // 构造叠加 setting（被点击的字段用 value，其余用 _decoState 已应用值，再加 _decoSelected 中其它选中字段
+  const merged = Object.assign({}, _decoState, { [field]: value });
+  // 其它字段的选中值也叠加进去（如先选了字体再点主题预览，字体一并生效）
+  Object.keys(_decoSelected).forEach(k => {
+    if (_decoSelected[k] && k !== field) merged[k] = _decoSelected[k];
+  });
+  const qs = new URLSearchParams({
+    shopId: SHOP_ID,
+    preview: '1',
+    theme: merged.theme,
+    shopNameFont: merged.shopNameFont,
+    layout: merged.layout
+  });
+  if (merged.bannerImage) qs.set('bannerImage', merged.bannerImage);
+  if (merged.logoImage) qs.set('logoImage', merged.logoImage);
+  if (merged.shopName) qs.set('shopName', merged.shopName);
+  // 新标签全屏打开真实点餐页
+  window.open('customer.html?' + qs.toString(), '_blank');
+}
+
+// 应用：保存选中字段到 Setting 并生效
+async function applyDeco(field, value) {
   const res = await api('/api/settings', {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ theme: themeId })
+    body: JSON.stringify({ [field]: value })
   });
   if (res.success) {
-    toast('主题已应用，顾客端实时生效');
-    _decoState.theme = themeId;
-    renderThemeGrid(themeId);
-    updatePhonePreview();
+    const label = field === 'theme' ? '主题'
+      : field === 'shopNameFont' ? '字体'
+      : '排版';
+    toast(label + '已应用，顾客端实时生效');
+    _decoState[field] = value;
+    _decoSelected[field] = null;
+    if (field === 'theme') renderThemeGrid(_decoState.theme);
+    else if (field === 'shopNameFont') renderFontGrid(_decoState.shopNameFont);
+    else if (field === 'layout') renderLayoutGrid(_decoState.layout);
   } else if (res.needUpgrade) {
     toast(res.message || '升级会员解锁全部店铺风格 →', true);
     switchTab('member');
@@ -594,7 +687,6 @@ async function uploadDecoImage(file, kind) {
       const field = kind === 'banner' ? 'bannerImage' : 'logoImage';
       _decoState[field] = up.data.url;
       setDecoPreview($(kind === 'banner' ? 'bannerPreview' : 'logoPreview'), up.data.url);
-      updatePhonePreview();
     } else if (res.needUpgrade) {
       toast(res.message || DECO_UPGRADE_TIP, true);
       switchTab('member');
@@ -616,7 +708,6 @@ async function clearDecoImage(field, previewId) {
     toast('已恢复主题默认');
     _decoState[field] = '';
     setDecoPreview($(previewId), '', '未设置 · 使用主题默认');
-    updatePhonePreview();
   } else {
     toast(res.message || '操作失败', true);
   }
@@ -656,35 +747,31 @@ function fontSampleText() {
   return _decoState.shopName || '鼎恒餐饮';
 }
 
-async function saveDecoOption(field, value, okMsg) {
-  const res = await api('/api/settings', {
-    method: 'PUT', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ [field]: value })
-  });
-  if (res.success) {
-    toast(okMsg);
-    _decoState[field] = value;
-    if (field === 'shopNameFont') renderFontGrid(value);
-    else renderLayoutGrid(value);
-    updatePhonePreview();
-  } else {
-    toast(res.message || '设置失败', true);
-  }
-}
-
 function renderFontGrid(currentId) {
   const grid = $('fontGrid');
   if (!grid) return;
   const sample = esc(fontSampleText());
-  grid.innerHTML = NAME_FONTS.map(f => `
-    <div class="opt-card ${f.id === currentId ? 'active' : ''}" data-id="${f.id}">
+  const selected = _decoSelected.shopNameFont;
+  grid.innerHTML = NAME_FONTS.map(f => {
+    const active = f.id === currentId;
+    const isSelected = f.id === selected;
+    const actionHtml = isSelected
+      ? `<div class="deco-actions show">
+           <span class="da-tip">${active ? '当前已应用，可重新预览' : '已选中（未应用）。点预览看效果，应用后生效'}</span>
+           <button class="btn-preview" onclick="previewDeco('shopNameFont','${f.id}')">预览</button>
+           <button class="btn-apply" onclick="applyDeco('shopNameFont','${f.id}')">应用</button>
+         </div>`
+      : '';
+    return `<div class="opt-card ${active ? 'active' : ''} ${isSelected ? 'selected' : ''}" data-id="${f.id}">
       <div class="oc-name">${esc(f.name)}</div>
       <div class="oc-desc">${esc(f.desc)}</div>
       <div class="oc-sample" style='font-family:${f.stack}'>${sample}</div>
-      ${f.id === currentId ? '<span class="oc-check">✓</span>' : ''}
-    </div>`).join('');
+      ${active ? '<span class="oc-check">✓</span>' : ''}
+      ${actionHtml}
+    </div>`;
+  }).join('');
   grid.querySelectorAll('.opt-card').forEach(card => {
-    card.onclick = () => saveDecoOption('shopNameFont', card.dataset.id, '字体已应用，顾客端实时生效');
+    card.onclick = () => selectDeco('shopNameFont', card.dataset.id);
   });
 }
 
@@ -708,100 +795,28 @@ function layoutPreviewHtml(id) {
 function renderLayoutGrid(currentId) {
   const grid = $('layoutGrid');
   if (!grid) return;
-  grid.innerHTML = MENU_LAYOUTS.map(l => `
-    <div class="opt-card ${l.id === currentId ? 'active' : ''}" data-id="${l.id}">
+  const selected = _decoSelected.layout;
+  grid.innerHTML = MENU_LAYOUTS.map(l => {
+    const active = l.id === currentId;
+    const isSelected = l.id === selected;
+    const actionHtml = isSelected
+      ? `<div class="deco-actions show">
+           <span class="da-tip">${active ? '当前已应用，可重新预览' : '已选中（未应用）。点预览看效果，应用后生效'}</span>
+           <button class="btn-preview" onclick="previewDeco('layout','${l.id}')">预览</button>
+           <button class="btn-apply" onclick="applyDeco('layout','${l.id}')">应用</button>
+         </div>`
+      : '';
+    return `<div class="opt-card ${active ? 'active' : ''} ${isSelected ? 'selected' : ''}" data-id="${l.id}">
       ${layoutPreviewHtml(l.id)}
       <div class="oc-name">${esc(l.name)}</div>
       <div class="oc-desc">${esc(l.desc)}</div>
-      ${l.id === currentId ? '<span class="oc-check">✓</span>' : ''}
-    </div>`).join('');
+      ${active ? '<span class="oc-check">✓</span>' : ''}
+      ${actionHtml}
+    </div>`;
+  }).join('');
   grid.querySelectorAll('.opt-card').forEach(card => {
-    card.onclick = () => saveDecoOption('layout', card.dataset.id, '排版已应用，顾客端实时生效');
+    card.onclick = () => selectDeco('layout', card.dataset.id);
   });
-}
-
-/* ---------- 实时预览：手机框内迷你点餐页 ---------- */
-// 主题预览数据（与 customer.html 主题变量保持一致）
-const THEME_PREVIEW = {
-  classic: {
-    bannerGrad: 'linear-gradient(135deg,#FFB347 0%,#ff9a44 40%,#ff6a1f 70%,#f55100 100%)',
-    bannerText: '#fff', accent: '#ff5e00', bg: '#f5f6f8', card: '#fff',
-    text: '#262626', text3: '#9b9b9b'
-  },
-  minimal: {
-    bannerGrad: 'linear-gradient(180deg,#ffffff,#eef0f3)',
-    bannerText: '#1A1A1A', accent: '#E8542F', bg: '#F7F8FA', card: '#fff',
-    text: '#1A1A1A', text3: '#9A9AA0'
-  },
-  dark: {
-    bannerGrad: 'linear-gradient(160deg,#1B1613 0%,#221C17 55%,#2A2218 100%)',
-    bannerText: '#F5EFE6', accent: '#FF9F45', bg: '#1B1613', card: '#26201B',
-    text: '#F5EFE6', text3: '#6E6258'
-  },
-  green: {
-    bannerGrad: 'linear-gradient(135deg,#7CCB8E 0%,#3CB371 60%,#2E8B57 100%)',
-    bannerText: '#fff', accent: '#3CB371', bg: '#F2F9F4', card: '#fff',
-    text: '#2D3A32', text3: '#8AA292'
-  },
-  redgold: {
-    bannerGrad: 'linear-gradient(135deg,#B03A2E 0%,#96281B 50%,#7B241C 100%)',
-    bannerText: '#FFE9B0', accent: '#B03A2E', bg: '#FAF3EC', card: '#fff',
-    text: '#3A2A22', text3: '#A98F7B'
-  }
-};
-
-function updatePhonePreview() {
-  const screen = $('decoPhoneScreen');
-  if (!screen) return;
-  const t = THEME_PREVIEW[_decoState.theme] || THEME_PREVIEW.classic;
-  const fontStack = (NAME_FONTS.find(f => f.id === _decoState.shopNameFont) || NAME_FONTS[0]).stack;
-  const isGrid = _decoState.layout === 'grid';
-  const isLarge = _decoState.layout === 'large';
-
-  // 横幅背景：自定义图优先，否则主题渐变
-  const bannerBg = _decoState.bannerImage
-    ? `linear-gradient(rgba(0,0,0,.28),rgba(0,0,0,.28)), url("${esc(_decoState.bannerImage)}")`
-    : t.bannerGrad;
-
-  // 示意菜品
-  const dishes = [
-    { name: '招牌牛肉面', price: '28', icon: '🍜' },
-    { name: '香辣鸡腿饭', price: '22', icon: '🍗' },
-    { name: '鲜虾水饺', price: '18', icon: '🥟' },
-    { name: '凉拌黄瓜', price: '8', icon: '🥗' }
-  ];
-
-  const cardHtml = d => {
-    if (isLarge) {
-      return `<div class="pv-card" style="flex-direction:column;gap:0;padding:0;overflow:hidden;">
-        <div class="pv-card-img" style="width:100%;height:60px;border-radius:0;">${d.icon}</div>
-        <div class="pv-card-body" style="padding:4px 6px 5px;">
-          <div class="pv-card-name">${esc(d.name)}</div>
-          <div class="pv-card-price">¥${d.price}</div>
-        </div>
-      </div>`;
-    }
-    return `<div class="pv-card">
-      <div class="pv-card-img">${d.icon}</div>
-      <div class="pv-card-body">
-        <div class="pv-card-name">${esc(d.name)}</div>
-        <div class="pv-card-price">¥${d.price}</div>
-      </div>
-    </div>`;
-  };
-
-  screen.innerHTML = `
-    <div class="pv-banner" style="background-image:${bannerBg};color:${t.bannerText};">
-      <div class="pv-shop-line">
-        ${_decoState.logoImage ? `<div class="pv-logo" style="display:flex;"><img src="${esc(_decoState.logoImage)}"></div>` : ''}
-        <div class="pv-shop-name" style="font-family:${fontStack};">${esc(_decoState.shopName || '鼎恒餐饮')}</div>
-      </div>
-      <div class="pv-slogan">欢迎光临 · 扫码点餐</div>
-    </div>
-    <div class="pv-body ${isGrid ? 'grid' : ''}" style="--pv-bg:${t.bg};--pv-card:${t.card};--pv-text:${t.text};--pv-text-3:${t.text3};--pv-accent:${t.accent};">
-      <div class="pv-cat" style="color:${t.text3};">— 招牌菜 —</div>
-      ${dishes.map(cardHtml).join('')}
-    </div>`;
 }
 
 /* ===================== 鼎恒币中心 ===================== */

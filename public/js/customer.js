@@ -132,17 +132,37 @@ function applyShopTheme(setting) {
   if (shopLine) shopLine.classList.toggle('no-logo', !s.logoImage);
 }
 
+/* ---------- 装修预览：URL 参数覆盖已应用 setting（叠加预览效果） ---------- */
+function getPreviewOverrides() {
+  const o = {};
+  const theme = params.get('theme');
+  const font = params.get('shopNameFont') || params.get('font');
+  const layout = params.get('layout');
+  const banner = params.get('bannerImage');
+  const logo = params.get('logoImage');
+  const name = params.get('shopName');
+  if (theme) o.theme = theme;
+  if (font) o.shopNameFont = font;
+  if (layout) o.layout = layout;
+  if (banner) o.bannerImage = banner;
+  if (logo) o.logoImage = logo;
+  if (name) o.shopName = name;
+  return o;
+}
+
 /* ---------- 数据加载 ---------- */
 async function loadShopInfo() {
   try {
     const res = await fetch(`/api/settings?shopId=${encodeURIComponent(SHOP_ID)}`).then(r => r.json());
-    applyShopTheme(res.success ? res.data : null);
-    if (res.success && res.data && res.data.shopName) {
-      $('shopName').textContent = res.data.shopName;
-      document.title = `${res.data.shopName} · 扫码点餐`;
-    } else {
-      $('shopName').textContent = '欢迎光临';
-    }
+    let s = res.success ? res.data : null;
+    // 装修预览模式：URL 参数覆盖已应用 setting（叠加预览效果）
+    if (IS_PREVIEW) s = Object.assign({}, s || {}, getPreviewOverrides());
+    applyShopTheme(s);
+    let shopName = '欢迎光临';
+    if (res.success && res.data && res.data.shopName) shopName = res.data.shopName;
+    if (s && s.shopName) shopName = s.shopName;
+    $('shopName').textContent = shopName;
+    document.title = `${shopName} · 扫码点餐`;
   } catch (e) {
     applyShopTheme(null);
     $('shopName').textContent = '欢迎光临';
@@ -506,9 +526,39 @@ $('clearCartBtn').onclick = () => {
   toast('已清空');
 };
 
+/* ---------- 装修预览模式：返回按钮 + 任意键返回 + 隐藏购物车交互 ---------- */
+function setupPreviewReturn() {
+  // 隐藏购物车栏 / 加购按钮 / 桌号 pill（预览仅展示装修效果，不交互）
+  const style = document.createElement('style');
+  style.textContent = `
+    .cart-bar, .stepper, .table-pill { display: none !important; }
+    .banner-sub { gap: 0; }
+    #backNav .back-link { font-weight: 700; }
+  `;
+  document.head.appendChild(style);
+  // 改造顶部 back-nav 为「✕ 返回装修」
+  const nav = $('backNav');
+  if (nav) {
+    nav.innerHTML = `<a class="back-link" id="previewBack">✕ 返回装修</a><span class="hint">按任意键或点 ✕ 返回商家后台</span>`;
+    const back = $('previewBack');
+    if (back) back.onclick = closePreviewWindow;
+  }
+  // 任意键返回（任意键 = keydown 第一次触发即返回）
+  document.addEventListener('keydown', closePreviewWindow, { once: true });
+}
+
+function closePreviewWindow() {
+  try {
+    if (window.opener && !window.opener.closed) { window.close(); return; }
+  } catch (e) {}
+  // 后备：跳回 admin.html 装修栏目
+  window.location.href = '/admin.html#decorate';
+}
+
 /* ---------- 初始化 ---------- */
 if (IS_PREVIEW) {
   document.body.classList.add('has-nav');
+  setupPreviewReturn();
 }
 $('tableInfo').textContent = formatTable(tableNumber);
 if (ensureShopId()) {
