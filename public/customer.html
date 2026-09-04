@@ -27,7 +27,7 @@
       --btn-text: #fff;
       --plus-bg: linear-gradient(135deg, #ff8a3d, #ff5e00);
       --plus-text: #fff;
-      --banner-grad: linear-gradient(135deg, #ff9a44 0%, #ff6a1f 55%, #f55100 100%);
+      --banner-grad: linear-gradient(135deg, #FFB347 0%, #ff9a44 40%, #ff6a1f 70%, #f55100 100%);
       --banner-text: #fff;
       --banner-radius: 0 0 22px 22px;
       --success-grad: linear-gradient(160deg, #ff9a44, #f55100);
@@ -52,13 +52,13 @@
        注意：--banner-grad 必须是合法 background-image（渐变），
        若写纯色值整条 background-image 会失效并露出 accent-deep 底色 */
     body.theme-minimal {
-      --accent: #FF6B35;            /* 点缀色：仅价格、加号按钮、选中态 */
-      --accent-2: #ff8a5c;
-      --accent-deep: #e05528;
+      --accent: #E8542F;            /* 点缀色加深：价格、加号按钮、选中态更跳 */
+      --accent-2: #FF6B35;
+      --accent-deep: #C8431F;
       --accent-bg: #FFF1EA;
       --btn-bg: #1A1A1A;            /* 主色 #1A1A1A：文字与按钮 */
       --btn-text: #fff;
-      --plus-bg: #FF6B35;           /* 加号按钮用点缀色 */
+      --plus-bg: #E8542F;           /* 加号按钮用点缀色 */
       --plus-text: #fff;
       --banner-grad: linear-gradient(180deg, #ffffff, #ffffff); /* 纯白底、无渐变 */
       --banner-text: #1A1A1A;
@@ -86,60 +86,69 @@
     body.theme-minimal .sidebar-item.active { color: var(--text); }
     body.theme-minimal .sidebar-item.active::before { background: #1a1a1a; }
 
-    /* 时尚暗黑（stylish-dark）：高级感、酒吧/烧鸟店风格，不是纯黑、要带金 */
+    /* 时尚暗黑（warm-izakaya）：深暖棕黑 + 琥珀橙暖光，深夜居酒屋/烧鸟店氛围，年轻有食欲 */
     body.theme-dark {
-      --accent: #D4AF7A;            /* 香槟金：价格、加号按钮、选中态、购物车栏 */
-      --accent-2: #E2C391;
-      --accent-deep: #B8905A;
-      --accent-bg: rgba(212,175,122,.14);
-      --btn-bg: linear-gradient(135deg, #E2C391, #C89B62);
-      --btn-text: #201709;
-      --plus-bg: linear-gradient(135deg, #E2C391, #C89B62);
-      --plus-text: #201709;
-      --banner-grad: linear-gradient(160deg, #141416 0%, #1B1813 55%, #2A2419 100%);
-      --banner-text: #E8CD9C;       /* 店名用金色 */
+      --accent: #FF9F45;            /* 琥珀橙：价格、加号、购物车栏，替换土豪金更年轻 */
+      --accent-2: #FFB763;
+      --accent-deep: #E8842A;
+      --accent-bg: rgba(255,159,69,.14);
+      --btn-bg: linear-gradient(135deg, #FFB763, #FF9F45);
+      --btn-text: #1B1613;          /* 深棕黑文字压在琥珀橙按钮上 */
+      --plus-bg: linear-gradient(135deg, #FFB763, #FF9F45);
+      --plus-text: #1B1613;
+      --banner-grad: linear-gradient(160deg, #1B1613 0%, #221C17 55%, #2A2218 100%);
+      --banner-text: #F5EFE6;       /* 暖白店名 */
       --banner-radius: 0 0 16px 16px;
-      --success-grad: linear-gradient(160deg, #262119, #141416);
-      --card-shadow: 0 2px 8px rgba(0,0,0,.45);
-      --accent-shadow-color: rgba(212,175,122,.22);
-      --text: #F5F5F5;              /* 主文字 */
-      --text-2: #9A9AA0;            /* 次要文字 */
-      --text-3: #6E6E76;
-      --bg: #141416;                /* 页面背景 */
-      --card: #1E1E22;              /* 卡片背景 */
+      --success-grad: linear-gradient(160deg, #2A2218, #1B1613);
+      --card-shadow: 0 2px 10px rgba(0,0,0,.45);
+      --accent-shadow-color: rgba(255,159,69,.30);
+      --text: #F5EFE6;              /* 暖白主文字 */
+      --text-2: #A89B8E;            /* 暖灰次要文字 */
+      --text-3: #6E6258;
+      --bg: #1B1613;                /* 深暖棕黑页面背景 */
+      --card: #26201B;              /* 暖棕黑卡片 */
       --radius: 14px;
-      --line: rgba(255,255,255,.08);
-      --line-strong: rgba(255,255,255,.16);
-      --input-bg: #26262B;
-      --sk1: #232327;
-      --sk2: #2C2C31;
-      --btn-disabled-bg: #2B2B30;
-      --btn-disabled-text: #6A6A72;
+      --line: #3A322B;              /* 极细暖棕分割线 */
+      --line-strong: #4A4036;
+      --input-bg: #2A231D;
+      --sk1: #2A231D;
+      --sk2: #332B23;
+      --btn-disabled-bg: #2E2820;
+      --btn-disabled-text: #6E6258;
     }
-    /* 时尚暗黑：深色渐变 + 底部 1px 金色细线收边 */
+    /* 时尚暗黑：右上方暖琥珀光晕（像餐厅暖黄射灯）+ 底部极细琥珀线收边 */
+    body.theme-dark .banner::before {
+      width: 320px; height: 320px;
+      top: -120px; right: -80px;
+      background: radial-gradient(circle, rgba(255,159,69,.15) 0%, rgba(255,159,69,0) 70%);
+      border-radius: 50%;
+      filter: blur(8px);
+    }
     body.theme-dark .banner::after {
       left: 18px; right: 18px; bottom: 0; height: 1px;
-      background: linear-gradient(90deg, rgba(212,175,122,0), rgba(212,175,122,.55) 50%, rgba(212,175,122,0));
+      background: linear-gradient(90deg, rgba(255,159,69,0), rgba(255,159,69,.45) 50%, rgba(255,159,69,0));
     }
-    body.theme-dark .shop-name { text-shadow: 0 2px 6px rgba(0,0,0,.55); }
-    body.theme-dark .table-pill { background: rgba(212,175,122,.14); border-color: rgba(212,175,122,.4); }
+    body.theme-dark .shop-name { text-shadow: 0 2px 8px rgba(0,0,0,.55); }
+    body.theme-dark .table-pill { background: rgba(255,159,69,.14); border-color: rgba(255,159,69,.4); }
+    /* 暗黑主题菜品图片加轻微暖色调 */
+    body.theme-dark .dish-photo { filter: sepia(.08) saturate(1.08) brightness(.96); }
 
     /* 清新绿（fresh-green）：圆角偏大、气质年轻轻盈，适合轻食/茶饮 */
     body.theme-green {
-      --accent: #2FA66A;            /* 主色：按钮、价格、选中态 */
-      --accent-2: #34C38F;
-      --accent-deep: #1F7A4D;
-      --accent-bg: #E3F5EB;
-      --btn-bg: linear-gradient(135deg, #34C38F, #2FA66A);
+      --accent: #3CB371;            /* 暖绿：更亲和有食欲 */
+      --accent-2: #5BC98A;
+      --accent-deep: #2E8B57;
+      --accent-bg: #E8F7EE;
+      --btn-bg: linear-gradient(135deg, #5BC98A, #3CB371);
       --btn-text: #fff;
-      --plus-bg: linear-gradient(135deg, #34C38F, #2FA66A);
+      --plus-bg: linear-gradient(135deg, #5BC98A, #3CB371);
       --plus-text: #fff;
-      --banner-grad: linear-gradient(135deg, #34C38F 0%, #2FA66A 100%); /* 头部柔和渐变 */
+      --banner-grad: linear-gradient(135deg, #7CCB8E 0%, #3CB371 60%, #2E8B57 100%); /* 嫩芽黄绿到暖绿 */
       --banner-text: #fff;
       --banner-radius: 0 0 26px 26px;
-      --success-grad: linear-gradient(160deg, #34C38F, #2FA66A);
-      --card-shadow: 0 2px 10px rgba(47,166,106,.10);
-      --accent-shadow-color: rgba(47,166,106,.30);
+      --success-grad: linear-gradient(160deg, #5BC98A, #3CB371);
+      --card-shadow: 0 2px 10px rgba(60,179,113,.10);
+      --accent-shadow-color: rgba(60,179,113,.30);
       --text: #2D3A32;
       --text-2: #5C7263;
       --text-3: #8AA292;
@@ -164,24 +173,24 @@
       border-radius: 0 50% 0 50%;
       transform: rotate(-32deg);
     }
-    body.theme-green .shop-name { text-shadow: 0 2px 6px rgba(20,110,60,.28); }
+    body.theme-green .shop-name { text-shadow: 0 2px 6px rgba(30,139,87,.28); }
 
-    /* 国潮红金（china-red）：酒楼/老字号，热烈但克制 */
+    /* 国潮红金（china-red）：酒楼/老字号，红色渐变加深层次，金线更细更精致 */
     body.theme-redgold {
-      --accent: #C0392B;            /* 主色：价格、按钮 */
-      --accent-2: #D0493A;
-      --accent-deep: #96281B;
+      --accent: #B03A2E;            /* 主色加深：价格、按钮 */
+      --accent-2: #C84A3A;
+      --accent-deep: #7B241C;
       --accent-bg: #F9E9E5;
-      --btn-bg: linear-gradient(135deg, #C0392B, #96281B);
+      --btn-bg: linear-gradient(135deg, #C84A3A, #7B241C);
       --btn-text: #fff;
-      --plus-bg: linear-gradient(135deg, #C0392B, #96281B);
+      --plus-bg: linear-gradient(135deg, #C84A3A, #7B241C);
       --plus-text: #fff;
-      --banner-grad: linear-gradient(135deg, #C0392B 0%, #96281B 100%); /* 头部渐变 */
+      --banner-grad: linear-gradient(135deg, #B03A2E 0%, #96281B 50%, #7B241C 100%); /* 红色渐变加深层次 */
       --banner-text: #FFE9B0;       /* 店名 */
       --banner-radius: 0 0 14px 14px;
-      --success-grad: linear-gradient(160deg, #C0392B, #96281B);
+      --success-grad: linear-gradient(160deg, #B03A2E, #7B241C);
       --card-shadow: 0 0 0 1px #E8D5C0, 0 2px 8px rgba(150,90,40,.06); /* 细边框 1px #E8D5C0 */
-      --accent-shadow-color: rgba(150,40,27,.28);
+      --accent-shadow-color: rgba(123,36,28,.28);
       --text: #3A2A22;
       --text-2: #8A6F5C;
       --text-3: #A98F7B;
@@ -192,21 +201,21 @@
       --input-bg: #FDF8F2;
       --badge-bg: #B8860B;                /* 点缀金：徽章 */
     }
-    /* 国潮红金：红色渐变 + 底部金色细线 + 极淡回纹暗纹（SVG 平铺，透明度 4%，只见质感不见形状） */
+    /* 国潮红金：红色渐变 + 底部更细金色线 + 极淡回纹暗纹（SVG 平铺，透明度 3%，只见质感不见形状） */
     body.theme-redgold .banner::before {
       inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cg fill='none' stroke='%23FFE9B0' stroke-width='2'%3E%3Cpath d='M10 42 V10 h32 v24 h-22 v-14 h14'/%3E%3Cpath d='M54 86 V54 h32 v24 h-22 v-14 h14'/%3E%3C/g%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cg fill='none' stroke='%23FFE9B0' stroke-width='1.5'%3E%3Cpath d='M10 42 V10 h32 v24 h-22 v-14 h14'/%3E%3Cpath d='M54 86 V54 h32 v24 h-22 v-14 h14'/%3E%3C/g%3E%3C/svg%3E");
       background-size: 96px 96px;
-      opacity: .04;
+      opacity: .03;
     }
     body.theme-redgold .banner::after {
-      left: 18px; right: 18px; bottom: 0; height: 1px;
-      background: linear-gradient(90deg, rgba(255,233,176,0), rgba(255,233,176,.5) 50%, rgba(255,233,176,0));
+      left: 24px; right: 24px; bottom: 0; height: 1px;
+      background: linear-gradient(90deg, rgba(255,233,176,0), rgba(255,233,176,.42) 50%, rgba(255,233,176,0));
     }
     body.theme-redgold .table-pill { background: rgba(255,233,176,.16); border-color: rgba(255,233,176,.5); }
     /* 分类栏选中项：红底白字圆角胶囊 */
     body.theme-redgold .sidebar-item.active {
-      background: linear-gradient(135deg, #C0392B, #96281B);
+      background: linear-gradient(135deg, #B03A2E, #7B241C);
       color: #fff;
       border-radius: 999px;
       margin: 5px 8px;

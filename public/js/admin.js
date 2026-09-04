@@ -84,6 +84,7 @@ function switchTab(tab) {
     if (tab === 'tables') loadTables();
     if (tab === 'orders') loadOrders();
     if (tab === 'stats') loadStats();
+    if (tab === 'decorate') loadDecorate();
     if (tab === 'settings') loadSettings();
     if (tab === 'member') loadMemberCenter();
     if (tab === 'coin') loadCoinCenter();
@@ -419,7 +420,7 @@ function bindSettingsToggles() {
 }
 
 async function loadSettings() {
-  const [res] = await Promise.all([api('/api/settings'), fetchMemberLevel()]);
+  const res = await api('/api/settings');
   const s = res.data;
   if (!s) return;
   $('setShopName').value = s.shopName || '';
@@ -432,14 +433,32 @@ async function loadSettings() {
   $('setNotifyPhone').value = s.notifyPhone || '';
   $('printerFields').classList.toggle('show', !!s.enablePrinter);
   $('wechatFields').classList.toggle('show', !!s.enableWechat);
-  // 店铺装修
-  renderThemeGrid(s.theme || 'classic');
-  renderDecoLock();
-  setDecoPreview($('bannerPreview'), s.bannerImage, '未设置 · 使用主题默认');
-  setDecoPreview($('logoPreview'), s.logoImage, '未设置 · 使用主题默认');
-  renderFontGrid(['modern', 'serif', 'round', 'hand'].includes(s.shopNameFont) ? s.shopNameFont : 'modern');
-  renderLayoutGrid(['list', 'large', 'grid'].includes(s.layout) ? s.layout : 'list');
 }
+
+/* ===================== 店铺装修（独立栏目） ===================== */
+let _decoState = { theme: 'classic', shopNameFont: 'modern', layout: 'list', bannerImage: '', logoImage: '', shopName: '鼎恒餐饮' };
+
+async function loadDecorate() {
+  const [res] = await Promise.all([api('/api/settings'), fetchMemberLevel()]);
+  const s = res.data || {};
+  _decoState = {
+    theme: THEME_LIST_DECO.includes(s.theme) ? s.theme : 'classic',
+    shopNameFont: ['modern', 'serif', 'round', 'hand'].includes(s.shopNameFont) ? s.shopNameFont : 'modern',
+    layout: ['list', 'large', 'grid'].includes(s.layout) ? s.layout : 'list',
+    bannerImage: s.bannerImage || '',
+    logoImage: s.logoImage || '',
+    shopName: s.shopName || '鼎恒餐饮'
+  };
+  renderThemeGrid(_decoState.theme);
+  renderDecoLock();
+  setDecoPreview($('bannerPreview'), _decoState.bannerImage, '未设置 · 使用主题默认');
+  setDecoPreview($('logoPreview'), _decoState.logoImage, '未设置 · 使用主题默认');
+  renderFontGrid(_decoState.shopNameFont);
+  renderLayoutGrid(_decoState.layout);
+  updatePhonePreview();
+}
+
+const THEME_LIST_DECO = ['classic', 'minimal', 'dark', 'green', 'redgold'];
 
 $('saveSettingsBtn').onclick = async () => {
   const body = {
@@ -467,11 +486,11 @@ bindSettingsToggles();
 /* ===================== 店铺装修 ===================== */
 // 主题包定义（与 models/Setting.js theme 枚举一致）；minLevel 用于会员等级锁定
 const SHOP_THEMES = [
-  { id: 'classic', name: '经典橙', desc: '暖橙渐变 · 默认风格', banner: 'linear-gradient(135deg,#ff9a44,#f55100)', bannerText: '#fff', minLevel: 'basic' },
+  { id: 'classic', name: '经典橙', desc: '暖橙渐变 · 默认风格', banner: 'linear-gradient(135deg,#FFB347,#ff9a44,#f55100)', bannerText: '#fff', minLevel: 'basic' },
   { id: 'minimal', name: '简约白', desc: '黑白主色 · 苹果式大留白', banner: 'linear-gradient(180deg,#ffffff,#eef0f3)', bannerText: '#1a1a1a', minLevel: 'basic' },
-  { id: 'dark',    name: '时尚暗黑', desc: '香槟金点缀 · 酒吧/烧鸟店', banner: 'linear-gradient(160deg,#141416,#2A2419)', bannerText: '#E8CD9C', minLevel: 'advanced' },
-  { id: 'green',   name: '清新绿', desc: '轻盈圆角 · 轻食/茶饮', banner: 'linear-gradient(135deg,#34C38F,#2FA66A)', bannerText: '#fff', minLevel: 'advanced' },
-  { id: 'redgold', name: '国潮红金', desc: '红金老字号 · 酒楼', banner: 'linear-gradient(135deg,#C0392B,#96281B)', bannerText: '#FFE9B0', minLevel: 'advanced' }
+  { id: 'dark',    name: '时尚暗黑', desc: '琥珀暖光 · 居酒屋/烧鸟店', banner: 'linear-gradient(160deg,#1B1613,#2A2218)', bannerText: '#F5EFE6', minLevel: 'advanced' },
+  { id: 'green',   name: '清新绿', desc: '暖绿圆角 · 轻食/茶饮', banner: 'linear-gradient(135deg,#7CCB8E,#3CB371)', bannerText: '#fff', minLevel: 'advanced' },
+  { id: 'redgold', name: '国潮红金', desc: '红金老字号 · 酒楼', banner: 'linear-gradient(135deg,#B03A2E,#7B241C)', bannerText: '#FFE9B0', minLevel: 'advanced' }
 ];
 let _memberLevel = 'basic'; // 当前商家会员等级
 
@@ -516,7 +535,9 @@ async function handleThemeClick(themeId, locked) {
   });
   if (res.success) {
     toast('主题已应用，顾客端实时生效');
+    _decoState.theme = themeId;
     renderThemeGrid(themeId);
+    updatePhonePreview();
   } else if (res.needUpgrade) {
     toast(res.message || '升级会员解锁全部店铺风格 →', true);
     switchTab('member');
@@ -570,7 +591,10 @@ async function uploadDecoImage(file, kind) {
     });
     if (res.success) {
       toast('已更新，顾客端实时生效');
+      const field = kind === 'banner' ? 'bannerImage' : 'logoImage';
+      _decoState[field] = up.data.url;
       setDecoPreview($(kind === 'banner' ? 'bannerPreview' : 'logoPreview'), up.data.url);
+      updatePhonePreview();
     } else if (res.needUpgrade) {
       toast(res.message || DECO_UPGRADE_TIP, true);
       switchTab('member');
@@ -590,7 +614,9 @@ async function clearDecoImage(field, previewId) {
   });
   if (res.success) {
     toast('已恢复主题默认');
+    _decoState[field] = '';
     setDecoPreview($(previewId), '', '未设置 · 使用主题默认');
+    updatePhonePreview();
   } else {
     toast(res.message || '操作失败', true);
   }
@@ -627,8 +653,7 @@ const MENU_LAYOUTS = [
 ];
 
 function fontSampleText() {
-  const v = $('setShopName') && $('setShopName').value.trim();
-  return v || '鼎恒餐饮';
+  return _decoState.shopName || '鼎恒餐饮';
 }
 
 async function saveDecoOption(field, value, okMsg) {
@@ -638,8 +663,10 @@ async function saveDecoOption(field, value, okMsg) {
   });
   if (res.success) {
     toast(okMsg);
+    _decoState[field] = value;
     if (field === 'shopNameFont') renderFontGrid(value);
     else renderLayoutGrid(value);
+    updatePhonePreview();
   } else {
     toast(res.message || '设置失败', true);
   }
@@ -691,6 +718,90 @@ function renderLayoutGrid(currentId) {
   grid.querySelectorAll('.opt-card').forEach(card => {
     card.onclick = () => saveDecoOption('layout', card.dataset.id, '排版已应用，顾客端实时生效');
   });
+}
+
+/* ---------- 实时预览：手机框内迷你点餐页 ---------- */
+// 主题预览数据（与 customer.html 主题变量保持一致）
+const THEME_PREVIEW = {
+  classic: {
+    bannerGrad: 'linear-gradient(135deg,#FFB347 0%,#ff9a44 40%,#ff6a1f 70%,#f55100 100%)',
+    bannerText: '#fff', accent: '#ff5e00', bg: '#f5f6f8', card: '#fff',
+    text: '#262626', text3: '#9b9b9b'
+  },
+  minimal: {
+    bannerGrad: 'linear-gradient(180deg,#ffffff,#eef0f3)',
+    bannerText: '#1A1A1A', accent: '#E8542F', bg: '#F7F8FA', card: '#fff',
+    text: '#1A1A1A', text3: '#9A9AA0'
+  },
+  dark: {
+    bannerGrad: 'linear-gradient(160deg,#1B1613 0%,#221C17 55%,#2A2218 100%)',
+    bannerText: '#F5EFE6', accent: '#FF9F45', bg: '#1B1613', card: '#26201B',
+    text: '#F5EFE6', text3: '#6E6258'
+  },
+  green: {
+    bannerGrad: 'linear-gradient(135deg,#7CCB8E 0%,#3CB371 60%,#2E8B57 100%)',
+    bannerText: '#fff', accent: '#3CB371', bg: '#F2F9F4', card: '#fff',
+    text: '#2D3A32', text3: '#8AA292'
+  },
+  redgold: {
+    bannerGrad: 'linear-gradient(135deg,#B03A2E 0%,#96281B 50%,#7B241C 100%)',
+    bannerText: '#FFE9B0', accent: '#B03A2E', bg: '#FAF3EC', card: '#fff',
+    text: '#3A2A22', text3: '#A98F7B'
+  }
+};
+
+function updatePhonePreview() {
+  const screen = $('decoPhoneScreen');
+  if (!screen) return;
+  const t = THEME_PREVIEW[_decoState.theme] || THEME_PREVIEW.classic;
+  const fontStack = (NAME_FONTS.find(f => f.id === _decoState.shopNameFont) || NAME_FONTS[0]).stack;
+  const isGrid = _decoState.layout === 'grid';
+  const isLarge = _decoState.layout === 'large';
+
+  // 横幅背景：自定义图优先，否则主题渐变
+  const bannerBg = _decoState.bannerImage
+    ? `linear-gradient(rgba(0,0,0,.28),rgba(0,0,0,.28)), url("${esc(_decoState.bannerImage)}")`
+    : t.bannerGrad;
+
+  // 示意菜品
+  const dishes = [
+    { name: '招牌牛肉面', price: '28', icon: '🍜' },
+    { name: '香辣鸡腿饭', price: '22', icon: '🍗' },
+    { name: '鲜虾水饺', price: '18', icon: '🥟' },
+    { name: '凉拌黄瓜', price: '8', icon: '🥗' }
+  ];
+
+  const cardHtml = d => {
+    if (isLarge) {
+      return `<div class="pv-card" style="flex-direction:column;gap:0;padding:0;overflow:hidden;">
+        <div class="pv-card-img" style="width:100%;height:60px;border-radius:0;">${d.icon}</div>
+        <div class="pv-card-body" style="padding:4px 6px 5px;">
+          <div class="pv-card-name">${esc(d.name)}</div>
+          <div class="pv-card-price">¥${d.price}</div>
+        </div>
+      </div>`;
+    }
+    return `<div class="pv-card">
+      <div class="pv-card-img">${d.icon}</div>
+      <div class="pv-card-body">
+        <div class="pv-card-name">${esc(d.name)}</div>
+        <div class="pv-card-price">¥${d.price}</div>
+      </div>
+    </div>`;
+  };
+
+  screen.innerHTML = `
+    <div class="pv-banner" style="background-image:${bannerBg};color:${t.bannerText};">
+      <div class="pv-shop-line">
+        ${_decoState.logoImage ? `<div class="pv-logo" style="display:flex;"><img src="${esc(_decoState.logoImage)}"></div>` : ''}
+        <div class="pv-shop-name" style="font-family:${fontStack};">${esc(_decoState.shopName || '鼎恒餐饮')}</div>
+      </div>
+      <div class="pv-slogan">欢迎光临 · 扫码点餐</div>
+    </div>
+    <div class="pv-body ${isGrid ? 'grid' : ''}" style="--pv-bg:${t.bg};--pv-card:${t.card};--pv-text:${t.text};--pv-text-3:${t.text3};--pv-accent:${t.accent};">
+      <div class="pv-cat" style="color:${t.text3};">— 招牌菜 —</div>
+      ${dishes.map(cardHtml).join('')}
+    </div>`;
 }
 
 /* ===================== 鼎恒币中心 ===================== */

@@ -547,6 +547,91 @@
     .deco-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .deco-btns { display: flex; gap: 8px; }
 
+    /* ============ 店铺装修独立栏目 ============ */
+    .deco-layout {
+      display: flex; gap: 20px; align-items: flex-start;
+    }
+    .deco-main { flex: 1; min-width: 0; }
+    /* 右侧实时预览面板（sticky 常驻） */
+    .deco-preview-panel {
+      width: 280px; flex-shrink: 0;
+      position: sticky; top: 20px;
+      text-align: center;
+    }
+    .dpp-title { font-size: 14px; font-weight: 700; color: #374151; margin-bottom: 14px; }
+    .dpp-hint { font-size: 12px; color: #9ca3af; margin-top: 12px; }
+    /* 手机框 */
+    .phone-frame {
+      width: 260px; height: 480px;
+      background: #1a1a1a; border-radius: 32px;
+      padding: 10px; box-shadow: 0 12px 36px rgba(0,0,0,.18);
+      position: relative; margin: 0 auto;
+    }
+    .phone-notch {
+      position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+      width: 80px; height: 18px; background: #1a1a1a;
+      border-radius: 0 0 12px 12px; z-index: 10;
+    }
+    .phone-screen {
+      width: 100%; height: 100%;
+      border-radius: 24px; overflow: hidden;
+      background: #f5f6f8;
+      display: flex; flex-direction: column;
+    }
+    /* 预览内的迷你点餐页 */
+    .pv-banner {
+      padding: 14px 12px 12px; border-radius: 0 0 12px 12px;
+      background-image: var(--pv-banner-grad, linear-gradient(135deg,#FFB347,#f55100));
+      background-size: cover; background-position: center;
+      color: var(--pv-banner-text, #fff);
+      position: relative; overflow: hidden;
+    }
+    .pv-banner::before {
+      content: ''; position: absolute; inset: 0;
+      background: var(--pv-banner-overlay, none);
+    }
+    .pv-shop-line { display: flex; align-items: center; gap: 6px; position: relative; z-index: 1; }
+    .pv-logo {
+      width: 22px; height: 22px; border-radius: 7px;
+      background: rgba(255,255,255,.22);
+      display: none; align-items: center; justify-content: center;
+      overflow: hidden; flex-shrink: 0;
+    }
+    .pv-logo img { width: 100%; height: 100%; object-fit: cover; }
+    .pv-shop-name {
+      font-size: 13px; font-weight: 800; letter-spacing: .3px;
+      font-family: var(--pv-font, sans-serif);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      max-width: 180px;
+    }
+    .pv-slogan { font-size: 9px; opacity: .85; margin-top: 6px; position: relative; z-index: 1; letter-spacing: .5px; }
+    .pv-body { flex: 1; padding: 8px; overflow: hidden; background: var(--pv-bg, #f5f6f8); }
+    .pv-body.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .pv-card {
+      background: var(--pv-card, #fff); border-radius: 8px;
+      padding: 6px; margin-bottom: 6px;
+      display: flex; gap: 6px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.04);
+    }
+    .pv-body.grid .pv-card { flex-direction: column; gap: 0; padding: 0; margin: 0; overflow: hidden; }
+    .pv-card-img {
+      width: 36px; height: 36px; border-radius: 6px; flex-shrink: 0;
+      background: linear-gradient(135deg,#ffe8d2,#ffb877);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .pv-body.grid .pv-card-img { width: 100%; height: 50px; border-radius: 0; }
+    .pv-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .pv-body.grid .pv-card-body { padding: 4px 5px 5px; }
+    .pv-card-name { font-size: 9px; font-weight: 700; color: var(--pv-text, #262626); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pv-card-price { font-size: 10px; font-weight: 800; color: var(--pv-accent, #ff5e00); margin-top: auto; }
+    .pv-cat { font-size: 8px; color: var(--pv-text-3, #9b9b9b); margin: 4px 0 4px; }
+    @media (max-width: 900px) {
+      .deco-layout { flex-direction: column; }
+      .deco-preview-panel { width: 100%; position: static; }
+      .phone-frame { margin: 0 auto; }
+    }
+
     /* 遮罩（移动端侧边栏打开时） */
     .scrim {
       display: none;
@@ -1340,6 +1425,7 @@
         <div class="nav-item" data-tab="tables"><span class="icon">🪑</span> 桌台管理</div>
         <div class="nav-item" data-tab="orders"><span class="icon">📦</span> 订单管理</div>
         <div class="nav-item" data-tab="stats"><span class="icon">📊</span> 数据统计</div>
+        <div class="nav-item" data-tab="decorate"><span class="icon">🎨</span> 店铺装修</div>
         <div class="nav-item" data-tab="settings"><span class="icon">⚙️</span> 店铺设置</div>
         <div class="nav-divider"></div>
         <div class="nav-item" data-tab="member"><span class="icon">👑</span> 会员中心</div>
@@ -1504,43 +1590,78 @@
             </div>
           </div>
         </div>
+      </section>
 
-        <!-- 店铺装修 -->
-        <div class="card" style="margin-top:20px;">
-          <div class="card-head"><h3>店铺装修</h3></div>
-          <div class="settings-card">
-            <div class="deco-label">点餐页主题<small>点击卡片即刻应用，顾客端实时生效</small></div>
-            <div class="theme-grid" id="themeGrid"></div>
-
-            <div class="deco-label" style="margin-top:24px;">店名字体<small>未上传 LOGO 时店名是头部视觉主体，点选即刻生效</small></div>
-            <div class="opt-grid" id="fontGrid"></div>
-
-            <div class="deco-label" style="margin-top:24px;">菜单排版<small>三种排版可与任意主题自由组合，点选即刻生效</small></div>
-            <div class="opt-grid" id="layoutGrid"></div>
-
-            <div class="deco-label" style="margin-top:24px;">自定义图片<small>头部横幅背景图与店铺 LOGO 为进阶版及以上可用</small></div>
-            <div class="deco-uploads">
-              <div class="deco-upload" id="decoBanner">
-                <div class="du-t">🖼️ 头部横幅背景图<span class="du-lock" id="bannerLock" style="display:none;">🔒 进阶版及以上可用</span></div>
-                <div class="du-d">点餐页顶部横幅背景，建议横图 750×360，jpg/png 2MB 内</div>
-                <div class="deco-preview" id="bannerPreview"><span>未设置 · 使用主题默认</span></div>
-                <div class="deco-btns">
-                  <button class="btn-add" id="uploadBannerBtn">上传图片</button>
-                  <button class="btn-gray" id="clearBannerBtn" style="padding:9px 18px;border-radius:9px;border:none;font-size:13px;font-weight:600;cursor:pointer;">恢复默认</button>
-                </div>
-                <input type="file" id="bannerFile" accept="image/jpeg,image/png" hidden>
-              </div>
-              <div class="deco-upload" id="decoLogo">
-                <div class="du-t">🏪 店铺 LOGO<span class="du-lock" id="logoLock" style="display:none;">🔒 进阶版及以上可用</span></div>
-                <div class="du-d">显示在点餐页店名左侧，建议方形图 200×200，jpg/png 2MB 内</div>
-                <div class="deco-preview" id="logoPreview"><span>未设置 · 使用主题默认</span></div>
-                <div class="deco-btns">
-                  <button class="btn-add" id="uploadLogoBtn">上传图片</button>
-                  <button class="btn-gray" id="clearLogoBtn" style="padding:9px 18px;border-radius:9px;border:none;font-size:13px;font-weight:600;cursor:pointer;">恢复默认</button>
-                </div>
-                <input type="file" id="logoFile" accept="image/jpeg,image/png" hidden>
+      <!-- 店铺装修（独立栏目） -->
+      <section class="pane" id="pane-decorate">
+        <div class="pane-title"><span>🎨 店铺装修</span></div>
+        <div class="deco-layout">
+          <!-- 左侧：装修选项 -->
+          <div class="deco-main">
+            <div class="card">
+              <div class="card-head"><h3>点餐页主题</h3></div>
+              <div class="settings-card">
+                <div class="deco-label">5 套主题<small>点击卡片即刻应用，顾客端实时生效</small></div>
+                <div class="theme-grid" id="themeGrid"></div>
               </div>
             </div>
+
+            <div class="card" style="margin-top:18px;">
+              <div class="card-head"><h3>店名字体</h3></div>
+              <div class="settings-card">
+                <div class="deco-label">4 款字体<small>未上传 LOGO 时店名是头部视觉主体，点选即刻生效</small></div>
+                <div class="opt-grid" id="fontGrid"></div>
+              </div>
+            </div>
+
+            <div class="card" style="margin-top:18px;">
+              <div class="card-head"><h3>菜单排版</h3></div>
+              <div class="settings-card">
+                <div class="deco-label">3 种排版<small>可与任意主题自由组合，点选即刻生效</small></div>
+                <div class="opt-grid" id="layoutGrid"></div>
+              </div>
+            </div>
+
+            <div class="card" style="margin-top:18px;">
+              <div class="card-head"><h3>自定义图片</h3></div>
+              <div class="settings-card">
+                <div class="deco-label">头图与 LOGO<small>进阶版及以上可用</small></div>
+                <div class="deco-uploads">
+                  <div class="deco-upload" id="decoBanner">
+                    <div class="du-t">🖼️ 头部横幅背景图<span class="du-lock" id="bannerLock" style="display:none;">🔒 进阶版及以上可用</span></div>
+                    <div class="du-d">点餐页顶部横幅背景，建议横图 750×360，jpg/png 2MB 内</div>
+                    <div class="deco-preview" id="bannerPreview"><span>未设置 · 使用主题默认</span></div>
+                    <div class="deco-btns">
+                      <button class="btn-add" id="uploadBannerBtn">上传图片</button>
+                      <button class="btn-gray" id="clearBannerBtn" style="padding:9px 18px;border-radius:9px;border:none;font-size:13px;font-weight:600;cursor:pointer;">恢复默认</button>
+                    </div>
+                    <input type="file" id="bannerFile" accept="image/jpeg,image/png" hidden>
+                  </div>
+                  <div class="deco-upload" id="decoLogo">
+                    <div class="du-t">🏪 店铺 LOGO<span class="du-lock" id="logoLock" style="display:none;">🔒 进阶版及以上可用</span></div>
+                    <div class="du-d">显示在点餐页店名左侧，建议方形图 200×200，jpg/png 2MB 内</div>
+                    <div class="deco-preview" id="logoPreview"><span>未设置 · 使用主题默认</span></div>
+                    <div class="deco-btns">
+                      <button class="btn-add" id="uploadLogoBtn">上传图片</button>
+                      <button class="btn-gray" id="clearLogoBtn" style="padding:9px 18px;border-radius:9px;border:none;font-size:13px;font-weight:600;cursor:pointer;">恢复默认</button>
+                    </div>
+                    <input type="file" id="logoFile" accept="image/jpeg,image/png" hidden>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 右侧：实时预览（常驻手机框） -->
+          <div class="deco-preview-panel">
+            <div class="dpp-title">📱 实时预览</div>
+            <div class="phone-frame" id="decoPhoneFrame">
+              <div class="phone-notch"></div>
+              <div class="phone-screen" id="decoPhoneScreen">
+                <!-- 预览内容由 JS 渲染 -->
+              </div>
+            </div>
+            <div class="dpp-hint">选择任意选项，预览立即更新</div>
           </div>
         </div>
       </section>
