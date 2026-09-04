@@ -601,19 +601,60 @@ async function previewDeco(field, value) {
   Object.keys(_decoSelected).forEach(k => {
     if (_decoSelected[k] && k !== field) merged[k] = _decoSelected[k];
   });
+  // 在 admin 内以手机框 iframe 打开（embed=1，关闭由本页接管）
+  openCustomerPreview(merged);
+}
+
+/* ---------- 装修预览手机框（iframe 嵌入真实点餐页） ----------
+   统一入口：店铺装修「预览」按钮 + 店铺运营「预览点餐页」均走这里。
+   关闭仅两种方式：点 ✕ 返回按钮 或 按 Esc 键（不拦截 F12 等开发者工具按键）。 */
+let _customerPreviewEscHandler = null;
+function openCustomerPreview(overrides) {
+  const merged = Object.assign({}, _decoState || {}, overrides || {});
   const qs = new URLSearchParams({
     shopId: SHOP_ID,
     preview: '1',
-    theme: merged.theme,
-    shopNameFont: merged.shopNameFont,
-    layout: merged.layout
+    embed: '1',
+    theme: merged.theme || '',
+    shopNameFont: merged.shopNameFont || '',
+    layout: merged.layout || ''
   });
   if (merged.bannerImage) qs.set('bannerImage', merged.bannerImage);
   if (merged.logoImage) qs.set('logoImage', merged.logoImage);
   if (merged.shopName) qs.set('shopName', merged.shopName);
-  // 新标签全屏打开真实点餐页
-  window.open('customer.html?' + qs.toString(), '_blank');
+  const frame = $('customerPreviewFrame');
+  if (frame) frame.src = 'customer.html?' + qs.toString();
+  const modal = $('customerPreviewModal');
+  if (modal) {
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+  // 绑定 Esc 关闭（仅本页生效，不影响 iframe 内的 F12）
+  if (_customerPreviewEscHandler) document.removeEventListener('keydown', _customerPreviewEscHandler);
+  _customerPreviewEscHandler = (e) => { if (e.key === 'Escape') closeCustomerPreview(); };
+  document.addEventListener('keydown', _customerPreviewEscHandler);
 }
+function closeCustomerPreview() {
+  const modal = $('customerPreviewModal');
+  if (modal) {
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+  // 清空 iframe src，停止后台加载/轮询
+  const frame = $('customerPreviewFrame');
+  if (frame) frame.src = 'about:blank';
+  if (_customerPreviewEscHandler) {
+    document.removeEventListener('keydown', _customerPreviewEscHandler);
+    _customerPreviewEscHandler = null;
+  }
+}
+(function () {
+  const btn = $('customerPreviewClose');
+  if (btn) btn.onclick = closeCustomerPreview;
+  // 点击遮罩不关闭（仅 ✕ 与 Esc 可关闭，避免误触）
+})();
+window.openCustomerPreview = openCustomerPreview;
+window.closeCustomerPreview = closeCustomerPreview;
 
 // 应用：保存选中字段到 Setting 并生效
 async function applyDeco(field, value) {
@@ -1176,6 +1217,7 @@ window.goCoinHistory = goCoinHistory;
 let _mallSuppliers = [];      // 供应商店铺列表
 let _mallCurrentStore = null; // 当前进入的供应商对象
 let _mallProducts = [];       // 当前店铺的商品
+let _mallAllProducts = [];    // 全平台上架商品缓存（用于跨店铺关键词搜索商品名）
 let _mallCategory = 'all';    // 当前分类筛选
 let _mallCart = [];           // 当前店铺采购车 [{ productId, name, unit, quantity, unitPrice, category, coinMultiplier }]
 let _mallPendingQty = {};     // 商品卡片「本次拟加入数量」映射 productId → N（与采购车数量解耦，加入后重置为 1）
@@ -1183,6 +1225,7 @@ let _mallCoupons = [];        // 当前商家可用抵用券（status=unused 且
 let _mallMemberLevel = 'basic'; // 当前商家会员等级（用于横幅差异化文案）
 let _mallSearchKey = '';      // 店铺列表搜索关键词
 let _mallStoreCat = 'all';    // 店铺列表品类筛选标签
+let _mallSearchTimer = null;  // 搜索防抖计时器（300ms）
 
 // 供应商名兜底（取不到显示"平台直供"，绝不出现 undefined/????）
 function getStoreName(s) {
@@ -1210,14 +1253,16 @@ function couponUsable(c) {
   return c && c.status === 'unused' && c.expireDate && new Date(c.expireDate) > new Date();
 }
 
-// 商城入口：拉取供应商列表 + 商家可用券，默认显示店铺列表层
+// 商城入口：拉取供应商列表 + 全平台上架商品 + 商家可用券，默认显示店铺列表层
 async function loadMall() {
   try {
-    const [supRes, statusRes] = await Promise.all([
+    const [supRes, prodRes, statusRes] = await Promise.all([
       api('/api/suppliers'),
+      api('/api/supply-products?status=上架'),
       api(`/api/coin/status/${SHOP_ID}`)
     ]);
     _mallSuppliers = (supRes.data || []).filter(s => s && s.name);
+    _mallAllProducts = (prodRes.data || []).filter(p => p && p.name);
     _mallCoupons = ((statusRes.data && statusRes.data.coupons) || []).filter(couponUsable);
     _mallMemberLevel = (statusRes.data && statusRes.data.memberLevel) || 'basic';
     _mallCurrentStore = null;
@@ -1244,7 +1289,7 @@ function renderMallCoinBanner() {
   el.classList.remove('basic');
 }
 
-// 店铺列表品类筛选标签栏 + 搜索框绑定
+// 店铺列表品类筛选标签栏 + 搜索框绑定（300ms 防抖，回车立即触发）
 function renderMallStoreCatTabs() {
   const tabs = [
     { label: '全部', dc: 'all' },
@@ -1260,7 +1305,21 @@ function renderMallStoreCatTabs() {
   `).join('');
   const si = $('mallSearchInput');
   si.value = _mallSearchKey;
-  si.oninput = (e) => { _mallSearchKey = e.target.value.trim(); renderStoreList(); };
+  si.oninput = (e) => {
+    _mallSearchKey = e.target.value.trim();
+    // 300ms 防抖：输入过程中不频繁触发，停止输入后统一搜索一次
+    if (_mallSearchTimer) clearTimeout(_mallSearchTimer);
+    _mallSearchTimer = setTimeout(renderStoreList, 300);
+  };
+  // 回车立即触发搜索（取消防抖等待）
+  si.onkeydown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (_mallSearchTimer) { clearTimeout(_mallSearchTimer); _mallSearchTimer = null; }
+      _mallSearchKey = si.value.trim();
+      renderStoreList();
+    }
+  };
 }
 function setMallStoreCat(cat) {
   _mallStoreCat = cat || 'all';
@@ -1291,47 +1350,144 @@ function catBadgeStyle(cat) {
   return `background:${c.bg};color:${c.fg};`;
 }
 
-// 渲染供应商店铺列表（支持搜索 + 品类筛选）
+// 渲染供应商店铺列表（支持搜索：店名 + 商品名 + 品类筛选）
 function renderStoreList() {
   const grid = $('storeGrid');
   if (!_mallSuppliers.length) {
     grid.innerHTML = `<div class="empty" style="grid-column:1/-1;">暂无供应商店铺</div>`;
     return;
   }
-  // 关键词搜索（店名 + 品类）+ 品类筛选标签
   const key = _mallSearchKey.toLowerCase();
-  let list = _mallSuppliers.filter(s => {
+  // 品类筛选标签仅作用于店铺列表（商品结果按关键词匹配，不受品类标签影响）
+  const matchCat = (s) => {
+    if (_mallStoreCat === 'all') return true;
     const cats = Array.isArray(s.categories) ? s.categories : [];
-    const matchKey = !key
-      || String(s.name || '').toLowerCase().includes(key)
+    return cats.includes(_mallStoreCat);
+  };
+
+  // 匹配店铺：店名或主营品类含关键词 + 品类筛选
+  const matchStore = (s) => {
+    if (!key) return true;
+    const cats = Array.isArray(s.categories) ? s.categories : [];
+    return String(s.name || '').toLowerCase().includes(key)
       || cats.some(c => String(c).toLowerCase().includes(key));
-    const matchCat = _mallStoreCat === 'all' || cats.includes(_mallStoreCat);
-    return matchKey && matchCat;
-  });
-  if (!list.length) {
-    grid.innerHTML = `<div class="empty" style="grid-column:1/-1;">没有匹配的供应商店铺</div>`;
+  };
+  const matchedStores = _mallSuppliers.filter(s => matchStore(s) && matchCat(s));
+
+  // 匹配商品：商品名含关键词（跨全部店铺，搜索商品时一并展示）
+  let matchedProducts = [];
+  if (key) {
+    matchedProducts = _mallAllProducts.filter(p => {
+      const nameOk = String(p.name || '').toLowerCase().includes(key);
+      const descOk = p.description && String(p.description).toLowerCase().includes(key);
+      return nameOk || descOk;
+    });
+  }
+
+  // 无关键词：仅显示品类筛选后的店铺列表
+  if (!key) {
+    if (!matchedStores.length) {
+      grid.innerHTML = `<div class="empty" style="grid-column:1/-1;">该分类下暂无供应商店铺</div>`;
+      return;
+    }
+    grid.innerHTML = matchedStores.map(s => storeCardHtml(s)).join('');
     return;
   }
-  grid.innerHTML = list.map(s => {
-    const minOrder = storeMinOrder(s);
-    const cats = Array.isArray(s.categories) ? s.categories.slice(0, 4) : [];
-    const catBadges = cats.length
-      ? cats.map(c => `<span class="store-cat-badge" style="${catBadgeStyle(c)}">${esc(c)}</span>`).join('')
-      : `<span class="store-cat-badge" style="${catBadgeStyle('')}">综合供应商</span>`;
-    return `
-      <div class="store-card" onclick="enterStore('${esc(String(s._id))}')">
-        <div class="store-logo">${esc(storeInitial(s.name))}</div>
-        <div class="store-info">
-          <div class="store-name">${esc(s.name)}</div>
-          <div class="store-cats">${catBadges}</div>
-          <div class="store-meta">
-            <span class="store-minorder">¥${minOrder} 起送</span>
-            <span class="store-enter">进入店铺 ›</span>
-          </div>
+
+  // 有关键词：商品结果 + 店铺结果
+  let html = '';
+  if (matchedProducts.length) {
+    html += `
+      <div class="mall-result-section" style="grid-column:1/-1;">
+        <div class="mall-result-title">📦 匹配商品 <span class="mall-result-count">${matchedProducts.length}</span></div>
+        <div class="mall-product-result-grid">
+          ${matchedProducts.map(p => mallSearchProductCardHtml(p)).join('')}
+        </div>
+      </div>`;
+  }
+  if (matchedStores.length) {
+    html += `
+      <div class="mall-result-section" style="grid-column:1/-1;">
+        <div class="mall-result-title">🏪 匹配店铺 <span class="mall-result-count">${matchedStores.length}</span></div>
+        <div class="store-grid">
+          ${matchedStores.map(s => storeCardHtml(s)).join('')}
+        </div>
+      </div>`;
+  }
+  if (!matchedProducts.length && !matchedStores.length) {
+    html = `<div class="empty" style="grid-column:1/-1;">没有匹配的「${esc(_mallSearchKey)}」店铺或商品</div>`;
+  }
+  grid.innerHTML = html;
+}
+
+// 店铺卡片 HTML（抽取为函数，供搜索结果与列表复用）
+function storeCardHtml(s) {
+  const minOrder = storeMinOrder(s);
+  const cats = Array.isArray(s.categories) ? s.categories.slice(0, 4) : [];
+  const catBadges = cats.length
+    ? cats.map(c => `<span class="store-cat-badge" style="${catBadgeStyle(c)}">${esc(c)}</span>`).join('')
+    : `<span class="store-cat-badge" style="${catBadgeStyle('')}">综合供应商</span>`;
+  return `
+    <div class="store-card" onclick="enterStore('${esc(String(s._id))}')">
+      <div class="store-logo">${esc(storeInitial(s.name))}</div>
+      <div class="store-info">
+        <div class="store-name">${esc(s.name)}</div>
+        <div class="store-cats">${catBadges}</div>
+        <div class="store-meta">
+          <span class="store-minorder">¥${minOrder} 起送</span>
+          <span class="store-enter">进入店铺 ›</span>
         </div>
       </div>
-    `;
-  }).join('');
+    </div>
+  `;
+}
+
+// 搜索结果商品卡片：显示商品名、价格、所属店铺（可点进店）、品类、得币倍率徽章、加购按钮
+function mallSearchProductCardHtml(p) {
+  const sup = p.supplierId;
+  const supplierName = (sup && typeof sup === 'object' && sup.name) ? sup.name : (typeof sup === 'string' ? sup : '未知店铺');
+  const supplierId = (sup && typeof sup === 'object' && sup._id) ? sup._id : (typeof sup === 'string' ? sup : '');
+  const qtyVal = _mallPendingQty[p._id] || 1;
+  const unit = p.unit || '个';
+  const mult = Number(p.coinMultiplier);
+  const multVal = (!isNaN(mult) && mult > 0) ? mult : 1;
+  const coinBadge = multVal > 1
+    ? `<span class="coin-boost">🪙 ${multVal} 倍得币</span>`
+    : `<span class="coin-boost coin-boost-normal">🪙 1 倍得币</span>`;
+  const catBadge = p.category
+    ? `<span class="store-cat-badge" style="${catBadgeStyle(p.category)}">${esc(p.category)}</span>`
+    : '';
+  return `
+    <div class="product-card mall-product-result">
+      <div class="product-img">${p.image ? `<img src="${esc(p.image)}" alt="" onerror="this.parentElement.innerHTML='📦'">` : '📦'}</div>
+      <div class="product-body">
+        <div class="product-name">${esc(p.name)}</div>
+        <div class="product-store-link">
+          <span class="product-store-label">所属店铺：</span>
+          <a class="product-store-name" onclick="enterStore('${esc(String(supplierId))}');event.stopPropagation();">${esc(supplierName)} ›</a>
+        </div>
+        <div class="product-tags">${catBadge}${coinBadge}</div>
+        <div class="product-price">¥${Number(p.costPrice).toFixed(2)}<small> 批发价 / ${esc(unit)}</small></div>
+        <div class="product-actions">
+          <div class="qty-ctrl">
+            <button onclick="adjustQty('${p._id}', -1)">−</button>
+            <input type="number" min="1" value="${qtyVal}" data-pid="${p._id}" oninput="setQty('${p._id}', this.value)">
+            <button onclick="adjustQty('${p._id}', 1)">+</button>
+          </div>
+          <button class="btn-cart" data-add="${p._id}" onclick="searchAddToCart('${p._id}','${esc(String(supplierId))}')">加入采购车</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// 搜索结果加购：若不在该店铺则先切换店铺（采购车按店铺隔离，切换会清空旧车），再加入采购车
+async function searchAddToCart(productId, supplierId) {
+  if (!supplierId) { toast('店铺信息缺失', true); return; }
+  if (!_mallCurrentStore || String(_mallCurrentStore._id) !== String(supplierId)) {
+    await enterStore(supplierId);
+  }
+  addToCart(productId);
 }
 
 // 进入某家供应商店铺（同 section 切换，不跳转新页面）
@@ -1345,6 +1501,7 @@ async function enterStore(supplierId) {
   $('mallStoreName').textContent = s.name;
   $('mallProductsTitle').textContent = s.name + ' · 店铺商品';
   $('cartStoreName').textContent = s.name;
+  if ($('mCartStoreName')) $('mCartStoreName').textContent = s.name;
   renderMallCatNav();
   try {
     const res = await api(`/api/supply-products?status=上架&supplierId=${encodeURIComponent(supplierId)}`);
@@ -1362,7 +1519,10 @@ function backToStoreList() {
   _mallCurrentStore = null;
   _mallCart = [];
   _mallPendingQty = {};
+  _mallSelectedCouponId = '';
   _mallProducts = [];
+  closeMallCartDrawer();
+  updateMallFloatBar(0, 0, 0, false);
   showStoreListView();
 }
 $('mallBackToList').onclick = backToStoreList;
@@ -1497,55 +1657,52 @@ function removeFromCart(productId) {
   renderCart();
 }
 
-// 渲染采购车：商品列表 + 小计 + 起送价提示 + 抵用券下拉（门槛校验）+ 折扣 + 应付 + 提交按钮状态
-function renderCart() {
-  const list = $('cartList');
-  const empty = $('cartEmpty');
-  const couponSection = $('cartCouponSection');
-  const couponSelect = $('cartCouponSelect');
-  const discountRow = $('cartDiscountRow');
-  const discountEl = $('cartDiscount');
-  const subtotalEl = $('cartSubtotal');
-  const totalEl = $('cartTotal');
-  const submitBtn = $('submitPurchaseBtn');
-  const minOrderEl = $('cartMinOrder');
-  const coinTotalEl = $('cartCoinTotal');
-  const coinHintEl = $('cartCoinHint');
+// 采购车所选券 id（桌面/手机两端共享同一选中态，renderCart 据此重建下拉并回填）
+let _mallSelectedCouponId = '';
 
+// 渲染采购车：商品列表 + 小计 + 起送价提示 + 抵用券下拉（门槛校验）+ 折扣 + 应付 + 提交按钮状态
+// 同时更新桌面端采购车与手机端悬浮栏/抽屉（双端共享一份计算结果，避免口径分叉）
+function renderCart() {
   const store = _mallCurrentStore;
   const minOrder = store ? storeMinOrder(store) : 300;
+  const couponSelect = $('cartCouponSelect');
+  const mCouponSelect = $('mCartCouponSelect');
 
+  // 空车：两端统一清空
   if (!_mallCart.length) {
-    list.innerHTML = '';
-    empty.style.display = 'block';
-    couponSection.style.display = 'none';
-    discountRow.style.display = 'none';
-    minOrderEl.style.display = 'none';
-    if (coinTotalEl) coinTotalEl.style.display = 'none';
-    if (coinHintEl) coinHintEl.style.display = 'none';
-    subtotalEl.textContent = '0.00';
-    totalEl.textContent = '0.00';
-    submitBtn.disabled = true;
-    submitBtn.textContent = '采购车为空';
+    _setTextAll(['cartEmpty', 'mCartEmpty'], 'block');
+    _setHtmlAll(['cartList', 'mCartList'], '');
+    _setDisplayAll(['cartCouponSection', 'mCartCouponSection'], 'none');
+    _setDisplayAll(['cartDiscountRow', 'mCartDiscountRow'], 'none');
+    _setDisplayAll(['cartMinOrder', 'mCartMinOrder'], 'none');
+    _setDisplayAll(['cartCoinTotal', 'mCartCoinTotal'], 'none');
+    _setDisplayAll(['cartCoinHint', 'mCartCoinHint'], 'none');
+    _setTextAll(['cartSubtotal', 'mCartSubtotal'], '0.00');
+    _setTextAll(['cartTotal', 'mCartTotal'], '0.00');
+    _setBtnAll(['submitPurchaseBtn', 'mSubmitPurchaseBtn'], true, '采购车为空');
+    updateMallFloatBar(0, 0, 0, false);
     return;
   }
-  empty.style.display = 'none';
+  _setDisplayAll(['cartEmpty', 'mCartEmpty'], 'none');
 
   // 小计
   const subtotal = _mallCart.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
-  subtotalEl.textContent = subtotal.toFixed(2);
+  _setTextAll(['cartSubtotal', 'mCartSubtotal'], subtotal.toFixed(2));
 
-  // 起送价提示
-  if (subtotal < minOrder) {
-    const diff = (minOrder - subtotal).toFixed(2);
-    minOrderEl.style.display = 'block';
-    minOrderEl.className = 'cart-minorder lack';
-    minOrderEl.textContent = `还差 ¥${diff} 起送，继续选购`;
-  } else {
-    minOrderEl.style.display = 'block';
-    minOrderEl.className = 'cart-minorder ok';
-    minOrderEl.textContent = `已满 ¥${minOrder} 起送`;
-  }
+  // 起送价提示（两端同步）
+  const minOrderEls = [$('cartMinOrder'), $('mCartMinOrder')];
+  minOrderEls.forEach(el => {
+    if (!el) return;
+    if (subtotal < minOrder) {
+      el.style.display = 'block';
+      el.className = 'cart-minorder lack';
+      el.textContent = `还差 ¥${(minOrder - subtotal).toFixed(2)} 起送，继续选购`;
+    } else {
+      el.style.display = 'block';
+      el.className = 'cart-minorder ok';
+      el.textContent = `已满 ¥${minOrder} 起送`;
+    }
+  });
 
   // 抵用券：按 面额|门槛 分组计数；满足门槛可选，不满足灰显且不可选
   const groups = {};
@@ -1555,16 +1712,14 @@ function renderCart() {
     groups[key].items.push(c);
   });
   const groupList = Object.values(groups).map(g => {
-    // 同组取最早过期的那张作为本次使用的券
     g.items.sort((a, b) => new Date(a.expireDate) - new Date(b.expireDate));
     g.first = g.items[0];
     return g;
   });
   groupList.sort((a, b) => a.faceValue - b.faceValue);
 
-  const prevValue = couponSelect.value;
-  if (groupList.length > 0) {
-    couponSection.style.display = 'block';
+  // 构建两端下拉的 option 列表（保持同步）
+  const buildCouponOptions = () => {
     const opts = [`<option value="">不使用抵用券</option>`];
     groupList.forEach(g => {
       const eligible = subtotal >= g.minOrder;
@@ -1575,42 +1730,51 @@ function renderCart() {
         opts.push(`<option value="" disabled>¥${g.faceValue} 券（还差 ¥${diff} 可用）</option>`);
       }
     });
-    couponSelect.innerHTML = opts.join('');
-    // 保留之前选中的券（若仍可选）
-    if (prevValue && [...couponSelect.options].some(o => o.value === prevValue)) {
-      couponSelect.value = prevValue;
-    } else {
-      couponSelect.value = '';
-    }
-    couponSelect.onchange = renderCart;
+    return opts.join('');
+  };
+  if (groupList.length > 0) {
+    _setDisplayAll(['cartCouponSection', 'mCartCouponSection'], 'block');
+    [couponSelect, mCouponSelect].forEach(sel => {
+      if (!sel) return;
+      sel.innerHTML = buildCouponOptions();
+      // 保留之前选中的券（若仍可选）；否则置空
+      if (_mallSelectedCouponId && [...sel.options].some(o => o.value === _mallSelectedCouponId)) {
+        sel.value = _mallSelectedCouponId;
+      } else {
+        sel.value = '';
+        _mallSelectedCouponId = '';
+      }
+      sel.onchange = () => {
+        _mallSelectedCouponId = sel.value;
+        renderCart();
+      };
+    });
   } else {
-    couponSection.style.display = 'none';
-    couponSelect.onchange = null;
+    _setDisplayAll(['cartCouponSection', 'mCartCouponSection'], 'none');
+    [couponSelect, mCouponSelect].forEach(sel => { if (sel) sel.onchange = null; });
   }
 
-  // 折扣与实付
+  // 折扣与实付（按共享选中态计算）
   let discount = 0;
-  if (couponSection.style.display !== 'none' && couponSelect.value) {
-    const opt = couponSelect.querySelector(`option[value="${couponSelect.value}"]`);
+  if (groupList.length > 0 && _mallSelectedCouponId) {
+    const opt = couponSelect && couponSelect.querySelector(`option[value="${_mallSelectedCouponId}"]`);
     if (opt) discount = Number(opt.getAttribute('data-face') || 0);
   }
   const actual = Math.max(0, subtotal - discount);
-  discountRow.style.display = discount > 0 ? 'flex' : 'none';
-  discountEl.textContent = discount.toFixed(2);
-  totalEl.textContent = actual.toFixed(2);
+  _setDisplayAll(['cartDiscountRow', 'mCartDiscountRow'], discount > 0 ? 'flex' : 'none');
+  _setTextAll(['cartDiscount', 'mCartDiscount'], discount.toFixed(2));
+  _setTextAll(['cartTotal', 'mCartTotal'], actual.toFixed(2));
 
   // 预估鼎恒币：按实付金额计算，券抵扣额按各行金额占比分摊到各行
   // 与后端 confirm-receive 发币口径完全一致：每行实付金额 × 会员返币率 × 品类倍率，汇总后向下取整
-  // 券抵扣部分绝不发币；券选中变化时实时刷新（couponSelect.onchange = renderCart）
   const coinRate = COIN_RATE[_mallMemberLevel] ?? 0.5;
-  const payRatio = subtotal > 0 ? (actual / subtotal) : 0; // 用券时 <1，无券时 =1
+  const payRatio = subtotal > 0 ? (actual / subtotal) : 0;
   const lineWeighted = _mallCart.map(c => {
     const lineAmt = c.quantity * c.unitPrice;
     const mult = Number(c.coinMultiplier) > 0 ? Number(c.coinMultiplier) : 1;
     return { lineAmt, mult, weighted: lineAmt * payRatio * coinRate * mult };
   });
   const totalCoin = Math.floor(lineWeighted.reduce((s, x) => s + x.weighted, 0));
-  // 各行展示币数：按最大余数法分摊，使各行预估币之和 = totalCoin（与实付总额计算的币数一致）
   const lineCoins = lineWeighted.map(x => Math.floor(x.weighted));
   let remainder = totalCoin - lineCoins.reduce((s, x) => s + x, 0);
   if (remainder > 0) {
@@ -1619,7 +1783,7 @@ function renderCart() {
       .sort((a, b) => b.frac - a.frac);
     for (let k = 0; k < remainder && k < fracs.length; k++) lineCoins[fracs[k].i]++;
   }
-  list.innerHTML = _mallCart.map((c, i) => {
+  const cartItemsHtml = _mallCart.map((c, i) => {
     const lineAmt = c.quantity * c.unitPrice;
     const lineCoin = lineCoins[i];
     return `
@@ -1634,29 +1798,89 @@ function renderCart() {
     </div>
     `;
   }).join('');
+  _setHtmlAll(['cartList', 'mCartList'], cartItemsHtml);
 
   // 本单预计共得鼎恒币（按实付金额计算，与后端发币口径一致）
-  if (coinTotalEl) {
-    coinTotalEl.style.display = totalCoin > 0 ? 'flex' : 'none';
-    coinTotalEl.innerHTML = `本单预计共得 <b>${totalCoin}</b> 鼎恒币`;
-  }
-  if (coinHintEl) {
-    coinHintEl.style.display = totalCoin > 0 ? 'block' : 'none';
-    coinHintEl.textContent = '按实付金额计算，确认收货后自动到账';
-  }
+  [$('cartCoinTotal'), $('mCartCoinTotal')].forEach(el => {
+    if (!el) return;
+    el.style.display = totalCoin > 0 ? 'flex' : 'none';
+    el.innerHTML = `本单预计共得 <b>${totalCoin}</b> 鼎恒币`;
+  });
+  [$('cartCoinHint'), $('mCartCoinHint')].forEach(el => {
+    if (!el) return;
+    el.style.display = totalCoin > 0 ? 'block' : 'none';
+    el.textContent = '按实付金额计算，确认收货后自动到账';
+  });
 
   // 提交按钮状态：未满起送价则禁用并提示差额
+  const lackText = `还差 ¥${(minOrder - subtotal).toFixed(2)} 起送`;
   if (subtotal < minOrder) {
-    submitBtn.disabled = true;
-    submitBtn.textContent = `还差 ¥${(minOrder - subtotal).toFixed(2)} 起送`;
+    _setBtnAll(['submitPurchaseBtn', 'mSubmitPurchaseBtn'], true, lackText);
   } else {
-    submitBtn.disabled = false;
-    submitBtn.textContent = '提交采购订单';
+    _setBtnAll(['submitPurchaseBtn', 'mSubmitPurchaseBtn'], false, '提交采购订单');
   }
+
+  // 手机端悬浮栏：总件数、实付、预估币、显隐
+  const itemCount = _mallCart.reduce((s, i) => s + i.quantity, 0);
+  updateMallFloatBar(itemCount, actual, totalCoin, true);
 }
 
+// 双端同步辅助：批量设置元素文本/HTML/display/按钮态
+function _setTextAll(ids, text) { ids.forEach(id => { const el = $(id); if (el) el.textContent = text; }); }
+function _setHtmlAll(ids, html) { ids.forEach(id => { const el = $(id); if (el) el.innerHTML = html; }); }
+function _setDisplayAll(ids, display) { ids.forEach(id => { const el = $(id); if (el) el.style.display = display; }); }
+function _setBtnAll(ids, disabled, text) {
+  ids.forEach(id => {
+    const el = $(id);
+    if (!el) return;
+    el.disabled = disabled;
+    el.textContent = text;
+  });
+}
+
+// 手机端悬浮结算栏：更新件数 / 合计 / 预估币 / 显隐（无车或空车时隐藏，避免遮挡商品）
+function updateMallFloatBar(itemCount, total, coin, show) {
+  const bar = $('mFloatBar');
+  if (!bar) return;
+  const visible = show && itemCount > 0;
+  bar.style.display = visible ? 'flex' : 'none';
+  bar.setAttribute('aria-hidden', visible ? 'false' : 'true');
+  if (!visible) return;
+  const c = $('mFloatCount'); if (c) c.textContent = itemCount;
+  const t = $('mFloatTotal'); if (t) t.textContent = total.toFixed(2);
+  const cn = $('mFloatCoin'); if (cn) cn.textContent = coin;
+}
+
+// 手机端采购车抽屉开关
+function openMallCartDrawer() {
+  const drawer = $('mCartDrawer');
+  const mask = $('mCartDrawerMask');
+  if (drawer) drawer.classList.add('open');
+  if (mask) mask.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeMallCartDrawer() {
+  const drawer = $('mCartDrawer');
+  const mask = $('mCartDrawerMask');
+  if (drawer) drawer.classList.remove('open');
+  if (mask) mask.classList.remove('open');
+  document.body.style.overflow = '';
+}
+(function () {
+  const btn = $('mFloatCheckoutBtn');
+  if (btn) btn.onclick = openMallCartDrawer;
+  const close = $('mCartDrawerClose');
+  if (close) close.onclick = closeMallCartDrawer;
+  const mask = $('mCartDrawerMask');
+  if (mask) mask.onclick = closeMallCartDrawer;
+  // 抽屉内提交按钮绑定同一提交逻辑
+  const mSubmit = $('mSubmitPurchaseBtn');
+  if (mSubmit) mSubmit.onclick = submitMallOrder;
+})();
+
 // 提交采购订单（shopId 由后端从 JWT 取；couponId 随单提交，后端同事务核销）
-$('submitPurchaseBtn').onclick = async () => {
+// 桌面端 submitPurchaseBtn 与手机端 mSubmitPurchaseBtn 共用此函数
+async function submitMallOrder() {
   if (!_mallCurrentStore) { toast('请先选择供应商店铺', true); return; }
   if (!_mallCart.length) { toast('采购车为空', true); return; }
   const store = _mallCurrentStore;
@@ -1670,8 +1894,7 @@ $('submitPurchaseBtn').onclick = async () => {
     quantity: c.quantity,
     unitPrice: c.unitPrice
   }));
-  const couponSelect = $('cartCouponSelect');
-  const couponId = (couponSelect && couponSelect.value) || '';
+  const couponId = _mallSelectedCouponId || '';
 
   const body = { supplierId, items };
   if (couponId) body.couponId = couponId;
@@ -1685,6 +1908,8 @@ $('submitPurchaseBtn').onclick = async () => {
 
   toast('采购订单已提交！');
   _mallCart = [];
+  _mallSelectedCouponId = '';
+  closeMallCartDrawer();
   backToStoreList();
   // 提交后刷新可用券缓存（用掉了一张）
   try {
@@ -1692,7 +1917,15 @@ $('submitPurchaseBtn').onclick = async () => {
     _mallCoupons = ((st.data && st.data.coupons) || []).filter(couponUsable);
   } catch (e) { /* ignore */ }
   switchTab('purchase'); // 跳转到采购订单查看
-};
+}
+// 桌面端提交按钮绑定
+(function () {
+  const btn = $('submitPurchaseBtn');
+  if (btn) btn.onclick = submitMallOrder;
+})();
+window.submitMallOrder = submitMallOrder;
+window.openMallCartDrawer = openMallCartDrawer;
+window.closeMallCartDrawer = closeMallCartDrawer;
 
 /* ===================== 采购订单 ===================== */
 let _purchaseFilterStatus = '';
@@ -1702,19 +1935,23 @@ async function loadPurchaseOrders() {
   const statusParam = _purchaseFilterStatus ? `?status=${encodeURIComponent(_purchaseFilterStatus)}` : '';
   const res = await api(`/api/purchase-orders${statusParam}`);
   const body = $('purchaseOrdersBody');
+  const cardList = $('purchaseCardList');
   const orders = res.data || [];
   if (!orders.length) {
     body.innerHTML = `<tr><td colspan="7" class="empty">暂无采购订单</td></tr>`;
+    if (cardList) cardList.innerHTML = `<div class="empty">暂无采购订单</div>`;
     return;
   }
   // 后端已 populate supplierId 为对象（含 name），直接取；兼容旧字符串 id
+  const badgeCls = {
+    '待确认': 'b-gray', '已确认': 'b-blue', '已发货': 'b-orange', '已完成': 'b-green'
+  };
+  // 桌面端表格行
   body.innerHTML = orders.map(o => {
     const sup = o.supplierId;
     const supplierName = (sup && typeof sup === 'object' && sup.name) ? sup.name : (typeof sup === 'string' ? sup : '未知供应商');
     const itemsText = (o.items || []).slice(0, 2).map(i => `${esc(i.name)}×${i.quantity}`).join('，') + (o.items?.length > 2 ? '…' : '');
-    const badgeCls = {
-      '待确认': 'b-gray', '已确认': 'b-blue', '已发货': 'b-orange', '已完成': 'b-green'
-    }[o.status] || 'b-gray';
+    const bc = badgeCls[o.status] || 'b-gray';
     const actionHtml = o.status === '已发货'
       ? `<button class="btn btn-orange" data-id="${o._id}">确认收货</button>`
       : (o.status === '已完成' ? `<span style="color:#16a34a;">✓ 已返 ${o.rewardCoin || 0} DH</span>` : '—');
@@ -1725,27 +1962,70 @@ async function loadPurchaseOrders() {
         <td>${esc(supplierName)}</td>
         <td title="${esc((o.items || []).map(i => `${i.name}×${i.quantity}`).join('，'))}">${esc(itemsText)}</td>
         <td>¥${Number(o.totalAmount).toFixed(2)}</td>
-        <td><span class="badge ${badgeCls}">${o.status}</span></td>
+        <td><span class="badge ${bc}">${o.status}</span></td>
         <td>${o.status === '已完成' ? (o.rewardCoin || 0) + ' DH' : '—'}</td>
         <td>${actionHtml}</td>
       </tr>
     `;
   }).join('');
 
-  // 绑定"确认收货"按钮
-  body.querySelectorAll('button[data-id]').forEach(btn => {
-    btn.onclick = async () => {
-      if (!confirm('确认收到该订单货物？收货后鼎恒币将立即发放。')) return;
-      const r = await api(`/api/purchase-orders/${btn.dataset.id}/confirm-receive`, { method: 'POST' });
-      if (r.success) {
-        const coin = r.rewardCoin || 0;
-        toast(`收货成功！已返 ${coin} DH`);
-        loadPurchaseOrders();
-      } else {
-        toast(r.message || '操作失败', true);
-      }
-    };
-  });
+  // 手机端卡片列表（替代表格，无横向滑动）
+  if (cardList) {
+    cardList.innerHTML = orders.map(o => {
+      const sup = o.supplierId;
+      const supplierName = (sup && typeof sup === 'object' && sup.name) ? sup.name : (typeof sup === 'string' ? sup : '未知供应商');
+      const itemsCount = (o.items || []).length;
+      const itemsSummary = (o.items || []).slice(0, 3).map(i => `${esc(i.name)}×${i.quantity}`).join('，') + (itemsCount > 3 ? ` 等 ${itemsCount} 项` : '');
+      const bc = badgeCls[o.status] || 'b-gray';
+      const totalAmt = Number(o.totalAmount || 0);
+      const discount = Number(o.discountAmount || 0);
+      const actualPay = Number(o.actualPayAmount || totalAmt);
+      const rewardCoin = o.rewardCoin || 0;
+      // 卡片操作按钮：已发货显示「确认收货」，已完成显示返币，其他状态显示占位
+      const actionHtml = o.status === '已发货'
+        ? `<button class="btn btn-orange" data-id="${o._id}">确认收货</button>`
+        : (o.status === '已完成' ? `<span class="pcard-coin-done">✓ 已返 ${rewardCoin} DH</span>` : '');
+      return `
+        <div class="pcard">
+          <div class="pcard-head">
+            <div>
+              <div class="pcard-no">${esc(o.orderNo || o._id)}</div>
+              <div class="pcard-time">${fmtTime(o.createdAt)}</div>
+            </div>
+            <span class="pcard-status badge ${bc}">${o.status}</span>
+          </div>
+          <div class="pcard-supplier">供应商：<b>${esc(supplierName)}</b></div>
+          <div class="pcard-items">${itemsSummary || '无商品'}</div>
+          <div class="pcard-amounts">
+            <span class="pcard-amount">总额 <b>¥${totalAmt.toFixed(2)}</b></span>
+            ${discount > 0 ? `<span class="pcard-amount discount">券抵扣 <b>-¥${discount.toFixed(2)}</b></span>` : ''}
+            <span class="pcard-amount pay">实付 <b>¥${actualPay.toFixed(2)}</b></span>
+            ${o.status === '已完成' ? `<span class="pcard-amount coin">返币 <b>${rewardCoin} DH</b></span>` : ''}
+          </div>
+          ${actionHtml ? `<div class="pcard-actions">${actionHtml}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+  }
+
+  // 绑定「确认收货」按钮（桌面表格 + 手机卡片，统一绑定）
+  const confirmHandler = async (btn) => {
+    if (!confirm('确认收到该订单货物？收货后鼎恒币将立即发放。')) return;
+    const r = await api(`/api/purchase-orders/${btn.dataset.id}/confirm-receive`, { method: 'POST' });
+    if (r.success) {
+      const coin = r.rewardCoin || 0;
+      toast(`收货成功！已返 ${coin} DH`);
+      loadPurchaseOrders();
+    } else {
+      toast(r.message || '操作失败', true);
+    }
+  };
+  // 桌面端表格内按钮
+  body.querySelectorAll('button[data-id]').forEach(btn => { btn.onclick = () => confirmHandler(btn); });
+  // 手机端卡片内按钮（卡片容器内同样用 data-id 标识）
+  if (cardList) {
+    cardList.querySelectorAll('button[data-id]').forEach(btn => { btn.onclick = () => confirmHandler(btn); });
+  }
 }
 
 // 状态筛选标签

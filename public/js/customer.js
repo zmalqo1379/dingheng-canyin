@@ -4,6 +4,8 @@ let tableNumber = params.get('table') || params.get('t') || '';
 // 店铺标识：必须从 URL 带 shopId 进入（由商家后台「预览点餐页」新标签打开）
 const SHOP_ID = params.get('shopId') || '';
 const IS_PREVIEW = params.get('preview') === '1';
+// embed=1：预览以 iframe 嵌入商家后台手机框，关闭按钮与 Esc 由父页面接管
+const IS_EMBED = params.get('embed') === '1';
 const cart = {}; // { dishId: { dish, quantity } }
 let dishes = [];
 let categories = [];
@@ -526,7 +528,9 @@ $('clearCartBtn').onclick = () => {
   toast('已清空');
 };
 
-/* ---------- 装修预览模式：返回按钮 + 任意键返回 + 隐藏购物车交互 ---------- */
+/* ---------- 装修预览模式：返回按钮 + Esc 返回 + 隐藏购物车交互 ----------
+   说明：旧版「任意键返回」会拦截 F12 等开发者工具按键，已改为仅 Esc 返回。
+   embed=1 时本页以 iframe 嵌入商家后台手机框，关闭由父页面接管（不渲染返回栏、不绑按键）。 */
 function setupPreviewReturn() {
   // 隐藏购物车栏 / 加购按钮 / 桌号 pill（预览仅展示装修效果，不交互）
   const style = document.createElement('style');
@@ -536,15 +540,19 @@ function setupPreviewReturn() {
     #backNav .back-link { font-weight: 700; }
   `;
   document.head.appendChild(style);
+  // embed 模式：不渲染返回栏，关闭交给父页面
+  if (IS_EMBED) return;
   // 改造顶部 back-nav 为「✕ 返回装修」
   const nav = $('backNav');
   if (nav) {
-    nav.innerHTML = `<a class="back-link" id="previewBack">✕ 返回装修</a><span class="hint">按任意键或点 ✕ 返回商家后台</span>`;
+    nav.innerHTML = `<a class="back-link" id="previewBack">✕ 返回装修</a><span class="hint">按 Esc 键或点 ✕ 返回商家后台</span>`;
     const back = $('previewBack');
     if (back) back.onclick = closePreviewWindow;
   }
-  // 任意键返回（任意键 = keydown 第一次触发即返回）
-  document.addEventListener('keydown', closePreviewWindow, { once: true });
+  // 仅 Esc 键返回（不再拦截 F12 等任意键）
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closePreviewWindow();
+  });
 }
 
 function closePreviewWindow() {
@@ -557,7 +565,7 @@ function closePreviewWindow() {
 
 /* ---------- 初始化 ---------- */
 if (IS_PREVIEW) {
-  document.body.classList.add('has-nav');
+  if (!IS_EMBED) document.body.classList.add('has-nav');
   setupPreviewReturn();
 }
 $('tableInfo').textContent = formatTable(tableNumber);

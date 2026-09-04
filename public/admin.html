@@ -1195,6 +1195,35 @@
     }
     .store-enter { font-size: 12px; color: var(--accent); font-weight: 600; }
 
+    /* 搜索结果区：商品 + 店铺分区 */
+    .mall-result-section { margin-bottom: 24px; }
+    .mall-result-section:last-child { margin-bottom: 0; }
+    .mall-result-title {
+      font-size: 15px; font-weight: 700; color: #1f2937;
+      margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+    }
+    .mall-result-count {
+      font-size: 12px; font-weight: 600; color: var(--accent);
+      background: #fff7ed; padding: 2px 9px; border-radius: 999px;
+      border: 1px solid #fed7aa;
+    }
+    .mall-product-result-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+    }
+    .mall-product-result .product-store-link {
+      font-size: 12px; margin: 4px 0 6px; display: flex; align-items: center; gap: 4px;
+    }
+    .mall-product-result .product-store-label { color: #9ca3af; }
+    .mall-product-result .product-store-name {
+      color: var(--accent); font-weight: 600; cursor: pointer; text-decoration: none;
+    }
+    .mall-product-result .product-store-name:hover { text-decoration: underline; }
+    .mall-product-result .product-tags {
+      display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 8px; align-items: center;
+    }
+
     /* —— 店铺内页：面包屑 + 三栏 —— */
     .mall-breadcrumb { font-size: 14px; color: #6b7280; margin-bottom: 16px; }
     .mall-breadcrumb a { color: var(--accent); text-decoration: none; cursor: pointer; }
@@ -1362,6 +1391,94 @@
     /* 抵用券下拉中不可选项灰显 */
     #cartCouponSelect option[disabled] { color: #9ca3af; }
 
+    /* ============ 供应商店铺页手机端布局 ============ */
+    /* 手机端：左侧分类栏改为顶部横向可滑动标签条，不再遮挡商品；右侧采购车由底部悬浮栏替代（见 Part 4） */
+    @media (max-width: 767px) {
+      .mall-store-layout { flex-direction: column; gap: 12px; }
+      .mall-cat-nav {
+        position: sticky; top: 0; z-index: 20;
+        width: 100%; padding: 8px 10px;
+        border-radius: 12px;
+        display: flex; gap: 8px; overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        box-shadow: 0 2px 8px rgba(0,0,0,.04);
+      }
+      .mall-cat-nav::-webkit-scrollbar { height: 0; display: none; }
+      .mall-cat-btn {
+        flex-shrink: 0; white-space: nowrap;
+        width: auto; padding: 8px 16px; margin: 0;
+      }
+      .mall-products-area { width: 100%; }
+      .product-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px; padding: 10px;
+      }
+      .product-img { height: 110px; font-size: 36px; }
+      .product-body { padding: 10px; }
+      .product-name { font-size: 14px; }
+      .product-price { font-size: 18px; }
+      /* 手机端隐藏右侧采购车（由底部悬浮栏 + 抽屉替代） */
+      .mall-cart { display: none; }
+      .mall-breadcrumb { font-size: 13px; margin-bottom: 10px; }
+    }
+
+    /* ============ 采购车手机端悬浮结算栏 + 抽屉 ============ */
+    /* 桌面端隐藏，仅 <768px 显示 */
+    .m-float-bar, .m-cart-drawer, .m-cart-drawer-mask { display: none; }
+    @media (max-width: 767px) {
+      .m-float-bar {
+        display: flex; align-items: center; justify-content: space-between;
+        position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+        background: #fff; border-top: 1px solid var(--line);
+        box-shadow: 0 -4px 16px rgba(0,0,0,.08);
+        padding: 10px 14px; gap: 10px;
+        padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+      }
+      .m-float-info {
+        display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1;
+      }
+      .m-float-count { font-size: 12px; color: #6b7280; }
+      .m-float-total { font-size: 16px; color: #1f2937; font-weight: 700; }
+      .m-float-total b { color: var(--accent); font-size: 18px; }
+      .m-float-coin { font-size: 11px; color: #b45309; }
+      .m-float-checkout {
+        flex-shrink: 0;
+        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+        color: #fff; border: none; border-radius: 999px;
+        padding: 12px 22px; font-size: 15px; font-weight: 700;
+        box-shadow: 0 4px 12px rgba(255,107,53,.3); cursor: pointer;
+      }
+      .m-float-checkout:active { transform: scale(.97); }
+
+      /* 抽屉遮罩 + 滑出面板 */
+      .m-cart-drawer-mask {
+        display: none; position: fixed; inset: 0; z-index: 70;
+        background: rgba(15,17,21,.5);
+        opacity: 0; transition: opacity .25s;
+      }
+      .m-cart-drawer-mask.open { display: block; opacity: 1; }
+      .m-cart-drawer {
+        display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 71;
+        background: #fff; border-radius: 18px 18px 0 0;
+        max-height: 82vh; flex-direction: column;
+        transform: translateY(100%); transition: transform .28s ease;
+        box-shadow: 0 -8px 30px rgba(0,0,0,.18);
+      }
+      .m-cart-drawer.open { display: flex; transform: translateY(0); }
+      .m-drawer-head {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 14px 16px; border-bottom: 1px solid var(--line);
+      }
+      .m-drawer-head h3 { font-size: 15px; font-weight: 700; color: #1f2937; }
+      .m-drawer-close {
+        background: #f3f4f6; border: none; width: 30px; height: 30px;
+        border-radius: 50%; font-size: 16px; color: #6b7280; cursor: pointer;
+      }
+      .m-drawer-body { padding: 14px 16px; overflow-y: auto; flex: 1; }
+      .m-drawer-body .cart-list { max-height: 40vh; }
+      .m-drawer-body .cart-submit { margin-top: 12px; }
+    }
+
     /* ============ 采购订单 ============ */
     .filter-tabs {
       display: flex; gap: 4px;
@@ -1381,6 +1498,43 @@
       background: var(--accent);
       color: #fff;
       border-color: var(--accent);
+    }
+
+    /* 手机端采购订单卡片列表（<768px 显示，替代表格） */
+    .purchase-card-list { display: none; }
+    .pcard {
+      background: #fff; border: 1px solid var(--line);
+      border-radius: 14px; padding: 14px; margin-bottom: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,.04);
+    }
+    .pcard-head {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      gap: 10px; margin-bottom: 10px;
+    }
+    .pcard-no { font-size: 14px; font-weight: 700; color: #1f2937; word-break: break-all; }
+    .pcard-time { font-size: 11px; color: #9ca3af; margin-top: 3px; }
+    .pcard-status { flex-shrink: 0; }
+    .pcard-supplier { font-size: 13px; color: #374151; margin-bottom: 6px; }
+    .pcard-supplier b { color: #1f2937; }
+    .pcard-items { font-size: 12px; color: #6b7280; margin-bottom: 10px; line-height: 1.6; }
+    .pcard-amounts {
+      display: flex; flex-wrap: wrap; gap: 10px 16px;
+      padding: 10px 0; border-top: 1px dashed var(--line);
+      font-size: 12px;
+    }
+    .pcard-amount { color: #6b7280; }
+    .pcard-amount b { color: #1f2937; font-size: 14px; }
+    .pcard-amount.pay b { color: var(--accent); font-size: 16px; }
+    .pcard-amount.discount b { color: #16a34a; }
+    .pcard-amount.coin b { color: #b45309; }
+    .pcard-actions { margin-top: 12px; display: flex; justify-content: flex-end; gap: 8px; }
+
+    @media (max-width: 767px) {
+      /* 手机端隐藏采购订单表格，改为卡片列表 */
+      #purchaseTableWrap { display: none; }
+      .purchase-card-list { display: block; }
+      .filter-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+      .filter-tab { flex-shrink: 0; white-space: nowrap; }
     }
 
     /* ============ 顾客积分 ============ */
@@ -1422,6 +1576,61 @@
     }
     .inline-input .form-input { max-width: 120px; }
     .inline-input span { font-size: 13px; color: #6b7280; white-space: nowrap; }
+
+    /* ============ 装修预览手机框（iframe 嵌入真实点餐页） ============ */
+    .preview-modal {
+      position: fixed; inset: 0; z-index: 9999;
+      display: none; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .preview-modal.open { display: flex; }
+    .preview-modal .preview-mask {
+      position: absolute; inset: 0;
+      background: rgba(15, 17, 21, .62);
+      backdrop-filter: blur(2px);
+    }
+    .preview-phone {
+      position: relative; z-index: 1;
+      width: 414px; max-width: calc(100vw - 32px);
+      height: min(860px, calc(100vh - 64px));
+      background: #0b0b0d;
+      border-radius: 38px;
+      box-shadow: 0 30px 80px rgba(0,0,0,.45), 0 0 0 2px rgba(255,255,255,.04) inset;
+      padding: 14px 10px 16px;
+      display: flex; flex-direction: column;
+    }
+    .preview-close {
+      position: absolute; top: 14px; right: 18px;
+      background: rgba(255,255,255,.14); color: #fff;
+      border: none; border-radius: 999px;
+      padding: 6px 14px; font-size: 12px; font-weight: 600;
+      cursor: pointer; z-index: 3;
+      transition: background .15s;
+    }
+    .preview-close:hover { background: rgba(255,255,255,.26); }
+    .preview-hint {
+      position: absolute; top: 18px; left: 22px;
+      color: rgba(255,255,255,.6); font-size: 11px; z-index: 3;
+      pointer-events: none;
+    }
+    .preview-frame {
+      flex: 1; min-height: 0;
+      border-radius: 26px; overflow: hidden;
+      background: #fff;
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .preview-frame iframe {
+      width: 100%; height: 100%; border: 0; display: block;
+      background: #fff;
+    }
+    @media (max-width: 480px) {
+      .preview-modal { padding: 0; }
+      .preview-phone {
+        width: 100vw; height: 100vh; max-height: 100vh;
+        border-radius: 0; padding: 0;
+      }
+      .preview-frame { border-radius: 0; }
+    }
   </style>
 </head>
 <body>
@@ -1966,6 +2175,59 @@
             </aside>
           </div>
         </div>
+
+        <!-- 手机端底部悬浮结算栏（仅 <768px 显示，加购后常驻，点开弹出采购车抽屉） -->
+        <div class="m-float-bar" id="mFloatBar" aria-hidden="true">
+          <div class="m-float-info">
+            <span class="m-float-count">已选 <b id="mFloatCount">0</b> 件</span>
+            <span class="m-float-total">合计 ¥<b id="mFloatTotal">0.00</b></span>
+            <span class="m-float-coin">🪙 预计得 <b id="mFloatCoin">0</b> 币</span>
+          </div>
+          <button class="m-float-checkout" id="mFloatCheckoutBtn">去结算</button>
+        </div>
+
+        <!-- 手机端采购车抽屉（悬浮栏点击后从底部滑出） -->
+        <div class="m-cart-drawer-mask" id="mCartDrawerMask"></div>
+        <div class="m-cart-drawer" id="mCartDrawer" role="dialog" aria-label="采购车">
+          <div class="m-drawer-head">
+            <h3>🧾 采购车 - <span id="mCartStoreName">店铺</span></h3>
+            <button class="m-drawer-close" id="mCartDrawerClose" title="关闭">✕</button>
+          </div>
+          <div class="m-drawer-body">
+            <div id="mCartList" class="cart-list"></div>
+            <div class="cart-empty" id="mCartEmpty">采购车为空，请先选购商品</div>
+
+            <div class="cart-divider"></div>
+            <div class="cart-row">
+              <span>商品小计</span>
+              <span>¥<span id="mCartSubtotal">0.00</span></span>
+            </div>
+
+            <div id="mCartMinOrder" class="cart-minorder" style="display:none;"></div>
+
+            <div id="mCartCouponSection" class="form-group" style="display:none;">
+              <label>使用抵用券</label>
+              <select class="form-select" id="mCartCouponSelect">
+                <option value="">不使用抵用券</option>
+              </select>
+            </div>
+
+            <div class="cart-row discount-row" id="mCartDiscountRow" style="display:none;">
+              <span>抵扣</span>
+              <span>-¥<span id="mCartDiscount">0.00</span></span>
+            </div>
+
+            <div class="cart-total-row">
+              <span>应付金额</span>
+              <span class="cart-total">¥<span id="mCartTotal">0.00</span></span>
+            </div>
+
+            <div class="cart-coin-total" id="mCartCoinTotal"></div>
+            <div class="cart-coin-hint" id="mCartCoinHint">按实付金额计算，确认收货后自动到账</div>
+
+            <button class="btn-add cart-submit" id="mSubmitPurchaseBtn" disabled>提交采购订单</button>
+          </div>
+        </div>
       </section>
 
       <!-- 8. 采购订单 -->
@@ -1983,7 +2245,7 @@
               <button class="filter-tab" data-status="已完成">已完成</button>
             </div>
           </div>
-          <div class="table-wrap">
+          <div class="table-wrap" id="purchaseTableWrap">
             <table class="data">
               <thead>
                 <tr><th>订单号</th><th>供应商</th><th>商品摘要</th><th>总金额</th><th>状态</th><th>返币</th><th>操作</th></tr>
@@ -1991,6 +2253,8 @@
               <tbody id="purchaseOrdersBody"></tbody>
             </table>
           </div>
+          <!-- 手机端卡片式订单列表（<768px 显示，替代表格，避免横向滑动） -->
+          <div class="purchase-card-list" id="purchaseCardList"></div>
         </div>
       </section>
 
@@ -2145,19 +2409,41 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- ============ 装修预览手机框（iframe 嵌入真实点餐页） ============ -->
+<div class="preview-modal" id="customerPreviewModal" aria-hidden="true">
+  <div class="preview-mask"></div>
+  <div class="preview-phone" role="dialog" aria-label="预览点餐页">
+    <button class="preview-close" id="customerPreviewClose" title="返回（Esc）">✕ 返回</button>
+    <div class="preview-hint">按 Esc 键或点 ✕ 返回</div>
+    <div class="preview-frame">
+      <iframe id="customerPreviewFrame" title="点餐页预览" frameborder="0" scrolling="yes" allow="clipboard-read; clipboard-write"></iframe>
+    </div>
+  </div>
+</div>
+
 <script>
   // 店铺运营工具入口：点击后用 window.open 新标签页打开，不覆盖当前 admin 页面
   // 顾客/后厨/大屏页面需带 shopId 才能使用，见 customer/kitchen/bigscreen 校验逻辑
   (function () {
     var shopId = localStorage.getItem('merchantShopId') || '';
     var map = {
-      customer: '/customer.html?shopId=' + encodeURIComponent(shopId) + '&preview=1',
       kitchen: '/kitchen.html?shopId=' + encodeURIComponent(shopId),
       bigscreen: '/bigscreen.html?shopId=' + encodeURIComponent(shopId)
     };
     document.querySelectorAll('.nav-tool').forEach(function (a) {
       var tool = a.getAttribute('data-tool');
-      if (map[tool]) {
+      if (tool === 'customer') {
+        // 点餐页预览：在 admin 内以手机框 iframe 打开（带 embed=1，关闭由本页接管）
+        a.removeAttribute('href');
+        a.addEventListener('click', function (e) {
+          e.preventDefault();
+          if (typeof openCustomerPreview === 'function') {
+            openCustomerPreview();
+          } else {
+            window.open('/customer.html?shopId=' + encodeURIComponent(shopId) + '&preview=1', '_blank', 'noopener');
+          }
+        });
+      } else if (map[tool]) {
         a.removeAttribute('href');
         a.addEventListener('click', function (e) {
           e.preventDefault();
