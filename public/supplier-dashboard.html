@@ -538,9 +538,84 @@
     }
     .scrim.show { display: block; }
 
+    /* ============ 栏目小标题 ============ */
+    .section-title {
+      font-size: 15px; font-weight: 700; color: #1f2937;
+      margin: 22px 0 12px;
+    }
+
+    /* ============ 合作结算 · 经营月报 hero ============ */
+    .report-hero {
+      background: #fff;
+      border-radius: 18px;
+      padding: 30px 30px 24px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.06);
+      margin-bottom: 18px;
+      position: relative;
+      overflow: hidden;
+    }
+    .report-hero::before {
+      content: '';
+      position: absolute; top: -70px; right: -70px;
+      width: 230px; height: 230px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,107,53,.10), transparent 70%);
+      pointer-events: none;
+    }
+    .report-hero .report-label {
+      font-size: 14px; color: #6b7280; font-weight: 600; letter-spacing: 1px;
+    }
+    .report-hero .report-amount {
+      font-size: 46px; font-weight: 800; color: var(--accent);
+      line-height: 1.15; margin: 6px 0 4px;
+      font-variant-numeric: tabular-nums;
+    }
+    .report-hero .report-sub { font-size: 13px; color: #9ca3af; }
+    .report-growth { margin-top: 8px; font-size: 13px; font-weight: 600; }
+    .report-growth.up { color: var(--green); }
+    .report-growth.down { color: #6b7280; }
+    .report-divider { height: 1px; background: #f3f4f6; margin: 20px 0 16px; }
+    .report-fee {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; flex-wrap: wrap;
+    }
+    .report-fee .fee-label { font-size: 14px; color: #334155; font-weight: 600; }
+    .report-fee .fee-note { font-size: 12px; color: #9ca3af; margin-top: 3px; }
+    .report-fee .fee-amount { font-size: 20px; font-weight: 700; color: #334155; }
+
+    /* ============ 档位进度卡 ============ */
+    .tier-progress-card {
+      background: #fff; border-radius: 16px;
+      padding: 20px 22px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.05);
+    }
+    .tier-progress-card .tier-head {
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 8px;
+      font-size: 14px; font-weight: 600; color: #374151;
+      margin-bottom: 14px;
+    }
+    .tier-progress-card .tier-head .tier-value { color: var(--accent); font-weight: 700; }
+    .tier-bar { height: 10px; background: #f3f4f6; border-radius: 6px; overflow: hidden; }
+    .tier-bar-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--accent-2), var(--accent));
+      border-radius: 6px; transition: width .5s ease;
+    }
+    .tier-legend {
+      display: flex; flex-wrap: wrap; gap: 6px 8px;
+      margin-top: 12px; font-size: 12px; color: #6b7280;
+    }
+    .tier-legend .lg {
+      background: #f9fafb; border: 1px solid #f3f4f6;
+      border-radius: 8px; padding: 2px 8px;
+    }
+    .tier-gap { margin-top: 10px; font-size: 13px; color: #3b82f6; font-weight: 600; }
+
+    /* ============ 响应式：手机端 ============ */
     @media (max-width: 768px) {
       .topbar .hamburger { display: flex; }
       .topbar .who { display: none; }
+      .topbar { padding: 0 12px; }
       .sidebar {
         position: fixed; top: 60px; left: 0; bottom: 0;
         z-index: 50;
@@ -549,9 +624,68 @@
         min-height: calc(100vh - 60px);
       }
       .sidebar.open { transform: translateX(0); }
-      .main { padding: 18px; max-width: 100%; }
+      .main { padding: 14px; max-width: 100%; }
       .welcome { padding: 24px 22px; }
       .welcome h2 { font-size: 20px; }
+
+      /* 表格 → 卡片式 */
+      .table-wrap {
+        background: transparent; box-shadow: none;
+        border-radius: 0; overflow: visible;
+      }
+      .order-table { min-width: 0 !important; }
+      .order-table thead { display: none; }
+      .order-table, .order-table tbody { display: block; }
+      .order-table tr {
+        display: block;
+        background: #fff;
+        border-radius: 14px;
+        box-shadow: 0 2px 10px rgba(0,0,0,.06);
+        padding: 6px 16px;
+        margin-bottom: 12px;
+      }
+      .order-table tbody tr:hover { background: #fff; }
+      .order-table td {
+        display: flex; justify-content: space-between; align-items: center; gap: 12px;
+        padding: 10px 0 !important;
+        border-bottom: 1px dashed #f0f1f5;
+        white-space: normal !important;
+        text-align: right;
+      }
+      .order-table td[data-label]::before {
+        content: attr(data-label);
+        color: #9ca3af; font-size: 12px; flex-shrink: 0; text-align: left;
+      }
+      .order-table tr td:last-child { border-bottom: none; }
+      .order-table td.summary { max-width: none !important; overflow: visible; text-overflow: unset; }
+      .order-table td.act { min-width: 0 !important; flex-wrap: wrap; gap: 8px; }
+      .order-table td.act::before { content: none !important; }
+      .order-table td.act .btn { flex: 1 1 auto; padding: 10px 14px; text-align: center; }
+      .order-table td[colspan] {
+        display: block !important;
+        text-align: center; padding: 36px 0 !important;
+      }
+      .order-table td[colspan]::before { content: none !important; }
+      .prod-name .desc { max-width: 100% !important; white-space: normal !important; }
+
+      .order-refresh { justify-content: stretch; }
+      .order-refresh .btn-refresh { flex: 1; padding: 10px 0; }
+      .report-hero { padding: 26px 20px 20px; }
+      .report-amount { font-size: 38px; }
+      .tier-progress-card { padding: 18px 16px; }
+    }
+
+    @media (max-width: 560px) {
+      .modal-scrim { padding: 10px; }
+      .modal-box { max-width: 100%; border-radius: 16px; }
+      .modal-head { padding: 14px 18px; }
+      .modal-body { padding: 16px 18px 4px; }
+      .modal-foot { padding: 6px 18px 16px; }
+      .modal-foot .btn { flex: 1; padding: 12px 0; }
+      .alert-box { padding: 28px 22px; }
+      .alert-btns { flex-direction: column; }
+      .alert-btns .btn { width: 100%; }
+      .report-fee { flex-direction: column; align-items: flex-start; gap: 8px; }
     }
   </style>
 </head>
@@ -722,26 +856,43 @@
         </div>
       </section>
 
-      <!-- 合作结算与月度对账 -->
+      <!-- 合作结算与月度对账（经营月报风格） -->
       <section class="pane" id="pane-settle">
         <div class="pane-title">💰 合作结算与月度对账</div>
-        <p style="font-size:13px;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;margin:0 0 14px;">
-          每月 1 号自动结算，按双方合作协议约定的阶梯比例执行
-        </p>
         <div class="filter-bar" style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
           <label style="font-size:13px;">月份 <input type="month" id="settleMonth" style="padding:6px 8px;border:1px solid #e5e7eb;border-radius:8px;"></label>
           <button class="btn btn-primary" id="settleQueryBtn">查询</button>
         </div>
 
-        <!-- 概览卡片：本月累计采购额 / 当前档位与返点率 / 本月合作服务费 -->
-        <div class="stat-grid" id="settleStatGrid">
-          <div class="stat-card"><div class="label">本月累计订单金额（已完成）</div><div class="value">¥<span id="settleTotalPurchase">0.00</span></div></div>
-          <div class="stat-card"><div class="label">当前返点档位 / 返点率</div><div class="value" id="settleTier">—</div></div>
-          <div class="stat-card"><div class="label">本月合作服务费（按协议阶梯返点）</div><div class="value" style="color:#dc2626;">¥<span id="settleTotalRebate">0.00</span></div></div>
+        <!-- 经营月报 hero：本月累计订单金额是主角，服务费只是其中一行 -->
+        <div class="report-hero">
+          <div class="report-label" id="settleHeroLabel">本月累计订单金额</div>
+          <div class="report-amount">¥<span id="settleTotalPurchase">0.00</span></div>
+          <div class="report-sub" id="settleHeroSub">本月通过平台达成的生意</div>
+          <div class="report-growth" id="settleGrowthLine" style="display:none;"></div>
+          <div class="report-divider"></div>
+          <div class="report-fee">
+            <div class="fee-info">
+              <div class="fee-label">本月合作服务费（按协议阶梯比例）</div>
+              <div class="fee-note">每月 1 号自动结算，无需任何操作</div>
+            </div>
+            <div class="fee-amount">¥<span id="settleTotalRebate">0.00</span></div>
+          </div>
+        </div>
+
+        <!-- 档位进度 -->
+        <div class="tier-progress-card">
+          <div class="tier-head">
+            <span>当前档位与返点比例</span>
+            <span class="tier-value" id="settleTier">—</span>
+          </div>
+          <div class="tier-bar"><div class="tier-bar-fill" id="tierBarFill"></div></div>
+          <div class="tier-legend" id="tierLegend"></div>
+          <div class="tier-gap" id="settleTierGap"></div>
         </div>
 
         <!-- 分品类采购金额明细 -->
-        <div class="section-title" style="margin-top:18px;font-size:14px;font-weight:600;color:#374151;">分品类采购金额明细</div>
+        <div class="section-title">分品类采购金额明细</div>
         <div class="table-wrap">
           <table class="order-table">
             <thead>
@@ -761,14 +912,14 @@
         </div>
 
         <!-- 历史月度结算记录 -->
-        <div class="section-title" style="margin-top:18px;font-size:14px;font-weight:600;color:#374151;">历史月度结算记录</div>
+        <div class="section-title">历史月度结算记录</div>
         <div class="table-wrap">
           <table class="order-table">
             <thead>
               <tr>
                 <th>月份</th>
                 <th>采购总额</th>
-                <th>返点金额</th>
+                <th>服务费金额</th>
                 <th>结算时间</th>
               </tr>
             </thead>
@@ -1008,14 +1159,14 @@
 
       return `
         <tr>
-          <td class="mono" title="${esc(o.orderNo || '')}">…${esc(orderNoTail)}</td>
-          <td>${shopName}</td>
-          <td class="summary" title="${esc(summary)}">${esc(summary)}</td>
-          <td>${fmtMoney(o.totalAmount)}</td>
-          <td>${discount > 0 ? '-' + fmtMoney(discount) : '—'}</td>
-          <td class="pay">${fmtMoney(actual)}</td>
-          <td><span class="badge ${sCls}">${esc(o.status)}</span></td>
-          <td>${fmtTime(o.createdAt)}</td>
+          <td class="mono" data-label="订单号" title="${esc(o.orderNo || '')}">…${esc(orderNoTail)}</td>
+          <td data-label="商家名称">${shopName}</td>
+          <td class="summary" data-label="商品摘要" title="${esc(summary)}">${esc(summary)}</td>
+          <td data-label="订单总额">${fmtMoney(o.totalAmount)}</td>
+          <td data-label="券抵扣">${discount > 0 ? '-' + fmtMoney(discount) : '—'}</td>
+          <td class="pay" data-label="实付金额">${fmtMoney(actual)}</td>
+          <td data-label="状态"><span class="badge ${sCls}">${esc(o.status)}</span></td>
+          <td data-label="下单时间">${fmtTime(o.createdAt)}</td>
           <td class="act">${act}</td>
         </tr>
       `;
@@ -1193,10 +1344,20 @@
         monthInput.onchange = loadSettle;
       }
       const month = monthInput.value || curMonthStr();
-      // 概览卡片占位
+      const curMonth = curMonthStr();
+      // 查询历史月份时，hero 标题随月份切换；服务费文案同步月份
+      const isCur = month === curMonth;
+      $('settleHeroLabel').textContent = isCur ? '本月累计订单金额' : month + ' 累计订单金额';
+      $('settleHeroSub').textContent = isCur ? '本月通过平台达成的生意' : '该月通过平台达成的生意';
+
+      // hero / 档位占位
       $('settleTotalPurchase').textContent = '0.00';
       $('settleTotalRebate').textContent = '0.00';
       $('settleTier').textContent = '加载中...';
+      $('tierBarFill').style.width = '0%';
+      $('tierLegend').innerHTML = '';
+      $('settleTierGap').textContent = '';
+      $('settleGrowthLine').style.display = 'none';
       $('settleCatTbody').innerHTML = '<tr><td colspan="6" class="no-data">加载中...</td></tr>';
       $('settleHistoryTbody').innerHTML = '<tr><td colspan="4" class="no-data">加载中...</td></tr>';
 
@@ -1211,7 +1372,33 @@
       $('settleTotalPurchase').textContent = Number(d.totalPurchase || 0).toFixed(2);
       $('settleTotalRebate').textContent = Number(d.totalRebate || 0).toFixed(2);
 
-      // 当前返点档位 / 返点率（读取平台配置的 RebateRule，实时定档）
+      // 较上月增长（上月同口径实时数据；上月无采购则不展示）
+      const growthLine = $('settleGrowthLine');
+      const prevMonthKey = (() => {
+        const [y, m] = month.split('-').map(Number);
+        const dt = new Date(y, m - 2, 1);
+        return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0');
+      })();
+      api('/api/supplier/settle?month=' + encodeURIComponent(prevMonthKey)).then(prevRes => {
+        // 用户已切换查询月份时丢弃过期结果
+        if (!prevRes || !prevRes.success || !prevRes.data) return;
+        if (($('settleMonth').value || curMonthStr()) !== month) return;
+        const prevVal = Number(prevRes.data.totalPurchase || 0);
+        const curVal = Number(d.totalPurchase || 0);
+        if (prevVal <= 0) return;
+        const diff = curVal - prevVal;
+        const pctText = (Math.abs(diff) / prevVal * 100).toFixed(1);
+        if (diff >= 0) {
+          growthLine.textContent = `较上月增长 ${pctText}%`;
+          growthLine.className = 'report-growth up';
+        } else {
+          growthLine.textContent = `较上月下降 ${pctText}%`;
+          growthLine.className = 'report-growth down';
+        }
+        growthLine.style.display = '';
+      }).catch(() => {});
+
+      // 当前档位 / 返点率 + 档位进度条（读取平台配置的 RebateRule，实时定档）
       const t = d.currentTier || {};
       let tierText;
       if (t.mode === 'default') {
@@ -1222,6 +1409,27 @@
         tierText = `未达首档 · 0%`;
       }
       $('settleTier').textContent = tierText;
+
+      const tiers = Array.isArray(t.tiers) ? t.tiers : [];
+      if (t.mode === 'default' || !tiers.length) {
+        $('tierBarFill').style.width = '100%';
+        $('tierLegend').innerHTML = '<span class="lg">该品类按平台默认兜底比例执行</span>';
+        $('settleTierGap').textContent = '';
+      } else {
+        const maxMin = Number(tiers[tiers.length - 1].minAmount || 0);
+        const curVal = Number(d.totalPurchase || 0);
+        const width = maxMin > 0 ? Math.min(100, curVal / maxMin * 100) : 0;
+        $('tierBarFill').style.width = width.toFixed(1) + '%';
+        $('tierLegend').innerHTML = tiers.map(x =>
+          `<span class="lg">满 ¥${Number(x.minAmount).toLocaleString()} → ${pct(x.rate)}</span>`).join('');
+        if (t.gapToNext != null && Number(t.gapToNext) > 0) {
+          $('settleTierGap').textContent = `距离下一档（满 ¥${Number(t.nextTierMinAmount).toLocaleString()}）还差 ¥${Number(t.gapToNext).toLocaleString()}`;
+        } else if (curVal >= maxMin && maxMin > 0) {
+          $('settleTierGap').textContent = '已达最高档';
+        } else {
+          $('settleTierGap').textContent = '';
+        }
+      }
 
       // 分品类采购金额明细
       const cats = d.categories || [];
@@ -1235,12 +1443,12 @@
           const rateCell = c.mode === 'default' ? pct(c.tierRate) : (c.tierMinAmount != null ? pct(c.tierRate) : '0%');
           return `
             <tr>
-              <td>${esc(c.category || '未分类')}</td>
-              <td>${fmtMoney(c.purchaseAmount)}</td>
-              <td>${tierCell}</td>
-              <td>${rateCell}</td>
-              <td>${modeText(c.mode)}</td>
-              <td style="color:#dc2626;">${fmtMoney(c.rebateAmount)}</td>
+              <td data-label="品类">${esc(c.category || '未分类')}</td>
+              <td data-label="当月采购额">${fmtMoney(c.purchaseAmount)}</td>
+              <td data-label="当前档位">${tierCell}</td>
+              <td data-label="返点率">${rateCell}</td>
+              <td data-label="累进方式">${modeText(c.mode)}</td>
+              <td data-label="应返金额" style="color:#334155;font-weight:600;">${fmtMoney(c.rebateAmount)}</td>
             </tr>`;
         }).join('');
       }
@@ -1252,10 +1460,10 @@
       } else {
         $('settleHistoryTbody').innerHTML = hist.map(h => `
           <tr>
-            <td><b>${esc(h.month)}</b></td>
-            <td>${fmtMoney(h.totalPurchaseAmount)}</td>
-            <td style="color:#dc2626;">${fmtMoney(h.totalRebateAmount)}</td>
-            <td>${fmtTime(h.settledAt)}</td>
+            <td data-label="月份"><b>${esc(h.month)}</b></td>
+            <td data-label="采购总额">${fmtMoney(h.totalPurchaseAmount)}</td>
+            <td data-label="服务费金额" style="color:#334155;font-weight:600;">${fmtMoney(h.totalRebateAmount)}</td>
+            <td data-label="结算时间">${fmtTime(h.settledAt)}</td>
           </tr>`).join('');
       }
     }
@@ -1303,18 +1511,18 @@
 
       tbody.innerHTML = productsCache.map(p => `
         <tr>
-          <td>
+          <td data-label="商品">
             <div class="prod-name">
               <div class="nm">${esc(p.name)}</div>
               ${p.description ? `<div class="desc" title="${esc(p.description)}">${esc(p.description)}</div>` : ''}
             </div>
           </td>
-          <td>${esc(p.category)}</td>
-          <td>${esc(p.unit)}</td>
-          <td class="cost">${fmtMoney(p.costPrice)}</td>
-          <td class="price">${fmtMoney(p.marketPrice)}</td>
-          <td>${Number(p.stock || 0)}</td>
-          <td><span class="badge ${p.status === '上架' ? 'on' : 'off'}">${esc(p.status)}</span></td>
+          <td data-label="品类">${esc(p.category)}</td>
+          <td data-label="单位">${esc(p.unit)}</td>
+          <td class="cost" data-label="成本价">${fmtMoney(p.costPrice)}</td>
+          <td class="price" data-label="市场价">${fmtMoney(p.marketPrice)}</td>
+          <td data-label="库存">${Number(p.stock || 0)}</td>
+          <td data-label="状态"><span class="badge ${p.status === '上架' ? 'on' : 'off'}">${esc(p.status)}</span></td>
           <td class="act">
             <button class="btn btn-ghost" data-act="edit" data-id="${esc(String(p._id))}">编辑</button>
             <button class="btn ${p.status === '上架' ? 'btn-ghost' : 'btn-green'}" data-act="toggle" data-id="${esc(String(p._id))}" data-status="${p.status === '上架' ? '下架' : '上架'}">${p.status === '上架' ? '下架' : '上架'}</button>

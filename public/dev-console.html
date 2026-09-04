@@ -332,6 +332,9 @@
 
     @media (max-width: 768px) {
       .topbar .hamburger { display: flex; }
+      .topbar { padding: 0 12px; }
+      .topbar .brand { font-size: 15px; }
+      .topbar .brand .brand-sub { display: none; }
       .sidebar {
         position: fixed; top: 60px; left: 0; bottom: 0;
         z-index: 50;
@@ -340,7 +343,59 @@
         min-height: calc(100vh - 60px);
       }
       .sidebar.open { transform: translateX(0); }
-      .main { padding: 18px; max-width: 100%; }
+      .main { padding: 14px; max-width: 100%; }
+
+      /* 表格 → 卡片式 */
+      .table-wrap {
+        background: transparent; box-shadow: none;
+        border-radius: 0; overflow: visible;
+      }
+      .dtable, .rebate-card table { min-width: 0 !important; }
+      .dtable thead, .rebate-card table thead { display: none; }
+      .dtable, .dtable tbody, .dtable tfoot,
+      .dtable tr, .rebate-card table, .rebate-card table tbody,
+      .rebate-card table tr { display: block; }
+      .dtable tr, .rebate-card table tr {
+        background: #fff;
+        border-radius: 14px;
+        box-shadow: 0 2px 10px rgba(0,0,0,.06);
+        padding: 6px 16px;
+        margin-bottom: 12px;
+      }
+      .dtable tbody tr:hover, .rebate-card table tr:hover { background: #fff; }
+      .dtable td, .rebate-card table td {
+        display: flex; justify-content: space-between; align-items: center; gap: 12px;
+        padding: 10px 0 !important;
+        border-bottom: 1px dashed #f0f1f5;
+        white-space: normal !important;
+        text-align: right;
+      }
+      .dtable td[data-label]::before, .rebate-card table td[data-label]::before {
+        content: attr(data-label);
+        color: #9ca3af; font-size: 12px; flex-shrink: 0; text-align: left;
+      }
+      .dtable tr td:last-child, .rebate-card table tr td:last-child { border-bottom: none; }
+      .dtable td[colspan] {
+        display: block !important;
+        text-align: center; padding: 36px 0 !important;
+      }
+      .dtable td[colspan]::before { content: none !important; }
+      .dtable tfoot tr { background: #fff8f3; }
+      .dtable .rule-tiers-text { max-width: none !important; }
+
+      .filter-bar { gap: 10px; padding: 12px 14px; }
+      .section-title { flex-wrap: wrap; }
+      .section-title .btn { margin-left: 0; }
+    }
+
+    @media (max-width: 560px) {
+      .modal { padding: 10px; }
+      .modal-box { max-width: 100%; max-height: 90vh; padding: 20px 16px; border-radius: 16px; }
+      .info-grid { grid-template-columns: 1fr 1fr; }
+      .tier-row { grid-template-columns: 1fr 1fr 36px; }
+      .tier-row .t-mode { grid-column: 1 / 3; }
+      .tier-row-labels { display: none; }
+      .rebate-card-head .sum { margin-left: 0; width: 100%; }
     }
   </style>
 </head>
@@ -350,7 +405,7 @@
   <div class="topbar">
     <div class="left">
       <button class="hamburger" id="menuToggle">☰</button>
-      <div class="brand"><span class="dot">🛠️</span> 鼎恒餐饮·开发者控制台</div>
+      <div class="brand"><span class="dot">🛠️</span> <span class="brand-sub">鼎恒餐饮·</span>开发者控制台</div>
     </div>
     <button class="logout" id="logoutBtn">退出登录</button>
   </div>
@@ -642,7 +697,7 @@
       </div>
       <div class="form-row">
         <label>阶梯档位（费率按百分比填写，如 5 表示 5%）</label>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1.3fr 36px;gap:8px;font-size:12px;color:#9ca3af;margin-bottom:6px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1.3fr 36px;gap:8px;font-size:12px;color:#9ca3af;margin-bottom:6px;" class="tier-row-labels">
           <span>月累计满（元）</span><span>返点率（%）</span><span>累进方式</span><span></span>
         </div>
         <div id="rmTiers"></div>
@@ -773,18 +828,18 @@
         const enabled = r.enabled !== false;
         return `
         <tr>
-          <td><b>${esc(r.category)}</b>${r.configured ? '' : ' <span style="font-size:11px;color:#9ca3af;">(未配置，默认1倍)</span>'}</td>
-          <td>
+          <td data-label="品类"><b>${esc(r.category)}</b>${r.configured ? '' : ' <span style="font-size:11px;color:#9ca3af;">(未配置，默认1倍)</span>'}</td>
+          <td data-label="得币倍率">
             <input type="number" class="coin-mult-input" min="0" max="10" step="0.1" value="${mult}"
               style="width:90px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
             <span style="color:#9ca3af;font-size:12px;margin-left:4px;">倍</span>
           </td>
-          <td>
+          <td data-label="是否启用">
             <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
               <input type="checkbox" class="coin-enable" ${enabled ? 'checked' : ''} style="width:15px;height:15px;"> 启用
             </label>
           </td>
-          <td><span class="tag coin-eff-tag">${enabled ? (mult > 1 ? '🔥 ' + mult + ' 倍加成' : mult + ' 倍（基础）') : '已停用（按1倍）'}</span></td>
+          <td data-label="状态"><span class="tag coin-eff-tag">${enabled ? (mult > 1 ? '🔥 ' + mult + ' 倍加成' : mult + ' 倍（基础）') : '已停用（按1倍）'}</span></td>
         </tr>`;
       }).join('');
       // 输入即时刷新状态列
@@ -851,13 +906,13 @@
       }
       tbody.innerHTML = res.data.map(m => `
         <tr>
-          <td><b>${esc(m.shopName || '未命名商家')}</b></td>
-          <td>${esc(m.contactName || '—')}</td>
-          <td>${esc(m.phone || '—')}</td>
-          <td><span class="tag">${esc(m.memberLevel || '基础版')}</span></td>
-          <td>${Number(m.dinghengCoin || 0)} 币</td>
-          <td>${fmtTime(m.createdAt)}</td>
-          <td><button class="btn-link" data-id="${esc(String(m._id))}">查看详情</button></td>
+          <td data-label="店铺名称"><b>${esc(m.shopName || '未命名商家')}</b></td>
+          <td data-label="联系人">${esc(m.contactName || '—')}</td>
+          <td data-label="手机号">${esc(m.phone || '—')}</td>
+          <td data-label="会员等级"><span class="tag">${esc(m.memberLevel || '基础版')}</span></td>
+          <td data-label="鼎恒币余额">${Number(m.dinghengCoin || 0)} 币</td>
+          <td data-label="注册时间">${fmtTime(m.createdAt)}</td>
+          <td data-label="操作"><button class="btn-link" data-id="${esc(String(m._id))}">查看详情</button></td>
         </tr>
       `).join('');
       tbody.querySelectorAll('button[data-id]').forEach(btn => {
@@ -892,11 +947,11 @@
       const orders = d.orders || [];
       $('mmOrders').innerHTML = orders.length ? orders.map(o => `
         <tr>
-          <td class="mono">${esc(o.orderNo || '—')}</td>
-          <td>${esc((o.supplierId && o.supplierId.name) || '平台直供')}</td>
-          <td>${fmtMoney(o.actualPayAmount != null ? o.actualPayAmount : o.totalAmount)}</td>
-          <td><span class="badge ${statusClass(o.status)}">${esc(o.status)}</span></td>
-          <td>${fmtTime(o.createdAt)}</td>
+          <td class="mono" data-label="订单号">${esc(o.orderNo || '—')}</td>
+          <td data-label="供应商">${esc((o.supplierId && o.supplierId.name) || '平台直供')}</td>
+          <td data-label="实付金额">${fmtMoney(o.actualPayAmount != null ? o.actualPayAmount : o.totalAmount)}</td>
+          <td data-label="状态"><span class="badge ${statusClass(o.status)}">${esc(o.status)}</span></td>
+          <td data-label="下单时间">${fmtTime(o.createdAt)}</td>
         </tr>
       `).join('') : '<tr><td colspan="5" class="no-data">暂无采购记录</td></tr>';
     }
@@ -919,12 +974,12 @@
       } else {
         tbody.innerHTML = res.data.map(s => `
           <tr>
-            <td><b>${esc(s.name || '平台直供')}</b></td>
-            <td>${esc(s.contactName || '—')}</td>
-            <td>${esc(s.phone || '—')}</td>
-            <td>${s.categories && s.categories.length ? s.categories.map(c => `<span class="tag">${esc(c)}</span>`).join('') : '—'}</td>
-            <td>${fmtMoney(s.minOrderAmount)} 起送</td>
-            <td>${fmtTime(s.createdAt)}</td>
+            <td data-label="供应商名称"><b>${esc(s.name || '平台直供')}</b></td>
+            <td data-label="联系人">${esc(s.contactName || '—')}</td>
+            <td data-label="手机号">${esc(s.phone || '—')}</td>
+            <td data-label="主营品类">${s.categories && s.categories.length ? s.categories.map(c => `<span class="tag">${esc(c)}</span>`).join('') : '—'}</td>
+            <td data-label="起送价">${fmtMoney(s.minOrderAmount)} 起送</td>
+            <td data-label="注册时间">${fmtTime(s.createdAt)}</td>
           </tr>
         `).join('');
       }
@@ -1020,11 +1075,11 @@
           }
           return `
             <tr>
-              <td><span class="tag">${esc(c.category)}</span></td>
-              <td>${fmtMoney(c.purchaseAmount)}</td>
-              <td>${tierHtml}</td>
-              <td class="money-red">+${fmtMoney(c.rebateAmount)}</td>
-              <td>${gapHtml}</td>
+              <td data-label="品类"><span class="tag">${esc(c.category)}</span></td>
+              <td data-label="当月采购额">${fmtMoney(c.purchaseAmount)}</td>
+              <td data-label="当前档位">${tierHtml}</td>
+              <td data-label="${s.settled ? '实际返点' : '预估返点'}" class="money-red">+${fmtMoney(c.rebateAmount)}</td>
+              <td data-label="距下一档">${gapHtml}</td>
             </tr>`;
         }).join('');
 
@@ -1065,12 +1120,12 @@
           `<span class="tag">${esc(x.category)} ${fmtMoney(x.rebateAmount)}</span>`).join('') || '—';
         return `
           <tr>
-            <td><b>${esc(d.month)}</b></td>
-            <td>${esc(d.supplierName || '—')}</td>
-            <td>${fmtMoney(d.totalPurchaseAmount)}</td>
-            <td class="money-red">+${fmtMoney(d.totalRebateAmount)}</td>
-            <td style="white-space:normal;max-width:280px;">${detailText}</td>
-            <td>${fmtTime(d.settledAt)}</td>
+            <td data-label="结算月份"><b>${esc(d.month)}</b></td>
+            <td data-label="供应商">${esc(d.supplierName || '—')}</td>
+            <td data-label="当月采购总额">${fmtMoney(d.totalPurchaseAmount)}</td>
+            <td data-label="实际返点合计" class="money-red">+${fmtMoney(d.totalRebateAmount)}</td>
+            <td data-label="分品类明细" style="white-space:normal;max-width:280px;">${detailText}</td>
+            <td data-label="结算时间">${fmtTime(d.settledAt)}</td>
           </tr>`;
       }).join('');
     }
@@ -1103,17 +1158,17 @@
           : '<span class="badge s-pending" style="margin-left:4px;">预估</span>';
         return `
         <tr>
-          <td class="mono">${esc(r.orderNo || '—')}</td>
-          <td>${esc(r.shopName || '未知商家')}</td>
-          <td>${esc(r.supplierName || '平台直供')}</td>
-          <td>${fmtDate(r.createdAt)}</td>
-          <td>${fmtMoney(r.totalAmount)}</td>
-          <td>${Number(r.couponCost) > 0 ? '-' + fmtMoney(r.couponCost) : '—'}</td>
-          <td>${fmtMoney(r.actualPayAmount)}</td>
-          <td class="money-red">+${fmtMoney(r.rebateIncome)}${rebateTag}</td>
-          <td class="money-green">-${fmtMoney(r.couponCost)}</td>
-          <td class="money-profit">${fmtMoney(r.profit)}</td>
-          <td><span class="badge ${statusClass(r.status)}">${esc(r.status)}</span></td>
+          <td class="mono" data-label="订单号">${esc(r.orderNo || '—')}</td>
+          <td data-label="商家名">${esc(r.shopName || '未知商家')}</td>
+          <td data-label="供应商名">${esc(r.supplierName || '平台直供')}</td>
+          <td data-label="下单日期">${fmtDate(r.createdAt)}</td>
+          <td data-label="订单总额">${fmtMoney(r.totalAmount)}</td>
+          <td data-label="券抵扣">${Number(r.couponCost) > 0 ? '-' + fmtMoney(r.couponCost) : '—'}</td>
+          <td data-label="实付金额">${fmtMoney(r.actualPayAmount)}</td>
+          <td data-label="返点收入" class="money-red">+${fmtMoney(r.rebateIncome)}${rebateTag}</td>
+          <td data-label="券成本" class="money-green">-${fmtMoney(r.couponCost)}</td>
+          <td data-label="平台净利" class="money-profit">${fmtMoney(r.profit)}</td>
+          <td data-label="状态"><span class="badge ${statusClass(r.status)}">${esc(r.status)}</span></td>
         </tr>`;
       }).join('');
 
@@ -1123,12 +1178,12 @@
       $('rcFoot').innerHTML = `
         <tr>
           <td colspan="4">本月合计（${rows.length} 单）</td>
-          <td>${fmtMoney(s.totalAmount)}</td>
+          <td data-label="订单总额">${fmtMoney(s.totalAmount)}</td>
           <td></td>
-          <td>${fmtMoney(rows.reduce((x, r) => x + Number(r.actualPayAmount || 0), 0))}</td>
-          <td class="money-red">+${fmtMoney(s.rebateIncome)}</td>
-          <td class="money-green">-${fmtMoney(s.couponCost)}</td>
-          <td class="money-profit">${fmtMoney(s.profit)}</td>
+          <td data-label="实付金额">${fmtMoney(rows.reduce((x, r) => x + Number(r.actualPayAmount || 0), 0))}</td>
+          <td data-label="返点收入" class="money-red">+${fmtMoney(s.rebateIncome)}</td>
+          <td data-label="券成本" class="money-green">-${fmtMoney(s.couponCost)}</td>
+          <td data-label="平台净利" class="money-profit">${fmtMoney(s.profit)}</td>
           <td></td>
         </tr>
       `;
@@ -1186,12 +1241,12 @@
         const toggleText = (r.enabled === false) ? '启用' : '停用';
         return `
           <tr>
-            <td><b>${esc(r.supplierName || '—')}</b></td>
-            <td><span class="tag">${esc(r.category || '全部')}</span></td>
-            <td class="rule-tiers-text" style="white-space:normal;max-width:420px;">${tiersText}</td>
-            <td>${enabledBadge}</td>
-            <td>${fmtDate(r.effectiveDate)}</td>
-            <td>
+            <td data-label="供应商"><b>${esc(r.supplierName || '—')}</b></td>
+            <td data-label="品类"><span class="tag">${esc(r.category || '全部')}</span></td>
+            <td data-label="阶梯档位" class="rule-tiers-text" style="white-space:normal;max-width:420px;">${tiersText}</td>
+            <td data-label="状态">${enabledBadge}</td>
+            <td data-label="生效日期">${fmtDate(r.effectiveDate)}</td>
+            <td data-label="操作">
               <button class="btn-link" data-toggle="${esc(String(r._id))}" data-next="${(r.enabled === false) ? 'true' : 'false'}">${toggleText}</button>
               <button class="btn-link" data-edit="${esc(String(r._id))}" style="margin-left:10px;">编辑</button>
               <button class="btn-link" data-del="${esc(String(r._id))}" style="color:var(--red);margin-left:10px;">删除</button>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>鼎恒餐饮·智能餐饮管理平台</title>
+  <title>鼎恒科技</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { height: 100%; }
@@ -23,83 +23,127 @@
       align-items: center;
       text-align: center;
       padding: 60px 24px;
-      /* CSS 渐变模拟全屏大图，预留背景图位置 */
+      /* 柔和高级渐变背景 */
       background:
-        radial-gradient(circle at 20% 20%, rgba(255,255,255,0.12), transparent 40%),
-        radial-gradient(circle at 80% 70%, rgba(255,255,255,0.10), transparent 45%),
-        linear-gradient(135deg, #ff6b35 0%, #ff8e53 45%, #e8542a 100%);
+        radial-gradient(ellipse 60% 45% at 18% 12%, rgba(255,255,255,0.16), transparent 60%),
+        radial-gradient(ellipse 55% 40% at 85% 78%, rgba(255,214,170,0.22), transparent 65%),
+        radial-gradient(ellipse 40% 30% at 50% 105%, rgba(120,40,10,0.30), transparent 70%),
+        linear-gradient(160deg, #ff7a3d 0%, #f9682f 40%, #e04e22 78%, #c93f1a 100%);
       position: relative;
+      overflow: hidden;
     }
     /* 预留背景图位置：如需替换为真实海报图，将 url() 填入即可
     .hero {
-      background-image: linear-gradient(135deg, rgba(255,107,53,.85), rgba(232,84,42,.85)), url('/img/hero.jpg');
+      background-image: linear-gradient(160deg, rgba(249,104,47,.88), rgba(201,63,26,.88)), url('/img/hero.jpg');
       background-size: cover;
       background-position: center;
     }
     */
-    .hero .logo {
-      width: 96px; height: 96px;
-      border-radius: 26px;
-      background: rgba(255,255,255,0.18);
-      backdrop-filter: blur(6px);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 48px;
-      margin-bottom: 24px;
-      box-shadow: 0 12px 32px rgba(0,0,0,0.18);
+    /* 细腻光斑装饰 */
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -120px; right: -80px;
+      width: 320px; height: 320px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.14), transparent 70%);
+      pointer-events: none;
     }
+    .hero::after {
+      content: '';
+      position: absolute;
+      bottom: -140px; left: -60px;
+      width: 380px; height: 380px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,220,180,0.12), transparent 70%);
+      pointer-events: none;
+    }
+    .hero > * { position: relative; z-index: 1; }
+
+    /* ============ 品牌字母徽章（SVG 矢量） ============ */
+    .logo-badge {
+      width: 96px; height: 96px;
+      margin-bottom: 26px;
+      filter: drop-shadow(0 14px 28px rgba(0,0,0,0.22));
+      transition: transform 0.35s cubic-bezier(.22,.68,.36,1.2);
+    }
+    .logo-badge:hover { transform: translateY(-3px) scale(1.03); }
+
     .hero h1 {
-      font-size: 42px;
+      font-size: 44px;
       font-weight: 800;
-      letter-spacing: 2px;
+      letter-spacing: 6px;
       margin-bottom: 16px;
       text-shadow: 0 4px 18px rgba(0,0,0,0.2);
     }
     .hero .subtitle {
       font-size: 18px;
       opacity: 0.95;
-      letter-spacing: 1px;
+      letter-spacing: 1.5px;
       font-weight: 500;
     }
     .hero .tag {
       margin-top: 22px;
       font-size: 13px;
-      opacity: 0.85;
-      letter-spacing: 4px;
+      letter-spacing: 5px;
+      color: rgba(255,255,255,0.88);
+      padding: 9px 22px;
+      border: 1px solid rgba(255,255,255,0.28);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(4px);
     }
 
-    /* ============ 三大入口按钮 ============ */
+    /* ============ 三大入口卡片 ============ */
     .entries {
       display: flex;
-      gap: 18px;
+      gap: 22px;
       justify-content: center;
-      padding: 40px 24px 56px;
-      background: #fff7f3;
+      padding: 48px 24px 60px;
+      background: linear-gradient(180deg, #fff7f3 0%, #fdf1ea 100%);
       flex-wrap: wrap;
     }
     .entry {
-      flex: 1 1 220px;
+      flex: 1 1 240px;
       max-width: 320px;
-      min-height: 180px;
+      min-height: 200px;
       border-radius: 22px;
-      padding: 28px 22px;
+      padding: 30px 24px;
       text-decoration: none;
       color: #fff;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 10px;
-      box-shadow: 0 12px 28px rgba(255,107,53,0.25);
-      transition: transform 0.2s, box-shadow 0.2s;
+      gap: 12px;
+      box-shadow: 0 10px 26px rgba(120,50,20,0.16), 0 2px 6px rgba(120,50,20,0.08);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+      position: relative;
+      overflow: hidden;
     }
-    .entry:hover { transform: translateY(-4px); box-shadow: 0 18px 36px rgba(255,107,53,0.32); }
+    .entry::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(160deg, rgba(255,255,255,0.18), transparent 45%);
+      pointer-events: none;
+    }
+    .entry:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(120,50,20,0.24), 0 4px 10px rgba(120,50,20,0.10); }
     .entry:active { transform: scale(0.99); }
-    .entry-merchant { background: linear-gradient(135deg, #ff6b35, #ff8e53); }
-    .entry-supplier { background: linear-gradient(135deg, #1f2937, #374151 70%, #ff6b35); }
-    .entry-dev { background: linear-gradient(135deg, #0f766e, #14b8a6); }
-    .entry .ico { font-size: 38px; }
+    .entry-merchant { background: linear-gradient(150deg, #ff8a4c, #f96a2c 55%, #ef5a1e); }
+    .entry-supplier { background: linear-gradient(150deg, #3b4453, #232b38 60%, #ff7a3d 165%); }
+    .entry-dev { background: linear-gradient(150deg, #1aa38f, #0f766e 60%, #0b5f59); }
+    /* 矢量线性图标 */
+    .entry .ico {
+      width: 52px; height: 52px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.16);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.22);
+    }
+    .entry .ico svg { width: 28px; height: 28px; stroke: #fff; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
     .entry .t { font-size: 22px; font-weight: 700; letter-spacing: 1px; }
-    .entry .d { font-size: 13px; opacity: 0.9; }
+    .entry .d { font-size: 13px; opacity: 0.88; letter-spacing: 0.5px; }
 
     /* ============ Footer ============ */
     .footer {
@@ -119,25 +163,91 @@
     .footer .links a:hover { color: #ff8e53; }
     .footer .copyright { font-size: 12px; color: #6b7280; }
 
-    /* ============ 响应式 ============ */
+    /* ============ 响应式：手机端 ============ */
     @media (max-width: 768px) {
-      .hero { padding: 50px 20px; }
-      .hero .logo { width: 76px; height: 76px; font-size: 38px; border-radius: 20px; margin-bottom: 18px; }
-      .hero h1 { font-size: 28px; letter-spacing: 1px; }
-      .hero .subtitle { font-size: 14px; }
-      .entries { padding: 28px 16px 40px; gap: 14px; }
-      .entry { flex: 1 1 100%; min-height: 120px; padding: 22px; }
-      .entry .ico { font-size: 30px; }
-      .entry .t { font-size: 18px; }
+      /* 顶部品牌区：紧凑横幅 */
+      .hero {
+        padding: 40px 18px 34px;
+        gap: 0;
+      }
+      .logo-badge { width: 58px; height: 58px; margin-bottom: 12px; }
+      .hero h1 { font-size: 24px; letter-spacing: 3px; margin-bottom: 8px; }
+      .hero .subtitle { font-size: 13px; letter-spacing: 1px; }
+      .hero .tag { margin-top: 14px; font-size: 11px; letter-spacing: 3px; padding: 6px 14px; }
+
+      /* 入口卡片：纵向全宽 */
+      .entries {
+        padding: 24px 16px 32px;
+        gap: 12px;
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .entry {
+        flex: 1 1 auto;
+        max-width: none;
+        min-height: 104px;
+        padding: 20px 22px;
+        flex-direction: row;
+        justify-content: flex-start;
+        text-align: left;
+        gap: 16px;
+      }
+      .entry .ico { width: 46px; height: 46px; flex-shrink: 0; border-radius: 14px; }
+      .entry .ico svg { width: 24px; height: 24px; }
+      .entry .txt { display: flex; flex-direction: column; gap: 4px; }
+      .entry .t { font-size: 17px; }
+      .entry .d { font-size: 12px; }
+      /* 右侧箭头 */
+      .entry .arrow {
+        margin-left: auto;
+        flex-shrink: 0;
+        width: 20px; height: 20px;
+        stroke: rgba(255,255,255,0.75);
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
     }
+    /* 电脑端隐藏箭头 */
+    .entry .arrow { display: none; }
+    @media (max-width: 768px) { .entry .arrow { display: block; } }
   </style>
 </head>
 <body>
 
   <!-- ============ 全屏海报区 ============ -->
   <section class="hero">
-    <div class="logo">🍽️</div>
-    <h1>鼎恒餐饮·智能餐饮管理平台</h1>
+    <!-- 品牌徽章：圆角方形渐变底 + 白色“鼎”字 -->
+    <svg class="logo-badge" viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" aria-label="鼎恒科技">
+      <defs>
+        <linearGradient id="badgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#ffb27a"/>
+          <stop offset="45%" stop-color="#ff8a3d"/>
+          <stop offset="100%" stop-color="#e05a1a"/>
+        </linearGradient>
+        <linearGradient id="badgeSheen" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.32"/>
+          <stop offset="55%" stop-color="#ffffff" stop-opacity="0.04"/>
+          <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <!-- 圆角方形渐变底 -->
+      <rect x="4" y="4" width="88" height="88" rx="24" fill="url(#badgeGrad)"/>
+      <!-- 顶部高光 -->
+      <rect x="4" y="4" width="88" height="88" rx="24" fill="url(#badgeSheen)"/>
+      <!-- 内描边 -->
+      <rect x="7" y="7" width="82" height="82" rx="21" fill="none" stroke="#ffffff" stroke-opacity="0.25" stroke-width="1.5"/>
+      <!-- 鼎字 -->
+      <text x="48" y="49" text-anchor="middle" dominant-baseline="central"
+            font-family="'PingFang SC','Microsoft YaHei',sans-serif"
+            font-size="46" font-weight="700" fill="#ffffff">鼎</text>
+      <!-- 底部小圆点装饰 -->
+      <circle cx="34" cy="76" r="2" fill="#ffffff" fill-opacity="0.65"/>
+      <circle cx="48" cy="76" r="2" fill="#ffffff" fill-opacity="0.9"/>
+      <circle cx="62" cy="76" r="2" fill="#ffffff" fill-opacity="0.65"/>
+    </svg>
+    <h1>鼎恒科技</h1>
     <p class="subtitle">扫码点餐 · 供应链采购 · 数字化经营</p>
     <div class="tag">全链路餐饮数字化解决方案</div>
   </section>
@@ -145,19 +255,49 @@
   <!-- ============ 三大入口按钮 ============ -->
   <section class="entries">
     <a class="entry entry-merchant" href="/merchant-login.html">
-      <span class="ico">🏪</span>
-      <span class="t">我是商家</span>
-      <span class="d">管理后台 · 菜单订单 · 数据统计</span>
+      <span class="ico">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 10 L4.8 4.5 H19.2 L20 10"/>
+          <path d="M4 10 C4 11.4 5.1 12.5 6.5 12.5 C7.9 12.5 9 11.4 9 10 C9 11.4 10.1 12.5 11.5 12.5 C12.9 12.5 14 11.4 14 10 C14 11.4 15.1 12.5 16.5 12.5 C17.9 12.5 19 11.4 19 10"/>
+          <path d="M5.5 12.8 V19.5 H18.5 V12.8"/>
+          <path d="M9.5 19.5 V15.5 H14.5 V19.5"/>
+        </svg>
+      </span>
+      <span class="txt">
+        <span class="t">我是商家</span>
+        <span class="d">管理后台 · 菜单订单 · 数据统计</span>
+      </span>
+      <svg class="arrow" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9 6 L15 12 L9 18"/></svg>
     </a>
     <a class="entry entry-supplier" href="/supplier-login.html">
-      <span class="ico">🚚</span>
-      <span class="t">我是供应商</span>
-      <span class="d">接单发货 · 商品管理 · 通知设置</span>
+      <span class="ico">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2.5 6.5 H13.5 V16 H2.5 Z"/>
+          <path d="M13.5 9.5 H18 L21.5 13 V16 H13.5"/>
+          <circle cx="6.5" cy="17.8" r="1.9"/>
+          <circle cx="17" cy="17.8" r="1.9"/>
+          <path d="M8.4 17.8 H15.1"/>
+        </svg>
+      </span>
+      <span class="txt">
+        <span class="t">我是供应商</span>
+        <span class="d">接单发货 · 商品管理 · 通知设置</span>
+      </span>
+      <svg class="arrow" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9 6 L15 12 L9 18"/></svg>
     </a>
     <a class="entry entry-dev" href="/dev-login.html">
-      <span class="ico">🛠️</span>
-      <span class="t">我是开发者</span>
-      <span class="d">平台总览 · 商家与供应商管理</span>
+      <span class="ico">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M8 8 L3.5 12 L8 16"/>
+          <path d="M16 8 L20.5 12 L16 16"/>
+          <path d="M13.2 5.5 L10.8 18.5"/>
+        </svg>
+      </span>
+      <span class="txt">
+        <span class="t">我是开发者</span>
+        <span class="d">平台总览 · 商家与供应商管理</span>
+      </span>
+      <svg class="arrow" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9 6 L15 12 L9 18"/></svg>
     </a>
   </section>
 
@@ -167,7 +307,7 @@
       <a href="/privacy.html">隐私协议</a>
       <a href="/terms.html">服务协议</a>
     </div>
-    <div class="copyright">© 2026 鼎恒餐饮·智能餐饮管理平台 · 扫码点餐系统</div>
+    <div class="copyright">© 2026 鼎恒科技 · 扫码点餐系统</div>
   </footer>
 
 </body>
