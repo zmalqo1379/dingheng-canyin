@@ -14,15 +14,15 @@
       flex-direction: column;
       min-height: 100vh;
     }
-    /* ============ 全屏海报区 ============ */
+    /* ============ 品牌区（控制高度、不撑满） ============ */
     .hero {
-      flex: 1;
+      flex: 0 0 auto;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
       text-align: center;
-      padding: 60px 24px;
+      padding: 72px 24px 64px;
       /* 柔和高级渐变背景 */
       background:
         radial-gradient(ellipse 60% 45% at 18% 12%, rgba(255,255,255,0.16), transparent 60%),
@@ -69,45 +69,42 @@
     }
     .logo-badge:hover { transform: translateY(-3px) scale(1.03); }
 
+    /* 主标题：鼎恒科技 */
     .hero h1 {
-      font-size: 44px;
+      font-size: 38px;
       font-weight: 800;
       letter-spacing: 6px;
-      margin-bottom: 16px;
+      /* 补偿 letter-spacing 造成的视觉右偏，保证居中 */
+      text-indent: 6px;
       text-shadow: 0 4px 18px rgba(0,0,0,0.2);
-      line-height: 1.15;
+      line-height: 1.2;
     }
-    /* 主标题副段：完整版「鼎恒科技·智能餐饮管理平台」 */
-    .hero h1 .h1-sub {
-      font-size: 0.5em;
-      letter-spacing: 2px;
-      font-weight: 700;
-      margin-left: 0.12em;
-      opacity: 0.96;
-    }
-    .hero .subtitle {
-      font-size: 18px;
-      opacity: 0.95;
-      letter-spacing: 1.5px;
+    /* 副标题：主标题下方独立成行，半透明白 + 宽字距，约为主标题 40% */
+    .hero .brand-sub {
+      margin-top: 14px;
+      font-size: 15px;
       font-weight: 500;
-    }
-    .hero .tag {
-      margin-top: 22px;
-      font-size: 13px;
       letter-spacing: 5px;
+      text-indent: 5px;
+      color: rgba(255,255,255,0.72);
+    }
+    /* 功能描述行 */
+    .hero .subtitle {
+      margin-top: 20px;
+      font-size: 14px;
+      font-weight: 400;
+      letter-spacing: 2px;
+      text-indent: 2px;
       color: rgba(255,255,255,0.88);
-      padding: 9px 22px;
-      border: 1px solid rgba(255,255,255,0.28);
-      border-radius: 999px;
-      background: rgba(255,255,255,0.08);
-      backdrop-filter: blur(4px);
     }
 
     /* ============ 三大入口卡片 ============ */
     .entries {
+      flex: 1 0 auto;
       display: flex;
       gap: 22px;
       justify-content: center;
+      align-items: center;
       padding: 48px 24px 60px;
       background: linear-gradient(180deg, #fff7f3 0%, #fdf1ea 100%);
       flex-wrap: wrap;
@@ -176,15 +173,14 @@
     @media (max-width: 768px) {
       /* 顶部品牌区：紧凑横幅 */
       .hero {
-        padding: 40px 18px 34px;
+        padding: 46px 18px 40px;
         gap: 0;
       }
-      .logo-badge { width: 58px; height: 58px; margin-bottom: 12px; }
-      .hero h1 { font-size: 24px; letter-spacing: 3px; margin-bottom: 8px; }
-      /* 手机端主标题分两行：「鼎恒科技」一行，「·智能餐饮管理平台」一行 */
-      .hero h1 .h1-sub { display: block; font-size: 13px; letter-spacing: 1px; margin: 2px 0 0; }
-      .hero .subtitle { font-size: 13px; letter-spacing: 1px; }
-      .hero .tag { margin-top: 14px; font-size: 11px; letter-spacing: 3px; padding: 6px 14px; }
+      .logo-badge { width: 62px; height: 62px; margin-bottom: 16px; }
+      .hero h1 { font-size: 28px; letter-spacing: 4px; text-indent: 4px; }
+      /* 副标题独立成行，主标题 40% 左右字号 + 宽字距 */
+      .hero .brand-sub { margin-top: 10px; font-size: 12px; letter-spacing: 3px; text-indent: 3px; }
+      .hero .subtitle { margin-top: 14px; font-size: 12px; letter-spacing: 1px; text-indent: 1px; }
 
       /* 入口卡片：纵向全宽 */
       .entries {
@@ -258,9 +254,9 @@
       <circle cx="48" cy="76" r="2" fill="#ffffff" fill-opacity="0.9"/>
       <circle cx="62" cy="76" r="2" fill="#ffffff" fill-opacity="0.65"/>
     </svg>
-    <h1>鼎恒科技<span class="h1-sub">·智能餐饮管理平台</span></h1>
+    <h1>鼎恒科技</h1>
+    <p class="brand-sub">智能餐饮管理平台</p>
     <p class="subtitle">扫码点餐 · 供应链采购 · 数字化经营</p>
-    <div class="tag">全链路餐饮数字化解决方案</div>
   </section>
 
   <!-- ============ 三大入口按钮 ============ -->
