@@ -60,15 +60,6 @@
     }
     .hero > * { position: relative; z-index: 1; }
 
-    /* ============ 品牌字母徽章（SVG 矢量） ============ */
-    .logo-badge {
-      width: 96px; height: 96px;
-      margin-bottom: 26px;
-      filter: drop-shadow(0 14px 28px rgba(0,0,0,0.22));
-      transition: transform 0.35s cubic-bezier(.22,.68,.36,1.2);
-    }
-    .logo-badge:hover { transform: translateY(-3px) scale(1.03); }
-
     /* 主标题：鼎恒科技 */
     .hero h1 {
       font-size: 38px;
@@ -96,6 +87,15 @@
       letter-spacing: 2px;
       text-indent: 2px;
       color: rgba(255,255,255,0.88);
+    }
+    /* slogan 行：副标题下方 */
+    .hero .slogan {
+      margin-top: 10px;
+      font-size: 13px;
+      font-weight: 400;
+      letter-spacing: 4px;
+      text-indent: 4px;
+      color: rgba(255,255,255,0.6);
     }
 
     /* ============ 三大入口卡片 ============ */
@@ -176,11 +176,11 @@
         padding: 46px 18px 40px;
         gap: 0;
       }
-      .logo-badge { width: 62px; height: 62px; margin-bottom: 16px; }
       .hero h1 { font-size: 28px; letter-spacing: 4px; text-indent: 4px; }
       /* 副标题独立成行，主标题 40% 左右字号 + 宽字距 */
       .hero .brand-sub { margin-top: 10px; font-size: 12px; letter-spacing: 3px; text-indent: 3px; }
       .hero .subtitle { margin-top: 14px; font-size: 12px; letter-spacing: 1px; text-indent: 1px; }
+      .hero .slogan { margin-top: 8px; font-size: 11px; letter-spacing: 2px; text-indent: 2px; }
 
       /* 入口卡片：纵向全宽 */
       .entries {
@@ -225,38 +225,10 @@
 
   <!-- ============ 全屏海报区 ============ -->
   <section class="hero">
-    <!-- 品牌徽章：圆角方形渐变底 + 白色“鼎”字 -->
-    <svg class="logo-badge" viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" aria-label="鼎恒科技">
-      <defs>
-        <linearGradient id="badgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#ffb27a"/>
-          <stop offset="45%" stop-color="#ff8a3d"/>
-          <stop offset="100%" stop-color="#e05a1a"/>
-        </linearGradient>
-        <linearGradient id="badgeSheen" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.32"/>
-          <stop offset="55%" stop-color="#ffffff" stop-opacity="0.04"/>
-          <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
-        </linearGradient>
-      </defs>
-      <!-- 圆角方形渐变底 -->
-      <rect x="4" y="4" width="88" height="88" rx="24" fill="url(#badgeGrad)"/>
-      <!-- 顶部高光 -->
-      <rect x="4" y="4" width="88" height="88" rx="24" fill="url(#badgeSheen)"/>
-      <!-- 内描边 -->
-      <rect x="7" y="7" width="82" height="82" rx="21" fill="none" stroke="#ffffff" stroke-opacity="0.25" stroke-width="1.5"/>
-      <!-- 鼎字 -->
-      <text x="48" y="49" text-anchor="middle" dominant-baseline="central"
-            font-family="'PingFang SC','Microsoft YaHei',sans-serif"
-            font-size="46" font-weight="700" fill="#ffffff">鼎</text>
-      <!-- 底部小圆点装饰 -->
-      <circle cx="34" cy="76" r="2" fill="#ffffff" fill-opacity="0.65"/>
-      <circle cx="48" cy="76" r="2" fill="#ffffff" fill-opacity="0.9"/>
-      <circle cx="62" cy="76" r="2" fill="#ffffff" fill-opacity="0.65"/>
-    </svg>
     <h1>鼎恒科技</h1>
     <p class="brand-sub">智能餐饮管理平台</p>
     <p class="subtitle">扫码点餐 · 供应链采购 · 数字化经营</p>
+    <p class="slogan">全链路餐饮数字化解决方案</p>
   </section>
 
   <!-- ============ 三大入口按钮 ============ -->

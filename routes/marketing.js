@@ -12,9 +12,9 @@ const LEVEL_RANK = { basic: 0, advanced: 1, premium: 2 };
 
 // 各活动类型所需功能权限
 const TYPE_FEATURE = {
-  fullReduction: 'marketingDiscount', // 满减：进阶版+
-  discount: 'marketingDiscount',       // 折扣：进阶版+
-  rechargeBonus: 'marketingRecharge'  // 充值送：尊享版
+  fullReduction: 'marketingDiscount',        // 满减：进阶版+
+  discount: 'marketingCategoryDiscount',     // 折扣：尊享版
+  rechargeBonus: 'marketingRecharge'         // 充值送：尊享版
 };
 
 // 获取或创建商家会员等级
@@ -57,7 +57,7 @@ function normalizeActivity(body, shopId, level) {
   // 权限校验：按类型检查对应功能权限
   const feature = TYPE_FEATURE[type];
   if (!hasFeature(feature, level)) {
-    const need = feature === 'marketingRecharge' ? '尊享版' : '进阶版';
+    const need = feature === 'marketingDiscount' ? '进阶版' : '尊享版';
     return { error: `该活动需${need}及以上会员，请先升级`, needUpgrade: true };
   }
 
@@ -65,7 +65,7 @@ function normalizeActivity(body, shopId, level) {
 
   // 共通字段
   data.title = String(body.title || '').trim().slice(0, 40);
-  data.enabled = body.enabled !== false;
+  data.enabled = body.enabled === true; // 默认停用，需商家手动启用
   if (body.startTime) data.startTime = new Date(body.startTime);
   if (body.endTime) data.endTime = new Date(body.endTime);
   else if (body.endTime === null) data.endTime = null;
@@ -82,6 +82,7 @@ function normalizeActivity(body, shopId, level) {
     if (isNaN(rate) || rate <= 0 || rate >= 1) return { error: '折扣率需在 0~1 之间（如 0.8 表示 8 折）' };
     data.rate = +rate.toFixed(2);
     data.category = String(body.category || '').trim();
+    if (!data.category) return { error: '折扣活动需选择适用分类' }; // 折扣只能指定分类，不支持全场
   } else if (type === 'rechargeBonus') {
     const recharge = Number(body.recharge);
     const bonus = Number(body.bonus);
@@ -150,7 +151,7 @@ router.patch('/:id/toggle', requireMerchant, async (req, res) => {
     if (a.shopId !== req.shopId) {
       return res.status(403).json({ success: false, message: '无权操作其他商家的活动' });
     }
-    // 充值送尊享版、满减/折扣进阶版——切换启用同样按类型校验权限
+    // 充值送/折扣尊享版、满减进阶版——切换启用同样按类型校验权限
     const level = await getMemberLevel(req.shopId);
     if (!hasFeature(TYPE_FEATURE[a.type], level)) {
       return res.status(403).json({ success: false, message: '会员等级不足，无法操作该活动', needUpgrade: true });

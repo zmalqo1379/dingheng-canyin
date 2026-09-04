@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 // 商家营销活动（满减 / 折扣 / 充值送）
 // 一个店铺可创建多条活动；生效判定：enabled=true 且当前时间在 [startTime, endTime] 内
-// 权限：满减(fullReduction)、折扣(discount) 为进阶版及以上可用；充值送(rechargeBonus) 为尊享版可用
+// 权限：满减(fullReduction) 为进阶版及以上可用；折扣(discount)、充值送(rechargeBonus) 为尊享版可用
 // 规则字段按 type 解释，统一存储，未使用的字段保持默认值
 const marketingSchema = new mongoose.Schema({
   shopId: {

@@ -2085,7 +2085,7 @@ $('savePointsBtn').onclick = () => {
 };
 
 /* ===================== 营销活动（满减 / 折扣 / 充值送） ===================== */
-// 权限：满减、折扣 = 进阶版+；充值送 = 尊享版
+// 权限：满减 = 进阶版+；折扣、充值送 = 尊享版
 const MKT_TYPES = ['fullReduction', 'discount', 'rechargeBonus'];
 const MKT_TYPE_NAME = { fullReduction: '满减', discount: '折扣', rechargeBonus: '充值送' };
 let _mktList = [];          // 当前店铺全部活动
@@ -2120,15 +2120,16 @@ function mktStatus(a) {
 
 async function loadMarketing() {
   try {
-    // 拉取权限清单：marketingDiscount(满减/折扣) + marketingRecharge(充值送)
+    // 拉取权限清单：marketingDiscount(满减) + marketingCategoryDiscount(折扣) + marketingRecharge(充值送)
     const perm = await api(`/api/member/permissions/${SHOP_ID}`);
     const data = perm.data || {};
     const level = data.memberLevel || 'basic';
-    const canDiscount = data.marketingDiscount === true;       // 进阶版+
-    const canRecharge = data.marketingRecharge === true;       // 尊享版
+    const canFull = data.marketingDiscount === true;                    // 满减：进阶版+
+    const canDiscount = data.marketingCategoryDiscount === true;        // 折扣：尊享版
+    const canRecharge = data.marketingRecharge === true;                // 充值送：尊享版
 
     // 基础版：全锁
-    if (!canDiscount && !canRecharge) {
+    if (!canFull && !canDiscount && !canRecharge) {
       $('marketingLockedAll').style.display = 'block';
       $('marketingPanel').style.display = 'none';
       return;
@@ -2136,17 +2137,25 @@ async function loadMarketing() {
     $('marketingLockedAll').style.display = 'none';
     $('marketingPanel').style.display = 'block';
 
-    // 折扣分类下拉：填充店铺分类
+    // 折扣分类下拉：填充店铺分类（折扣只能选分类，无全场选项）
     try {
       await loadCategories();
       const sel = $('mktCategory');
       if (sel) {
         const cur = sel.value;
-        sel.innerHTML = '<option value="">全场</option>' +
-          categories.map(c => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('');
+        sel.innerHTML = categories.map(c => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('');
         sel.value = cur;
+        if (!sel.value && sel.options.length > 0) sel.selectedIndex = 0;
       }
     } catch (e) { /* 分类加载失败不阻塞 */ }
+
+    // 折扣：非尊享版锁住
+    const discountLocked = !canDiscount;
+    $('discountLockedInline').style.display = discountLocked ? 'block' : 'none';
+    $('discountTableWrap').style.display = discountLocked ? 'none' : 'block';
+    $('mktCards-discount').style.display = discountLocked ? 'none' : 'block';
+    $('mktAdd-discount').disabled = discountLocked;
+    $('mktAdd-discount').style.opacity = discountLocked ? '0.5' : '1';
 
     // 充值送：非尊享版锁住
     const rechargeLocked = !canRecharge;
@@ -2273,10 +2282,15 @@ function openMktModal(a) {
     $('mktEndTime').value = a.endTime ? toLocalDT(a.endTime) : '';
     $('mktEnabled').checked = a.enabled !== false;
   } else {
-    // 新建默认：开始时间为当前
+    // 新建默认：满减满100减10；折扣选第一个分类95折；开始时间为当前；默认停用（需手动启用）
+    $('mktThreshold').value = 100;
+    $('mktReduce').value = 10;
+    $('mktRate').value = 0.95;
+    const catSel = $('mktCategory');
+    if (catSel && catSel.options.length > 0) catSel.selectedIndex = 0;
     $('mktStartTime').value = toLocalDT(new Date());
     $('mktEndTime').value = '';
-    $('mktEnabled').checked = true;
+    $('mktEnabled').checked = false;
   }
   syncMktFields();
   $('mktModal').classList.add('show');

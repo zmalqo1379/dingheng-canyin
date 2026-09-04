@@ -701,7 +701,7 @@ function setupPreviewReturn() {
   // 改造顶部 back-nav 为「✕ 返回装修」
   const nav = $('backNav');
   if (nav) {
-    nav.innerHTML = `<a class="back-link" id="previewBack">✕ 返回装修</a><span class="hint">按 Esc 键或点 ✕ 返回商家后台</span>`;
+    nav.innerHTML = `<a class="back-link" id="previewBack">✕<span class="back-txt"> 返回装修</span></a><span class="hint">按 Esc 键或点 ✕ 返回商家后台</span>`;
     const back = $('previewBack');
     if (back) back.onclick = closePreviewWindow;
   }

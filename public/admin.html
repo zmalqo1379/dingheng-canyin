@@ -1610,8 +1610,8 @@
     }
     .preview-close:hover { background: rgba(255,255,255,.26); }
     .preview-hint {
-      position: absolute; top: 18px; left: 22px;
-      color: rgba(255,255,255,.6); font-size: 11px; z-index: 3;
+      position: absolute; top: 19px; left: 22px;
+      color: rgba(255,255,255,.42); font-size: 10px; z-index: 3;
       pointer-events: none;
     }
     .preview-frame {
@@ -1624,6 +1624,12 @@
       width: 100%; height: 100%; border: 0; display: block;
       background: #fff;
     }
+    /* 手机端预览：隐藏 Esc 文字提示，右上角仅保留 ✕ 关闭按钮 */
+    @media (max-width: 768px) {
+      .preview-hint { display: none; }
+      .preview-close-txt { display: none; }
+      .preview-close { padding: 6px 11px; }
+    }
     @media (max-width: 480px) {
       .preview-modal { padding: 0; }
       .preview-phone {
@@ -1635,6 +1641,7 @@
 
     /* ============ 营销活动 ============ */
     .mkt-sub { font-size: 12px; font-weight: 400; color: #9ca3af; margin-left: 4px; }
+    .mkt-tip { margin: 8px 0 0; font-size: 12px; color: #9ca3af; line-height: 1.6; }
     .mkt-cards-mobile { display: none; }
     .mkt-card-m { background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.05); padding: 14px; margin-bottom: 10px; }
     .mkt-card-m .mcm-title { font-weight: 600; font-size: 15px; color: #1f2937; margin-bottom: 4px; }
@@ -2347,7 +2354,7 @@
           <div class="locked-content">
             <div class="locked-icon">🔒</div>
             <h3>升级解锁营销活动</h3>
-            <p>满减、折扣活动为<b>进阶版</b>及以上可用；充值送为<b>尊享版</b>专属。开通会员即可创建活动，自动在顾客点餐页生效。</p>
+            <p>满减活动为<b>进阶版</b>及以上可用；折扣、充值送为<b>尊享版</b>专属。开通会员即可创建活动，自动在顾客点餐页生效。</p>
             <button class="btn-add" onclick="switchTab('coin')">去升级会员</button>
           </div>
         </div>
@@ -2371,10 +2378,18 @@
           <!-- 折扣活动 -->
           <div class="card" id="mktCard-discount" style="margin-bottom:18px;">
             <div class="card-head">
-              <h3>🏷️ 折扣活动 <span class="mkt-sub">（进阶版及以上）</span></h3>
+              <h3>🏷️ 折扣活动 <span class="mkt-sub">（尊享版专属）</span></h3>
               <button class="btn-add" id="mktAdd-discount">＋ 新建折扣</button>
             </div>
-            <div class="table-wrap">
+            <div id="discountLockedInline" class="locked-mask" style="display:none;margin:0;">
+              <div class="locked-content" style="padding:28px 20px;">
+                <div class="locked-icon">🔒</div>
+                <h3>升级尊享版解锁折扣活动</h3>
+                <p>折扣活动为<b>尊享版</b>会员专属功能，升级后可对指定分类设置折扣引流。</p>
+                <button class="btn-add" onclick="switchTab('coin')">去升级尊享版</button>
+              </div>
+            </div>
+            <div class="table-wrap" id="discountTableWrap">
               <table class="data" style="min-width:640px;">
                 <thead><tr><th>活动标题</th><th>规则</th><th>生效时间</th><th>状态</th><th>操作</th></tr></thead>
                 <tbody id="mktBody-discount"><tr><td colspan="5" class="empty">加载中…</td></tr></tbody>
@@ -2425,7 +2440,7 @@
         <label>活动类型</label>
         <select class="form-select" id="mktTypeSelect">
           <option value="fullReduction">满减（满 X 元减 Y 元）</option>
-          <option value="discount">折扣（全场/分类折扣）</option>
+          <option value="discount">折扣（指定分类折扣）</option>
           <option value="rechargeBonus">充值送（充 A 送 B）</option>
         </select>
       </div>
@@ -2445,13 +2460,14 @@
       <!-- 折扣字段 -->
       <div class="mkt-fields" data-type="discount" style="display:none;">
         <div class="form-group">
-          <label>折扣率（0~1，如 0.8 表示 8 折）</label>
-          <input type="number" class="form-input" id="mktRate" min="0.01" max="0.99" step="0.01" placeholder="如 0.8">
+          <label>折扣率（0~1，如 0.95 表示 95 折）</label>
+          <input type="number" class="form-input" id="mktRate" min="0.01" max="0.99" step="0.01" placeholder="如 0.95">
         </div>
         <div class="form-group">
-          <label>适用分类（留空=全场折扣）</label>
-          <select class="form-select" id="mktCategory"><option value="">全场</option></select>
+          <label>适用分类</label>
+          <select class="form-select" id="mktCategory"></select>
         </div>
+        <p class="mkt-tip">小技巧：选毛利高的品类做折扣引流，既不伤本又能聚人气</p>
       </div>
 
       <!-- 充值送字段 -->
@@ -2480,7 +2496,7 @@
       </div>
       <div class="form-group">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-          <input type="checkbox" id="mktEnabled" checked style="width:16px;height:16px;"> 立即启用
+          <input type="checkbox" id="mktEnabled" style="width:16px;height:16px;"> 立即启用
         </label>
       </div>
     </div>
@@ -2585,7 +2601,7 @@
 <div class="preview-modal" id="customerPreviewModal" aria-hidden="true">
   <div class="preview-mask"></div>
   <div class="preview-phone" role="dialog" aria-label="预览点餐页">
-    <button class="preview-close" id="customerPreviewClose" title="返回（Esc）">✕ 返回</button>
+    <button class="preview-close" id="customerPreviewClose" title="返回（Esc）">✕<span class="preview-close-txt"> 返回</span></button>
     <div class="preview-hint">按 Esc 键或点 ✕ 返回</div>
     <div class="preview-frame">
       <iframe id="customerPreviewFrame" title="点餐页预览" frameborder="0" scrolling="yes" allow="clipboard-read; clipboard-write"></iframe>

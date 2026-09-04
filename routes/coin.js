@@ -410,6 +410,7 @@ router.get('/member/permissions/:shopId', async (req, res) => {
       data: {
         customerPoints: has('customerPoints'),
         marketingDiscount: has('marketingDiscount'),
+        marketingCategoryDiscount: has('marketingCategoryDiscount'),
         marketingRecharge: has('marketingRecharge'),
         marketingFull: has('marketingFull'),
         reportBasic: has('reportBasic'),
