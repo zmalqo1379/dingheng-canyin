@@ -73,7 +73,7 @@ if (MERCHANT_TOKEN) {
   document.getElementById('adminPage').classList.add('show');
   // 响应 URL hash：从预览返回时自动定位到装修栏目
   const h = location.hash.replace('#', '');
-  const initTab = (h && ['dishes','tables','orders','stats','decorate','settings','member','coin','mall','purchase','points'].includes(h)) ? h : 'dishes';
+  const initTab = (h && ['dishes','tables','orders','stats','decorate','settings','member','coin','mall','purchase','points','marketing'].includes(h)) ? h : 'dishes';
   try { switchTab(initTab); } catch (e) { console.error('初始化失败', e); }
 }
 
@@ -94,6 +94,7 @@ function switchTab(tab) {
     if (tab === 'mall') loadMall();
     if (tab === 'purchase') loadPurchaseOrders();
     if (tab === 'points') loadPoints();
+    if (tab === 'marketing') loadMarketing();
   } catch (e) { console.error('tab load error', tab, e); }
 }
 document.querySelectorAll('.nav-item').forEach(t => t.onclick = () => switchTab(t.dataset.tab));
@@ -2081,4 +2082,266 @@ $('savePointsBtn').onclick = () => {
   };
   localStorage.setItem('pointsSettings', JSON.stringify(data));
   toast('积分设置已保存');
+};
+
+/* ===================== 营销活动（满减 / 折扣 / 充值送） ===================== */
+// 权限：满减、折扣 = 进阶版+；充值送 = 尊享版
+const MKT_TYPES = ['fullReduction', 'discount', 'rechargeBonus'];
+const MKT_TYPE_NAME = { fullReduction: '满减', discount: '折扣', rechargeBonus: '充值送' };
+let _mktList = [];          // 当前店铺全部活动
+let _mktEditing = null;     // 当前编辑的活动对象（null=新建）
+
+// 活动规则文本
+function mktRuleText(a) {
+  if (a.type === 'fullReduction') return `满 ¥${Number(a.threshold).toFixed(2)} 减 ¥${Number(a.reduce).toFixed(2)}`;
+  if (a.type === 'discount') {
+    const zhe = Math.round(Number(a.rate) * 10);
+    return a.category ? `${esc(a.category)} ${zhe}折` : `全场 ${zhe}折`;
+  }
+  if (a.type === 'rechargeBonus') return `充 ¥${Number(a.recharge).toFixed(2)} 送 ¥${Number(a.bonus).toFixed(2)}`;
+  return '—';
+}
+// 生效时间文本
+function mktTimeText(a) {
+  const s = a.startTime ? fmtTime(a.startTime) : '立即';
+  const e = a.endTime ? fmtTime(a.endTime) : '长期';
+  return `${s} ~ ${e}`;
+}
+// 状态判定：进行中/未开始/已结束/已停用
+function mktStatus(a) {
+  if (!a.enabled) return { cls: 'mkt-status-off', text: '已停用' };
+  const now = Date.now();
+  const start = a.startTime ? new Date(a.startTime).getTime() : 0;
+  const end = a.endTime ? new Date(a.endTime).getTime() : Infinity;
+  if (now < start) return { cls: 'mkt-status-future', text: '未开始' };
+  if (now > end) return { cls: 'mkt-status-expired', text: '已结束' };
+  return { cls: 'mkt-status-on', text: '进行中' };
+}
+
+async function loadMarketing() {
+  try {
+    // 拉取权限清单：marketingDiscount(满减/折扣) + marketingRecharge(充值送)
+    const perm = await api(`/api/member/permissions/${SHOP_ID}`);
+    const data = perm.data || {};
+    const level = data.memberLevel || 'basic';
+    const canDiscount = data.marketingDiscount === true;       // 进阶版+
+    const canRecharge = data.marketingRecharge === true;       // 尊享版
+
+    // 基础版：全锁
+    if (!canDiscount && !canRecharge) {
+      $('marketingLockedAll').style.display = 'block';
+      $('marketingPanel').style.display = 'none';
+      return;
+    }
+    $('marketingLockedAll').style.display = 'none';
+    $('marketingPanel').style.display = 'block';
+
+    // 折扣分类下拉：填充店铺分类
+    try {
+      await loadCategories();
+      const sel = $('mktCategory');
+      if (sel) {
+        const cur = sel.value;
+        sel.innerHTML = '<option value="">全场</option>' +
+          categories.map(c => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('');
+        sel.value = cur;
+      }
+    } catch (e) { /* 分类加载失败不阻塞 */ }
+
+    // 充值送：非尊享版锁住
+    const rechargeLocked = !canRecharge;
+    $('rechargeLockedInline').style.display = rechargeLocked ? 'block' : 'none';
+    $('rechargeTableWrap').style.display = rechargeLocked ? 'none' : 'block';
+    $('mktCards-rechargeBonus').style.display = rechargeLocked ? 'none' : 'block';
+    $('mktAdd-rechargeBonus').disabled = rechargeLocked;
+    $('mktAdd-rechargeBonus').style.opacity = rechargeLocked ? '0.5' : '1';
+
+    // 拉取本店活动列表
+    const res = await api('/api/marketing');
+    _mktList = (res.success && Array.isArray(res.data)) ? res.data : [];
+    renderMarketing();
+  } catch (e) {
+    console.error('loadMarketing', e);
+    toast('营销活动加载失败', true);
+  }
+}
+
+function renderMarketing() {
+  MKT_TYPES.forEach(type => {
+    const list = _mktList.filter(a => a.type === type);
+    const body = $(`mktBody-${type}`);
+    const cards = $(`mktCards-${type}`);
+    if (!list.length) {
+      if (body) body.innerHTML = `<tr><td colspan="5" class="empty">暂无${MKT_TYPE_NAME[type]}活动，点击右上角新建</td></tr>`;
+      if (cards) cards.innerHTML = `<div class="empty" style="padding:30px 16px;text-align:center;color:#9ca3af;">暂无${MKT_TYPE_NAME[type]}活动</div>`;
+      return;
+    }
+    // 桌面表格
+    if (body) {
+      body.innerHTML = list.map(a => {
+        const st = mktStatus(a);
+        return `<tr>
+          <td>${esc(a.title || '—')}</td>
+          <td>${mktRuleText(a)}</td>
+          <td>${mktTimeText(a)}</td>
+          <td><span class="${st.cls}" style="padding:2px 10px;border-radius:999px;font-size:12px;">${st.text}</span></td>
+          <td><div class="row-actions">
+            <button class="btn ${a.enabled ? 'btn-gray' : 'btn-green'}" data-act="toggle" data-id="${esc(a._id)}">${a.enabled ? '停用' : '启用'}</button>
+            <button class="btn btn-blue" data-act="edit" data-id="${esc(a._id)}">编辑</button>
+            <button class="btn btn-red" data-act="del" data-id="${esc(a._id)}">删除</button>
+          </div></td>
+        </tr>`;
+      }).join('');
+      body.querySelectorAll('button[data-act]').forEach(btn => {
+        btn.onclick = () => mktAction(btn.dataset.act, btn.dataset.id);
+      });
+    }
+    // 手机卡片
+    if (cards) {
+      cards.innerHTML = list.map(a => {
+        const st = mktStatus(a);
+        return `<div class="mkt-card-m">
+          <div class="mcm-title">${esc(a.title || '—')}</div>
+          <div class="mcm-rule">${mktRuleText(a)}</div>
+          <div class="mcm-time">${mktTimeText(a)}</div>
+          <span class="mcm-status ${st.cls}">${st.text}</span>
+          <div class="mcm-actions">
+            <button class="btn ${a.enabled ? 'btn-gray' : 'btn-green'}" data-act="toggle" data-id="${esc(a._id)}">${a.enabled ? '停用' : '启用'}</button>
+            <button class="btn btn-blue" data-act="edit" data-id="${esc(a._id)}">编辑</button>
+            <button class="btn btn-red" data-act="del" data-id="${esc(a._id)}">删除</button>
+          </div>
+        </div>`;
+      }).join('');
+      cards.querySelectorAll('button[data-act]').forEach(btn => {
+        btn.onclick = () => mktAction(btn.dataset.act, btn.dataset.id);
+      });
+    }
+  });
+}
+
+async function mktAction(act, id) {
+  const a = _mktList.find(x => x._id === id);
+  if (!a) return;
+  if (act === 'edit') openMktModal(a);
+  else if (act === 'del') {
+    if (!confirm(`确认删除活动「${a.title || mktRuleText(a)}」？`)) return;
+    const res = await api(`/api/marketing/${id}`, { method: 'DELETE' });
+    if (res.success) { toast('已删除'); await loadMarketing(); }
+    else toast(res.message || '删除失败', true);
+  } else if (act === 'toggle') {
+    const res = await api(`/api/marketing/${id}/toggle`, { method: 'PATCH' });
+    if (res.success) { toast(res.message || '已更新'); await loadMarketing(); }
+    else if (res.needUpgrade) { toast(res.message || '会员等级不足', true); }
+    else toast(res.message || '操作失败', true);
+  }
+}
+
+// 弹窗：根据类型切换字段显示
+function syncMktFields() {
+  const type = $('mktTypeSelect').value;
+  document.querySelectorAll('.mkt-fields').forEach(f => {
+    f.style.display = f.dataset.type === type ? 'block' : 'none';
+  });
+}
+
+function openMktModal(a) {
+  _mktEditing = a || null;
+  const isEdit = !!a;
+  $('mktModalTitle').textContent = isEdit ? `编辑${MKT_TYPE_NAME[a.type]}活动` : '新建营销活动';
+  // 类型下拉：新建时可选；编辑时锁定为该类型（避免越权改类型）
+  const typeSel = $('mktTypeSelect');
+  if (isEdit) {
+    typeSel.value = a.type;
+    typeSel.disabled = true;
+  } else {
+    typeSel.value = 'fullReduction';
+    typeSel.disabled = false;
+  }
+  $('mktId').value = isEdit ? a._id : '';
+  // 清空所有输入
+  ['mktThreshold','mktReduce','mktRate','mktRecharge','mktBonus','mktTitle'].forEach(id => $(id).value = '');
+  $('mktCategory').value = '';
+  if (isEdit) {
+    $('mktThreshold').value = a.threshold ?? '';
+    $('mktReduce').value = a.reduce ?? '';
+    $('mktRate').value = a.rate ?? '';
+    $('mktCategory').value = a.category || '';
+    $('mktRecharge').value = a.recharge ?? '';
+    $('mktBonus').value = a.bonus ?? '';
+    $('mktTitle').value = a.title || '';
+    $('mktStartTime').value = a.startTime ? toLocalDT(a.startTime) : '';
+    $('mktEndTime').value = a.endTime ? toLocalDT(a.endTime) : '';
+    $('mktEnabled').checked = a.enabled !== false;
+  } else {
+    // 新建默认：开始时间为当前
+    $('mktStartTime').value = toLocalDT(new Date());
+    $('mktEndTime').value = '';
+    $('mktEnabled').checked = true;
+  }
+  syncMktFields();
+  $('mktModal').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+function closeMktModal() {
+  $('mktModal').classList.remove('show');
+  document.body.style.overflow = '';
+  _mktEditing = null;
+}
+// ISO → datetime-local 输入框格式
+function toLocalDT(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+$('mktTypeSelect').onchange = syncMktFields;
+$('mktCloseBtn').onclick = closeMktModal;
+$('mktCancelBtn').onclick = closeMktModal;
+['mktAdd-fullReduction','mktAdd-discount','mktAdd-rechargeBonus'].forEach(id => {
+  const el = $(id);
+  if (el) el.onclick = () => {
+    // 新建时预设对应类型
+    const type = id.replace('mktAdd-', '');
+    openMktModal(null);
+    $('mktTypeSelect').value = type;
+    syncMktFields();
+  };
+});
+
+$('mktSaveBtn').onclick = async () => {
+  const type = $('mktTypeSelect').value;
+  const body = {
+    type,
+    title: $('mktTitle').value.trim(),
+    enabled: $('mktEnabled').checked,
+    startTime: $('mktStartTime').value || undefined,
+    endTime: $('mktEndTime').value || null
+  };
+  if (type === 'fullReduction') {
+    body.threshold = Number($('mktThreshold').value);
+    body.reduce = Number($('mktReduce').value);
+  } else if (type === 'discount') {
+    body.rate = Number($('mktRate').value);
+    body.category = $('mktCategory').value;
+  } else if (type === 'rechargeBonus') {
+    body.recharge = Number($('mktRecharge').value);
+    body.bonus = Number($('mktBonus').value);
+  }
+  const btn = $('mktSaveBtn');
+  btn.disabled = true; btn.textContent = '保存中…';
+  try {
+    const id = $('mktId').value;
+    let res;
+    if (id) {
+      res = await api(`/api/marketing/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    } else {
+      res = await api('/api/marketing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    }
+    if (res.success) { toast(res.message || '已保存'); closeMktModal(); await loadMarketing(); }
+    else if (res.needUpgrade) { toast(res.message || '会员等级不足', true); }
+    else toast(res.message || '保存失败', true);
+  } finally {
+    btn.disabled = false; btn.textContent = '保存';
+  }
 };

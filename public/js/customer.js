@@ -12,6 +12,7 @@ let categories = [];
 let currentCategory = '';
 let spyLockUntil = 0; // 点击分类平滑滚动期间暂停滚动联动
 let dishMap = {};     // { dishId: dish }
+let activeMarketing = []; // 当前生效的满减/折扣活动（/api/marketing/active 返回）
 
 const $ = (id) => document.getElementById(id);
 
@@ -190,12 +191,43 @@ async function loadData() {
     highlightSidebar();
     $('skeleton').style.display = 'none';
     $('main').style.display = 'flex';
+    // 拉取生效中的营销活动，渲染顶部横幅 + 凑单提示
+    await loadActiveMarketing();
     updateCartUI();
   } catch (e) {
     $('skeleton').style.display = 'none';
     $('main').style.display = 'block';
     $('content').innerHTML = '<div class="empty-tip"><div class="icon">😵</div>加载失败，请刷新重试</div>';
   }
+}
+
+/* ---------- 营销活动：拉取生效中的满减/折扣 ---------- */
+async function loadActiveMarketing() {
+  try {
+    const res = await fetch(`/api/marketing/active?shopId=${encodeURIComponent(SHOP_ID)}`).then(r => r.json());
+    activeMarketing = (res && res.success && Array.isArray(res.data)) ? res.data : [];
+  } catch (e) {
+    activeMarketing = [];
+  }
+  renderPromoBanner();
+}
+
+function renderPromoBanner() {
+  const banner = $('promoBanner');
+  const inner = $('promoInner');
+  if (!banner || !inner) return;
+  if (!activeMarketing.length) { banner.style.display = 'none'; return; }
+  const parts = [];
+  activeMarketing.forEach(r => {
+    if (r.type === 'fullReduction') {
+      parts.push(`<span class="pi-tag">满减</span><span class="pi-txt">满 ¥${fmtMoney(r.threshold)} 减 ¥${fmtMoney(r.reduce)}</span>`);
+    } else if (r.type === 'discount') {
+      const zhe = Math.round(Number(r.rate) * 10);
+      parts.push(`<span class="pi-tag">折扣</span><span class="pi-txt">${r.category ? esc(r.category) + ' ' : '全场 '}${zhe}折</span>`);
+    }
+  });
+  inner.innerHTML = parts.join('<span style="opacity:.5;">·</span>');
+  banner.style.display = 'block';
 }
 
 /* ---------- 渲染菜单 ---------- */
@@ -278,6 +310,87 @@ function fmtMoney(n) {
   return (Math.round(n * 100) / 100).toString();
 }
 
+/* ---------- 营销优惠计算（与后端 utils/marketingCalc.js 逻辑一致） ---------- */
+// items: [{ dishName, price, quantity, category }]；rules: [{ type, threshold, reduce, rate, category }]
+// 顺序：先按品类应用折扣得「折扣后小计」，再基于该小计应用满减
+function computeDiscount(items, rules) {
+  items = Array.isArray(items) ? items : [];
+  rules = Array.isArray(rules) ? rules : [];
+  const originalTotal = items.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.quantity) || 0), 0);
+  let globalRate = 1;
+  const catRates = {};
+  for (const r of rules) {
+    if (r.type !== 'discount') continue;
+    const rate = Math.max(0.01, Math.min(1, Number(r.rate) || 1));
+    if (!r.category) globalRate = Math.min(globalRate, rate);
+    else {
+      const cur = catRates[r.category];
+      if (cur == null || rate < cur) catRates[r.category] = rate;
+    }
+  }
+  let discountSubtotal = 0;
+  const itemDiscounts = [];
+  for (const it of items) {
+    const lineOriginal = (Number(it.price) || 0) * (Number(it.quantity) || 0);
+    const rate = (catRates[it.category] != null) ? catRates[it.category] : globalRate;
+    discountSubtotal += lineOriginal * rate;
+    if (rate < 1) itemDiscounts.push({ name: it.dishName, category: it.category, rate, saved: +(lineOriginal - lineOriginal * rate).toFixed(2) });
+  }
+  const itemDiscountAmount = +(originalTotal - discountSubtotal).toFixed(2);
+  let bestFull = null;
+  for (const r of rules) {
+    if (r.type !== 'fullReduction') continue;
+    const threshold = Number(r.threshold) || 0;
+    const reduce = Number(r.reduce) || 0;
+    if (threshold > 0 && reduce > 0 && discountSubtotal >= threshold - 1e-9) {
+      if (!bestFull || reduce > bestFull.reduce) bestFull = { threshold, reduce };
+    }
+  }
+  const fullReductionAmount = bestFull ? +bestFull.reduce.toFixed(2) : 0;
+  const finalTotal = +Math.max(0, discountSubtotal - fullReductionAmount).toFixed(2);
+  return {
+    originalTotal: +originalTotal.toFixed(2),
+    discountSubtotal: +discountSubtotal.toFixed(2),
+    itemDiscountAmount, fullReductionAmount,
+    discountAmount: +(originalTotal - finalTotal).toFixed(2),
+    finalTotal, bestFull,
+    discountRules: rules.filter(r => r.type === 'discount'),
+    fullReductionRules: rules.filter(r => r.type === 'fullReduction')
+  };
+}
+// 当前购物车的优惠计算结果
+function getCartCalc() {
+  const items = getCartArray().map(i => ({ dishName: i.dish.name, price: i.dish.price, quantity: i.quantity, category: i.dish.category }));
+  return computeDiscount(items, activeMarketing);
+}
+// 凑单提示文案：找下一个未达门槛的满减
+function buildHintText(calc) {
+  if (!activeMarketing.length) return '';
+  const sub = calc.discountSubtotal; // 折扣后小计，满减基于此判定
+  const fulls = activeMarketing.filter(r => r.type === 'fullReduction')
+    .map(r => ({ threshold: Number(r.threshold), reduce: Number(r.reduce) }))
+    .filter(r => r.threshold > 0 && r.reduce > 0)
+    .sort((a, b) => a.threshold - b.threshold);
+  if (fulls.length) {
+    // 已达最高档
+    const maxMet = fulls.filter(f => sub >= f.threshold - 1e-9)
+      .sort((a, b) => b.reduce - a.reduce)[0];
+    const next = fulls.find(f => sub < f.threshold - 1e-9);
+    if (maxMet && !next) return `已享满${maxMet.threshold}减${maxMet.reduce}`;
+    if (next) {
+      const diff = +(next.threshold - sub).toFixed(2);
+      return `再买¥${fmtMoney(diff)}可减¥${next.reduce}`;
+    }
+  }
+  // 仅有折扣：提示折扣
+  const dr = activeMarketing.find(r => r.type === 'discount');
+  if (dr) {
+    const zhe = Math.round(Number(dr.rate) * 10);
+    return dr.category ? `${dr.category}${zhe}折进行中` : `全场${zhe}折进行中`;
+  }
+  return '';
+}
+
 function addOne(id) {
   const d = dishMap[id];
   if (!d || d.isAvailable === false) return;
@@ -309,12 +422,26 @@ function bumpCartIcon() {
 
 function updateCartUI() {
   const count = cartCount();
-  const total = fmtMoney(cartTotal());
+  const calc = getCartCalc();
+  const total = fmtMoney(calc.finalTotal);
   const badge = $('cartBadge');
   badge.textContent = count;
   badge.style.display = count > 0 ? 'flex' : 'none';
+  // 购物车栏显示实付金额（已应用优惠）
   $('cartTotal').textContent = total;
   $('cartCount').textContent = count > 0 ? `已选 ${count} 件` : '未选购商品';
+  // 凑单提示
+  const hintEl = $('cartHint');
+  const sheetHintEl = $('sheetHint');
+  if (count > 0 && activeMarketing.length) {
+    const txt = buildHintText(calc);
+    const hit = !!calc.bestFull;
+    if (hintEl) { hintEl.textContent = txt; hintEl.classList.toggle('hit', hit); }
+    if (sheetHintEl) { sheetHintEl.textContent = txt; sheetHintEl.classList.toggle('hit', hit); }
+  } else {
+    if (hintEl) hintEl.textContent = '';
+    if (sheetHintEl) sheetHintEl.textContent = '';
+  }
   $('checkoutBtn').disabled = count === 0;
   if ($('cartMask').classList.contains('show')) renderCartSheet();
 }
@@ -322,7 +449,7 @@ function updateCartUI() {
 /* ---------- 购物车清单弹层 ---------- */
 function renderCartSheet() {
   const arr = getCartArray();
-  $('sheetTotal').textContent = fmtMoney(cartTotal());
+  $('sheetTotal').textContent = fmtMoney(getCartCalc().finalTotal);
   $('cartList').innerHTML = arr.map(i => {
     const ph = phStyle(i.dish);
     return `
@@ -410,7 +537,8 @@ let tablesCache = null; // 桌台列表缓存（缺桌号参数时用于选择�
 
 async function renderCheckout() {
   const arr = getCartArray();
-  $('ckTotal').textContent = fmtMoney(cartTotal());
+  const calc = getCartCalc();
+  $('ckTotal').textContent = fmtMoney(calc.finalTotal);
   $('ckTable').textContent = formatTable(tableNumber);
   // 未从二维码取到桌号：优先让顾客从桌台列表选，无桌台数据则手填
   const pickRow = $('ckTablePickRow');
@@ -446,6 +574,34 @@ async function renderCheckout() {
       <span class="ck-item-total">¥${fmtMoney(i.dish.price * i.quantity)}</span>
     </div>`;
   }).join('');
+  // 优惠明细卡片（有满减/折扣时显示）
+  renderDiscountCard(calc);
+}
+
+function renderDiscountCard(calc) {
+  const card = $('ckDiscountCard');
+  const body = $('ckDiscountBody');
+  if (!card || !body) return;
+  if (!activeMarketing.length || calc.discountAmount <= 0) {
+    card.style.display = 'none';
+    body.innerHTML = '';
+    return;
+  }
+  card.style.display = 'block';
+  const rows = [];
+  rows.push(`<div class="ck-disc-row"><span>商品原价</span><span class="ck-disc-val">¥${fmtMoney(calc.originalTotal)}</span></div>`);
+  if (calc.itemDiscountAmount > 0) {
+    // 折扣明细：列出全场/分类折扣
+    const dr = activeMarketing.find(r => r.type === 'discount');
+    const label = dr ? (dr.category ? `${dr.category}折扣` : '全场折扣') : '折扣';
+    const zhe = dr ? Math.round(Number(dr.rate) * 10) + '折' : '';
+    rows.push(`<div class="ck-disc-row discount"><span>${label}${zhe ? '·' + zhe : ''}</span><span class="ck-disc-val">-¥${fmtMoney(calc.itemDiscountAmount)}</span></div>`);
+  }
+  if (calc.fullReductionAmount > 0 && calc.bestFull) {
+    rows.push(`<div class="ck-disc-row discount"><span>满减（满${calc.bestFull.threshold}减${calc.bestFull.reduce}）</span><span class="ck-disc-val">-¥${fmtMoney(calc.fullReductionAmount)}</span></div>`);
+  }
+  rows.push(`<div class="ck-disc-row total"><span>实付</span><span class="ck-disc-val">¥${fmtMoney(calc.finalTotal)}</span></div>`);
+  body.innerHTML = rows.join('');
 }
 
 async function openCheckout() {
@@ -473,7 +629,7 @@ $('ckSubmitBtn').onclick = async () => {
   }
   if (!table) { toast('请选择或填写桌台号'); return; }
   tableNumber = table; // 记住本次使用的桌号
-  const items = arr.map(i => ({ dishName: i.dish.name, price: i.dish.price, quantity: i.quantity }));
+  const items = arr.map(i => ({ dishName: i.dish.name, price: i.dish.price, quantity: i.quantity, category: i.dish.category || '' }));
   const remark = $('ckRemark').value.trim().slice(0, 200);
   const btn = $('ckSubmitBtn');
   btn.disabled = true;

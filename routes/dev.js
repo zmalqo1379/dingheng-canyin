@@ -8,6 +8,7 @@ const Member = require('../models/Member');
 const RebateRule = require('../models/RebateRule');
 const RebateSettlement = require('../models/RebateSettlement');
 const CoinRule = require('../models/CoinRule');
+const Marketing = require('../models/Marketing');
 const rebate = require('../utils/rebate');
 const coinRule = require('../utils/coinRule');
 const { requireDev } = require('../middlewares/auth');
@@ -474,6 +475,50 @@ router.get('/rebate/settlements', async (req, res) => {
       .sort({ month: -1, settledAt: -1 })
       .lean();
     res.json({ success: true, data: list });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ 各商家营销活动总览（只读）============
+// GET /api/dev/marketing  返回全平台所有商家的营销活动，附商家名
+router.get('/marketing', async (req, res) => {
+  try {
+    const list = await Marketing.find().sort({ createdAt: -1 }).lean();
+    const shopIds = [...new Set(list.map(m => m.shopId).filter(Boolean))];
+    const accounts = shopIds.length
+      ? await ShopAccount.find({ shopId: { $in: shopIds } }).select('shopId shopName -_id').lean()
+      : [];
+    const nameMap = {};
+    accounts.forEach(a => { nameMap[a.shopId] = a.shopName; });
+
+    const TYPE_NAME = { fullReduction: '满减', discount: '折扣', rechargeBonus: '充值送' };
+    const now = new Date();
+    const data = list.map(m => {
+      const inWindow = (!m.startTime || m.startTime <= now) && (!m.endTime || m.endTime >= now);
+      const active = m.enabled && inWindow;
+      return {
+        _id: m._id,
+        shopId: m.shopId,
+        shopName: m.shopName || nameMap[m.shopId] || '未命名商家',
+        type: m.type,
+        typeName: TYPE_NAME[m.type] || m.type,
+        threshold: m.threshold,
+        reduce: m.reduce,
+        rate: m.rate,
+        category: m.category,
+        recharge: m.recharge,
+        bonus: m.bonus,
+        title: m.title,
+        startTime: m.startTime,
+        endTime: m.endTime,
+        enabled: m.enabled,
+        inWindow,
+        active,
+        createdAt: m.createdAt
+      };
+    });
+    res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

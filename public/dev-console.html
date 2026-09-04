@@ -420,6 +420,7 @@
         <div class="nav-item" data-tab="rebate"><span class="icon">📊</span> 返点中心</div>
         <div class="nav-item" data-tab="coinrules"><span class="icon">🪙</span> 得币倍率</div>
         <div class="nav-item" data-tab="reconcile"><span class="icon">💰</span> 对账中心</div>
+        <div class="nav-item" data-tab="marketing"><span class="icon">🎯</span> 营销活动</div>
         <div class="nav-item" data-tab="system"><span class="icon">⚙️</span> 系统设置</div>
       </nav>
       <div class="nav-tip">第一阶段简版 · 后续阶段完善</div>
@@ -629,7 +630,46 @@
         </div>
       </section>
 
-      <!-- 7. 系统设置 -->
+      <!-- 7. 营销活动总览（各商家，只读） -->
+      <section class="pane" id="pane-marketing">
+        <div class="pane-title">🎯 营销活动总览</div>
+        <p style="font-size:13px;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;margin:0 0 14px;">
+          💡 查看全平台各商家的满减 / 折扣 / 充值送活动，仅只读。
+        </p>
+        <div class="filter-bar">
+          <label>类型
+            <select id="mktFilterType">
+              <option value="">全部</option>
+              <option value="fullReduction">满减</option>
+              <option value="discount">折扣</option>
+              <option value="rechargeBonus">充值送</option>
+            </select>
+          </label>
+          <label>状态
+            <select id="mktFilterActive">
+              <option value="">全部</option>
+              <option value="1">进行中</option>
+              <option value="0">未开始/已结束/停用</option>
+            </select>
+          </label>
+          <button class="btn btn-primary" id="mktQueryBtn">查询</button>
+        </div>
+        <div class="section-title">活动列表</div>
+        <div class="table-wrap">
+          <table class="dtable" style="min-width:780px;">
+            <thead>
+              <tr>
+                <th>商家</th><th>类型</th><th>标题/规则</th><th>生效时间</th><th>状态</th><th>创建时间</th>
+              </tr>
+            </thead>
+            <tbody id="mktTbody">
+              <tr><td colspan="6" class="no-data">点击查询加载</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 8. 系统设置 -->
       <section class="pane" id="pane-system">
         <div class="pane-title">⚙️ 系统设置</div>
         <div class="placeholder">
@@ -787,6 +827,7 @@
         if (tab === 'rebate') initRebateTab();
         if (tab === 'coinrules') loadCoinRules();
         if (tab === 'reconcile') initReconcile();
+        if (tab === 'marketing') loadMarketingDev();
       };
     });
 
@@ -809,6 +850,61 @@
       $('supplierCount').textContent = ok ? (res.data.supplierCount || 0) : '0';
       $('monthlyTotal').textContent = ok ? Number(res.data.monthlyPurchaseTotal || 0).toFixed(2) : '0.00';
     }
+
+    // ============ 营销活动总览（各商家，只读） ============
+    let _mktDevCache = [];
+    function mktRuleTextDev(m) {
+      if (m.type === 'fullReduction') return `满 ¥${Number(m.threshold).toFixed(2)} 减 ¥${Number(m.reduce).toFixed(2)}`;
+      if (m.type === 'discount') {
+        const zhe = Math.round(Number(m.rate) * 10);
+        return m.category ? `${m.category} ${zhe}折` : `全场 ${zhe}折`;
+      }
+      if (m.type === 'rechargeBonus') return `充 ¥${Number(m.recharge).toFixed(2)} 送 ¥${Number(m.bonus).toFixed(2)}`;
+      return '—';
+    }
+    async function loadMarketingDev() {
+      const tbody = $('mktTbody');
+      tbody.innerHTML = '<tr><td colspan="6" class="no-data">加载中...</td></tr>';
+      const res = await api('/api/dev/marketing');
+      if (!res.success || !Array.isArray(res.data)) {
+        tbody.innerHTML = `<tr><td colspan="6" class="no-data">${esc(res.message || '加载失败')}</td></tr>`;
+        return;
+      }
+      _mktDevCache = res.data;
+      renderMktDev();
+    }
+    function renderMktDev() {
+      const tbody = $('mktTbody');
+      const fType = $('mktFilterType').value;
+      const fActive = $('mktFilterActive').value;
+      let list = _mktDevCache;
+      if (fType) list = list.filter(m => m.type === fType);
+      if (fActive === '1') list = list.filter(m => m.active === true);
+      if (fActive === '0') list = list.filter(m => m.active !== true);
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="no-data">暂无活动</td></tr>';
+        return;
+      }
+      const STATUS = { on: 's-done', future: 's-pending', expired: 's-pending', off: '' };
+      tbody.innerHTML = list.map(m => {
+        let stTxt, stCls;
+        if (!m.enabled) { stTxt = '已停用'; stCls = ''; }
+        else if (m.active) { stTxt = '进行中'; stCls = 's-done'; }
+        else if (m.inWindow === false) { stTxt = '已结束'; stCls = 's-pending'; }
+        else { stTxt = '未开始'; stCls = 's-pending'; }
+        const titleRule = (m.title ? esc(m.title) + '<br>' : '') + mktRuleTextDev(m);
+        return `
+        <tr>
+          <td data-label="商家"><b>${esc(m.shopName)}</b><br><span style="font-size:11px;color:#9ca3af;">${esc(m.shopId)}</span></td>
+          <td data-label="类型">${esc(m.typeName)}</td>
+          <td data-label="规则">${titleRule}</td>
+          <td data-label="生效时间">${fmtDate(m.startTime)} ~ ${m.endTime ? fmtDate(m.endTime) : '长期'}</td>
+          <td data-label="状态"><span class="tag ${stCls}">${stTxt}</span></td>
+          <td data-label="创建时间">${fmtTime(m.createdAt)}</td>
+        </tr>`;
+      }).join('');
+    }
+    $('mktQueryBtn').onclick = renderMktDev;
 
     // ============ 得币倍率配置 ============
     async function loadCoinRules() {

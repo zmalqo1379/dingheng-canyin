@@ -26,7 +26,9 @@ module.exports = {
   // 功能权限映射（用于接口鉴权，按会员等级开放）
   features: {
     customerPoints: ['advanced', 'premium'], // 顾客积分（食客积分）
-    marketingFull: ['premium'],              // 满减、充值送等高级营销
+    marketingDiscount: ['advanced', 'premium'], // 满减、折扣活动
+    marketingRecharge: ['premium'],            // 充值送活动
+    marketingFull: ['premium'],               // 兼容旧字段（满减+充值送等高级营销合集）
     reportBasic: ['advanced', 'premium'],    // 经营报表
     reportAdvanced: ['premium']              // 顾客画像、损耗分析
   }

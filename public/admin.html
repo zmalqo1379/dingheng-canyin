@@ -297,6 +297,7 @@
     .btn-red { background: #fee2e2; color: var(--red); }
     .btn-orange { background: var(--accent); color: #fff; }
     .btn-gray { background: #f3f4f6; color: #6b7280; }
+    .btn-green { background: #dcfce7; color: var(--green); }
     .btn-add {
       background: var(--accent); color: #fff;
       padding: 9px 18px; border-radius: 9px;
@@ -1631,6 +1632,26 @@
       }
       .preview-frame { border-radius: 0; }
     }
+
+    /* ============ 营销活动 ============ */
+    .mkt-sub { font-size: 12px; font-weight: 400; color: #9ca3af; margin-left: 4px; }
+    .mkt-cards-mobile { display: none; }
+    .mkt-card-m { background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.05); padding: 14px; margin-bottom: 10px; }
+    .mkt-card-m .mcm-title { font-weight: 600; font-size: 15px; color: #1f2937; margin-bottom: 4px; }
+    .mkt-card-m .mcm-rule { color: var(--accent); font-weight: 700; font-size: 14px; margin: 6px 0; }
+    .mkt-card-m .mcm-time { font-size: 12px; color: #9ca3af; line-height: 1.5; }
+    .mkt-card-m .mcm-status { display: inline-block; font-size: 11px; padding: 2px 10px; border-radius: 999px; margin-top: 8px; }
+    .mkt-card-m .mcm-actions { display: flex; gap: 8px; margin-top: 12px; }
+    .mkt-card-m .mcm-actions .btn { flex: 1; padding: 8px 0; font-size: 13px; }
+    .mkt-status-on { background: #dcfce7; color: #16a34a; }
+    .mkt-status-off { background: #f3f4f6; color: #6b7280; }
+    .mkt-status-future { background: #fef3c7; color: #b45309; }
+    .mkt-status-expired { background: #fee2e2; color: #ef4444; }
+    @media (max-width: 768px) {
+      /* 营销活动手机端：表格 → 卡片 */
+      #pane-marketing .table-wrap { display: none; }
+      #pane-marketing .mkt-cards-mobile { display: block; }
+    }
   </style>
 </head>
 <body>
@@ -1660,6 +1681,7 @@
         <div class="nav-item" data-tab="mall"><span class="icon">🛒</span> 采购商城</div>
         <div class="nav-item" data-tab="purchase"><span class="icon">📑</span> 采购订单</div>
         <div class="nav-item" data-tab="points"><span class="icon">⭐</span> 顾客积分</div>
+        <div class="nav-item" data-tab="marketing"><span class="icon">🎯</span> 营销活动</div>
         <div class="nav-divider"></div>
         <div class="nav-group-title">店铺运营</div>
         <a class="nav-tool" data-tool="customer" target="_blank" rel="noopener"><span class="icon">🍴</span> 预览点餐页</a>
@@ -2315,7 +2337,157 @@
           </div>
         </div>
       </section>
+
+      <!-- ============ 营销活动（满减 / 折扣 / 充值送） ============ -->
+      <section class="pane" id="pane-marketing">
+        <div class="pane-title"><span>🎯 营销活动</span></div>
+
+        <!-- 全局锁：基础版无任何营销权限 -->
+        <div id="marketingLockedAll" class="locked-mask" style="display:none;">
+          <div class="locked-content">
+            <div class="locked-icon">🔒</div>
+            <h3>升级解锁营销活动</h3>
+            <p>满减、折扣活动为<b>进阶版</b>及以上可用；充值送为<b>尊享版</b>专属。开通会员即可创建活动，自动在顾客点餐页生效。</p>
+            <button class="btn-add" onclick="switchTab('coin')">去升级会员</button>
+          </div>
+        </div>
+
+        <div id="marketingPanel" style="display:none;">
+          <!-- 满减活动 -->
+          <div class="card" id="mktCard-fullReduction" style="margin-bottom:18px;">
+            <div class="card-head">
+              <h3>💸 满减活动 <span class="mkt-sub">（进阶版及以上）</span></h3>
+              <button class="btn-add" id="mktAdd-fullReduction">＋ 新建满减</button>
+            </div>
+            <div class="table-wrap">
+              <table class="data" style="min-width:640px;">
+                <thead><tr><th>活动标题</th><th>规则</th><th>生效时间</th><th>状态</th><th>操作</th></tr></thead>
+                <tbody id="mktBody-fullReduction"><tr><td colspan="5" class="empty">加载中…</td></tr></tbody>
+              </table>
+            </div>
+            <div class="mkt-cards-mobile" id="mktCards-fullReduction"></div>
+          </div>
+
+          <!-- 折扣活动 -->
+          <div class="card" id="mktCard-discount" style="margin-bottom:18px;">
+            <div class="card-head">
+              <h3>🏷️ 折扣活动 <span class="mkt-sub">（进阶版及以上）</span></h3>
+              <button class="btn-add" id="mktAdd-discount">＋ 新建折扣</button>
+            </div>
+            <div class="table-wrap">
+              <table class="data" style="min-width:640px;">
+                <thead><tr><th>活动标题</th><th>规则</th><th>生效时间</th><th>状态</th><th>操作</th></tr></thead>
+                <tbody id="mktBody-discount"><tr><td colspan="5" class="empty">加载中…</td></tr></tbody>
+              </table>
+            </div>
+            <div class="mkt-cards-mobile" id="mktCards-discount"></div>
+          </div>
+
+          <!-- 充值送 -->
+          <div class="card" id="mktCard-rechargeBonus">
+            <div class="card-head">
+              <h3>💰 充值送 <span class="mkt-sub">（尊享版专属）</span></h3>
+              <button class="btn-add" id="mktAdd-rechargeBonus">＋ 新建充值送</button>
+            </div>
+            <div id="rechargeLockedInline" class="locked-mask" style="display:none;margin:0;">
+              <div class="locked-content" style="padding:28px 20px;">
+                <div class="locked-icon">🔒</div>
+                <h3>尊享版专属</h3>
+                <p>充值送活动为<b>尊享版</b>会员专属功能，升级后可创建「充 A 送 B」规则（储值账户体系后续接入）。</p>
+                <button class="btn-add" onclick="switchTab('coin')">去升级尊享版</button>
+              </div>
+            </div>
+            <div class="table-wrap" id="rechargeTableWrap">
+              <table class="data" style="min-width:640px;">
+                <thead><tr><th>活动标题</th><th>规则</th><th>生效时间</th><th>状态</th><th>操作</th></tr></thead>
+                <tbody id="mktBody-rechargeBonus"><tr><td colspan="5" class="empty">加载中…</td></tr></tbody>
+              </table>
+            </div>
+            <div class="mkt-cards-mobile" id="mktCards-rechargeBonus"></div>
+          </div>
+        </div>
+      </section>
     </main>
+  </div>
+</div>
+
+<!-- ============ 营销活动弹窗 ============ -->
+<div class="mask" id="mktModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="mktModalTitle">新建营销活动</h3>
+      <button class="x" id="mktCloseBtn">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="mktId">
+      <input type="hidden" id="mktType" value="fullReduction">
+      <div class="form-group">
+        <label>活动类型</label>
+        <select class="form-select" id="mktTypeSelect">
+          <option value="fullReduction">满减（满 X 元减 Y 元）</option>
+          <option value="discount">折扣（全场/分类折扣）</option>
+          <option value="rechargeBonus">充值送（充 A 送 B）</option>
+        </select>
+      </div>
+
+      <!-- 满减字段 -->
+      <div class="mkt-fields" data-type="fullReduction">
+        <div class="form-group">
+          <label>满减门槛（元）</label>
+          <input type="number" class="form-input" id="mktThreshold" min="0" step="0.01" placeholder="如 100">
+        </div>
+        <div class="form-group">
+          <label>减免金额（元）</label>
+          <input type="number" class="form-input" id="mktReduce" min="0" step="0.01" placeholder="如 20">
+        </div>
+      </div>
+
+      <!-- 折扣字段 -->
+      <div class="mkt-fields" data-type="discount" style="display:none;">
+        <div class="form-group">
+          <label>折扣率（0~1，如 0.8 表示 8 折）</label>
+          <input type="number" class="form-input" id="mktRate" min="0.01" max="0.99" step="0.01" placeholder="如 0.8">
+        </div>
+        <div class="form-group">
+          <label>适用分类（留空=全场折扣）</label>
+          <select class="form-select" id="mktCategory"><option value="">全场</option></select>
+        </div>
+      </div>
+
+      <!-- 充值送字段 -->
+      <div class="mkt-fields" data-type="rechargeBonus" style="display:none;">
+        <div class="form-group">
+          <label>充值金额（元）</label>
+          <input type="number" class="form-input" id="mktRecharge" min="0" step="0.01" placeholder="如 100">
+        </div>
+        <div class="form-group">
+          <label>赠送金额（元）</label>
+          <input type="number" class="form-input" id="mktBonus" min="0" step="0.01" placeholder="如 20">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>活动标题（可选，留空自动生成）</label>
+        <input type="text" class="form-input" id="mktTitle" maxlength="40" placeholder="如：周末满100减20">
+      </div>
+      <div class="form-group">
+        <label>开始时间</label>
+        <input type="datetime-local" class="form-input" id="mktStartTime">
+      </div>
+      <div class="form-group">
+        <label>结束时间（留空=长期有效）</label>
+        <input type="datetime-local" class="form-input" id="mktEndTime">
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="mktEnabled" checked style="width:16px;height:16px;"> 立即启用
+        </label>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-gray" id="mktCancelBtn">取消</button>
+      <button class="btn btn-orange" id="mktSaveBtn">保存</button>
+    </div>
   </div>
 </div>
 

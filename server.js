@@ -25,8 +25,11 @@ const authRouter = require('./routes/auth');
 const devRouter = require('./routes/dev');
 const supplierRouter = require('./routes/supplier');
 const supplyProductsRouter = require('./routes/supplyProducts');
+const marketingRouter = require('./routes/marketing');
 const Admin = require('./models/Admin');
 const { startDhCron } = require('./utils/dhCron');
+const Marketing = require('./models/Marketing');
+const { computeDiscount } = require('./utils/marketingCalc');
 const {
   extractPublicShopId,
   requirePublicShopId,
@@ -121,15 +124,36 @@ app.post('/api/orders', requirePublicShopId, async (req, res) => {
     if (!tableNumber || !items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ success: false, message: '桌号和菜品不能为空' });
     }
-    let totalPrice = 0;
-    items.forEach(item => {
-      totalPrice += item.price * item.quantity;
-    });
     const shopId = req.publicShopId;
+    // 拉取当前生效的满减/折扣活动，后端权威计算优惠金额（前端只负责展示）
+    const now = new Date();
+    const activeRules = await Marketing.find({
+      shopId,
+      type: { $in: ['fullReduction', 'discount'] },
+      enabled: true,
+      $or: [{ endTime: null }, { endTime: { $gte: now } }],
+      startTime: { $lte: now }
+    }).lean();
+    const calc = computeDiscount(items, activeRules);
     const order = await Order.create({
       tableNumber,
       items,
-      totalPrice,
+      totalPrice: calc.finalTotal,
+      originalTotal: calc.originalTotal,
+      discountAmount: calc.discountAmount,
+      discountDetail: {
+        itemDiscount: calc.itemDiscountAmount,
+        fullReduction: calc.fullReductionAmount,
+        finalTotal: calc.finalTotal,
+        appliedRules: activeRules.map(r => ({
+          type: r.type,
+          threshold: r.threshold,
+          reduce: r.reduce,
+          rate: r.rate,
+          category: r.category,
+          title: r.title
+        }))
+      },
       remark: String(remark || '').slice(0, 200),
       status: 'pending',
       shopId
@@ -533,6 +557,7 @@ app.use('/api/dev', devRouter);
 app.use('/api/supplier', supplierRouter);
 app.use('/api', coinRouter);
 app.use('/api/supply-products', supplyProductsRouter);
+app.use('/api/marketing', marketingRouter);
 
 // 供应商列表（公开浏览 + 管理端展示，不涉及多商家隔离）
 app.get('/api/suppliers', async (req, res) => {

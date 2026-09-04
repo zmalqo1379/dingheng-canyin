@@ -75,6 +75,15 @@
       letter-spacing: 6px;
       margin-bottom: 16px;
       text-shadow: 0 4px 18px rgba(0,0,0,0.2);
+      line-height: 1.15;
+    }
+    /* 主标题副段：完整版「鼎恒科技·智能餐饮管理平台」 */
+    .hero h1 .h1-sub {
+      font-size: 0.5em;
+      letter-spacing: 2px;
+      font-weight: 700;
+      margin-left: 0.12em;
+      opacity: 0.96;
     }
     .hero .subtitle {
       font-size: 18px;
@@ -172,6 +181,8 @@
       }
       .logo-badge { width: 58px; height: 58px; margin-bottom: 12px; }
       .hero h1 { font-size: 24px; letter-spacing: 3px; margin-bottom: 8px; }
+      /* 手机端主标题分两行：「鼎恒科技」一行，「·智能餐饮管理平台」一行 */
+      .hero h1 .h1-sub { display: block; font-size: 13px; letter-spacing: 1px; margin: 2px 0 0; }
       .hero .subtitle { font-size: 13px; letter-spacing: 1px; }
       .hero .tag { margin-top: 14px; font-size: 11px; letter-spacing: 3px; padding: 6px 14px; }
 
@@ -247,7 +258,7 @@
       <circle cx="48" cy="76" r="2" fill="#ffffff" fill-opacity="0.9"/>
       <circle cx="62" cy="76" r="2" fill="#ffffff" fill-opacity="0.65"/>
     </svg>
-    <h1>鼎恒科技</h1>
+    <h1>鼎恒科技<span class="h1-sub">·智能餐饮管理平台</span></h1>
     <p class="subtitle">扫码点餐 · 供应链采购 · 数字化经营</p>
     <div class="tag">全链路餐饮数字化解决方案</div>
   </section>

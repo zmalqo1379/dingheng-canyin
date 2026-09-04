@@ -409,6 +409,8 @@ router.get('/member/permissions/:shopId', async (req, res) => {
       success: true,
       data: {
         customerPoints: has('customerPoints'),
+        marketingDiscount: has('marketingDiscount'),
+        marketingRecharge: has('marketingRecharge'),
         marketingFull: has('marketingFull'),
         reportBasic: has('reportBasic'),
         reportAdvanced: has('reportAdvanced'),
