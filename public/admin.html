@@ -921,6 +921,35 @@
       .vplan-card.pro:hover { transform: translateY(-3px); }
     }
 
+    /* 升级引导：goUpgrade 跳转定位时目标卡片 2 秒呼吸高亮（1s × 2 次） */
+    @keyframes upgradeGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(255,107,53,0); }
+      50% { box-shadow: 0 0 0 8px rgba(255,107,53,.30), 0 0 28px rgba(255,107,53,.50); }
+    }
+    .upgrade-glow { animation: upgradeGlow 1s ease-in-out 2; }
+
+    /* 会员卡片"全部功能"可展开行：卡片内自包含完整继承权益，免上下滚动对照 */
+    .vplan-features li.vplan-inherit-item { display: block; padding: 0; margin-top: 4px; }
+    .vplan-features li.vplan-inherit-item::before { content: none; }
+    .vplan-inherit-toggle {
+      width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      background: none; border: none; padding: 7px 0; cursor: pointer;
+      font-size: 14px; font-weight: 700; color: #374151; text-align: left; font-family: inherit;
+    }
+    .vplan-inherit-toggle:hover { color: var(--accent); }
+    .vplan-card.premium .vplan-inherit-toggle { color: #e5e7eb; }
+    .vplan-card.premium .vplan-inherit-toggle:hover { color: #fbbf24; }
+    .vi-arrow { font-size: 12px; color: #9ca3af; transition: transform .2s; flex-shrink: 0; }
+    .vplan-inherit-item.open .vi-arrow { transform: rotate(180deg); }
+    .vplan-inherit-list {
+      display: none; list-style: none; margin: 2px 0 6px; padding: 8px 12px;
+      background: rgba(255,107,53,.06); border-radius: 10px;
+    }
+    .vplan-card.premium .vplan-inherit-list { background: rgba(252,211,77,.08); }
+    .vplan-inherit-item.open .vplan-inherit-list { display: block; }
+    .vplan-inherit-list li { font-size: 13px; padding: 5px 0; }
+    .vplan-card.premium .vplan-inherit-list li { color: #d1d5db; }
+
     /* ============ 三、第二屏：鼎恒币介绍 ============ */
     .coin-intro { margin: 36px 0 24px; }
     .coin-intro-title { font-size: 22px; font-weight: 800; color: #1f2937; margin-bottom: 18px; text-align: center; }
@@ -1961,17 +1990,30 @@
           </div>
 
           <!-- 进阶版（热销） -->
-          <div class="vplan-card pro">
+          <div class="vplan-card pro" id="vplanAdvanced">
             <div class="vplan-badge hot">🔥 热销</div>
             <div class="vplan-name">进阶版</div>
             <div class="vplan-price">¥99<small>/月</small></div>
             <div class="vplan-tagline">基础版全部功能，再加四项升级</div>
             <ul class="vplan-features">
               <li class="vplan-feature-highlight">返币翻倍！1元=1币</li>
-              <li class="vplan-feature-highlight">可兑 50/100 元 大额券</li>
+              <li class="vplan-feature-highlight">新增 50/100 元大额券（10-30 元券照常可兑）</li>
               <li>顾客积分系统</li>
               <li>经营报表</li>
-              <li>基础版全部功能</li>
+              <li class="vplan-inherit-item">
+                <button type="button" class="vplan-inherit-toggle" onclick="toggleInherit(this)">基础版全部功能<span class="vi-arrow">▾</span></button>
+                <ul class="vplan-inherit-list">
+                  <li>扫码点餐</li>
+                  <li>菜单管理</li>
+                  <li>桌台管理</li>
+                  <li>订单管理</li>
+                  <li>后厨语音看单</li>
+                  <li>大屏展示</li>
+                  <li>采购商城</li>
+                  <li>鼎恒币（采购 1元=1币）</li>
+                  <li>可兑 10-100 元采购抵用券</li>
+                </ul>
+              </li>
             </ul>
             <div class="vplan-footer-note">线上支付即将上线，可联系客服开通</div>
             <button class="vplan-btn" onclick="openPayTip()">立即开通</button>
@@ -1984,11 +2026,27 @@
             <div class="vplan-price">¥199<small>/月</small></div>
             <div class="vplan-tagline">进阶版全部功能，再加四项旗舰能力</div>
             <ul class="vplan-features">
-              <li class="vplan-feature-highlight">可兑 200 元 采购抵用券</li>
+              <li class="vplan-feature-highlight">新增 200 元超大额券（10-100 元券照常可兑）</li>
               <li>顾客画像</li>
               <li>损耗分析</li>
               <li>高级营销工具</li>
-              <li>进阶版全部功能</li>
+              <li class="vplan-inherit-item">
+                <button type="button" class="vplan-inherit-toggle" onclick="toggleInherit(this)">进阶版全部功能<span class="vi-arrow">▾</span></button>
+                <ul class="vplan-inherit-list">
+                  <li>扫码点餐</li>
+                  <li>菜单管理</li>
+                  <li>桌台管理</li>
+                  <li>订单管理</li>
+                  <li>后厨语音看单</li>
+                  <li>大屏展示</li>
+                  <li>采购商城</li>
+                  <li>鼎恒币（采购 1元=1币）</li>
+                  <li>可兑 10-200 元采购抵用券</li>
+                  <li>顾客积分系统</li>
+                  <li>满减活动</li>
+                  <li>经营报表</li>
+                </ul>
+              </li>
             </ul>
             <div class="vplan-footer-note">线上支付即将上线，可联系客服开通</div>
             <button class="vplan-btn gold" onclick="openPayTip()">立即开通</button>
@@ -2037,7 +2095,7 @@
               <div class="ez-tip">💡 本月采购满 3000 元即可免费攒够（会员 1元=1币），相当于：正常进货，会员白送！</div>
               <button class="ez-btn" id="ezBtnAdvanced" onclick="exchangeMembership('advanced')">立即兑换进阶版</button>
             </div>
-            <div class="ez-card premium">
+            <div class="ez-card premium" id="ezPremiumCard">
               <div class="ez-badge gold">👑 超值尊享</div>
               <div class="ez-name">尊享版月卡</div>
               <div class="ez-price"><del>原价 ¥199/月</del></div>
@@ -2296,7 +2354,7 @@
             <div class="locked-icon">🔒</div>
             <h3>升级解锁顾客积分</h3>
             <p>当前会员等级无法使用顾客积分功能，该功能可用于锁客引流，提升回头客。</p>
-            <button class="btn-add" onclick="switchTab('coin')">去升级会员</button>
+            <button class="btn-add" onclick="goUpgrade('advanced')">去升级会员</button>
           </div>
         </div>
 
@@ -2355,7 +2413,7 @@
             <div class="locked-icon">🔒</div>
             <h3>升级解锁营销活动</h3>
             <p>满减活动为<b>进阶版</b>及以上可用；折扣、充值送为<b>尊享版</b>专属。开通会员即可创建活动，自动在顾客点餐页生效。</p>
-            <button class="btn-add" onclick="switchTab('coin')">去升级会员</button>
+            <button class="btn-add" onclick="goUpgrade('advanced')">去升级会员</button>
           </div>
         </div>
 
@@ -2386,7 +2444,7 @@
                 <div class="locked-icon">🔒</div>
                 <h3>升级尊享版解锁折扣活动</h3>
                 <p>折扣活动为<b>尊享版</b>会员专属功能，升级后可对指定分类设置折扣引流。</p>
-                <button class="btn-add" onclick="switchTab('coin')">去升级尊享版</button>
+                <button class="btn-add" onclick="goUpgrade('premium')">去升级尊享版</button>
               </div>
             </div>
             <div class="table-wrap" id="discountTableWrap">
@@ -2409,7 +2467,7 @@
                 <div class="locked-icon">🔒</div>
                 <h3>尊享版专属</h3>
                 <p>充值送活动为<b>尊享版</b>会员专属功能，升级后可创建「充 A 送 B」规则（储值账户体系后续接入）。</p>
-                <button class="btn-add" onclick="switchTab('coin')">去升级尊享版</button>
+                <button class="btn-add" onclick="goUpgrade('premium')">去升级尊享版</button>
               </div>
             </div>
             <div class="table-wrap" id="rechargeTableWrap">

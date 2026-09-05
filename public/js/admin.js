@@ -99,6 +99,32 @@ function switchTab(tab) {
 }
 document.querySelectorAll('.nav-item').forEach(t => t.onclick = () => switchTab(t.dataset.tab));
 
+/* ---------- 升级引导统一入口 ----------
+   所有"去升级/升级会员/升级尊享版"按钮统一跳会员中心并定位目标卡片：
+   advanced → 进阶版卡片（vplanAdvanced）；premium → 尊享版月卡兑换卡片（ezPremiumCard）。
+   落地后目标卡片 2 秒呼吸高亮，用户直接点"立即开通/立即兑换"。 */
+function goUpgrade(target) {
+  switchTab('member');
+  requestAnimationFrame(() => {
+    const el = $(target === 'premium' ? 'ezPremiumCard' : 'vplanAdvanced');
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.remove('upgrade-glow');
+    void el.offsetWidth; // 强制重排，保证连续点击也能重启动画
+    el.classList.add('upgrade-glow');
+    clearTimeout(el._glowTimer);
+    el._glowTimer = setTimeout(() => el.classList.remove('upgrade-glow'), 2000);
+  });
+}
+window.goUpgrade = goUpgrade;
+
+/* 会员卡片"基础版/进阶版全部功能"展开/收起 */
+function toggleInherit(btn) {
+  const item = btn.closest('.vplan-inherit-item');
+  if (item) item.classList.toggle('open');
+}
+window.toggleInherit = toggleInherit;
+
 /* 移动端侧边栏开关 */
 function openSidebar() { $('sidebar').classList.add('open'); $('scrim').classList.add('show'); }
 function closeSidebar() { $('sidebar').classList.remove('open'); $('scrim').classList.remove('show'); }
@@ -578,7 +604,7 @@ function renderThemeGrid(currentTheme) {
 function handleThemeClick(themeId, locked) {
   if (locked) {
     toast('升级会员解锁全部店铺风格 →', true);
-    switchTab('member');
+    goUpgrade('advanced');
     return;
   }
   // 点击同一卡片再次点击取消选中
@@ -675,7 +701,7 @@ async function applyDeco(field, value) {
     else if (field === 'layout') renderLayoutGrid(_decoState.layout);
   } else if (res.needUpgrade) {
     toast(res.message || '升级会员解锁全部店铺风格 →', true);
-    switchTab('member');
+    goUpgrade('advanced');
   } else {
     toast(res.message || '设置失败', true);
   }
@@ -705,7 +731,7 @@ function renderDecoLock() {
 async function uploadDecoImage(file, kind) {
   if ((LEVEL_RANK[_memberLevel] ?? 0) < LEVEL_RANK.advanced) {
     toast(DECO_UPGRADE_TIP, true);
-    switchTab('member');
+    goUpgrade('advanced');
     return;
   }
   try {
@@ -731,7 +757,7 @@ async function uploadDecoImage(file, kind) {
       setDecoPreview($(kind === 'banner' ? 'bannerPreview' : 'logoPreview'), up.data.url);
     } else if (res.needUpgrade) {
       toast(res.message || DECO_UPGRADE_TIP, true);
-      switchTab('member');
+      goUpgrade('advanced');
     } else {
       toast(res.message || '保存失败', true);
     }
@@ -945,7 +971,7 @@ async function loadCoinCenter() {
           <div class="coupon-cost">需 <span>${c.coinCost} DH</span></div>
           <div class="coupon-condition">满 ¥${c.minOrder} 可用 · ${LEVEL_NAME[c.needLevel]}可兑</div>
           ${locked
-            ? `<div class="coupon-locked-tip">需升级到 ${LEVEL_NAME[c.needLevel]}</div><button class="btn btn-gray" disabled>等级不足</button>`
+            ? `<div class="coupon-locked-tip">需升级到 ${LEVEL_NAME[c.needLevel]}</div><button class="btn-add" onclick="goUpgrade('${c.needLevel}')">去升级</button>`
             : `<button class="btn-add" ${canExchange ? '' : 'disabled'} onclick="exchangeCoupon('${c.type}')">${canExchange ? '立即兑换' : '鼎恒币不足'}</button>`}
         </div>
       `;
