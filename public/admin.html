@@ -1952,35 +1952,18 @@
       .ob-go { padding: 6px 12px; font-size: 12px; }
     }
 
-    /* ============ 采购商城：本月鼎恒币进度条 ============ */
+    /* ============ 采购商城：本月鼎恒币激励卡 ============ */
     .mall-progress {
       background: #fff;
       border: 1px solid var(--line);
       border-radius: 14px;
-      padding: 13px 16px;
+      padding: 14px 16px;
       margin: 10px 0 14px;
       box-shadow: 0 2px 8px rgba(0,0,0,.04);
     }
-    .mp-top {
-      display: flex; align-items: baseline; justify-content: space-between;
-      gap: 10px; flex-wrap: wrap;
-    }
-    .mp-earned { font-size: 14px; font-weight: 700; color: #374151; }
-    .mp-earned b { color: #d97706; font-size: 18px; padding: 0 2px; }
-    .mp-target { font-size: 12.5px; color: #92400e; font-weight: 600; }
-    .mp-bar {
-      height: 10px; border-radius: 999px;
-      background: #f3f4f6;
-      overflow: hidden;
-      margin: 9px 0 5px;
-    }
-    .mp-fill {
-      height: 100%; border-radius: 999px;
-      background: linear-gradient(90deg, #f59e0b, #fbbf24);
-      width: 0;
-      transition: width .7s cubic-bezier(.33,.85,.3,1);
-    }
-    .mp-foot { font-size: 11.5px; color: #9ca3af; }
+    .mp-earned { font-size: 16px; font-weight: 700; color: #374151; }
+    .mp-earned b { color: #d97706; font-size: 22px; padding: 0 2px; }
+    .mp-foot { font-size: 11.5px; color: #9ca3af; margin-top: 5px; }
 
     /* ============ 空状态引导卡（可关闭，localStorage 记忆） ============ */
     .guide-card {
@@ -2571,13 +2554,9 @@
         <!-- 顶部鼎恒币激励横幅（按会员等级差异化文案） -->
         <div class="mall-coin-banner" id="mallCoinBanner"></div>
 
-        <!-- 本月鼎恒币进度条：本月采购已得币 + 最近兑换目标 -->
+        <!-- 本月鼎恒币激励卡：本月采购已得币 -->
         <div class="mall-progress" id="mallProgress" style="display:none;">
-          <div class="mp-top">
-            <span class="mp-earned">本月采购已得 <b id="mpEarned">0</b> 鼎恒币</span>
-            <span class="mp-target" id="mpTarget"></span>
-          </div>
-          <div class="mp-bar"><div class="mp-fill" id="mpFill"></div></div>
+          <div class="mp-earned">本月采购已得 <b id="mpEarned">0</b> 鼎恒币</div>
           <div class="mp-foot">鼎恒币可兑采购抵用券、兑会员月卡，采购越多得币越多</div>
         </div>
 

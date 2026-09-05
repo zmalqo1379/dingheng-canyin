@@ -98,6 +98,57 @@
     .back a { font-size: 13px; color: #9ca3af; text-decoration: none; }
     .back a:hover { color: var(--accent); }
     .tip { font-size: 12px; color: #bbb; text-align: center; margin-top: 12px; }
+
+    /* ============ 欢迎弹窗 ============ */
+    .welcome-overlay {
+      position: fixed; inset: 0; z-index: 999;
+      display: none; align-items: center; justify-content: center;
+      background: rgba(17, 24, 39, 0.5);
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(3px);
+      padding: 20px;
+    }
+    .welcome-overlay.show { display: flex; animation: wFadeIn .25s ease both; }
+    .welcome-card {
+      width: 420px; max-width: 90%;
+      background: #fff; border-radius: 16px; overflow: hidden;
+      box-shadow: 0 24px 64px rgba(0,0,0,.28), 0 4px 16px rgba(0,0,0,.12);
+      position: relative;
+    }
+    .welcome-overlay.show .welcome-card { animation: wRise .38s cubic-bezier(.22,.85,.3,1.1) both; }
+    @keyframes wFadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes wRise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+    .w-band {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff; text-align: center;
+      padding: 26px 52px 22px; position: relative;
+    }
+    .w-band h2 { font-size: 19px; font-weight: 700; letter-spacing: 2px; text-indent: 2px; }
+    .w-band .w-bar { width: 36px; height: 3px; border-radius: 3px; background: rgba(255,255,255,.5); margin: 12px auto 0; }
+    .w-close {
+      position: absolute; top: 10px; right: 10px;
+      width: 30px; height: 30px; border-radius: 50%;
+      background: rgba(255,255,255,.18); color: #fff;
+      border: none; font-size: 15px; line-height: 30px;
+      cursor: pointer; transition: background .2s;
+    }
+    .w-close:hover { background: rgba(255,255,255,.32); }
+    .w-body { padding: 22px 26px 6px; }
+    .w-body p { font-size: 13.5px; color: #4b5563; line-height: 1.85; margin: 0 0 9px; }
+    .w-body p strong { color: #111827; font-weight: 700; }
+    .w-body p.w-hot { color: var(--accent); font-weight: 700; }
+    .w-cta { padding: 14px 26px 22px; }
+    .w-btn {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff; border: none; border-radius: 12px;
+      font-size: 16px; font-weight: 700; letter-spacing: 2px;
+      cursor: pointer; transition: transform .1s, box-shadow .2s;
+      box-shadow: 0 10px 24px rgba(255,107,53,.32);
+    }
+    .w-btn:hover { box-shadow: 0 12px 28px rgba(255,107,53,.42); }
+    .w-btn:active { transform: scale(.99); }
+    .w-note { text-align: center; font-size: 12px; color: #9ca3af; margin-top: 10px; }
   </style>
 </head>
 <body>
@@ -158,8 +209,56 @@
     </div>
   </div>
 
+  <!-- 欢迎弹窗：首次访问显示，关闭后 7 天内不再显示 -->
+  <div class="welcome-overlay" id="welcomeOverlay">
+    <div class="welcome-card">
+      <div class="w-band">
+        <h2>欢迎加入鼎恒科技</h2>
+        <div class="w-bar"></div>
+        <button class="w-close" id="welcomeClose" type="button" aria-label="关闭">✕</button>
+      </div>
+      <div class="w-body">
+        <p>开店这套系统，终身免费。</p>
+        <p>扫码点餐、后厨看单、经营报表——一分钱不收。</p>
+        <p>在这里进货，价格不高于你平时的批发价，每花 1 元，还送鼎恒币。</p>
+        <p>鼎恒币能干什么？</p>
+        <p><strong>抵采购的现金，换平台的会员。</strong></p>
+        <p>会算账的老板已经发现了：</p>
+        <p class="w-hot">系统免费用，会员不花钱，进货还省钱。</p>
+        <p>你只管开店，剩下的交给我们。</p>
+      </div>
+      <div class="w-cta">
+        <button class="w-btn" id="welcomeCta" type="button">立即免费使用</button>
+        <div class="w-note">注册即送首月进阶版会员（价值 ¥99）</div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const $ = (id) => document.getElementById(id);
+
+    // 欢迎弹窗：首次访问显示，关闭后 7 天内不再显示（记录关闭时间戳）
+    const WELCOME_KEY = 'merchant_welcome_closed_at';
+    const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+    const welcomeOverlay = $('welcomeOverlay');
+    (function maybeShowWelcome() {
+      const closedAt = Number(localStorage.getItem(WELCOME_KEY) || 0);
+      if (closedAt && Date.now() - closedAt < WEEK_MS) return;
+      setTimeout(() => welcomeOverlay.classList.add('show'), 300);
+    })();
+    function closeWelcome() {
+      welcomeOverlay.classList.remove('show');
+      localStorage.setItem(WELCOME_KEY, String(Date.now()));
+    }
+    $('welcomeClose').onclick = closeWelcome;
+    welcomeOverlay.addEventListener('click', (e) => {
+      if (e.target === welcomeOverlay) closeWelcome();
+    });
+    $('welcomeCta').onclick = () => {
+      closeWelcome();
+      document.querySelector('.tab[data-tab="register"]').click();
+    };
+
     // 标签切换
     document.querySelectorAll('.tab').forEach(t => {
       t.onclick = () => {

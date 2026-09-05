@@ -1615,7 +1615,7 @@ async function loadMall() {
   }
 }
 
-// 本月鼎恒币进度条 + 从未采购空状态引导卡（引导卡可关闭，localStorage 按店铺记忆）
+// 本月采购已得鼎恒币 + 从未采购空状态引导卡（引导卡可关闭，localStorage 按店铺记忆）
 async function renderMallProgressGuide() {
   const box = $('mallProgress');
   const guide = $('mallGuide');
@@ -1634,17 +1634,6 @@ async function renderMallProgressGuide() {
     if (box) {
       box.style.display = 'block';
       $('mpEarned').textContent = d.monthEarned || 0;
-      const fill = $('mpFill');
-      const targetEl = $('mpTarget');
-      if (d.target) {
-        fill.style.width = (d.target.percent || 0) + '%';
-        targetEl.textContent = d.allReached
-          ? '本月兑换目标全部达成，继续保持！'
-          : `再得 ${d.target.needMore} 币即可兑换${d.target.label}`;
-      } else {
-        fill.style.width = '0%';
-        targetEl.textContent = '';
-      }
     }
     // 空状态引导：从未采购且未手动关闭时展示；有采购记录后自动消失
     if (guide) {
