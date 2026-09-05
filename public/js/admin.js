@@ -100,23 +100,112 @@ function switchTab(tab) {
 document.querySelectorAll('.nav-item').forEach(t => t.onclick = () => switchTab(t.dataset.tab));
 
 /* ---------- 升级引导统一入口 ----------
-   所有"去升级/升级会员/升级尊享版"按钮统一跳会员中心并定位目标卡片：
-   advanced → 进阶版卡片（vplanAdvanced）；premium → 尊享版月卡兑换卡片（ezPremiumCard）。
-   落地后目标卡片 2 秒呼吸高亮，用户直接点"立即开通/立即兑换"。 */
+   所有"去升级/升级会员/升级尊享版"按钮统一跳会员中心并定位目标人民币卡片：
+   advanced → 进阶版 ¥99/月卡片（vplanAdvanced）；premium → 尊享版 ¥199/月卡片（vplanPremium）。
+   落地后目标卡片 2 秒呼吸高亮。
+   若该商家鼎恒币余额达标（advanced≥3000 / premium≥5000）且本次访问未弹过，
+   弹出精致小对话框引导前往鼎恒币兑换专区免费兑换（同一次访问最多弹一次）。 */
 function goUpgrade(target) {
   switchTab('member');
   requestAnimationFrame(() => {
-    const el = $(target === 'premium' ? 'ezPremiumCard' : 'vplanAdvanced');
+    // 1. 定位到对应人民币卡片（vplanAdvanced / vplanPremium）并 2 秒呼吸高亮
+    const planCardId = target === 'premium' ? 'vplanPremium' : 'vplanAdvanced';
+    const planEl = $(planCardId);
+    if (planEl) {
+      planEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      planEl.classList.remove('upgrade-glow');
+      void planEl.offsetWidth; // 强制重排，保证连续点击也能重启动画
+      planEl.classList.add('upgrade-glow');
+      clearTimeout(planEl._glowTimer);
+      planEl._glowTimer = setTimeout(() => planEl.classList.remove('upgrade-glow'), 2000);
+    }
+    // 2. 等待余额加载完成后检测是否弹升级引导窗
+    checkUpsellAfterUpgrade(target);
+  });
+}
+window.goUpgrade = goUpgrade;
+
+/* 等待 ezCoinBalance 余额加载完成（switchTab 异步触发 loadMemberCenter）。
+   loadMemberCenter 加载完会置 dataset.loaded='1'。最多等 2 秒，超时放弃弹窗。 */
+function waitForCoinLoaded(timeout = 2000) {
+  return new Promise((resolve) => {
+    const node = $('ezCoinBalance');
+    if (node && node.dataset.loaded === '1') { resolve(true); return; }
+    const start = Date.now();
+    const timer = setInterval(() => {
+      const n = $('ezCoinBalance');
+      if (n && n.dataset.loaded === '1') { clearInterval(timer); resolve(true); return; }
+      if (Date.now() - start > timeout) { clearInterval(timer); resolve(false); }
+    }, 80);
+  });
+}
+
+/* 落地后检测：余额达标且本次访问未弹过 → 弹升级引导窗
+   "同一次访问"= 当前页面会话（刷新页面算新一次进入）；用内存变量控制，刷新即重置。 */
+let _upsellShownThisVisit = false;
+async function checkUpsellAfterUpgrade(target) {
+  if (_upsellShownThisVisit) return; // 同一次访问最多弹一次
+  await waitForCoinLoaded();
+  const node = $('ezCoinBalance');
+  const coin = Number(node ? node.textContent : 0) || 0;
+  const cfg = PLAN_CFG[target];
+  if (!cfg) return;
+  if (coin < cfg.coinCost) return; // 余额不足，不打扰
+  showUpsellModal(target, coin);
+}
+
+/* 弹出升级引导窗（文案随 target 动态填充） */
+function showUpsellModal(target, coin) {
+  const body = $('upsellBody');
+  if (!body) return;
+  const cfg = PLAN_CFG[target];
+  const planName = target === 'premium' ? '尊享版' : '进阶版';
+  body.innerHTML =
+    '<p>💡 发现你有 <b>' + coin + '</b><span class="upsell-coin-unit"> 鼎恒币</span>，'
+    + '可直接免费兑换' + planName + '月卡（价值¥' + cfg.price + '），是否前往兑换？</p>'
+    + '<p class="upsell-tip">无需支付人民币，直接用鼎恒币兑换</p>';
+  $('upsellConfirm').dataset.target = target;
+  const mask = $('upsellModal');
+  mask.classList.add('show');
+  _upsellShownThisVisit = true; // 标记本次访问已弹过
+  if (!window._upsellEscBound) {
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeUpsellModal(); });
+    window._upsellEscBound = true;
+  }
+}
+
+function closeUpsellModal() {
+  const mask = $('upsellModal');
+  if (mask) mask.classList.remove('show');
+}
+window.closeUpsellModal = closeUpsellModal;
+
+/* "去兑换"：关闭弹窗 → 平滑滚动到鼎恒币兑换专区对应卡片并高亮 2 秒 */
+function goUpsellExchange(target) {
+  closeUpsellModal();
+  requestAnimationFrame(() => {
+    // advanced 兑换卡片无独立 id，用按钮锚点；premium 用 ezPremiumCard
+    let el = target === 'premium' ? $('ezPremiumCard') : ($('ezBtnAdvanced') && $('ezBtnAdvanced').closest('.ez-card'));
+    if (!el && $('exchangeZone')) el = $('exchangeZone'); // 兜底回退到兑换专区容器
     if (!el) return;
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     el.classList.remove('upgrade-glow');
-    void el.offsetWidth; // 强制重排，保证连续点击也能重启动画
+    void el.offsetWidth;
     el.classList.add('upgrade-glow');
     clearTimeout(el._glowTimer);
     el._glowTimer = setTimeout(() => el.classList.remove('upgrade-glow'), 2000);
   });
 }
-window.goUpgrade = goUpgrade;
+window.goUpsellExchange = goUpsellExchange;
+
+(function () {
+  const closeX = $('upsellCloseX');
+  if (closeX) closeX.onclick = closeUpsellModal;
+  const cancel = $('upsellCancel');
+  if (cancel) cancel.onclick = closeUpsellModal; // "再想想"：关闭，停留原位
+  const confirm = $('upsellConfirm');
+  if (confirm) confirm.onclick = function () { goUpsellExchange(confirm.dataset.target || 'premium'); };
+})();
 
 /* 会员卡片"基础版/进阶版全部功能"展开/收起 */
 function toggleInherit(btn) {
@@ -1198,6 +1287,7 @@ async function loadMemberCenter() {
     const coin = d.dinghengCoin ?? 0;
     const isPremium = level === 'premium';
     $('ezCoinBalance').textContent = coin;
+    $('ezCoinBalance').dataset.loaded = '1'; // 标记已加载，供 waitForCoinLoaded 检测
     for (const key of ['advanced', 'premium']) {
       const btn = $('ezBtn' + (key === 'advanced' ? 'Advanced' : 'Premium'));
       const cost = PLAN_CFG[key].coinCost;

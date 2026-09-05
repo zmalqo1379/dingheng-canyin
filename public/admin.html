@@ -928,6 +928,86 @@
     }
     .upgrade-glow { animation: upgradeGlow 1s ease-in-out 2; }
 
+    /* 升级引导弹窗（落地后检测鼎恒币充足时弹出，引导前往兑换专区）
+       风格与会员中心一致：暖橙渐变头部 + 金色高亮币数 + 双按钮（去兑换/再想想） */
+    .upsell-mask {
+      position: fixed; inset: 0;
+      background: rgba(17,24,39,.55);
+      backdrop-filter: blur(4px);
+      z-index: 320; display: none;
+      align-items: center; justify-content: center;
+      padding: 16px;
+      animation: upsellFade .25s ease-out;
+    }
+    .upsell-mask.show { display: flex; }
+    @keyframes upsellFade { from { opacity: 0; } to { opacity: 1; } }
+    .upsell-modal {
+      background: #fff; border-radius: 18px;
+      width: 100%; max-width: 420px;
+      overflow: hidden;
+      box-shadow: 0 24px 60px rgba(17,24,39,.28), 0 0 0 1px rgba(255,107,53,.08);
+      animation: upsellPop .35s cubic-bezier(.34,1.56,.64,1);
+    }
+    @keyframes upsellPop {
+      from { transform: scale(.85) translateY(8px); opacity: 0; }
+      to { transform: scale(1) translateY(0); opacity: 1; }
+    }
+    .upsell-head {
+      padding: 22px 24px 18px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff; text-align: center; position: relative;
+    }
+    .upsell-head .upsell-icon { font-size: 32px; line-height: 1; margin-bottom: 6px; }
+    .upsell-head h3 { font-size: 17px; font-weight: 700; margin: 0; letter-spacing: .5px; }
+    .upsell-close {
+      position: absolute; top: 10px; right: 14px;
+      background: rgba(255,255,255,.22); border: none;
+      color: #fff; font-size: 20px; line-height: 1;
+      width: 28px; height: 28px; border-radius: 50%;
+      cursor: pointer; transition: background .15s;
+    }
+    .upsell-close:hover { background: rgba(255,255,255,.38); }
+    .upsell-body {
+      padding: 22px 24px 6px; text-align: center;
+      font-size: 15px; color: #374151; line-height: 1.6;
+    }
+    .upsell-body b {
+      color: var(--accent); font-size: 20px; font-weight: 800;
+      padding: 0 2px;
+    }
+    .upsell-body .upsell-coin-unit { font-size: 13px; color: #9ca3af; font-weight: 600; margin-left: 2px; }
+    .upsell-tip {
+      margin-top: 8px; font-size: 12.5px; color: #9ca3af; line-height: 1.5;
+    }
+    .upsell-foot {
+      padding: 14px 24px 22px; display: flex; gap: 10px;
+    }
+    .upsell-btn {
+      flex: 1; padding: 11px 0; border-radius: 10px;
+      border: none; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: opacity .15s, transform .1s;
+      font-family: inherit;
+    }
+    .upsell-btn:active { transform: scale(.97); }
+    .upsell-btn.cancel {
+      background: #f3f4f6; color: #6b7280;
+    }
+    .upsell-btn.cancel:hover { background: #e5e7eb; }
+    .upsell-btn.confirm {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff;
+      box-shadow: 0 6px 14px rgba(255,107,53,.35);
+    }
+    .upsell-btn.confirm:hover { opacity: .92; }
+    @media (max-width: 480px) {
+      .upsell-modal { max-width: 100%; border-radius: 14px; }
+      .upsell-head { padding: 18px 20px 14px; }
+      .upsell-body { padding: 18px 20px 4px; font-size: 14.5px; }
+      .upsell-body b { font-size: 19px; }
+      .upsell-foot { padding: 12px 20px 18px; }
+      .upsell-btn { padding: 10px 0; font-size: 13.5px; }
+    }
+
     /* 会员卡片"全部功能"可展开行：卡片内自包含完整继承权益，免上下滚动对照 */
     .vplan-features li.vplan-inherit-item { display: block; padding: 0; margin-top: 4px; }
     .vplan-features li.vplan-inherit-item::before { content: none; }
@@ -1997,7 +2077,7 @@
             <div class="vplan-tagline">基础版全部功能，再加四项升级</div>
             <ul class="vplan-features">
               <li class="vplan-feature-highlight">返币翻倍！1元=1币</li>
-              <li class="vplan-feature-highlight">新增 50/100 元大额券（10-30 元券照常可兑）</li>
+              <li class="vplan-feature-highlight">新增 50/100 元大额券</li>
               <li>顾客积分系统</li>
               <li>经营报表</li>
               <li class="vplan-inherit-item">
@@ -2020,13 +2100,13 @@
           </div>
 
           <!-- 尊享版（旗舰） -->
-          <div class="vplan-card premium">
+          <div class="vplan-card premium" id="vplanPremium">
             <div class="vplan-badge gold">👑 旗舰</div>
             <div class="vplan-name">尊享版</div>
             <div class="vplan-price">¥199<small>/月</small></div>
             <div class="vplan-tagline">进阶版全部功能，再加四项旗舰能力</div>
             <ul class="vplan-features">
-              <li class="vplan-feature-highlight">新增 200 元超大额券（10-100 元券照常可兑）</li>
+              <li class="vplan-feature-highlight">新增 200 元超大额券</li>
               <li>顾客画像</li>
               <li>损耗分析</li>
               <li>高级营销工具</li>
@@ -2654,6 +2734,22 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- ============ 升级引导弹窗（落地后检测鼎恒币充足时弹出） ============ -->
+<div class="upsell-mask" id="upsellModal" role="dialog" aria-modal="true" aria-labelledby="upsellTitle">
+  <div class="upsell-modal">
+    <div class="upsell-head">
+      <button class="upsell-close" id="upsellCloseX" title="关闭" aria-label="关闭">×</button>
+      <div class="upsell-icon">💡</div>
+      <h3 id="upsellTitle">鼎恒币免费升级</h3>
+    </div>
+    <div class="upsell-body" id="upsellBody"></div>
+    <div class="upsell-foot">
+      <button class="upsell-btn cancel" id="upsellCancel">再想想</button>
+      <button class="upsell-btn confirm" id="upsellConfirm">去兑换</button>
+    </div>
+  </div>
+</div>
 
 <!-- ============ 装修预览手机框（iframe 嵌入真实点餐页） ============ -->
 <div class="preview-modal" id="customerPreviewModal" aria-hidden="true">
