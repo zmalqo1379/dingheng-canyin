@@ -108,6 +108,23 @@ const supplierSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  // ============ 开通接单资质核验（"一道闸门"：签协议后即可进控制台，上传资质核验通过才上线接单） ============
+  // 资质核验状态：none=未上传 / pending=核验中 / approved=核验通过（已开通接单）/ rejected=已驳回（可重新上传）
+  qualification: {
+    status: {
+      type: String,
+      enum: ['none', 'pending', 'approved', 'rejected'],
+      default: 'none',
+      index: true
+    },
+    businessLicense: { type: String, default: '' }, // 营业执照照片 URL
+    storeFront: { type: String, default: '' },      // 门店门头照 URL
+    storeInterior: { type: String, default: '' },   // 店内环境照 URL
+    goods: { type: String, default: '' },           // 货品照 URL
+    submittedAt: { type: Date, default: null },     // 最近一次提交时间
+    reviewedAt: { type: Date, default: null },      // 平台核验时间
+    rejectReason: { type: String, default: '', trim: true } // 核验驳回原因（供应商端可见）
+  },
   // ============ 新手接单引导（三步走）进度标记 ============
   // 是否已保存过新订单提醒设置（点"保存设置"即完成第二步）
   onboardNotifySet: {

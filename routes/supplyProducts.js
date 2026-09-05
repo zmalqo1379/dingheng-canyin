@@ -45,6 +45,20 @@ router.get('/', async (req, res) => {
   }
 });
 
+// ============ GET /api/supply-products/mine ============
+// 供应商查看自己的全部商品（需供应商登录）：不做采购商城可见性过滤，
+// 未开通接单（资质核验中/未上传）时供应商仍可在控制台管理自己的商品。
+router.get('/mine', requireSupplier, async (req, res) => {
+  try {
+    const products = await SupplyProduct.find({ supplierId: req.user.supplierId })
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json({ success: true, data: products });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // ============ GET /api/supply-products/:id ============
 // 公开接口：查看单个商品详情，populate 供应商名与治理状态
 // 治理过滤：若供应商未通过审核/未签协议/未开通接单，商品不对外展示
@@ -67,7 +81,8 @@ router.get('/:id', async (req, res) => {
 
 // ============ POST /api/supply-products ============
 // 供应商新增商品：supplierId 必须取自 JWT，supplierName 自动回填
-// 治理门槛：status=active && agreementSigned && orderEnabled 才可上架商品
+// 治理门槛（"一道闸门"流程）：status=active && agreementSigned 即可上架/管理商品；
+// 商品仅在 orderEnabled=true（资质核验通过）后才出现在采购商城——接单上线由商城过滤与下单接口把关。
 router.post('/', requireSupplier, async (req, res) => {
   try {
     const { name, category, unit, costPrice, marketPrice, rebateRate, stock, status, image, description } = req.body;
@@ -81,17 +96,15 @@ router.post('/', requireSupplier, async (req, res) => {
     if (!supplier) {
       return res.status(404).json({ success: false, message: '供应商不存在' });
     }
-    // 治理门槛校验
+    // 治理门槛校验：审核通过 + 签署协议即可管理商品；未开通接单时商品不对采购商城可见
     if (supplier.status !== 'active') {
       return res.status(403).json({ success: false, message: '账号未通过审核，暂不可上架商品' });
     }
     if (!supplier.agreementSigned) {
       return res.status(403).json({ success: false, message: '请先签署合作协议后再上架商品' });
     }
-    if (!supplier.orderEnabled) {
-      return res.status(403).json({ success: false, message: '接单权限尚未开通，暂不可上架商品' });
-    }
-
+    // 商品上下架状态按供应商提交保存；未开通接单时商城侧按供应商 orderEnabled 整体过滤，
+    // 开通接单后"上架"商品自动出现在采购商城，无需供应商重复操作。
     const product = await SupplyProduct.create({
       name,
       category: category || '未分类',

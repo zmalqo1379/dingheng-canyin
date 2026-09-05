@@ -5,6 +5,7 @@ const Supplier = require('../models/Supplier');
 const PurchaseOrder = require('../models/PurchaseOrder');
 const RebateSettlement = require('../models/RebateSettlement');
 const SupplyProduct = require('../models/SupplyProduct');
+const PlatformConfig = require('../models/PlatformConfig');
 const rebate = require('../utils/rebate');
 const { requireSupplier } = require('../middlewares/auth');
 
@@ -13,15 +14,18 @@ router.use(requireSupplier);
 
 // ============ GET /api/supplier/profile 供应商档案与治理状态 ============
 // 返回：基本信息（名称/联系人/手机/品类/起送价）+ 治理字段（status/agreementSigned/orderEnabled/审核/拒绝/冻结信息）
-// 供应商控制台首屏调用此接口决定显示哪个引导页（等待页/冻结页/拒绝页/协议页/待开通接单页/正常控制台）
+//       + 资质核验字段（qualification）+ 平台甲方全称（协议页用）
+// 供应商控制台首屏调用此接口决定显示哪个引导页（等待页/冻结页/拒绝页/协议页/正常控制台+接单横幅）
 router.get('/profile', async (req, res) => {
   try {
-    const supplier = await Supplier.findById(req.user.supplierId)
-      .select('-password')
-      .lean();
+    const [supplier, platformCfg] = await Promise.all([
+      Supplier.findById(req.user.supplierId).select('-password').lean(),
+      PlatformConfig.getSingleton()
+    ]);
     if (!supplier) {
       return res.status(404).json({ success: false, message: '供应商不存在' });
     }
+    const qual = supplier.qualification || {};
     res.json({
       success: true,
       data: {
@@ -29,6 +33,7 @@ router.get('/profile', async (req, res) => {
         name: supplier.name,
         contact: supplier.contact || '',
         phone: supplier.phone || '',
+        loginAccount: supplier.loginAccount || '',
         categories: Array.isArray(supplier.categories) ? supplier.categories : [],
         minOrderAmount: Number(supplier.minOrderAmount) > 0 ? Number(supplier.minOrderAmount) : 300,
         createdAt: supplier.createdAt,
@@ -40,7 +45,20 @@ router.get('/profile', async (req, res) => {
         agreementSigned: !!supplier.agreementSigned,
         agreementSignedAt: supplier.agreementSignedAt || null,
         orderEnabled: !!supplier.orderEnabled,
-        orderEnabledAt: supplier.orderEnabledAt || null
+        orderEnabledAt: supplier.orderEnabledAt || null,
+        // 资质核验字段
+        qualification: {
+          status: qual.status || 'none',
+          businessLicense: qual.businessLicense || '',
+          storeFront: qual.storeFront || '',
+          storeInterior: qual.storeInterior || '',
+          goods: qual.goods || '',
+          submittedAt: qual.submittedAt || null,
+          reviewedAt: qual.reviewedAt || null,
+          rejectReason: qual.rejectReason || ''
+        },
+        // 甲方（平台）营业执照全称（协议页甲乙双方信息栏用，开发者后台系统设置维护）
+        platformCompanyName: platformCfg.platformCompanyName || ''
       }
     });
   } catch (err) {
@@ -48,8 +66,68 @@ router.get('/profile', async (req, res) => {
   }
 });
 
+// ============ POST /api/supplier/qualification/submit 提交开通接单资质 ============
+// 前置：status=active && agreementSigned（审核通过且已签协议，此时供应商已在控制台内）
+// 需上传 4 张照片：营业执照 businessLicense / 门店门头照 storeFront / 店内环境照 storeInterior / 货品照 goods
+// 提交后 qualification.status=pending（核验中）；核验通过由开发者置 orderEnabled=true 正式上线；
+// 被驳回（rejected）后可修改重新提交，重新进入 pending。
+const QUALIFICATION_FIELDS = ['businessLicense', 'storeFront', 'storeInterior', 'goods'];
+const QUALIFICATION_LABELS = {
+  businessLicense: '营业执照',
+  storeFront: '门店门头照',
+  storeInterior: '店内环境照',
+  goods: '货品照'
+};
+router.post('/qualification/submit', async (req, res) => {
+  try {
+    const supplier = await Supplier.findById(req.user.supplierId);
+    if (!supplier) {
+      return res.status(404).json({ success: false, message: '供应商不存在' });
+    }
+    if (supplier.status !== 'active') {
+      return res.status(403).json({ success: false, message: '账号未通过审核，暂不可提交资质' });
+    }
+    if (!supplier.agreementSigned) {
+      return res.status(403).json({ success: false, message: '请先签署合作协议后再提交资质' });
+    }
+    if (supplier.orderEnabled) {
+      return res.status(400).json({ success: false, message: '店铺已开通接单，无需重复提交资质' });
+    }
+    const body = req.body || {};
+    const photos = {};
+    for (const f of QUALIFICATION_FIELDS) {
+      const url = String(body[f] || '').trim();
+      if (!url) {
+        return res.status(400).json({ success: false, message: `请上传${QUALIFICATION_LABELS[f]}` });
+      }
+      // 仅允许本站 uploads 路径或 http(s) 图片地址
+      if (!/^(\/uploads\/|https?:\/\/)/.test(url)) {
+        return res.status(400).json({ success: false, message: `${QUALIFICATION_LABELS[f]}地址不合法` });
+      }
+      photos[`qualification.${f}`] = url;
+    }
+
+    const update = Object.assign({}, photos, {
+      'qualification.status': 'pending',
+      'qualification.submittedAt': new Date(),
+      'qualification.reviewedAt': null,
+      'qualification.rejectReason': ''
+    });
+    await Supplier.updateOne({ _id: supplier._id }, { $set: update });
+
+    res.json({
+      success: true,
+      message: '资质已提交，平台核验中（1-2 个工作日），核验通过后店铺将自动上线接单',
+      data: { qualificationStatus: 'pending' }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // ============ POST /api/supplier/agreement/sign 签署《供应商入驻合作协议》 ============
-// 仅审核通过（status=active）且未签署过的供应商可签署；签署后记录时间，仍需开发者开通接单
+// 仅审核通过（status=active）且未签署过的供应商可签署；签署后即可进入控制台浏览/上架商品，
+// 上传资质并通过平台核验后开通接单（"一道闸门"）
 router.post('/agreement/sign', async (req, res) => {
   try {
     const supplier = await Supplier.findById(req.user.supplierId);
@@ -72,7 +150,7 @@ router.post('/agreement/sign', async (req, res) => {
     await supplier.save();
     res.json({
       success: true,
-      message: '协议签署成功，请等待平台开通接单权限',
+      message: '协议签署成功，已进入控制台；请前往「开通接单」上传资质照片，核验通过后正式上线接单',
       data: { agreementSigned: true, agreementSignedAt: supplier.agreementSignedAt }
     });
   } catch (err) {

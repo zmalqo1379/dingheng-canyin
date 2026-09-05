@@ -90,6 +90,13 @@
     }
     .nav-item .icon { font-size: 18px; width: 22px; text-align: center; }
     .nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+    .nav-badge {
+      margin-left: auto;
+      background: #ef4444; color: #fff;
+      font-size: 10.5px; font-weight: 700;
+      padding: 2px 8px; border-radius: 10px; line-height: 1.5;
+    }
+    .nav-badge.dot { padding: 0; width: 9px; height: 9px; border-radius: 50%; }
     .nav-item.active {
       background: rgba(255,107,53,.15);
       color: #fff;
@@ -862,6 +869,94 @@
     .gate-btn.blue { background: linear-gradient(135deg, #2563eb, #3b82f6); }
     .gate-btn.blue:hover { box-shadow: 0 8px 20px rgba(37,99,235,.35); }
 
+    /* ============ 控制台顶部"接单状态"横幅（一道闸门：未开通接单时提示） ============ */
+    .order-banner {
+      display: none;
+      border-radius: 12px;
+      padding: 14px 18px;
+      margin-bottom: 16px;
+      font-size: 13.5px;
+      line-height: 1.7;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .order-banner.show { display: flex; }
+    .order-banner .ob-text { flex: 1; min-width: 220px; }
+    .order-banner .ob-title { font-weight: 700; margin-bottom: 2px; }
+    .order-banner .ob-reason { font-size: 12.5px; margin-top: 4px; }
+    .order-banner .ob-btn {
+      border: none; border-radius: 9px; padding: 9px 18px;
+      font-size: 13.5px; font-weight: 700; cursor: pointer; white-space: nowrap;
+    }
+    .order-banner.locked { background: linear-gradient(135deg, #fffbeb, #fef3c7); border: 1px solid #fde68a; color: #92400e; }
+    .order-banner.locked .ob-btn { background: linear-gradient(135deg, #ff6b35, #ff8e53); color: #fff; }
+    .order-banner.reviewing { background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #bfdbfe; color: #1e40af; }
+    .order-banner.reviewing .ob-btn { background: #2563eb; color: #fff; }
+    .order-banner.rejected { background: linear-gradient(135deg, #fef2f2, #fee2e2); border: 1px solid #fecaca; color: #991b1b; }
+    .order-banner.rejected .ob-btn { background: #dc2626; color: #fff; }
+    .order-banner.enabled { background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 1px solid #bbf7d0; color: #166534; }
+
+    /* 协议页甲乙双方信息栏 */
+    .agreement-parties {
+      background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px;
+      padding: 12px 16px; margin: 0 0 14px;
+      font-size: 13px; color: #374151; line-height: 2;
+    }
+    .agreement-parties .party-row { display: flex; gap: 8px; }
+    .agreement-parties .party-k { color: #6b7280; white-space: nowrap; font-weight: 600; }
+    .agreement-parties .party-v { font-weight: 700; color: #111827; }
+    .agreement-parties .party-note { font-size: 11.5px; color: #9ca3af; line-height: 1.6; }
+
+    /* ============ 开通接单（资质上传）页 ============ */
+    .qual-note {
+      background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px;
+      padding: 10px 14px; font-size: 13px; color: #92400e; margin-bottom: 16px; line-height: 1.7;
+    }
+    .qual-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 14px; margin-bottom: 18px;
+    }
+    .qual-tile {
+      background: #fff; border: 1.5px dashed #d1d5db; border-radius: 12px;
+      padding: 12px; text-align: center; transition: border-color .15s;
+    }
+    .qual-tile.has-img { border-style: solid; border-color: #bbf7d0; }
+    .qual-tile .qt-label { font-size: 13.5px; font-weight: 700; color: #374151; margin-bottom: 8px; }
+    .qual-tile .qt-label .req { color: #ef4444; margin-left: 2px; }
+    .qual-tile .qt-img {
+      width: 100%; aspect-ratio: 4/3; object-fit: cover;
+      border-radius: 8px; background: #f9fafb; display: none; cursor: zoom-in;
+    }
+    .qual-tile .qt-placeholder {
+      width: 100%; aspect-ratio: 4/3; border-radius: 8px; background: #f9fafb;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: #9ca3af; font-size: 12.5px; gap: 6px; cursor: pointer;
+    }
+    .qual-tile .qt-placeholder .cam { font-size: 30px; }
+    .qual-tile .qt-actions { margin-top: 8px; display: flex; gap: 8px; justify-content: center; }
+    .qt-btn {
+      border: 1px solid #d1d5db; background: #fff; color: #374151;
+      border-radius: 7px; padding: 5px 12px; font-size: 12.5px; cursor: pointer; font-weight: 600;
+    }
+    .qt-btn.primary { background: linear-gradient(135deg, #ff6b35, #ff8e53); border: none; color: #fff; }
+    .qt-btn:hover { opacity: .88; }
+    .qual-status-card {
+      border-radius: 12px; padding: 14px 18px; margin-bottom: 16px;
+      font-size: 13.5px; line-height: 1.8;
+    }
+    .qual-status-card.pending { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+    .qual-status-card.approved { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+    .qual-status-card.rejected { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+    .qual-submit-bar { display: flex; gap: 12px; align-items: center; }
+    .qual-submit-btn {
+      border: none; border-radius: 10px; padding: 12px 34px;
+      background: linear-gradient(135deg, #ff6b35, #ff8e53); color: #fff;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+    }
+    .qual-submit-btn:disabled { opacity: .55; cursor: not-allowed; }
+    .qual-tip { font-size: 12.5px; color: #9ca3af; }
+
     /* 协议正文容器 */
     .agreement-text {
       max-height: 320px; overflow-y: auto;
@@ -933,6 +1028,7 @@
       <nav class="nav">
         <div class="nav-item active" data-tab="orders"><span class="icon">📦</span> 待处理订单</div>
         <div class="nav-item" data-tab="products"><span class="icon">📋</span> 商品管理</div>
+        <div class="nav-item" data-tab="qualify" id="navQualify"><span class="icon">🪪</span> 开通接单<span class="nav-badge" id="navQualifyBadge" style="display:none;">待办</span></div>
         <div class="nav-item" data-tab="notify"><span class="icon">🔔</span> 通知设置</div>
         <div class="nav-item" data-tab="stats"><span class="icon">📊</span> 数据统计</div>
         <div class="nav-item" data-tab="settle"><span class="icon">💰</span> 合作结算</div>
@@ -943,6 +1039,30 @@
 
     <!-- 内容区 -->
     <main class="main">
+      <!-- 接单状态横幅：签协议后进控制台，仅"接单/上线"在此提示（一道闸门） -->
+      <div class="order-banner" id="orderBanner"></div>
+
+      <!-- 0. 开通接单（资质上传核验） -->
+      <section class="pane" id="pane-qualify">
+        <div class="pane-title">🪪 开通接单 · 资质核验</div>
+
+        <div class="qual-note">
+          📷 请上传以下 <b>4 张照片</b>（各 1 张）：<b>营业执照、门店门头照、店内环境照、货品照</b>。<br>
+          请拍全拍清楚，用于平台核验与签约备案。提交后平台将在 1-2 个工作日内核验，通过后店铺正式上线采购商城接单。
+        </div>
+
+        <div class="qual-status-card" id="qualStatusCard" style="display:none;"></div>
+
+        <div class="qual-grid" id="qualGrid">
+          <!-- 4 个上传卡片由 JS 渲染 -->
+        </div>
+
+        <div class="qual-submit-bar">
+          <button class="qual-submit-btn" id="qualSubmitBtn">提交资质，申请开通接单</button>
+          <span class="qual-tip" id="qualSubmitTip">需 4 张照片全部上传后才可提交</span>
+        </div>
+      </section>
+
       <!-- 1. 待处理订单 -->
       <section class="pane active" id="pane-orders">
         <div class="pane-title">📦 待处理订单</div>
@@ -1337,9 +1457,12 @@
     function renderGate(profile) {
       _gateProfile = profile;
       const status = profile.status;
-      // 通过门槛：status=active && agreementSigned && orderEnabled
-      if (status === 'active' && profile.agreementSigned && profile.orderEnabled) {
+      // "一道闸门"：审核通过且签署协议后即可进入控制台（可浏览/上架商品/看结算）；
+      // 仅"接单/店铺上线"由控制台顶部横幅 + 采购商城过滤控制，不再有"待平台开通"拦截页。
+      if (status === 'active' && profile.agreementSigned) {
         gateClose();
+        renderOrderBanner(profile);
+        renderQualifyPane(profile);
         return;
       }
       const contactBlock = '<div class="gate-contact">如有疑问请联系平台客服<br>📞 客服电话：400-000-0000（占位）<br>📧 邮箱：support@dingheng.com（占位）</div>';
@@ -1399,18 +1522,24 @@
 
       // status === 'active' 但未签协议
       if (status === 'active' && !profile.agreementSigned) {
+        const partyA = profile.platformCompanyName
+          ? esc(profile.platformCompanyName)
+          : '鼎恒餐饮供应链（平台营业执照全称待平台配置）';
         gateShow(`
           <div class="gate-icon agreement">📜</div>
           <div class="gate-title">签署合作协议</div>
           <div class="gate-sub">恭喜通过审核！首次进入控制台需阅读并签署《供应商入驻合作协议》。</div>
+          <div class="agreement-parties">
+            <div class="party-row"><span class="party-k">甲方（平台）：</span><span class="party-v">${partyA}</span></div>
+            <div class="party-row"><span class="party-k">乙方（供应商）：</span><span class="party-v">${esc(profile.name)}</span></div>
+            <div class="party-note">乙方全称自动读取注册信息；甲方营业执照全称由平台在系统设置中维护。</div>
+          </div>
           <div class="agreement-text">
             <h4>《供应商入驻合作协议》</h4>
-            <p>甲方（平台）：鼎恒餐饮供应链</p>
-            <p>乙方（供应商）：${esc(profile.name)}</p>
             <h4>第一条 合作目的</h4>
             <p>双方本着平等、自愿、互利的原则，就乙方通过甲方平台向餐饮商家供应食材等商品事宜达成以下协议。本协议为框架性占位文本，正式条款将由平台后续替换。</p>
-            <h4>第二条 入驻条件</h4>
-            <p>乙方经平台审核通过后，须签署本协议并由平台开通接单权限，方可上架商品、接收订单。</p>
+            <h4>第二条 入驻条件与开通接单</h4>
+            <p>乙方经平台审核通过并签署本协议后，即可登录供应商控制台浏览、上架商品、查看合作结算；乙方须上传营业执照、门店门头照、店内环境照、货品照共 4 张资质照片，经平台核验通过后开通接单权限，店铺方可在采购商城上线并接收订单。</p>
             <h4>第三条 返点与结算</h4>
             <p>乙方向平台支付合作服务费（返点），按月累计采购额定档执行平台公示阶梯；每月 1 号自动结算。平台可为乙方单独配置专属返点规则。</p>
             <h4>第四条 订单与履约</h4>
@@ -1425,7 +1554,7 @@
             <span>我已阅读并同意协议</span>
           </label>
           <button class="gate-btn blue" id="gateSignBtn">签署协议</button>
-          <div class="gate-sub" style="margin-top:14px;margin-bottom:0;">签署后仍需平台"确认开通接单"才可上架与接单。</div>
+          <div class="gate-sub" style="margin-top:14px;margin-bottom:0;">签署后即可进入控制台；上传资质并通过核验后正式上线接单。</div>
           ${contactBlock}
         `);
         $('gateSignBtn').onclick = async () => {
@@ -1448,24 +1577,8 @@
         return;
       }
 
-      // status === 'active' && agreementSigned && !orderEnabled → 待开通接单
-      if (status === 'active' && profile.agreementSigned && !profile.orderEnabled) {
-        gateShow(`
-          <div class="gate-icon waiting-order">⏳</div>
-          <div class="gate-title">已签署，待平台开通接单</div>
-          <div class="gate-sub">协议已签署完成，平台正在为你开通接单权限，请耐心等待。</div>
-          <div class="gate-info">
-            <div class="gate-info-row"><span class="k">协议签署时间</span><span class="v">${fmtDate(profile.agreementSignedAt)}</span></div>
-            <div class="gate-info-row"><span class="k">接单状态</span><span class="v">待平台开通</span></div>
-          </div>
-          <button class="gate-btn blue" id="gateRefreshBtn">↻ 刷新状态</button>
-          <button class="gate-btn" style="margin-top:10px;background:#9ca3af;" id="gateLogoutBtn">退出登录</button>
-          ${contactBlock}
-        `);
-        $('gateRefreshBtn').onclick = loadProfile;
-        $('gateLogoutBtn').onclick = () => $('logoutBtn').click();
-        return;
-      }
+      // 注：原"已签署，待平台开通接单"拦截页已删除（一道闸门改造）——
+      // 审核通过 + 签署协议后直接进入控制台，接单上线由顶部横幅引导上传资质完成。
     }
 
     // 拉取供应商档案（治理状态）；首屏调用，未通过门槛时禁止进入控制台
@@ -1480,6 +1593,239 @@
         _profileLoaded = true;
         renderGate(res.data);
       } catch (e) { /* 忽略，不阻断 */ }
+    }
+
+    // ============ 控制台顶部"接单状态"横幅（一道闸门） ============
+    function renderOrderBanner(profile) {
+      const banner = $('orderBanner');
+      if (!banner) return;
+      const qual = profile.qualification || {};
+      const qStatus = qual.status || 'none';
+      let html = '', cls = '';
+      if (profile.orderEnabled) {
+        cls = 'enabled';
+        html = `<div class="ob-text"><div class="ob-title">✅ 已开通接单</div>
+          <div>你的店铺已上线采购商城，商家可以浏览并采购你的商品。</div></div>`;
+      } else if (qStatus === 'pending') {
+        cls = 'reviewing';
+        html = `<div class="ob-text"><div class="ob-title">⏳ 资质已提交，平台核验中（1-2 个工作日）</div>
+          <div>核验通过后店铺将自动上线接单，无需其他操作。</div></div>
+          <button class="ob-btn" id="obRefreshBtn">↻ 刷新状态</button>`;
+      } else if (qStatus === 'rejected') {
+        cls = 'rejected';
+        html = `<div class="ob-text"><div class="ob-title">❌ 资质核验未通过，请修改后重新提交</div>
+          <div class="ob-reason">驳回原因：${esc(qual.rejectReason || '请重新上传更清晰的资质照片')}</div></div>
+          <button class="ob-btn" id="obGoQualBtn">重新上传资质</button>`;
+      } else {
+        cls = 'locked';
+        html = `<div class="ob-text"><div class="ob-title">⏳ 店铺未开通接单</div>
+          <div>上传营业执照等 4 张资质照片并通过平台核验后，店铺即可上线采购商城接单。</div></div>
+          <button class="ob-btn" id="obGoQualBtn">去上传资质</button>`;
+      }
+      banner.className = 'order-banner show ' + cls;
+      banner.innerHTML = html;
+      const goBtn = $('obGoQualBtn');
+      if (goBtn) goBtn.onclick = () => switchTab('qualify');
+      const refreshBtn = $('obRefreshBtn');
+      if (refreshBtn) refreshBtn.onclick = loadProfile;
+
+      // 侧边栏"开通接单"角标：未上传/被驳回时提示有待办
+      const badge = $('navQualifyBadge');
+      if (badge) badge.style.display = (!profile.orderEnabled && (qStatus === 'none' || qStatus === 'rejected')) ? 'inline-block' : 'none';
+    }
+
+    // ============ 开通接单 · 资质上传页 ============
+    const QUAL_PHOTOS = [
+      { key: 'businessLicense', label: '营业执照' },
+      { key: 'storeFront', label: '门店门头照' },
+      { key: 'storeInterior', label: '店内环境照' },
+      { key: 'goods', label: '货品照' }
+    ];
+    let _qualPhotos = {};   // 当前已选/已提交的照片 URL
+    let _qualLocked = false; // pending/approved 时只读
+
+    function renderQualifyPane(profile) {
+      const qual = profile.qualification || {};
+      const qStatus = qual.status || 'none';
+      _qualLocked = (qStatus === 'pending' || qStatus === 'approved' || !!profile.orderEnabled);
+
+      // 状态卡
+      const card = $('qualStatusCard');
+      if (qStatus === 'pending') {
+        card.style.display = 'block';
+        card.className = 'qual-status-card pending';
+        card.innerHTML = `⏳ <b>资质核验中</b>：4 张照片已提交（${fmtDate(qual.submittedAt)}），平台将在 1-2 个工作日内完成核验，请耐心等待。`;
+      } else if (qStatus === 'approved' || profile.orderEnabled) {
+        card.style.display = 'block';
+        card.className = 'qual-status-card approved';
+        card.innerHTML = `✅ <b>已开通接单</b>：资质核验通过（${fmtDate(qual.reviewedAt)}），你的店铺已正式上线采购商城。`;
+      } else if (qStatus === 'rejected') {
+        card.style.display = 'block';
+        card.className = 'qual-status-card rejected';
+        card.innerHTML = `❌ <b>资质核验未通过</b>（${fmtDate(qual.reviewedAt)}）<br>驳回原因：${esc(qual.rejectReason || '照片不清晰或不完整')}<br>请按提示重新上传照片后再次提交。`;
+      } else {
+        card.style.display = 'none';
+      }
+
+      // 照片：已提交过（pending/approved/rejected）先回填，驳回时可替换重传
+      _qualPhotos = {};
+      QUAL_PHOTOS.forEach(p => {
+        const url = qual[p.key];
+        if (url) _qualPhotos[p.key] = url;
+      });
+      renderQualTiles();
+
+      // 提交按钮
+      const btn = $('qualSubmitBtn');
+      const tip = $('qualSubmitTip');
+      if (_qualLocked) {
+        btn.style.display = 'none';
+        tip.style.display = 'none';
+      } else {
+        btn.style.display = 'inline-block';
+        tip.style.display = 'inline';
+        btn.textContent = qStatus === 'rejected' ? '重新提交资质' : '提交资质，申请开通接单';
+        syncQualSubmitState();
+      }
+    }
+
+    function renderQualTiles() {
+      const grid = $('qualGrid');
+      grid.innerHTML = QUAL_PHOTOS.map(p => {
+        const url = _qualPhotos[p.key] || '';
+        return `
+        <div class="qual-tile ${url ? 'has-img' : ''}" data-key="${p.key}">
+          <div class="qt-label">${p.label}<span class="req">*</span></div>
+          ${url
+            ? `<img class="qt-img" src="${esc(url)}" data-preview="${esc(url)}" alt="${esc(p.label)}">`
+            : `<div class="qt-placeholder" data-pick="${p.key}"><span class="cam">📷</span><span>点击上传${p.label}</span></div>`}
+          <div class="qt-actions">
+            ${url
+              ? `<button class="qt-btn" data-preview="${esc(url)}">查看</button>${_qualLocked ? '' : `<button class="qt-btn primary" data-pick="${p.key}">重新上传</button>`}`
+              : ( _qualLocked ? '<span class="qual-tip">未上传</span>' : `<button class="qt-btn primary" data-pick="${p.key}">上传照片</button>`)}
+          </div>
+          <input type="file" accept="image/jpeg,image/png" style="display:none;" data-file="${p.key}">
+        </div>`;
+      }).join('');
+
+      grid.querySelectorAll('[data-pick]').forEach(el => {
+        el.onclick = () => {
+          const key = el.dataset.pick;
+          const input = grid.querySelector(`[data-file="${key}"]`);
+          if (input) input.click();
+        };
+      });
+      grid.querySelectorAll('[data-file]').forEach(input => {
+        input.onchange = async (e) => {
+          const f = e.target.files && e.target.files[0];
+          e.target.value = '';
+          if (f) await uploadQualPhoto(input.dataset.file, f);
+        };
+      });
+      grid.querySelectorAll('[data-preview]').forEach(el => {
+        el.onclick = () => showImageLightbox(el.dataset.preview);
+      });
+    }
+
+    function syncQualSubmitState() {
+      const btn = $('qualSubmitBtn');
+      const ready = QUAL_PHOTOS.every(p => !!_qualPhotos[p.key]);
+      btn.disabled = !ready;
+      $('qualSubmitTip').textContent = ready
+        ? '4 张照片已就绪，点击提交后进入平台核验'
+        : `还缺 ${QUAL_PHOTOS.filter(p => !_qualPhotos[p.key]).map(p => p.label).join('、')}`;
+    }
+
+    // 压缩图片（与商家后台同规格：最长边 800px，JPEG 0.82，逐步降质保证 <2MB）
+    function compressQualImage(file) {
+      return new Promise((resolve, reject) => {
+        if (!['image/jpeg', 'image/png'].includes(file.type)) { reject(new Error('仅支持 jpg/png 格式')); return; }
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            const MAX = 800;
+            let width = img.width, height = img.height;
+            if (width > MAX || height > MAX) {
+              const r = Math.min(MAX / width, MAX / height);
+              width = Math.round(width * r); height = Math.round(height * r);
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width; canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+            let quality = 0.82;
+            let dataUrl = canvas.toDataURL('image/jpeg', quality);
+            while (dataUrl.length * 0.75 > 2 * 1024 * 1024 && quality > 0.4) {
+              quality -= 0.12;
+              dataUrl = canvas.toDataURL('image/jpeg', quality);
+            }
+            resolve(dataUrl);
+          };
+          img.onerror = () => reject(new Error('图片读取失败'));
+          img.src = reader.result;
+        };
+        reader.onerror = () => reject(new Error('文件读取失败'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function uploadQualPhoto(key, file) {
+      const label = (QUAL_PHOTOS.find(p => p.key === key) || {}).label || '照片';
+      try {
+        toast(`${label}处理中...`);
+        const dataUrl = await compressQualImage(file);
+        const blob = await (await fetch(dataUrl)).blob();
+        const fd = new FormData();
+        fd.append('file', blob, `qual_${Date.now()}.jpg`);
+        const res = await api('/api/supplier/upload', { method: 'POST', body: fd });
+        if (res.success && res.data && res.data.url) {
+          _qualPhotos[key] = res.data.url;
+          renderQualTiles();
+          syncQualSubmitState();
+          toast(`${label}已上传`);
+        } else {
+          toast(res.message || '上传失败', true);
+        }
+      } catch (e) {
+        toast(e.message || '上传失败', true);
+      }
+    }
+
+    $('qualSubmitBtn').onclick = async () => {
+      const missing = QUAL_PHOTOS.filter(p => !_qualPhotos[p.key]);
+      if (missing.length) { toast('请先上传：' + missing.map(p => p.label).join('、'), true); return; }
+      const btn = $('qualSubmitBtn');
+      btn.disabled = true; btn.textContent = '提交中...';
+      const body = {};
+      QUAL_PHOTOS.forEach(p => { body[p.key] = _qualPhotos[p.key]; });
+      const res = await api('/api/supplier/qualification/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      btn.disabled = false;
+      btn.textContent = '提交资质，申请开通接单';
+      if (res.success) {
+        toast('资质已提交，平台核验中');
+        await loadProfile();
+      } else {
+        toast(res.message || '提交失败', true);
+      }
+    };
+
+    // 图片点击放大（简易灯箱）
+    function showImageLightbox(url) {
+      if (!url) return;
+      let lb = $('qualLightbox');
+      if (!lb) {
+        lb = document.createElement('div');
+        lb.id = 'qualLightbox';
+        lb.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:24px;';
+        lb.onclick = () => { lb.style.display = 'none'; };
+        document.body.appendChild(lb);
+      }
+      lb.innerHTML = `<img src="${esc(url)}" style="max-width:100%;max-height:100%;border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.5);">`;
+      lb.style.display = 'flex';
     }
 
     function tierRangeText(t, idx, list) {
@@ -1533,6 +1879,7 @@
       closeSidebar();
       if (tab === 'orders') loadOrders();
       if (tab === 'products') loadProducts();
+      if (tab === 'qualify' && _gateProfile) renderQualifyPane(_gateProfile);
       if (tab === 'notify') loadNotifySettings();
       if (tab === 'settle') loadSettle();
     }
@@ -2047,13 +2394,14 @@
     const PRODUCT_CATEGORIES = ['肉类', '蔬菜', '粮油', '酒水', '冻品', '调料', '其他'];
     let productsCache = []; // 已加载的商品列表，供编辑时取值
 
-    // 拉取当前供应商的商品（后端按 supplierId query 过滤，公开接口）
+    // 拉取当前供应商自己的商品（供应商鉴权接口，不受采购商城可见性过滤；
+    // 未开通接单时也能在控制台管理商品，开通后"上架"商品自动出现在采购商城）
     async function loadProducts() {
       const tbody = $('productTbody');
       const myId = localStorage.getItem('supplierId');
       if (!myId) { location.href = '/supplier-login.html'; return; }
 
-      const res = await api('/api/supply-products?supplierId=' + encodeURIComponent(myId));
+      const res = await api('/api/supply-products/mine');
       if (!res.success) {
         tbody.innerHTML = `<tr><td colspan="8" class="no-data">商品加载失败：${esc(res.message || '未知错误')}</td></tr>`;
         return;

@@ -3,12 +3,17 @@ const router = express.Router();
 
 const ShopAccount = require('../models/ShopAccount');
 const Supplier = require('../models/Supplier');
+const SupplyProduct = require('../models/SupplyProduct');
 const PurchaseOrder = require('../models/PurchaseOrder');
 const Member = require('../models/Member');
 const RebateRule = require('../models/RebateRule');
 const RebateSettlement = require('../models/RebateSettlement');
 const CoinRule = require('../models/CoinRule');
 const Marketing = require('../models/Marketing');
+const PlatformConfig = require('../models/PlatformConfig');
+const Dish = require('../models/Dish');
+const Category = require('../models/Category');
+const Table = require('../models/Table');
 const rebate = require('../utils/rebate');
 const coinRule = require('../utils/coinRule');
 const { requireDev } = require('../middlewares/auth');
@@ -99,26 +104,34 @@ router.get('/merchants', async (req, res) => {
   }
 });
 
-// ============ GET /api/dev/merchants/:id 商家详情 ============
-// 商家信息 + 鼎恒币余额 + 采购历史（最近 50 单）
+// ============ GET /api/dev/merchants/:id 商家详情（只读预览） ============
+// 商家信息 + 鼎恒币余额 + 菜单/桌台概览 + 点餐页预览链接 + 采购历史（最近 50 单）
 router.get('/merchants/:id', async (req, res) => {
   try {
     const merchant = await ShopAccount.findById(req.params.id).lean();
     if (!merchant) {
       return res.status(404).json({ success: false, message: '商家不存在' });
     }
-    const member = await Member.findOne({ shopId: merchant.shopId }).lean();
-    const orders = await PurchaseOrder.find({ shopId: merchant.shopId })
-      .populate('supplierId', 'name')
-      .sort({ createdAt: -1 })
-      .limit(50)
-      .lean();
+    const shopId = merchant.shopId;
+    const [member, orders, dishCount, categoryCount, tableCount, dishSample] = await Promise.all([
+      Member.findOne({ shopId }).lean(),
+      PurchaseOrder.find({ shopId })
+        .populate('supplierId', 'name')
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .lean(),
+      Dish.countDocuments({ shopId }),
+      Category.countDocuments({ shopId }),
+      Table.countDocuments({ shopId }),
+      Dish.find({ shopId }).select('name price category isAvailable -_id').sort({ createdAt: 1 }).limit(10).lean()
+    ]);
 
     res.json({
       success: true,
       data: {
         merchant: {
           _id: merchant._id,
+          shopId,
           shopName: merchant.shopName || '未命名商家',
           contactName: merchant.contactName || '—',
           phone: merchant.phone || '—',
@@ -126,6 +139,15 @@ router.get('/merchants/:id', async (req, res) => {
         },
         memberLevel: (member && member.memberLevel) || '基础版',
         dinghengCoin: (member && member.dinghengCoin) || 0,
+        // 菜单/桌台概览
+        overview: {
+          dishCount,
+          categoryCount,
+          tableCount,
+          dishSample
+        },
+        // 真实点餐页预览地址（新标签打开）
+        previewUrl: `/customer.html?shopId=${encodeURIComponent(shopId)}`,
         orders
       }
     });
@@ -134,106 +156,231 @@ router.get('/merchants/:id', async (req, res) => {
   }
 });
 
-// ============ GET /api/dev/suppliers 供应商管理列表 ============
-// 查 Supplier 全量，附治理状态 + 本月流水 + 本月应付返点 + 本月结算状态
-// 待审核（pending）置顶
+// ============ GET /api/dev/suppliers 供应商管理列表（快速分页版） ============
+// 性能优化：列表只查 Supplier 基础字段 + 治理/资质状态（单表 aggregate，无 N+1 订单/返点聚合）；
+// 本月流水/返点/结算等经营统计移到「详情」接口按需查询。
+// 查询参数：page（默认1）、pageSize（默认20，最大100）、status（审核状态）、qual（资质状态）
+// 排序：待审核(pending)置顶，其余按注册时间倒序（$switch 在库内计算 rank）
 router.get('/suppliers', async (req, res) => {
   try {
-    const suppliers = await Supplier.find()
-      .select('name contact phone categories minOrderAmount createdAt status rejectReason frozenReason approvedAt agreementSigned agreementSignedAt orderEnabled orderEnabledAt')
-      .lean();
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    let pageSize = parseInt(req.query.pageSize, 10) || 20;
+    pageSize = Math.min(100, Math.max(1, pageSize));
+    const statusFilter = String(req.query.status || '');
+    const qualFilter = String(req.query.qual || '');
 
-    // 本月已完成的采购订单按供应商聚合流水（actualPayAmount 总和）
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthKey = rebate.monthKeyOf(now);
-    const monthAgg = await PurchaseOrder.aggregate([
-      { $match: { createdAt: { $gte: monthStart }, status: '已完成' } },
+    const match = {};
+    if (['pending', 'active', 'frozen', 'rejected'].includes(statusFilter)) match.status = statusFilter;
+    if (['none', 'pending', 'approved', 'rejected'].includes(qualFilter)) {
+      match['qualification.status'] = qualFilter;
+    }
+
+    const [aggResult] = await Supplier.aggregate([
+      { $match: match },
       {
-        $group: {
-          _id: '$supplierId',
-          total: {
-            $sum: {
-              $cond: [
-                { $gt: [{ $ifNull: ['$actualPayAmount', 0] }, 0] },
-                '$actualPayAmount',
-                { $ifNull: ['$totalAmount', 0] }
-              ]
+        $addFields: {
+          statusRank: {
+            $switch: {
+              branches: [
+                { case: { $eq: ['$status', 'pending'] }, then: 0 },
+                { case: { $eq: ['$status', 'rejected'] }, then: 1 },
+                { case: { $eq: ['$status', 'frozen'] }, then: 2 },
+                { case: { $eq: ['$status', 'active'] }, then: 3 }
+              ],
+              default: 99
             }
           }
         }
+      },
+      { $sort: { statusRank: 1, createdAt: -1 } },
+      {
+        $facet: {
+          total: [{ $count: 'count' }],
+          list: [
+            { $skip: (page - 1) * pageSize },
+            { $limit: pageSize },
+            {
+              $project: {
+                name: 1, contact: 1, phone: 1, categories: 1, minOrderAmount: 1,
+                createdAt: 1, status: 1, rejectReason: 1, frozenReason: 1,
+                approvedAt: 1, agreementSigned: 1, agreementSignedAt: 1,
+                orderEnabled: 1, orderEnabledAt: 1,
+                qualStatus: '$qualification.status',
+                qualSubmittedAt: '$qualification.submittedAt',
+                qualReviewedAt: '$qualification.reviewedAt',
+                qualRejectReason: '$qualification.rejectReason'
+              }
+            }
+          ]
+        }
       }
     ]);
-    const monthTurnoverMap = new Map();
-    monthAgg.forEach(a => {
-      if (a._id) monthTurnoverMap.set(String(a._id), +Number(a.total).toFixed(2));
+
+    const total = (aggResult && aggResult.total && aggResult.total[0] && aggResult.total[0].count) || 0;
+    const list = (aggResult && aggResult.list) || [];
+    const data = list.map(s => ({
+      _id: s._id,
+      name: s.name || '平台直供',
+      contactName: s.contact || '—',
+      phone: s.phone || '—',
+      categories: Array.isArray(s.categories) ? s.categories : [],
+      minOrderAmount: Number(s.minOrderAmount) > 0 ? Number(s.minOrderAmount) : 300,
+      createdAt: s.createdAt,
+      status: s.status || 'pending',
+      rejectReason: s.rejectReason || '',
+      frozenReason: s.frozenReason || '',
+      approvedAt: s.approvedAt || null,
+      agreementSigned: !!s.agreementSigned,
+      agreementSignedAt: s.agreementSignedAt || null,
+      orderEnabled: !!s.orderEnabled,
+      orderEnabledAt: s.orderEnabledAt || null,
+      qualStatus: s.qualStatus || 'none',
+      qualSubmittedAt: s.qualSubmittedAt || null,
+      qualReviewedAt: s.qualReviewedAt || null,
+      qualRejectReason: s.qualRejectReason || ''
+    }));
+
+    res.json({ success: true, data, total, page, pageSize });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ GET /api/dev/suppliers/options 供应商精简下拉选项 ============
+// 供对账中心/返点规则等下拉框使用：只取 _id + name，单表查询极快
+router.get('/suppliers/options', async (req, res) => {
+  try {
+    const list = await Supplier.find()
+      .select('name status')
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json({
+      success: true,
+      data: list.map(s => ({ _id: s._id, name: s.name || '平台直供', status: s.status || 'pending' }))
     });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
-    // 本月结算单（取本月 RebateSettlement）
-    const settlements = await RebateSettlement.find({ month: monthKey }).lean();
-    const settlementMap = new Map(settlements.map(s => [String(s.supplierId), s]));
+// ============ GET /api/dev/suppliers/:id/detail 供应商详情（只读预览） ============
+// 基本资料（含协议/资质/4 张核验照片）+ 商品列表与定价 + 本月经营数据 + 历史结算状态
+// 经营统计仅在打开详情时查询一次（避免列表页 N+1）
+router.get('/suppliers/:id/detail', async (req, res) => {
+  try {
+    const supplier = await Supplier.findById(req.params.id).select('-password').lean();
+    if (!supplier) {
+      return res.status(404).json({ success: false, message: '供应商不存在' });
+    }
+    const sid = String(supplier._id);
 
-    // 本月应付返点：已结算取结算单 totalRebateAmount，未结算实时计算
-    const sidList = suppliers.map(s => String(s._id));
-    const liveCalcPromises = sidList.map(async sid => {
-      if (settlementMap.has(sid)) return null; // 已结算跳过实时计算
+    // 商品列表与定价
+    const products = await SupplyProduct.find({ supplierId: sid })
+      .select('name category unit costPrice marketPrice stock status createdAt')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // 本月经营数据：订单数（本月创建）+ 流水（本月已完成实付合计）+ 应付返点（实时预估/已结算取实际）
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthKey = rebate.monthKeyOf(now);
+    const [monthOrderCount, monthTurnoverAgg, monthSettlement, settlements] = await Promise.all([
+      PurchaseOrder.countDocuments({ supplierId: sid, createdAt: { $gte: monthStart } }),
+      PurchaseOrder.aggregate([
+        { $match: { supplierId: supplier._id, createdAt: { $gte: monthStart }, status: '已完成' } },
+        {
+          $group: {
+            _id: null,
+            total: {
+              $sum: {
+                $cond: [
+                  { $gt: [{ $ifNull: ['$actualPayAmount', 0] }, 0] },
+                  '$actualPayAmount',
+                  { $ifNull: ['$totalAmount', 0] }
+                ]
+              }
+            }
+          }
+        }
+      ]),
+      RebateSettlement.findOne({ month: monthKey, supplierId: sid }).lean(),
+      RebateSettlement.find({ supplierId: sid }).sort({ month: -1, settledAt: -1 }).limit(12).lean()
+    ]);
+
+    const monthTurnover = (monthTurnoverAgg[0] && monthTurnoverAgg[0].total) || 0;
+    let monthRebate;
+    let settleStatus = '未结算';
+    let overdue = false;
+    if (monthSettlement) {
+      monthRebate = +Number(monthSettlement.totalRebateAmount || 0).toFixed(2);
+      settleStatus = rebate.normalizeSettlementStatus(monthSettlement.status);
+      overdue = rebate.isSettlementOverdue(monthSettlement);
+    } else {
       try {
         const calc = await rebate.calcSupplierMonthRebate(sid, monthKey);
-        return { sid, totalRebate: calc.totalRebate };
-      } catch (e) { return { sid, totalRebate: 0 }; }
-    });
-    const liveCalcs = await Promise.all(liveCalcPromises);
-    const liveRebateMap = new Map();
-    liveCalcs.forEach(c => { if (c) liveRebateMap.set(c.sid, c.totalRebate); });
-
-    const STATUS_RANK = { pending: 0, rejected: 1, frozen: 2, active: 3 };
-    const data = suppliers.map(s => {
-      const sid = String(s._id);
-      const settled = settlementMap.get(sid);
-      const turnover = monthTurnoverMap.get(sid) || 0;
-      const rebateAmount = settled
-        ? +Number(settled.totalRebateAmount || 0).toFixed(2)
-        : +(liveRebateMap.get(sid) || 0).toFixed(2);
-      let settleStatus = '未结算';
-      let overdue = false;
-      if (settled) {
-        settleStatus = rebate.normalizeSettlementStatus(settled.status);
-        overdue = rebate.isSettlementOverdue(settled);
+        monthRebate = calc.totalRebate;
+      } catch (e) {
+        monthRebate = 0;
       }
-      return {
-        _id: s._id,
-        name: s.name || '平台直供',
-        contactName: s.contact || '—',
-        phone: s.phone || '—',
-        categories: Array.isArray(s.categories) ? s.categories : [],
-        minOrderAmount: Number(s.minOrderAmount) > 0 ? Number(s.minOrderAmount) : 300,
-        createdAt: s.createdAt,
-        // 治理字段
-        status: s.status || 'pending',
-        rejectReason: s.rejectReason || '',
-        frozenReason: s.frozenReason || '',
-        approvedAt: s.approvedAt || null,
-        agreementSigned: !!s.agreementSigned,
-        agreementSignedAt: s.agreementSignedAt || null,
-        orderEnabled: !!s.orderEnabled,
-        orderEnabledAt: s.orderEnabledAt || null,
-        // 本月经营指标
-        monthTurnover: +turnover.toFixed(2),
-        monthRebate: rebateAmount,
-        settleStatus,
-        overdue
-      };
-    });
+    }
 
-    // 待审核置顶；同状态按注册时间倒序
-    data.sort((a, b) => {
-      const ra = STATUS_RANK[a.status] != null ? STATUS_RANK[a.status] : 99;
-      const rb = STATUS_RANK[b.status] != null ? STATUS_RANK[b.status] : 99;
-      if (ra !== rb) return ra - rb;
-      return new Date(b.createdAt) - new Date(a.createdAt);
+    const qual = supplier.qualification || {};
+    res.json({
+      success: true,
+      data: {
+        profile: {
+          _id: supplier._id,
+          name: supplier.name || '平台直供',
+          loginAccount: supplier.loginAccount || '—',
+          contact: supplier.contact || '—',
+          phone: supplier.phone || '—',
+          categories: Array.isArray(supplier.categories) ? supplier.categories : [],
+          minOrderAmount: Number(supplier.minOrderAmount) > 0 ? Number(supplier.minOrderAmount) : 300,
+          createdAt: supplier.createdAt,
+          status: supplier.status || 'pending',
+          rejectReason: supplier.rejectReason || '',
+          frozenReason: supplier.frozenReason || '',
+          approvedAt: supplier.approvedAt || null,
+          agreementSigned: !!supplier.agreementSigned,
+          agreementSignedAt: supplier.agreementSignedAt || null,
+          orderEnabled: !!supplier.orderEnabled,
+          orderEnabledAt: supplier.orderEnabledAt || null,
+          qualification: {
+            status: qual.status || 'none',
+            businessLicense: qual.businessLicense || '',
+            storeFront: qual.storeFront || '',
+            storeInterior: qual.storeInterior || '',
+            goods: qual.goods || '',
+            submittedAt: qual.submittedAt || null,
+            reviewedAt: qual.reviewedAt || null,
+            rejectReason: qual.rejectReason || ''
+          }
+        },
+        products: products.map(p => ({
+          _id: p._id, name: p.name, category: p.category || '未分类', unit: p.unit || '个',
+          costPrice: Number(p.costPrice) || 0, marketPrice: Number(p.marketPrice) || 0,
+          stock: Number(p.stock) || 0, status: p.status || '上架'
+        })),
+        monthStats: {
+          month: monthKey,
+          orderCount: monthOrderCount,
+          turnover: +Number(monthTurnover).toFixed(2),
+          rebate: +Number(monthRebate).toFixed(2),
+          settleStatus,
+          overdue
+        },
+        settlements: settlements.map(h => ({
+          month: h.month,
+          totalPurchaseAmount: h.totalPurchaseAmount,
+          totalRebateAmount: h.totalRebateAmount,
+          settledAt: h.settledAt,
+          status: rebate.normalizeSettlementStatus(h.status),
+          confirmedAt: h.confirmedAt || null,
+          paidAt: h.paidAt || null,
+          overdue: rebate.isSettlementOverdue(h)
+        }))
+      }
     });
-
-    res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -346,6 +493,166 @@ router.put('/suppliers/:id/order-enable', async (req, res) => {
       success: true,
       message: enabled ? '已开通接单权限，店铺将出现在采购商城' : '已暂停接单，店铺从采购商城隐藏',
       data: { orderEnabled: supplier.orderEnabled, orderEnabledAt: supplier.orderEnabledAt }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ 供应商资质核验（开通接单的"一道闸门"）============
+// PUT /api/dev/suppliers/:id/qualification/approve  核验通过 → 正式开通接单
+// 前置：status=active && agreementSigned && qualification.status=pending
+// 通过后：qualification.status=approved + orderEnabled=true（店铺上线采购商城）
+router.put('/suppliers/:id/qualification/approve', async (req, res) => {
+  try {
+    const supplier = await Supplier.findById(req.params.id);
+    if (!supplier) return res.status(404).json({ success: false, message: '供应商不存在' });
+    if (supplier.status !== 'active') {
+      return res.status(400).json({ success: false, message: '供应商未通过入驻审核，无法开通接单' });
+    }
+    if (!supplier.agreementSigned) {
+      return res.status(400).json({ success: false, message: '供应商尚未签署合作协议，无法开通接单' });
+    }
+    const qual = supplier.qualification || {};
+    if (qual.status !== 'pending') {
+      if (qual.status === 'approved' && supplier.orderEnabled) {
+        return res.json({ success: true, message: '该供应商已开通接单', data: { orderEnabled: true } });
+      }
+      return res.status(400).json({ success: false, message: '该供应商尚未提交资质或资质不在核验中状态' });
+    }
+    // 4 张照片必须齐全（防御性校验，提交接口已保证）
+    const missing = ['businessLicense', 'storeFront', 'storeInterior', 'goods']
+      .filter(f => !String(qual[f] || '').trim());
+    if (missing.length) {
+      return res.status(400).json({ success: false, message: '资质照片不完整，无法核验通过' });
+    }
+    supplier.set({
+      'qualification.status': 'approved',
+      'qualification.reviewedAt': new Date(),
+      'qualification.rejectReason': '',
+      orderEnabled: true
+    });
+    if (!supplier.orderEnabledAt) supplier.orderEnabledAt = new Date();
+    await supplier.save();
+    res.json({
+      success: true,
+      message: '核验通过，已开通接单，供应商店铺正式上线采购商城',
+      data: { orderEnabled: true, qualStatus: 'approved', orderEnabledAt: supplier.orderEnabledAt }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PUT /api/dev/suppliers/:id/qualification/reject  核验驳回：qualification.status=rejected + 原因（供应商端可见）
+// 驳回后供应商可修改资质重新提交（重新进入 pending）；orderEnabled 保持 false
+router.put('/suppliers/:id/qualification/reject', async (req, res) => {
+  try {
+    const reason = safeReason(req.body);
+    if (!reason) {
+      return res.status(400).json({ success: false, message: '请填写驳回原因（供应商端可见）' });
+    }
+    const supplier = await Supplier.findById(req.params.id);
+    if (!supplier) return res.status(404).json({ success: false, message: '供应商不存在' });
+    const qual = supplier.qualification || {};
+    if (qual.status !== 'pending') {
+      return res.status(400).json({ success: false, message: '该供应商资质不在核验中状态' });
+    }
+    supplier.set({
+      'qualification.status': 'rejected',
+      'qualification.reviewedAt': new Date(),
+      'qualification.rejectReason': reason
+    });
+    await supplier.save();
+    res.json({
+      success: true,
+      message: '已驳回资质申请，供应商可看到驳回原因并重新提交',
+      data: { qualStatus: 'rejected', rejectReason: reason }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ 开发者后台待办红点 ============
+// GET /api/dev/todos 返回：
+//   pendingRegistrations  待审核入驻申请总数（总览待办卡片用，绝对值）
+//   pendingQualifications 待核验资质申请总数（总览待办卡片用，绝对值）
+//   unreadTotal           未读合计（侧边栏红点用：上次查看之后新出现的待办）
+router.get('/todos', async (req, res) => {
+  try {
+    const cfg = await PlatformConfig.getSingleton();
+    const readAt = cfg.supplierTodoReadAt || null;
+
+    const [pendingRegistrations, pendingQualifications, unreadReg, unreadQual] = await Promise.all([
+      Supplier.countDocuments({ status: 'pending' }),
+      Supplier.countDocuments({ 'qualification.status': 'pending' }),
+      readAt
+        ? Supplier.countDocuments({ status: 'pending', createdAt: { $gt: new Date(readAt) } })
+        : Supplier.countDocuments({ status: 'pending' }),
+      readAt
+        ? Supplier.countDocuments({ 'qualification.status': 'pending', 'qualification.submittedAt': { $gt: new Date(readAt) } })
+        : Supplier.countDocuments({ 'qualification.status': 'pending' })
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        pendingRegistrations,
+        pendingQualifications,
+        unreadRegistrations: unreadReg,
+        unreadQualifications: unreadQual,
+        unreadTotal: unreadReg + unreadQual,
+        readAt
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/dev/todos/read  进入供应商管理页时标记已读（红点消除，类似微信未读）
+router.post('/todos/read', async (req, res) => {
+  try {
+    const now = new Date();
+    await PlatformConfig.updateOne(
+      { key: 'platform' },
+      { $set: { supplierTodoReadAt: now } },
+      { upsert: true }
+    );
+    res.json({ success: true, data: { readAt: now } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ 平台全局配置（系统设置）============
+// GET /api/dev/config 读取平台配置
+router.get('/config', async (req, res) => {
+  try {
+    const cfg = await PlatformConfig.getSingleton();
+    res.json({
+      success: true,
+      data: { platformCompanyName: cfg.platformCompanyName || '' }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PUT /api/dev/config 更新平台配置（目前仅甲方营业执照全称）
+router.put('/config', async (req, res) => {
+  try {
+    const platformCompanyName = String((req.body && req.body.platformCompanyName) || '').trim().slice(0, 100);
+    const cfg = await PlatformConfig.findOneAndUpdate(
+      { key: 'platform' },
+      { $set: { platformCompanyName } },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    res.json({
+      success: true,
+      message: '平台配置已保存',
+      data: { platformCompanyName: cfg.platformCompanyName || '' }
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

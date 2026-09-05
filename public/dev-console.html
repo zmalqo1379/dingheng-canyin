@@ -101,6 +101,124 @@
       font-size: 11px; color: #6b7280;
       border-top: 1px solid rgba(255,255,255,.06);
     }
+    /* 侧边栏未读红点角标 */
+    .nav-red-dot {
+      margin-left: auto;
+      min-width: 20px; height: 20px; padding: 0 6px;
+      border-radius: 10px;
+      background: #ef4444; color: #fff;
+      font-size: 11.5px; font-weight: 700;
+      display: none; align-items: center; justify-content: center;
+      line-height: 1;
+      box-shadow: 0 0 0 2px rgba(239,68,68,.25);
+    }
+
+    /* 总览-待办事项卡片 */
+    .todo-card {
+      margin-top: 18px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px 22px;
+      display: flex; align-items: center; gap: 26px;
+      flex-wrap: wrap;
+      box-shadow: 0 2px 8px rgba(15,23,42,.04);
+    }
+    .todo-card .todo-head { font-size: 15px; font-weight: 700; }
+    .todo-item {
+      display: flex; flex-direction: column; gap: 2px;
+      cursor: pointer; padding: 8px 18px;
+      border-radius: 10px;
+      transition: background .15s;
+    }
+    .todo-item:hover { background: #fff7f3; }
+    .todo-item .num { font-size: 24px; font-weight: 800; color: var(--accent); }
+    .todo-item .num.zero { color: #9ca3af; }
+    .todo-item .lbl { font-size: 12.5px; color: #6b7280; }
+
+    /* 分页条 */
+    .pager {
+      display: flex; align-items: center; gap: 12px;
+      margin-top: 14px; justify-content: flex-end;
+      font-size: 13px; color: #6b7280;
+    }
+    .pager button {
+      background: #fff; border: 1px solid var(--line);
+      border-radius: 8px; padding: 6px 14px;
+      cursor: pointer; font-size: 13px; color: #374151;
+    }
+    .pager button:disabled { opacity: .45; cursor: not-allowed; }
+    .pager button:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
+
+    /* 资质状态小标签 */
+    .qual-tag { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .qual-tag.none { background: #f3f4f6; color: #6b7280; }
+    .qual-tag.pending { background: #eff6ff; color: #1d4ed8; }
+    .qual-tag.approved { background: #dcfce7; color: #15803d; }
+    .qual-tag.rejected { background: #fee2e2; color: #b91c1c; }
+
+    /* 供应商详情弹窗-资质照片网格 */
+    .qual-photo-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+      margin-top: 10px;
+    }
+    .qual-photo-item { text-align: center; }
+    .qual-photo-item .qph {
+      display: block; font-size: 12.5px; color: #6b7280; margin-bottom: 6px;
+    }
+    .qual-photo-item img {
+      width: 100%; aspect-ratio: 1/1; object-fit: cover;
+      border-radius: 10px; border: 1px solid var(--line);
+      cursor: zoom-in; background: #f9fafb;
+    }
+    .qual-photo-item .empty {
+      width: 100%; aspect-ratio: 1/1;
+      border-radius: 10px; border: 1px dashed var(--line);
+      display: flex; align-items: center; justify-content: center;
+      color: #c0c4cc; font-size: 13px; background: #f9fafb;
+    }
+    .detail-stats {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+      margin: 14px 0;
+    }
+    .detail-stat {
+      background: #f9fafb; border-radius: 10px; padding: 12px 14px;
+    }
+    .detail-stat .ds-num { font-size: 20px; font-weight: 800; color: #1f2937; }
+    .detail-stat .ds-num.green { color: #16a34a; }
+    .detail-stat .ds-num.red { color: #ef4444; }
+    .detail-stat .ds-lbl { font-size: 12px; color: #6b7280; margin-top: 2px; }
+    .modal-box.wide { max-width: 960px; }
+    .dish-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .dish-chips .chip {
+      background: #f3f4f6; border-radius: 999px; padding: 3px 10px;
+      font-size: 12px; color: #4b5563;
+    }
+    .preview-link-btn {
+      display: inline-block; margin-top: 10px;
+      background: var(--blue); color: #fff;
+      padding: 8px 16px; border-radius: 9px;
+      font-size: 13px; text-decoration: none; font-weight: 600;
+    }
+    .preview-link-btn:hover { opacity: .9; }
+    .qual-actions-bar {
+      display: flex; gap: 10px; margin: 12px 0;
+    }
+    .qual-actions-bar .btn-qa-approve {
+      background: #16a34a; color: #fff; border: none;
+      padding: 9px 18px; border-radius: 9px; font-size: 13.5px; cursor: pointer; font-weight: 600;
+    }
+    .qual-actions-bar .btn-qa-reject {
+      background: #fff; color: #ef4444; border: 1px solid #ef4444;
+      padding: 9px 18px; border-radius: 9px; font-size: 13.5px; cursor: pointer; font-weight: 600;
+    }
+    .config-form-row { margin-bottom: 18px; max-width: 560px; }
+    .config-form-row label { display: block; font-size: 13.5px; font-weight: 600; margin-bottom: 8px; }
+    .config-form-row input {
+      width: 100%; padding: 10px 12px;
+      border: 1px solid var(--line); border-radius: 9px; font-size: 14px;
+    }
+    .config-form-row .hint { font-size: 12px; color: #9ca3af; margin-top: 6px; line-height: 1.6; }
 
     /* ============ 内容区 ============ */
     .main {
@@ -444,7 +562,7 @@
       <nav class="nav">
         <div class="nav-item active" data-tab="overview"><span class="icon">🏠</span> 总览</div>
         <div class="nav-item" data-tab="merchants"><span class="icon">🏪</span> 商家管理</div>
-        <div class="nav-item" data-tab="suppliers"><span class="icon">🚚</span> 供应商管理</div>
+        <div class="nav-item" data-tab="suppliers"><span class="icon">🚚</span> 供应商管理<span class="nav-red-dot" id="supNavDot">0</span></div>
         <div class="nav-item" data-tab="rebate"><span class="icon">📊</span> 返点中心</div>
         <div class="nav-item" data-tab="coinrules"><span class="icon">🪙</span> 得币倍率</div>
         <div class="nav-item" data-tab="reconcile"><span class="icon">💰</span> 对账中心</div>
@@ -474,6 +592,20 @@
             <div class="value">¥<span id="monthlyTotal">-</span></div>
           </div>
         </div>
+
+        <!-- 待办事项：待审核注册 + 待核验资质（点击进入供应商管理处理，进入后红点消除） -->
+        <div class="todo-card">
+          <div class="todo-head">📌 待办事项</div>
+          <div class="todo-item" id="todoRegItem">
+            <span class="num" id="todoRegNum">-</span>
+            <span class="lbl">待审核注册申请</span>
+          </div>
+          <div class="todo-item" id="todoQualItem">
+            <span class="num" id="todoQualNum">-</span>
+            <span class="lbl">待核验资质申请</span>
+          </div>
+          <div style="font-size:12px;color:#9ca3af;">点击数字进入「供应商管理」处理，进入后未读红点消除</div>
+        </div>
       </section>
 
       <!-- 2. 商家管理 -->
@@ -499,36 +631,61 @@
         </div>
       </section>
 
-      <!-- 3. 供应商管理 -->
+      <!-- 3. 供应商管理（列表只查基础字段，秒开；经营数据进详情再查） -->
       <section class="pane" id="pane-suppliers">
         <div class="pane-title">🚚 供应商管理</div>
+        <div class="filter-bar">
+          <label>审核状态
+            <select id="supFilterStatus">
+              <option value="">全部</option>
+              <option value="pending">待审核</option>
+              <option value="active">已通过</option>
+              <option value="frozen">已冻结</option>
+              <option value="rejected">已拒绝</option>
+            </select>
+          </label>
+          <label>资质状态
+            <select id="supFilterQual">
+              <option value="">全部</option>
+              <option value="none">未上传</option>
+              <option value="pending">核验中</option>
+              <option value="approved">已通过</option>
+              <option value="rejected">已驳回</option>
+            </select>
+          </label>
+          <button class="btn btn-primary" id="supFilterBtn">查询</button>
+        </div>
         <div class="table-wrap">
-          <table class="dtable" style="min-width:1100px;">
+          <table class="dtable" style="min-width:980px;">
             <thead>
               <tr>
                 <th>供应商名称</th>
                 <th>联系人</th>
                 <th>手机号</th>
                 <th>主营品类</th>
-                <th>起送价</th>
-                <th>状态</th>
-                <th>协议/接单</th>
-                <th>本月流水</th>
-                <th>本月返点</th>
-                <th>结算状态</th>
+                <th>审核状态</th>
+                <th>协议</th>
+                <th>资质核验</th>
+                <th>接单</th>
                 <th>注册时间</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody id="supplierTbody">
-              <tr><td colspan="12" class="no-data">加载中...</td></tr>
+              <tr><td colspan="10" class="no-data">加载中...</td></tr>
             </tbody>
           </table>
         </div>
+        <div class="pager">
+          <span id="supPageInfo">共 0 条</span>
+          <button id="supPrevBtn">上一页</button>
+          <span id="supPageNum">1</span>
+          <button id="supNextBtn">下一页</button>
+        </div>
         <p style="font-size:12px;color:#9ca3af;margin-top:10px;line-height:1.7;">
           状态说明：待审核（置顶，可"通过/拒绝"）/ 已通过 / 已冻结 / 已拒绝。
-          接单门槛：审核通过 + 签署协议 + 开通接单 三者同时满足，店铺才会出现在采购商城。
-          冻结后店铺从商城隐藏、不能接新单；在途订单可正常完成。清退删除需二次确认。
+          上线流程：审核通过 → 供应商签协议（即进控制台）→ 上传 4 张资质 → 平台核验通过自动开通接单，店铺才出现在采购商城。
+          点"查看"可只读预览资料、资质照片、商品定价与本月经营数据。冻结后店铺从商城隐藏、不能接新单；清退删除需二次确认。
         </p>
       </section>
 
@@ -713,11 +870,15 @@
       <!-- 8. 系统设置 -->
       <section class="pane" id="pane-system">
         <div class="pane-title">⚙️ 系统设置</div>
-        <div class="placeholder">
-          <div class="ico">⚙️</div>
-          <h3>系统设置（开发中）</h3>
-          <p>平台全局配置功能将在后续阶段开放</p>
+        <div class="config-form-row">
+          <label>甲方（平台）营业执照全称</label>
+          <input type="text" id="cfgPlatformCompanyName" placeholder="例如：鼎恒餐饮供应链管理有限公司（按营业执照全称填写）" maxlength="100">
+          <div class="hint">
+            用于《供应商入驻合作协议》顶部甲方信息栏；乙方（供应商）全称自动读取其注册名称。<br>
+            留空时协议页将显示"待配置"提示，不影响签署流程。
+          </div>
         </div>
+        <button class="btn btn-primary" id="cfgSaveBtn">保存配置</button>
       </section>
     </main>
   </div>
@@ -799,6 +960,19 @@
     </div>
   </div>
 
+  <!-- 供应商详情弹窗（只读预览 + 资质核验操作） -->
+  <div class="modal" id="supplierDetailModal">
+    <div class="modal-box wide">
+      <h3>
+        <span id="sdTitle">供应商详情</span>
+        <button class="modal-close" id="sdClose">×</button>
+      </h3>
+      <div id="sdBody">
+        <div style="color:#9ca3af;font-size:13px;padding:30px 0;text-align:center;">加载中...</div>
+      </div>
+    </div>
+  </div>
+
   <script>
     // 权限控制：无 token 强制跳转登录
     const token = localStorage.getItem('devToken');
@@ -864,13 +1038,17 @@
         document.querySelectorAll('.pane').forEach(x => x.classList.toggle('active', x.id === 'pane-' + tab));
         closeSidebar();
         if (tab === 'merchants') loadMerchants();
-        if (tab === 'suppliers') loadSuppliers();
+        if (tab === 'suppliers') { markTodosRead(); loadSuppliers(); }
         if (tab === 'rebate') initRebateTab();
         if (tab === 'coinrules') loadCoinRules();
         if (tab === 'reconcile') initReconcile();
         if (tab === 'marketing') loadMarketingDev();
+        if (tab === 'system') loadPlatformConfig();
       };
     });
+    // 总览待办卡片点击 → 进入供应商管理（同样触发已读）
+    $('todoRegItem').onclick = () => document.querySelector('.nav-item[data-tab="suppliers"]').click();
+    $('todoQualItem').onclick = () => document.querySelector('.nav-item[data-tab="suppliers"]').click();
 
     function openSidebar() { $('sidebar').classList.add('open'); $('scrim').classList.add('show'); }
     function closeSidebar() { $('sidebar').classList.remove('open'); $('scrim').classList.remove('show'); }
@@ -890,6 +1068,32 @@
       $('merchantCount').textContent = ok ? (res.data.merchantCount || 0) : '0';
       $('supplierCount').textContent = ok ? (res.data.supplierCount || 0) : '0';
       $('monthlyTotal').textContent = ok ? Number(res.data.monthlyPurchaseTotal || 0).toFixed(2) : '0.00';
+    }
+
+    // ============ 待办红点（微信式未读：进入供应商管理页即消除） ============
+    async function loadTodos() {
+      const res = await api('/api/dev/todos');
+      if (!res.success || !res.data) return;
+      const d = res.data;
+      // 侧边栏红点 = 未读合计（上次查看之后新出现的待办）
+      const dot = $('supNavDot');
+      if (d.unreadTotal > 0) {
+        dot.style.display = 'flex';
+        dot.textContent = d.unreadTotal > 99 ? '99+' : String(d.unreadTotal);
+      } else {
+        dot.style.display = 'none';
+      }
+      // 总览待办卡片 = 待办绝对值
+      $('todoRegNum').textContent = d.pendingRegistrations || 0;
+      $('todoQualNum').textContent = d.pendingQualifications || 0;
+      $('todoRegNum').className = 'num' + (d.pendingRegistrations ? '' : ' zero');
+      $('todoQualNum').className = 'num' + (d.pendingQualifications ? '' : ' zero');
+    }
+    async function markTodosRead() {
+      // 进入页面即标记已读（乐观更新：先隐藏红点，再同步服务端）
+      $('supNavDot').style.display = 'none';
+      await api('/api/dev/todos/read', { method: 'POST' });
+      loadTodos();
     }
 
     // ============ 营销活动总览（各商家，只读） ============
@@ -1073,13 +1277,27 @@
       const d = res.data;
       const m = d.merchant || {};
       $('mmTitle').textContent = '商家详情 - ' + (m.shopName || '未命名商家');
+      const ov = d.overview || {};
+      const dishChips = (ov.dishSample || []).map(dish =>
+        `<span class="chip">${esc(dish.name)} · ¥${Number(dish.price || 0).toFixed(2)}</span>`).join('');
       $('mmInfo').innerHTML = `
-        <div class="info-item"><div class="k">店铺名称</div><div class="v">${esc(m.shopName || '—')}</div></div>
+        <div class="info-item"><div class="k">店铺名称</div><div class="v"><b>${esc(m.shopName || '—')}</b></div></div>
         <div class="info-item"><div class="k">联系人</div><div class="v">${esc(m.contactName || '—')}</div></div>
         <div class="info-item"><div class="k">手机号</div><div class="v">${esc(m.phone || '—')}</div></div>
         <div class="info-item"><div class="k">会员等级</div><div class="v">${esc(d.memberLevel || '基础版')}</div></div>
         <div class="info-item"><div class="k">鼎恒币余额</div><div class="v hl">${Number(d.dinghengCoin || 0)}</div></div>
         <div class="info-item"><div class="k">注册时间</div><div class="v">${fmtTime(m.createdAt)}</div></div>
+        <div class="info-item"><div class="k">菜品数量</div><div class="v">${ov.dishCount != null ? ov.dishCount : '—'} 道</div></div>
+        <div class="info-item"><div class="k">菜品分类</div><div class="v">${ov.categoryCount != null ? ov.categoryCount : '—'} 个</div></div>
+        <div class="info-item"><div class="k">桌台数量</div><div class="v">${ov.tableCount != null ? ov.tableCount : '—'} 张</div></div>
+        <div class="info-item" style="grid-column:1/-1;">
+          <div class="k">菜品样例（前 10 道）</div>
+          <div class="dish-chips">${dishChips || '<span style="font-size:12px;color:#9ca3af;">暂无菜品</span>'}</div>
+        </div>
+        <div class="info-item" style="grid-column:1/-1;">
+          <div class="k">点餐页预览（买家真实点餐页）</div>
+          <div class="v"><a class="preview-link-btn" href="${esc(d.previewUrl || ('/customer.html?shopId=' + encodeURIComponent(m.shopId || '')))}" target="_blank" rel="noopener">🔗 新标签打开点餐页</a></div>
+        </div>
       `;
       const orders = d.orders || [];
       $('mmOrders').innerHTML = orders.length ? orders.map(o => `
@@ -1097,38 +1315,59 @@
       if (e.target === $('merchantModal')) $('merchantModal').classList.remove('show');
     };
 
-    // ============ 供应商管理（含治理状态与操作） ============
+    // ============ 供应商管理（快速分页列表：只查基础字段，经营数据进详情再查） ============
     const SUP_STATUS_TEXT = {
       pending: '待审核', active: '已通过', frozen: '已冻结', rejected: '已拒绝'
     };
+    const QUAL_STATUS_TEXT = { none: '未上传', pending: '核验中', approved: '已通过', rejected: '已驳回' };
+    let _supPage = 1;
+    const _supPageSize = 20;
+
+    // 供应商精简选项（下拉框共用：对账中心/返点规则），单表查询极快，只拉一次
+    let _supplierOptions = null;
+    async function loadSupplierOptions(force) {
+      if (!force && _supplierOptions) return _supplierOptions;
+      const res = await api('/api/dev/suppliers/options');
+      if (res.success && Array.isArray(res.data)) _supplierOptions = res.data;
+      else _supplierOptions = _supplierOptions || [];
+      return _supplierOptions;
+    }
+    async function fillRcSupplierSelect() {
+      const opts = await loadSupplierOptions();
+      const sel = $('rcSupplier');
+      const prev = sel.value;
+      sel.innerHTML = '<option value="">全部供应商</option>' + opts.map(s =>
+        `<option value="${esc(String(s._id))}">${esc(s.name)}</option>`).join('');
+      if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
+    }
+
     async function loadSuppliers() {
       const tbody = $('supplierTbody');
-      tbody.innerHTML = '<tr><td colspan="12" class="no-data">加载中...</td></tr>';
-      const res = await api('/api/dev/suppliers');
+      tbody.innerHTML = '<tr><td colspan="10" class="no-data">加载中...</td></tr>';
+      const q = new URLSearchParams({
+        page: String(_supPage),
+        pageSize: String(_supPageSize),
+        status: $('supFilterStatus').value || '',
+        qual: $('supFilterQual').value || ''
+      });
+      const t0 = performance.now();
+      const res = await api('/api/dev/suppliers?' + q.toString());
+      const costMs = (performance.now() - t0).toFixed(0);
       if (!res.success || !Array.isArray(res.data)) {
-        tbody.innerHTML = `<tr><td colspan="12" class="no-data">${esc(res.message || '加载失败')}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" class="no-data">${esc(res.message || '加载失败')}</td></tr>`;
         return;
       }
-      if (!res.data.length) {
-        tbody.innerHTML = '<tr><td colspan="12" class="no-data">暂无注册供应商</td></tr>';
+      const list = res.data;
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="10" class="no-data">暂无符合条件的供应商</td></tr>';
       } else {
-        tbody.innerHTML = res.data.map(s => {
+        tbody.innerHTML = list.map(s => {
           const status = s.status || 'pending';
           const statusText = SUP_STATUS_TEXT[status] || status;
-          // 协议/接单状态
-          let agreeTxt, orderTxt;
-          agreeTxt = s.agreementSigned ? '已签署' : '未签署';
-          if (status === 'frozen') orderTxt = '已冻结';
-          else if (status !== 'active') orderTxt = '—';
-          else if (!s.agreementSigned) orderTxt = '待签协议';
-          else if (s.orderEnabled) orderTxt = '已开通';
-          else orderTxt = '待开通';
-          // 结算状态
-          let settleTxt = s.settleStatus || '未结算';
-          if (s.overdue) settleTxt += '<span class="overdue-tag">逾期</span>';
+          const qualStatus = s.qualStatus || 'none';
 
-          // 操作按钮（根据状态显示）
-          let actions = '';
+          // 操作按钮（根据状态显示；经营数据与资质照片统一在"查看"详情中）
+          let actions = `<button class="sup-action" data-act="view" data-id="${esc(String(s._id))}">查看</button>`;
           if (status === 'pending') {
             actions += `<button class="sup-action approve" data-act="approve" data-id="${esc(String(s._id))}">通过</button>`;
             actions += `<button class="sup-action reject" data-act="reject" data-id="${esc(String(s._id))}">拒绝</button>`;
@@ -1137,12 +1376,12 @@
             actions += `<button class="sup-action approve" data-act="approve" data-id="${esc(String(s._id))}">重新通过</button>`;
           }
           if (status === 'active') {
-            if (s.agreementSigned) {
-              if (s.orderEnabled) {
-                actions += `<button class="sup-action disable" data-act="order-disable" data-id="${esc(String(s._id))}">暂停接单</button>`;
-              } else {
-                actions += `<button class="sup-action enable" data-act="order-enable" data-id="${esc(String(s._id))}">开通接单</button>`;
-              }
+            // 资质核验中：快捷入口（打开详情看照片并开通/驳回）
+            if (s.agreementSigned && qualStatus === 'pending') {
+              actions += `<button class="sup-action enable" data-act="view" data-id="${esc(String(s._id))}">核验资质</button>`;
+            }
+            if (s.orderEnabled) {
+              actions += `<button class="sup-action disable" data-act="order-disable" data-id="${esc(String(s._id))}">暂停接单</button>`;
             }
             actions += `<button class="sup-action freeze" data-act="freeze" data-id="${esc(String(s._id))}">冻结</button>`;
           }
@@ -1151,38 +1390,46 @@
           }
           actions += `<button class="sup-action delete" data-act="delete" data-id="${esc(String(s._id))}" data-name="${esc(s.name || '')}">清退</button>`;
 
+          const agreeTxt = s.agreementSigned ? '已签署' : '未签署';
+          let orderTxt;
+          if (status === 'frozen') orderTxt = '<span style="color:#b91c1c;">已冻结</span>';
+          else if (status !== 'active') orderTxt = '—';
+          else if (s.orderEnabled) orderTxt = '<b style="color:#15803d;">已开通</b>';
+          else orderTxt = '<span style="color:#9ca3af;">未开通</span>';
+
           return `
           <tr>
-            <td data-label="供应商名称"><b>${esc(s.name || '平台直供')}</b></td>
-            <td data-label="联系人">${esc(s.contactName || '—')}</td>
-            <td data-label="手机号">${esc(s.phone || '—')}</td>
-            <td data-label="主营品类">${s.categories && s.categories.length ? s.categories.map(c => `<span class="tag">${esc(c)}</span>`).join('') : '—'}</td>
-            <td data-label="起送价">${fmtMoney(s.minOrderAmount)}</td>
-            <td data-label="状态"><span class="sup-status ${status}">${statusText}</span></td>
-            <td data-label="协议/接单">
-              <div style="font-size:12px;line-height:1.6;">
-                <div>协议：<b>${agreeTxt}</b></div>
-                <div>接单：<b>${orderTxt}</b></div>
-              </div>
+            <td data-label="供应商名称"><b>${esc(s.name)}</b></td>
+            <td data-label="联系人">${esc(s.contactName)}</td>
+            <td data-label="手机号">${esc(s.phone)}</td>
+            <td data-label="主营品类">${s.categories.length ? s.categories.map(c => `<span class="tag">${esc(c)}</span>`).join('') : '—'}</td>
+            <td data-label="审核状态"><span class="sup-status ${status}">${statusText}</span></td>
+            <td data-label="协议">${agreeTxt}</td>
+            <td data-label="资质核验">
+              <span class="qual-tag ${qualStatus}" ${qualStatus === 'rejected' && s.qualRejectReason ? `title="驳回原因：${esc(s.qualRejectReason)}"` : ''}>${QUAL_STATUS_TEXT[qualStatus] || qualStatus}</span>
             </td>
-            <td data-label="本月流水" class="money-green">${fmtMoney(s.monthTurnover)}</td>
-            <td data-label="本月返点" class="money-red">${fmtMoney(s.monthRebate)}</td>
-            <td data-label="结算状态">${settleTxt}</td>
+            <td data-label="接单">${orderTxt}</td>
             <td data-label="注册时间">${fmtTime(s.createdAt)}</td>
             <td data-label="操作" style="white-space:normal;">${actions}</td>
           </tr>`;
         }).join('');
-        // 绑定操作按钮
         bindSupplierActions();
       }
-      // 同步填充对账中心的供应商下拉框
-      const sel = $('rcSupplier');
-      const prev = sel.value;
-      sel.innerHTML = '<option value="">全部供应商</option>' + (res.data || []).map(s =>
-        `<option value="${esc(String(s._id))}">${esc(s.name || '平台直供')}</option>`
-      ).join('');
-      if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
+      // 分页条
+      const total = res.total || 0;
+      const totalPages = Math.max(1, Math.ceil(total / _supPageSize));
+      $('supPageInfo').textContent = `共 ${total} 条 · 列表加载 ${costMs} ms`;
+      $('supPageNum').textContent = `${_supPage} / ${totalPages}`;
+      $('supPrevBtn').disabled = _supPage <= 1;
+      $('supNextBtn').disabled = _supPage >= totalPages;
+      // 对账下拉框首次为空时用全量选项填充
+      if ($('rcSupplier').options.length <= 1) fillRcSupplierSelect();
     }
+
+    // 供应商列表筛选/分页（一次性绑定）
+    $('supFilterBtn').onclick = () => { _supPage = 1; loadSuppliers(); };
+    $('supPrevBtn').onclick = () => { if (_supPage > 1) { _supPage--; loadSuppliers(); } };
+    $('supNextBtn').onclick = () => { _supPage++; loadSuppliers(); };
 
     // 供应商治理操作绑定
     function bindSupplierActions() {
@@ -1191,10 +1438,14 @@
           const act = btn.dataset.act;
           const id = btn.dataset.id;
           const name = btn.dataset.name || '';
+          if (act === 'view') {
+            openSupplierDetail(id);
+            return;
+          }
           if (act === 'approve') {
-            if (!confirm(`确认通过供应商「${name || id}」的入驻申请？`)) return;
+            if (!confirm(`确认通过供应商「${name || id}」的入驻申请？通过后供应商即可签署协议进入控制台。`)) return;
             const r = await api(`/api/dev/suppliers/${id}/approve`, { method: 'PUT' });
-            if (r.success) { alert(r.message || '已审核通过'); loadSuppliers(); }
+            if (r.success) { alert(r.message || '已审核通过'); loadSuppliers(); loadTodos(); }
             else alert(r.message || '操作失败');
           } else if (act === 'reject') {
             const reason = prompt(`请输入拒绝原因（供应商端可见）：`);
@@ -1203,7 +1454,7 @@
               method: 'PUT', headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ reason })
             });
-            if (r.success) { alert(r.message || '已拒绝'); loadSuppliers(); }
+            if (r.success) { alert(r.message || '已拒绝'); loadSuppliers(); loadTodos(); }
             else alert(r.message || '操作失败');
           } else if (act === 'freeze') {
             const reason = prompt(`请输入冻结原因（供应商端可见）：`);
@@ -1219,21 +1470,13 @@
             const r = await api(`/api/dev/suppliers/${id}/unfreeze`, { method: 'PUT' });
             if (r.success) { alert(r.message || '已解冻'); loadSuppliers(); }
             else alert(r.message || '操作失败');
-          } else if (act === 'order-enable') {
-            if (!confirm(`确认为供应商「${name || id}」开通接单权限？开通后店铺将出现在采购商城。`)) return;
-            const r = await api(`/api/dev/suppliers/${id}/order-enable`, {
-              method: 'PUT', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ enabled: true })
-            });
-            if (r.success) { alert(r.message || '已开通接单'); loadSuppliers(); }
-            else alert(r.message || '操作失败');
           } else if (act === 'order-disable') {
             if (!confirm(`确认暂停供应商「${name || id}」的接单权限？暂停后店铺从采购商城隐藏。`)) return;
             const r = await api(`/api/dev/suppliers/${id}/order-enable`, {
               method: 'PUT', headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ enabled: false })
             });
-            if (r.success) { alert(r.message || '已暂停接单'); loadSuppliers(); }
+            if (r.success) { alert(r.message || '已暂停接单'); loadSuppliers(); loadTodos(); }
             else alert(r.message || '操作失败');
           } else if (act === 'delete') {
             const step1 = confirm(`【清退删除】\n\n确认清退供应商「${name || id}」？\n\n清退后：该供应商账号删除、上架商品删除，历史订单与结算记录保留用于对账。`);
@@ -1241,20 +1484,225 @@
             const step2 = confirm(`【二次确认】\n\n请再次确认：删除「${name || id}」操作不可撤销，是否继续？`);
             if (!step2) return;
             const r = await api(`/api/dev/suppliers/${id}`, { method: 'DELETE' });
-            if (r.success) { alert(r.message || '已清退删除'); loadSuppliers(); }
+            if (r.success) {
+              alert(r.message || '已清退删除');
+              loadSuppliers(); loadTodos();
+              loadSupplierOptions(true); // 下拉框同步移除
+            }
             else alert(r.message || '操作失败');
           }
         };
       });
     }
 
+    // ============ 供应商详情（只读预览 + 资质核验开通/驳回） ============
+    const SD_PHOTOS = [
+      { key: 'businessLicense', label: '营业执照' },
+      { key: 'storeFront', label: '门店门头照' },
+      { key: 'storeInterior', label: '店内环境照' },
+      { key: 'goods', label: '货品照' }
+    ];
+    let _sdCurrentId = null;
+    async function openSupplierDetail(id) {
+      _sdCurrentId = id;
+      $('sdTitle').textContent = '供应商详情';
+      $('sdBody').innerHTML = '<div style="color:#9ca3af;font-size:13px;padding:30px 0;text-align:center;">加载中...</div>';
+      $('supplierDetailModal').classList.add('show');
+
+      const res = await api(`/api/dev/suppliers/${id}/detail`);
+      if (!res.success || !res.data) {
+        $('sdBody').innerHTML = `<div style="color:var(--red);font-size:13px;padding:20px 0;">${esc(res.message || '加载失败')}</div>`;
+        return;
+      }
+      renderSupplierDetail(res.data);
+    }
+
+    function renderSupplierDetail(d) {
+      const p = d.profile || {};
+      const qual = p.qualification || {};
+      const qualText = QUAL_STATUS_TEXT[qual.status] || '未上传';
+      const ms = d.monthStats || {};
+      const products = d.products || [];
+      const settlements = d.settlements || [];
+
+      const qualPhotosHtml = SD_PHOTOS.map(ph => {
+        const url = qual[ph.key];
+        return `<div class="qual-photo-item">
+          <span class="qph">${ph.label}</span>
+          ${url
+            ? `<img src="${esc(url)}" data-photo="${esc(url)}" alt="${ph.label}">`
+            : '<div class="empty">未上传</div>'}
+        </div>`;
+      }).join('');
+
+      // 资质核验操作条：仅"核验中"显示开通/驳回
+      let qualActionBar = '';
+      if (qual.status === 'pending') {
+        qualActionBar = `
+          <div class="qual-actions-bar">
+            <button class="btn-qa-approve" id="sdQualApprove">✅ 核验通过，开通接单</button>
+            <button class="btn-qa-reject" id="sdQualReject">❌ 驳回并填写原因</button>
+          </div>`;
+      }
+
+      $('sdTitle').textContent = '供应商详情 - ' + (p.name || '未命名');
+      $('sdBody').innerHTML = `
+        <div class="sub-title">基本资料</div>
+        <div class="info-grid">
+          <div class="info-item"><div class="k">供应商名称</div><div class="v"><b>${esc(p.name)}</b></div></div>
+          <div class="info-item"><div class="k">登录账号</div><div class="v">${esc(p.loginAccount)}</div></div>
+          <div class="info-item"><div class="k">联系人</div><div class="v">${esc(p.contact)}</div></div>
+          <div class="info-item"><div class="k">手机号</div><div class="v">${esc(p.phone)}</div></div>
+          <div class="info-item"><div class="k">主营品类</div><div class="v">${p.categories.length ? p.categories.map(c => `<span class="tag">${esc(c)}</span>`).join(' ') : '—'}</div></div>
+          <div class="info-item"><div class="k">起送价</div><div class="v">${fmtMoney(p.minOrderAmount)}</div></div>
+          <div class="info-item"><div class="k">审核状态</div><div class="v"><span class="sup-status ${esc(p.status)}">${SUP_STATUS_TEXT[p.status] || p.status}</span></div></div>
+          <div class="info-item"><div class="k">注册时间</div><div class="v">${fmtTime(p.createdAt)}</div></div>
+          <div class="info-item"><div class="k">协议签署时间</div><div class="v">${p.agreementSigned ? fmtTime(p.agreementSignedAt) : '未签署'}</div></div>
+          <div class="info-item"><div class="k">接单开通时间</div><div class="v">${p.orderEnabledAt ? fmtTime(p.orderEnabledAt) : (p.orderEnabled ? '已开通' : '未开通')}</div></div>
+          <div class="info-item"><div class="k">资质核验状态</div><div class="v"><span class="qual-tag ${esc(qual.status)}">${qualText}</span></div></div>
+          <div class="info-item"><div class="k">资质提交时间</div><div class="v">${fmtTime(qual.submittedAt)}</div></div>
+        </div>
+        ${p.status === 'rejected' && p.rejectReason ? `<p style="font-size:12.5px;color:#b91c1c;margin-top:8px;">入驻拒绝原因：${esc(p.rejectReason)}</p>` : ''}
+        ${qual.status === 'rejected' && qual.rejectReason ? `<p style="font-size:12.5px;color:#b91c1c;margin-top:8px;">资质驳回原因：${esc(qual.rejectReason)}</p>` : ''}
+
+        <div class="sub-title" style="margin-top:18px;">资质照片（点击图片可放大查看）</div>
+        <div class="qual-photo-grid">${qualPhotosHtml}</div>
+        ${qualActionBar}
+
+        <div class="sub-title" style="margin-top:18px;">经营数据（${esc(ms.month || '')}）</div>
+        <div class="detail-stats">
+          <div class="detail-stat"><div class="ds-num">${ms.orderCount || 0}</div><div class="ds-lbl">本月订单数</div></div>
+          <div class="detail-stat"><div class="ds-num green">${fmtMoney(ms.turnover)}</div><div class="ds-lbl">本月流水（已完成）</div></div>
+          <div class="detail-stat"><div class="ds-num red">${fmtMoney(ms.rebate)}</div><div class="ds-lbl">本月应付返点</div></div>
+          <div class="detail-stat"><div class="ds-num" style="font-size:15px;line-height:1.7;">${esc(ms.settleStatus || '未结算')}${ms.overdue ? ' <span style="color:#ef4444;">·逾期</span>' : ''}</div><div class="ds-lbl">本月结算状态</div></div>
+        </div>
+
+        <div class="sub-title" style="margin-top:18px;">商品列表与定价（${products.length} 件）</div>
+        <div class="table-wrap">
+          <table class="dtable" style="min-width:720px;">
+            <thead>
+              <tr><th>商品名称</th><th>品类</th><th>单位</th><th>成本价</th><th>市场价</th><th>库存</th><th>状态</th></tr>
+            </thead>
+            <tbody>
+              ${products.length ? products.map(pr => `
+                <tr>
+                  <td data-label="商品名称"><b>${esc(pr.name)}</b></td>
+                  <td data-label="品类">${esc(pr.category)}</td>
+                  <td data-label="单位">${esc(pr.unit)}</td>
+                  <td data-label="成本价">${fmtMoney(pr.costPrice)}</td>
+                  <td data-label="市场价">${fmtMoney(pr.marketPrice)}</td>
+                  <td data-label="库存">${pr.stock}</td>
+                  <td data-label="状态"><span class="tag">${esc(pr.status)}</span></td>
+                </tr>`).join('')
+                : '<tr><td colspan="7" class="no-data">暂无商品</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="sub-title" style="margin-top:18px;">历史结算（最近 ${settlements.length} 期）</div>
+        <div class="table-wrap">
+          <table class="dtable" style="min-width:640px;">
+            <thead>
+              <tr><th>月份</th><th>采购总额</th><th>实际返点</th><th>状态</th><th>结算时间</th></tr>
+            </thead>
+            <tbody>
+              ${settlements.length ? settlements.map(h => `
+                <tr>
+                  <td data-label="月份" class="mono">${esc(h.month)}</td>
+                  <td data-label="采购总额">${fmtMoney(h.totalPurchaseAmount)}</td>
+                  <td data-label="实际返点" class="money-red">${fmtMoney(h.totalRebateAmount)}</td>
+                  <td data-label="状态">${esc(h.status)}${h.overdue ? ' <span style="color:#ef4444;">·逾期</span>' : ''}</td>
+                  <td data-label="结算时间">${fmtTime(h.settledAt)}</td>
+                </tr>`).join('')
+                : '<tr><td colspan="5" class="no-data">暂无历史结算</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      // 照片放大
+      $('sdBody').querySelectorAll('img[data-photo]').forEach(img => {
+        img.onclick = () => showDevImageLightbox(img.dataset.photo);
+      });
+      // 核验操作
+      const approveBtn = $('sdQualApprove');
+      if (approveBtn) approveBtn.onclick = async () => {
+        if (!confirm('确认 4 张资质照片核验通过？\n通过后供应商将正式开通接单，店铺上线采购商城。')) return;
+        approveBtn.disabled = true;
+        const r = await api(`/api/dev/suppliers/${_sdCurrentId}/qualification/approve`, { method: 'PUT' });
+        if (r.success) {
+          alert(r.message || '已开通接单');
+          loadSuppliers(); loadTodos();
+          openSupplierDetail(_sdCurrentId); // 刷新详情
+        } else {
+          alert(r.message || '操作失败');
+          approveBtn.disabled = false;
+        }
+      };
+      const rejectBtn = $('sdQualReject');
+      if (rejectBtn) rejectBtn.onclick = async () => {
+        const reason = prompt('请填写资质驳回原因（供应商端可见）：');
+        if (reason === null) return;
+        if (!reason.trim()) { alert('驳回原因不能为空'); return; }
+        rejectBtn.disabled = true;
+        const r = await api(`/api/dev/suppliers/${_sdCurrentId}/qualification/reject`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason })
+        });
+        if (r.success) {
+          alert(r.message || '已驳回');
+          loadSuppliers(); loadTodos();
+          openSupplierDetail(_sdCurrentId);
+        } else {
+          alert(r.message || '操作失败');
+          rejectBtn.disabled = false;
+        }
+      };
+    }
+
+    // 图片灯箱（开发者后台）
+    function showDevImageLightbox(url) {
+      let lb = $('devLightbox');
+      if (!lb) {
+        lb = document.createElement('div');
+        lb.id = 'devLightbox';
+        lb.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:24px;';
+        lb.onclick = () => { lb.style.display = 'none'; };
+        document.body.appendChild(lb);
+      }
+      lb.innerHTML = `<img src="${esc(url)}" style="max-width:100%;max-height:100%;border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.5);">`;
+      lb.style.display = 'flex';
+    }
+    $('sdClose').onclick = () => $('supplierDetailModal').classList.remove('show');
+    $('supplierDetailModal').onclick = (e) => {
+      if (e.target === $('supplierDetailModal')) $('supplierDetailModal').classList.remove('show');
+    };
+
+    // ============ 系统设置（平台配置） ============
+    async function loadPlatformConfig() {
+      const input = $('cfgPlatformCompanyName');
+      const res = await api('/api/dev/config');
+      if (res.success && res.data) input.value = res.data.platformCompanyName || '';
+    }
+    $('cfgSaveBtn').onclick = async () => {
+      const btn = $('cfgSaveBtn');
+      btn.disabled = true; btn.textContent = '保存中...';
+      const r = await api('/api/dev/config', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platformCompanyName: $('cfgPlatformCompanyName').value })
+      });
+      btn.disabled = false; btn.textContent = '保存配置';
+      if (r.success) alert('平台配置已保存');
+      else alert(r.message || '保存失败');
+    };
+
     // ============ 对账中心（仅订单明细与平台净利；返点概览/结算/历史在「返点中心」）============
     let rcInited = false;
     function initReconcile() {
       // 默认本月
       if (!$('rcMonth').value) $('rcMonth').value = curMonth();
-      // 供应商下拉框为空时先拉取
-      if ($('rcSupplier').options.length <= 1) loadSuppliers();
+      // 供应商下拉框为空时先拉取全量精简选项
+      if ($('rcSupplier').options.length <= 1) fillRcSupplierSelect();
       if (!rcInited) {
         rcInited = true;
         $('rcQueryBtn').onclick = refreshReconcileAll;
@@ -1488,10 +1936,9 @@
     // 返点中心初始化：月份/结算控件 + 概览 + 结算历史 + 规则配置
     let rbInited = false;
     async function initRebateTab() {
-      // 拉取供应商列表供规则编辑器使用
+      // 拉取供应商精简选项供规则编辑器使用（单表查询极快，与对账下拉共用缓存）
       if (!allSuppliers.length) {
-        const res = await api('/api/dev/suppliers');
-        if (res.success && Array.isArray(res.data)) allSuppliers = res.data;
+        allSuppliers = await loadSupplierOptions();
       }
       // 默认本月
       if (!$('rbMonth').value) $('rbMonth').value = curMonth();
@@ -1675,7 +2122,10 @@
       if (e.target === $('ruleModal')) closeRuleModal();
     };
 
+    // 首屏：总览统计 + 待办红点；红点每 60 秒轮询一次（新申请/新资质实时提醒）
     loadStats();
+    loadTodos();
+    setInterval(loadTodos, 60000);
   </script>
 </body>
 </html>

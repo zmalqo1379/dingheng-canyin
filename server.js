@@ -37,6 +37,7 @@ const {
   extractPublicShopId,
   requirePublicShopId,
   requireMerchant,
+  requireSupplier,
 } = require('./middlewares/auth');
 
 const app = express();
@@ -73,6 +74,33 @@ const upload = multer({
 // 菜品图片上传（商家后台专用，需登录；前端已压缩到 2MB 内）
 app.post('/api/admin/upload', requireMerchant, (req, res) => {
   upload.single('file')(req, res, (err) => {
+    if (err) {
+      const msg = err.code === 'LIMIT_FILE_SIZE' ? '图片超过 2MB，请压缩后再试' : err.message;
+      return res.status(400).json({ success: false, message: msg });
+    }
+    if (!req.file) return res.status(400).json({ success: false, message: '未收到图片文件' });
+    res.json({ success: true, data: { url: `/uploads/${req.file.filename}` } });
+  });
+});
+
+// 供应商资质图片上传（供应商控制台专用，需供应商登录；用于营业执照/门头/环境/货品 4 张核验照片）
+const qualUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+      cb(null, `qual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`);
+    }
+  }),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = ['image/jpeg', 'image/png'].includes(file.mimetype);
+    if (!ok) return cb(new Error('仅支持 jpg/png 格式图片'));
+    cb(null, true);
+  }
+});
+app.post('/api/supplier/upload', requireSupplier, (req, res) => {
+  qualUpload.single('file')(req, res, (err) => {
     if (err) {
       const msg = err.code === 'LIMIT_FILE_SIZE' ? '图片超过 2MB，请压缩后再试' : err.message;
       return res.status(400).json({ success: false, message: msg });
@@ -834,9 +862,18 @@ app.use('/api/marketing', marketingRouter);
 app.use('/api/points', customerPointsRouter);
 
 // 供应商列表（公开浏览 + 管理端展示，不涉及多商家隔离）
+// 采购商城可见的供应商列表：仅 status=active && agreementSigned && orderEnabled
+// pending/frozen/rejected、未签协议、未开通接单的供应商一律不出现
 app.get('/api/suppliers', async (req, res) => {
   try {
-    const suppliers = await Supplier.find().select('-password').sort({ createdAt: -1 });
+    const suppliers = await Supplier.find({
+      status: 'active',
+      agreementSigned: true,
+      orderEnabled: true
+    })
+      .select('name contact phone categories minOrderAmount createdAt')
+      .sort({ createdAt: -1 })
+      .lean();
     res.json({ success: true, data: suppliers });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
