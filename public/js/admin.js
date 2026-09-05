@@ -598,8 +598,14 @@ async function loadSettings() {
 }
 
 /* ===================== 店铺装修（独立栏目） ===================== */
-let _decoState = { theme: 'classic', shopNameFont: 'modern', layout: 'list', bannerImage: '', logoImage: '', shopName: '鼎恒餐饮' };
+let _decoState = { theme: 'classic', shopNameFont: 'modern', layout: 'list', bannerImage: '', logoImage: '', promoPoster: '', promoPosterSize: 'small', shopName: '鼎恒餐饮' };
 let _decoSelected = { theme: null, shopNameFont: null, layout: null }; // 选中态（未应用），null 表示未选中
+
+const POSTER_SIZES = [
+  { id: 'small',  name: '小横幅（矮）', desc: '矮横条，不遮挡菜单' },
+  { id: 'medium', name: '小海报（中）', desc: '适中高度，图文均衡' },
+  { id: 'large',  name: '大海报（高）', desc: '大图展示，视觉冲击强' }
+];
 
 async function loadDecorate() {
   const [res] = await Promise.all([api('/api/settings'), fetchMemberLevel()]);
@@ -610,6 +616,8 @@ async function loadDecorate() {
     layout: ['list', 'large', 'grid'].includes(s.layout) ? s.layout : 'list',
     bannerImage: s.bannerImage || '',
     logoImage: s.logoImage || '',
+    promoPoster: s.promoPoster || '',
+    promoPosterSize: ['small', 'medium', 'large'].includes(s.promoPosterSize) ? s.promoPosterSize : 'small',
     shopName: s.shopName || '鼎恒餐饮'
   };
   // 选中态：null 表示未选中（点击卡片时填入字段值，预览/应用按钮浮现于该卡片下方）
@@ -618,8 +626,10 @@ async function loadDecorate() {
   renderDecoLock();
   setDecoPreview($('bannerPreview'), _decoState.bannerImage, '未设置 · 使用主题默认');
   setDecoPreview($('logoPreview'), _decoState.logoImage, '未设置 · 使用主题默认');
+  setDecoPreview($('posterPreview'), _decoState.promoPoster, '未设置 · 显示文字轮播');
   renderFontGrid(_decoState.shopNameFont);
   renderLayoutGrid(_decoState.layout);
+  renderPosterSizeRow();
 }
 
 const THEME_LIST_DECO = ['classic', 'minimal', 'dark', 'green', 'redgold'];
@@ -813,23 +823,32 @@ function setDecoPreview(el, url, emptyText) {
 const DECO_UPGRADE_TIP = '开通会员，上传你店的专属头图与 logo，让顾客记住你的店';
 function renderDecoLock() {
   const isAdvanced = (LEVEL_RANK[_memberLevel] ?? 0) >= LEVEL_RANK.advanced;
-  ['decoBanner', 'decoLogo'].forEach(id => {
+  ['decoBanner', 'decoLogo', 'decoPoster'].forEach(id => {
     const box = $(id);
     if (box) box.classList.toggle('locked', !isAdvanced);
   });
-  ['bannerLock', 'logoLock'].forEach(id => {
+  ['bannerLock', 'logoLock', 'posterLock'].forEach(id => {
     const el = $(id);
     if (el) el.style.display = isAdvanced ? 'none' : 'inline-block';
   });
 }
 
-// 通用图片上传（进阶版及以上校验在前）：kind = banner / logo
+// 装修图片字段映射：kind → Setting 字段 / 预览元素
+const DECO_IMAGE_FIELDS = {
+  banner: { field: 'bannerImage', preview: 'bannerPreview' },
+  logo:   { field: 'logoImage',   preview: 'logoPreview' },
+  poster: { field: 'promoPoster', preview: 'posterPreview' }
+};
+
+// 通用图片上传（进阶版及以上校验在前）：kind = banner / logo / poster
 async function uploadDecoImage(file, kind) {
   if ((LEVEL_RANK[_memberLevel] ?? 0) < LEVEL_RANK.advanced) {
     toast(DECO_UPGRADE_TIP, true);
     goUpgrade('advanced');
     return;
   }
+  const map = DECO_IMAGE_FIELDS[kind];
+  if (!map) return;
   try {
     toast('图片处理中...');
     const dataUrl = await compressImage(file);
@@ -841,16 +860,14 @@ async function uploadDecoImage(file, kind) {
       toast(up.message || '上传失败', true);
       return;
     }
-    const field = kind === 'banner' ? 'bannerImage' : 'logoImage';
     const res = await api('/api/settings', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ [field]: up.data.url })
+      body: JSON.stringify({ [map.field]: up.data.url })
     });
     if (res.success) {
-      toast('已更新，顾客端实时生效');
-      const field = kind === 'banner' ? 'bannerImage' : 'logoImage';
-      _decoState[field] = up.data.url;
-      setDecoPreview($(kind === 'banner' ? 'bannerPreview' : 'logoPreview'), up.data.url);
+      toast(kind === 'poster' ? '海报已上传，顾客端实时生效' : '已更新，顾客端实时生效');
+      _decoState[map.field] = up.data.url;
+      setDecoPreview($(map.preview), up.data.url);
     } else if (res.needUpgrade) {
       toast(res.message || DECO_UPGRADE_TIP, true);
       goUpgrade('advanced');
@@ -863,15 +880,15 @@ async function uploadDecoImage(file, kind) {
 }
 
 // 恢复默认（置空字段，不限会员等级）
-async function clearDecoImage(field, previewId) {
+async function clearDecoImage(field, previewId, emptyText) {
   const res = await api('/api/settings', {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ [field]: '' })
   });
   if (res.success) {
-    toast('已恢复主题默认');
+    toast(field === 'promoPoster' ? '已移除海报，恢复优惠文字轮播' : '已恢复主题默认');
     _decoState[field] = '';
-    setDecoPreview($(previewId), '', '未设置 · 使用主题默认');
+    setDecoPreview($(previewId), '', emptyText || '未设置 · 使用主题默认');
   } else {
     toast(res.message || '操作失败', true);
   }
@@ -891,6 +908,40 @@ $('logoFile').onchange = (e) => {
 };
 $('clearBannerBtn').onclick = () => clearDecoImage('bannerImage', 'bannerPreview');
 $('clearLogoBtn').onclick = () => clearDecoImage('logoImage', 'logoPreview');
+
+/* ---------- 优惠海报（上传后点餐页顶部优惠区以海报为主） ---------- */
+$('uploadPosterBtn').onclick = () => $('posterFile').click();
+$('posterFile').onchange = (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (f) uploadDecoImage(f, 'poster');
+  e.target.value = '';
+};
+$('clearPosterBtn').onclick = () => clearDecoImage('promoPoster', 'posterPreview', '未设置 · 显示文字轮播');
+
+// 海报尺寸三档切换（点选即刻生效，尺寸切换不限会员等级）
+function renderPosterSizeRow() {
+  const row = $('posterSizeRow');
+  if (!row) return;
+  row.querySelectorAll('.psize-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.size === _decoState.promoPosterSize);
+  });
+}
+$('posterSizeRow').addEventListener('click', async (e) => {
+  const btn = e.target.closest('.psize-btn');
+  if (!btn || btn.dataset.size === _decoState.promoPosterSize) return;
+  const size = btn.dataset.size;
+  const res = await api('/api/settings', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ promoPosterSize: size })
+  });
+  if (res.success) {
+    _decoState.promoPosterSize = size;
+    renderPosterSizeRow();
+    toast('海报尺寸已更新，顾客端实时生效');
+  } else {
+    toast(res.message || '操作失败', true);
+  }
+});
 
 /* ---------- 店名字体（系统字体栈，与 customer.js / models/Setting.js 保持一致） ---------- */
 const NAME_FONTS = [
@@ -2406,20 +2457,22 @@ function renderMarketing() {
         chk.onchange = () => mktAction('toggle', chk.dataset.id);
       });
     }
-    // 手机卡片
+    // 手机卡片（启用开关固定在卡片右上角，与标题同一行）
     if (cards) {
       cards.innerHTML = list.map(a => {
         const st = mktStatus(a);
         return `<div class="mkt-card-m">
-          <div class="mcm-title">${esc(a.title || '—')}</div>
-          <div class="mcm-rule">${mktRuleText(a)}</div>
-          <div class="mcm-time">${mktTimeText(a)}</div>
-          <span class="mcm-status ${st.cls}">${st.text}</span>
-          <div class="mcm-actions">
+          <div class="mcm-head">
+            <div class="mcm-title">${esc(a.title || '—')}</div>
             <label class="toggle" title="${a.enabled ? '点击停用' : '点击启用'}">
               <input type="checkbox" data-act="toggle" data-id="${esc(a._id)}" ${a.enabled ? 'checked' : ''}>
               <span class="slider"></span>
             </label>
+          </div>
+          <div class="mcm-rule">${mktRuleText(a)}</div>
+          <div class="mcm-time">${mktTimeText(a)}</div>
+          <span class="mcm-status ${st.cls}">${st.text}</span>
+          <div class="mcm-actions">
             <button class="btn btn-blue" data-act="edit" data-id="${esc(a._id)}">编辑</button>
             <button class="btn btn-red" data-act="del" data-id="${esc(a._id)}">删除</button>
           </div>

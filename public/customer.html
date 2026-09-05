@@ -723,21 +723,15 @@
       transition: transform .5s cubic-bezier(.33,.85,.3,1);
       will-change: transform;
     }
-    /* 单条优惠海报卡：主题色渐变底 + 白色文字 + 左侧小图标 */
+    /* 单条优惠海报卡：纯文字排版（标签 + 主文案 + 一行小字说明） */
     .promo-card {
       flex: 0 0 100%; min-width: 0;
-      display: flex; align-items: center; gap: 10px;
+      display: flex; align-items: center;
       padding: 9px 12px;
       border-radius: 14px;
       background: var(--promo-grad);
       color: var(--promo-text);
       box-shadow: 0 3px 12px var(--accent-shadow-color);
-    }
-    .pc-ico {
-      width: 34px; height: 34px; border-radius: 10px;
-      background: var(--promo-ico-bg);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 18px; flex-shrink: 0;
     }
     .pc-body { flex: 1; min-width: 0; }
     .pc-main {
@@ -785,6 +779,23 @@
       cursor: pointer; padding: 0; border: none;
     }
     .pdot.active { width: 14px; background: var(--accent); }
+    /* ---- 优惠海报（商家上传后顶部优惠区以海报为主，充满宽度、圆角、三档高度） ---- */
+    .promo-poster {
+      display: none;
+      width: 100%;
+      border-radius: 14px;
+      overflow: hidden;
+      background: var(--promo-dot);
+      box-shadow: 0 3px 12px var(--accent-shadow-color);
+    }
+    .promo-poster.show { display: block; }
+    .promo-poster img {
+      display: block; width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    .promo-poster.size-small { aspect-ratio: 15 / 4; }   /* 小横幅：矮 */
+    .promo-poster.size-medium { aspect-ratio: 15 / 8; }  /* 小海报：中 */
+    .promo-poster.size-large { aspect-ratio: 5 / 4; }    /* 大海报：高 */
     /* ---- 海报卡配色跟随店铺主题（5 套主题各自协调） ---- */
     body {
       --promo-grad: linear-gradient(135deg, #FF9A44, #f55100);
@@ -971,9 +982,11 @@
       </div>
     </div>
 
-    <!-- 优惠信息条（有进行中的满减/折扣/积分规则时显示，海报卡轮播：静止展示，3 秒自动横滑） -->
+    <!-- 优惠信息条（有进行中的满减/折扣/积分规则时显示，海报卡轮播：静止展示，3 秒自动横滑；上传优惠海报后以海报为主） -->
     <div class="promo-banner" id="promoBanner" style="display:none;">
-      <div class="promo-stage">
+      <!-- 优惠海报（商家上传后优先显示，充满宽度、圆角、三档高度） -->
+      <div class="promo-poster" id="promoPoster"><img id="promoPosterImg" alt="优惠海报"></div>
+      <div class="promo-stage" id="promoStage">
         <div class="promo-viewport"><div class="promo-track" id="promoTrack"></div></div>
         <button class="promo-arrow prev" id="promoPrev" type="button" aria-label="上一条">‹</button>
         <button class="promo-arrow next" id="promoNext" type="button" aria-label="下一条">›</button>

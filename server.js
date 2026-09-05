@@ -621,7 +621,8 @@ app.put('/api/settings', requireMerchant, async (req, res) => {
 
     // ---- 店铺装修：自定义图片进阶版及以上（置空/恢复默认不限等级）----
     const wantsImage = (update.bannerImage && update.bannerImage !== '') ||
-                       (update.logoImage && update.logoImage !== '');
+                       (update.logoImage && update.logoImage !== '') ||
+                       (update.promoPoster && update.promoPoster !== '');
     if (wantsImage) {
       const level = await getMemberLevel(shopId);
       if (!['advanced', 'premium'].includes(level)) {
@@ -631,6 +632,12 @@ app.put('/api/settings', requireMerchant, async (req, res) => {
           needUpgrade: true
         });
       }
+    }
+
+    // ---- 店铺装修：优惠海报尺寸（非法值剔除，模型 enum 兜底）----
+    if (update.promoPosterSize !== undefined &&
+        !['small', 'medium', 'large'].includes(update.promoPosterSize)) {
+      delete update.promoPosterSize;
     }
 
     const setting = await Setting.findOneAndUpdate(

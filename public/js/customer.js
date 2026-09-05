@@ -13,6 +13,7 @@ let currentCategory = '';
 let spyLockUntil = 0; // 点击分类平滑滚动期间暂停滚动联动
 let dishMap = {};     // { dishId: dish }
 let activeMarketing = []; // 当前生效的满减/折扣/充值送活动（/api/marketing/active 返回）
+let shopSetting = null;   // 店铺装修设置（含优惠海报 promoPoster / promoPosterSize）
 let pointCfg = { enabled: false, spendPerPoint: 0, deductEnabled: false, deductPoints: 100, maxPercent: 0, exchangeDishes: [] };
 let phonePoints = null; // 结算页手机号查询到的积分余额（null=未查询）
 
@@ -162,13 +163,17 @@ async function loadShopInfo() {
     let s = res.success ? res.data : null;
     // 装修预览模式：URL 参数覆盖已应用 setting（叠加预览效果）
     if (IS_PREVIEW) s = Object.assign({}, s || {}, getPreviewOverrides());
+    shopSetting = s || {};
     applyShopTheme(s);
     let shopName = '欢迎光临';
     if (res.success && res.data && res.data.shopName) shopName = res.data.shopName;
     if (s && s.shopName) shopName = s.shopName;
     $('shopName').textContent = shopName;
     document.title = `${shopName} · 扫码点餐`;
+    // 店铺设置（含优惠海报）就绪后重渲染顶部优惠区
+    renderPromoBanner();
   } catch (e) {
+    shopSetting = {};
     applyShopTheme(null);
     $('shopName').textContent = '欢迎光临';
   }
@@ -220,17 +225,16 @@ async function loadActiveMarketing() {
 }
 
 /* ---------- 优惠信息条：海报卡轮播（无声推销员，静止展示为主） ---------- */
+// 纯文字排版（杜绝 emoji 贴纸）：标签 + 主文案（加粗）+ 一行小字说明
 const PROMO_META = {
-  fullReduction: { tag: '满减', icon: '🧧' },
-  discount:      { tag: '折扣', icon: '🏷️' },
-  rechargeBonus: { tag: '充值送', icon: '💰' },
-  points:        { tag: '积分', icon: '⭐' }
+  fullReduction: { tag: '满减' },
+  discount:      { tag: '折扣' },
+  rechargeBonus: { tag: '充值送' },
+  points:        { tag: '积分' }
 };
-// 单条海报卡：左侧图标 + 标签 + 主文案（加粗）+ 一行小字说明
 function promoCard(type, main, sub) {
   const m = PROMO_META[type] || PROMO_META.points;
   return `<div class="promo-card">
-    <span class="pc-ico">${m.icon}</span>
     <div class="pc-body">
       <div class="pc-main"><span class="pc-tag">${m.tag}</span>${main}</div>
       <div class="pc-sub">${sub}</div>
@@ -271,23 +275,56 @@ function renderPromoBanner() {
   const banner = $('promoBanner');
   const track = $('promoTrack');
   const dots = $('promoDots');
+  const stage = $('promoStage');
   if (!banner || !track) return;
   stopPromoAuto();
+
+  // 优惠海报优先：商家上传后顶部优惠区以海报为主（充满宽度、圆角、三档高度），隐藏文字轮播；
+  // 海报图加载失败时自动回退显示文字轮播
+  const posterUrl = (shopSetting && shopSetting.promoPoster) || '';
+  const posterEl = $('promoPoster');
+  const size = (shopSetting && ['small', 'medium', 'large'].includes(shopSetting.promoPosterSize))
+    ? shopSetting.promoPosterSize : 'small';
+  const hasPoster = !!(posterEl && posterUrl);
+  if (posterEl) {
+    const img = $('promoPosterImg');
+    if (hasPoster) {
+      img.onerror = () => {
+        posterEl.classList.remove('show');
+        if (stage) stage.style.display = '';
+      };
+      if (img.getAttribute('src') !== posterUrl) img.src = posterUrl;
+    }
+    posterEl.classList.toggle('show', hasPoster);
+    posterEl.classList.toggle('size-' + size, hasPoster);
+  }
+  if (stage) stage.style.display = hasPoster ? 'none' : '';
+
   const items = buildPromoItems();
-  if (!items.length) { banner.style.display = 'none'; return; }
+  if (!items.length && !hasPoster) { banner.style.display = 'none'; return; }
+  banner.style.display = 'block';
+
+  // 始终渲染文字轮播内容（海报模式下暂隐藏，加载失败自动顶上）
+  if (!items.length) {
+    track.innerHTML = '';
+    dots.innerHTML = '';
+    dots.classList.remove('show');
+    $('promoPrev').classList.remove('show');
+    $('promoNext').classList.remove('show');
+    return;
+  }
   promoCount = items.length;
   promoIndex = 0;
   track.innerHTML = items.join('');
   track.style.transform = 'translateX(0)';
-  // 多条优惠：显示箭头 + 圆点 + 3 秒自动横滑；单条：静止展示
-  const multi = promoCount > 1;
-  dots.innerHTML = multi
+  // 多条优惠：显示箭头 + 圆点 + 3 秒自动横滑；单条：静止展示（海报模式下箭头/圆点一并隐藏）
+  const multi = promoCount > 1 && !hasPoster;
+  dots.innerHTML = (promoCount > 1)
     ? items.map((_, i) => `<span class="pdot${i === 0 ? ' active' : ''}" data-i="${i}"></span>`).join('')
     : '';
   dots.classList.toggle('show', multi);
   $('promoPrev').classList.toggle('show', multi);
   $('promoNext').classList.toggle('show', multi);
-  banner.style.display = 'block';
   if (multi) startPromoAuto();
 }
 
@@ -824,6 +861,8 @@ function closeCheckout() {
 }
 
 $('ckSubmitBtn').onclick = async () => {
+  // 预览模式拦截真实下单（装修预览不产生订单，其余流程与真实点餐页一致）
+  if (IS_PREVIEW) { toast('预览模式不可下单，请用真实点餐页体验完整下单流程'); return; }
   const arr = getCartArray();
   if (arr.length === 0) { toast('请先选择菜品'); return; }
   let table = tableNumber;
@@ -1045,15 +1084,15 @@ $('clearCartBtn').onclick = () => {
   toast('已清空');
 };
 
-/* ---------- 装修预览模式：返回按钮 + Esc 返回 + 隐藏购物车交互 ----------
+/* ---------- 装修预览模式：返回按钮 + Esc 返回 ----------
    说明：旧版「任意键返回」会拦截 F12 等开发者工具按键，已改为仅 Esc 返回。
    embed=1 时本页以 iframe 嵌入商家后台手机框，关闭由父页面接管（不渲染返回栏、不绑按键）。 */
 function setupPreviewReturn() {
-  // 隐藏购物车栏 / 桌号 pill（预览仅展示装修效果，不结算）
-  // 加减按钮保留可见可点：商家可在预览里确认「价格旁有加号、加购后有数量加减器」
+  // 预览与真实点餐页行为一致：购物车栏正常显示（加购出现件数/金额/去结算/可点开清单），
+  // 仅隐藏桌号 pill（预览无桌号上下文）；下单提交仍被拦截，避免预览产生真实订单
   const style = document.createElement('style');
   style.textContent = `
-    .cart-bar, .table-pill { display: none !important; }
+    .table-pill { display: none !important; }
     .banner-sub { gap: 0; }
     #backNav .back-link { font-weight: 700; }
   `;

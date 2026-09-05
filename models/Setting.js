@@ -28,6 +28,17 @@ const settingSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  // 优惠海报图（进阶版及以上可上传；点餐页顶部优惠区优先显示，空 = 文字轮播）
+  promoPoster: {
+    type: String,
+    default: ''
+  },
+  // 优惠海报显示尺寸：small 小横幅（矮）/ medium 小海报（中）/ large 大海报（高）
+  promoPosterSize: {
+    type: String,
+    enum: ['small', 'medium', 'large'],
+    default: 'small'
+  },
   // 店名字体（点餐页店名渲染，系统字体栈实现）：modern 现代黑体 / serif 雅致宋体 / round 圆润体 / hand 手写风格
   shopNameFont: {
     type: String,
