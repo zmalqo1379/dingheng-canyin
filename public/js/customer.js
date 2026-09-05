@@ -12,7 +12,9 @@ let categories = [];
 let currentCategory = '';
 let spyLockUntil = 0; // 点击分类平滑滚动期间暂停滚动联动
 let dishMap = {};     // { dishId: dish }
-let activeMarketing = []; // 当前生效的满减/折扣活动（/api/marketing/active 返回）
+let activeMarketing = []; // 当前生效的满减/折扣/充值送活动（/api/marketing/active 返回）
+let pointCfg = { enabled: false, spendPerPoint: 0, deductEnabled: false, deductPoints: 100, maxPercent: 0, exchangeDishes: [] };
+let phonePoints = null; // 结算页手机号查询到的积分余额（null=未查询）
 
 const $ = (id) => document.getElementById(id);
 
@@ -175,15 +177,20 @@ async function loadShopInfo() {
 async function loadData() {
   try {
     const qs = `shopId=${encodeURIComponent(SHOP_ID)}`;
-    const [catRes, dishRes] = await Promise.all([
+    const [catRes, dishRes, pointRes] = await Promise.all([
       fetch(`/api/categories?${qs}`).then(r => r.json()),
-      fetch(`/api/dishes?${qs}`).then(r => r.json())
+      fetch(`/api/dishes?${qs}`).then(r => r.json()),
+      fetch(`/api/points/config?${qs}`).then(r => r.json()).catch(() => null)
     ]);
     categories = (catRes && catRes.data) ? catRes.data : [];
     // 保留全部菜品（含售罄），由前端显示遮罩
     dishes = (dishRes && dishRes.data) ? dishRes.data : [];
     dishMap = {};
     dishes.forEach(d => { dishMap[d._id] = d; });
+    // 顾客积分配置（进阶版权益，未开通时 enabled=false 隐藏所有积分入口）
+    if (pointRes && pointRes.success && pointRes.data) {
+      pointCfg = Object.assign(pointCfg, pointRes.data);
+    }
     if (categories.length > 0 && !categories.some(c => c.name === currentCategory)) {
       currentCategory = categories[0].name;
     }
@@ -212,23 +219,123 @@ async function loadActiveMarketing() {
   renderPromoBanner();
 }
 
-function renderPromoBanner() {
-  const banner = $('promoBanner');
-  const inner = $('promoInner');
-  if (!banner || !inner) return;
-  if (!activeMarketing.length) { banner.style.display = 'none'; return; }
-  const parts = [];
+/* ---------- 优惠信息条：海报卡轮播（无声推销员，静止展示为主） ---------- */
+const PROMO_META = {
+  fullReduction: { tag: '满减', icon: '🧧' },
+  discount:      { tag: '折扣', icon: '🏷️' },
+  rechargeBonus: { tag: '充值送', icon: '💰' },
+  points:        { tag: '积分', icon: '⭐' }
+};
+// 单条海报卡：左侧图标 + 标签 + 主文案（加粗）+ 一行小字说明
+function promoCard(type, main, sub) {
+  const m = PROMO_META[type] || PROMO_META.points;
+  return `<div class="promo-card">
+    <span class="pc-ico">${m.icon}</span>
+    <div class="pc-body">
+      <div class="pc-main"><span class="pc-tag">${m.tag}</span>${main}</div>
+      <div class="pc-sub">${sub}</div>
+    </div>
+  </div>`;
+}
+
+function buildPromoItems() {
+  const items = [];
   activeMarketing.forEach(r => {
     if (r.type === 'fullReduction') {
-      parts.push(`<span class="pi-tag">满减</span><span class="pi-txt">满 ¥${fmtMoney(r.threshold)} 减 ¥${fmtMoney(r.reduce)}</span>`);
+      items.push(promoCard('fullReduction',
+        `满 ¥${fmtMoney(r.threshold)} 减 ¥${fmtMoney(r.reduce)}`, '下单自动立减'));
     } else if (r.type === 'discount') {
       const zhe = Math.round(Number(r.rate) * 10);
-      parts.push(`<span class="pi-tag">折扣</span><span class="pi-txt">${r.category ? esc(r.category) + ' ' : '全场 '}${zhe}折</span>`);
+      items.push(promoCard('discount',
+        `${r.category ? esc(r.category) : '全场'} ${zhe}折`, '结账自动打折'));
+    } else if (r.type === 'rechargeBonus') {
+      items.push(promoCard('rechargeBonus',
+        `充 ¥${fmtMoney(r.recharge)} 送 ¥${fmtMoney(r.bonus)}`, '到店充值更划算'));
     }
   });
-  inner.innerHTML = parts.join('<span style="opacity:.5;">·</span>');
-  banner.style.display = 'block';
+  // 积分规则（商家开通顾客积分且比例>0 时展示）
+  if (pointCfg.enabled && pointCfg.spendPerPoint > 0) {
+    const subs = [];
+    if (pointCfg.exchangeDishes.length > 0) subs.push('可换菜');
+    if (pointCfg.deductEnabled) subs.push('可抵现');
+    items.push(promoCard('points',
+      `消费 1 元 = ${pointCfg.spendPerPoint} 积分`,
+      subs.length ? `积分${subs.join('、')}` : '消费就有积分拿'));
+  }
+  return items;
 }
+
+let promoIndex = 0, promoCount = 0, promoTimer = null;
+
+function renderPromoBanner() {
+  const banner = $('promoBanner');
+  const track = $('promoTrack');
+  const dots = $('promoDots');
+  if (!banner || !track) return;
+  stopPromoAuto();
+  const items = buildPromoItems();
+  if (!items.length) { banner.style.display = 'none'; return; }
+  promoCount = items.length;
+  promoIndex = 0;
+  track.innerHTML = items.join('');
+  track.style.transform = 'translateX(0)';
+  // 多条优惠：显示箭头 + 圆点 + 3 秒自动横滑；单条：静止展示
+  const multi = promoCount > 1;
+  dots.innerHTML = multi
+    ? items.map((_, i) => `<span class="pdot${i === 0 ? ' active' : ''}" data-i="${i}"></span>`).join('')
+    : '';
+  dots.classList.toggle('show', multi);
+  $('promoPrev').classList.toggle('show', multi);
+  $('promoNext').classList.toggle('show', multi);
+  banner.style.display = 'block';
+  if (multi) startPromoAuto();
+}
+
+function goPromo(i) {
+  if (promoCount <= 1) return;
+  promoIndex = (i % promoCount + promoCount) % promoCount;
+  $('promoTrack').style.transform = `translateX(-${promoIndex * 100}%)`;
+  document.querySelectorAll('#promoDots .pdot').forEach((d, di) => {
+    d.classList.toggle('active', di === promoIndex);
+  });
+}
+
+// 每 3 秒自动横滑切换（尊重系统"减少动态效果"偏好：不自动播）
+function startPromoAuto() {
+  stopPromoAuto();
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  promoTimer = setInterval(() => goPromo(promoIndex + 1), 3000);
+}
+function stopPromoAuto() {
+  if (promoTimer) { clearInterval(promoTimer); promoTimer = null; }
+}
+
+// 箭头 / 圆点手动切换，操作后重新计时
+$('promoPrev').onclick = () => { goPromo(promoIndex - 1); startPromoAuto(); };
+$('promoNext').onclick = () => { goPromo(promoIndex + 1); startPromoAuto(); };
+$('promoDots').addEventListener('click', (e) => {
+  const d = e.target.closest('.pdot');
+  if (!d) return;
+  goPromo(Number(d.dataset.i));
+  startPromoAuto();
+});
+// 手机端触摸滑动切换
+(function () {
+  const vp = document.querySelector('.promo-viewport');
+  if (!vp) return;
+  let sx = 0, tracking = false;
+  vp.addEventListener('touchstart', (e) => {
+    sx = e.touches[0].clientX; tracking = true;
+    stopPromoAuto();
+  }, { passive: true });
+  vp.addEventListener('touchend', (e) => {
+    if (!tracking) return;
+    tracking = false;
+    const dx = e.changedTouches[0].clientX - sx;
+    if (Math.abs(dx) > 36) goPromo(promoIndex + (dx < 0 ? 1 : -1));
+    startPromoAuto();
+  }, { passive: true });
+})();
 
 /* ---------- 渲染菜单 ---------- */
 function dishImgHtml(dish, cls) {
@@ -251,6 +358,14 @@ function stepperHtml(dish, qty) {
   return `${minus}<button class="step-btn plus" data-id="${dish._id}" data-act="plus" ${available ? '' : 'disabled'}>＋</button>`;
 }
 
+// 单卡"可得 X 积分"标签（按商家返积分比例实时算；0 分不显示）
+function dishEarnHtml(dish) {
+  if (!pointCfg.enabled || pointCfg.spendPerPoint <= 0) return '';
+  const earn = Math.floor(Number(dish.price) * pointCfg.spendPerPoint);
+  if (earn <= 0) return '';
+  return `<div class="dish-earn">可得 ${earn} 积分</div>`;
+}
+
 function renderMenu() {
   const sidebar = $('sidebar');
   const content = $('content');
@@ -259,7 +374,11 @@ function renderMenu() {
     content.innerHTML = '<div class="empty-tip"><div class="icon">🍽️</div>商家还未上架菜品，稍后再来看看</div>';
     return;
   }
-  sidebar.innerHTML = categories.map((c, i) =>
+  // 侧边栏置顶位：积分换菜入口（商家开通顾客积分且设置了兑换菜品时显示；预览模式不显示）
+  const ptEntry = (pointCfg.enabled && pointCfg.exchangeDishes.length > 0 && !IS_PREVIEW)
+    ? '<div class="sidebar-item pt-entry" id="ptEntry">🎁 积分<br>换菜</div>'
+    : '';
+  sidebar.innerHTML = ptEntry + categories.map((c, i) =>
     `<div class="sidebar-item ${c.name === currentCategory ? 'active' : ''}" data-cat="${esc(c.name)}" data-index="${i}">${esc(c.name)}</div>`
   ).join('');
 
@@ -279,6 +398,7 @@ function renderMenu() {
             <span class="price">${priceHtml(d.price)}</span>
             <div class="stepper step-slot" data-id="${d._id}">${stepperHtml(d, qty)}</div>
           </div>
+          ${dishEarnHtml(d)}
         </div>
       </div>`;
     }).join('');
@@ -516,6 +636,8 @@ window.addEventListener('scroll', onScroll, { passive: true });
 $('sidebar').addEventListener('click', (e) => {
   const item = e.target.closest('.sidebar-item');
   if (!item) return;
+  // 置顶"积分换菜"入口：打开换菜弹层，不参与分类联动
+  if (item.id === 'ptEntry') { openPointsSheet(); return; }
   currentCategory = item.dataset.cat;
   highlightSidebar();
   spyLockUntil = Date.now() + 800;
@@ -535,10 +657,84 @@ document.body.addEventListener('click', (e) => {
 /* ---------- 结算页 ---------- */
 let tablesCache = null; // 桌台列表缓存（缺桌号参数时用于选择）
 
+// 手机号本地记忆 key（同店下次自动带出）
+const PHONE_KEY = 'dh_point_phone_' + SHOP_ID;
+
+// 积分抵现预估（与后端权威计算同规则）：单笔最多抵 maxPercent%
+function getPointDeduct(finalTotal) {
+  if (!pointCfg.enabled || !pointCfg.deductEnabled || pointCfg.maxPercent <= 0) return { usable: 0, amount: 0 };
+  if (!(phonePoints > 0) || !(finalTotal > 0)) return { usable: 0, amount: 0 };
+  const maxDiscountAmount = finalTotal * pointCfg.maxPercent / 100;
+  const maxUsablePoints = Math.floor(maxDiscountAmount * pointCfg.deductPoints);
+  const usable = Math.min(phonePoints, maxUsablePoints);
+  if (usable <= 0) return { usable: 0, amount: 0 };
+  const amount = Math.round(usable / pointCfg.deductPoints * 100) / 100;
+  return { usable, amount };
+}
+
+// 按手机号查询积分余额（填满 11 位自动查）
+async function queryPhonePoints() {
+  const phone = $('ckPhone').value.trim();
+  if (!/^1\d{10}$/.test(phone)) { phonePoints = null; return; }
+  try {
+    const res = await fetch('/api/points/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-shop-id': SHOP_ID },
+      body: JSON.stringify({ phone })
+    }).then(r => r.json());
+    phonePoints = (res.success && res.data) ? res.data.points : 0;
+  } catch (e) {
+    phonePoints = null;
+  }
+  renderPointSection();
+}
+
+// 渲染结算页积分区块（本单可得 / 使用积分抵现）
+function renderPointSection() {
+  const card = $('ckPointCard');
+  if (!card) return;
+  if (!pointCfg.enabled) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  const calc = getCartCalc();
+  // 本单可得积分（按优惠后实付预估）
+  const earnRow = $('ckEarnRow');
+  if (pointCfg.spendPerPoint > 0) {
+    const earn = Math.floor(calc.finalTotal * pointCfg.spendPerPoint);
+    earnRow.style.display = 'flex';
+    $('ckEarnVal').textContent = earn;
+  } else {
+    earnRow.style.display = 'none';
+  }
+  // 使用积分抵现勾选行
+  const useRow = $('ckUsePointsRow');
+  const deduct = getPointDeduct(calc.finalTotal);
+  if (deduct.usable > 0) {
+    useRow.style.display = 'flex';
+    $('ckUsePtsVal').textContent = deduct.usable;
+    $('ckUseAmtVal').textContent = '¥' + fmtMoney(deduct.amount);
+  } else {
+    useRow.style.display = 'none';
+    $('ckUsePoints').checked = false;
+  }
+  updateCheckoutTotal();
+}
+
+function isValidPhoneInput() {
+  return /^1\d{10}$/.test($('ckPhone').value.trim());
+}
+
+// 结算页总额实时更新（含积分抵现）
+function updateCheckoutTotal() {
+  const calc = getCartCalc();
+  const useDeduct = pointCfg.enabled && $('ckUsePoints').checked;
+  const deduct = useDeduct ? getPointDeduct(calc.finalTotal) : { usable: 0, amount: 0 };
+  $('ckTotal').textContent = fmtMoney(Math.max(0, calc.finalTotal - deduct.amount));
+  renderDiscountCard(calc, useDeduct ? deduct : null);
+}
+
 async function renderCheckout() {
   const arr = getCartArray();
   const calc = getCartCalc();
-  $('ckTotal').textContent = fmtMoney(calc.finalTotal);
   $('ckTable').textContent = formatTable(tableNumber);
   // 未从二维码取到桌号：优先让顾客从桌台列表选，无桌台数据则手填
   const pickRow = $('ckTablePickRow');
@@ -574,15 +770,21 @@ async function renderCheckout() {
       <span class="ck-item-total">¥${fmtMoney(i.dish.price * i.quantity)}</span>
     </div>`;
   }).join('');
-  // 优惠明细卡片（有满减/折扣时显示）
-  renderDiscountCard(calc);
+  // 手机号与积分区块：本地记忆自动带出
+  $('ckPhone').value = localStorage.getItem(PHONE_KEY) || '';
+  phonePoints = null;
+  $('ckUsePoints').checked = false;
+  renderPointSection();
+  if (isValidPhoneInput()) queryPhonePoints();
 }
 
-function renderDiscountCard(calc) {
+function renderDiscountCard(calc, pointDeduct) {
   const card = $('ckDiscountCard');
   const body = $('ckDiscountBody');
   if (!card || !body) return;
-  if (!activeMarketing.length || calc.discountAmount <= 0) {
+  const hasMkt = activeMarketing.length && calc.discountAmount > 0;
+  const hasPoint = pointDeduct && pointDeduct.amount > 0;
+  if (!hasMkt && !hasPoint) {
     card.style.display = 'none';
     body.innerHTML = '';
     return;
@@ -600,7 +802,11 @@ function renderDiscountCard(calc) {
   if (calc.fullReductionAmount > 0 && calc.bestFull) {
     rows.push(`<div class="ck-disc-row discount"><span>满减（满${calc.bestFull.threshold}减${calc.bestFull.reduce}）</span><span class="ck-disc-val">-¥${fmtMoney(calc.fullReductionAmount)}</span></div>`);
   }
-  rows.push(`<div class="ck-disc-row total"><span>实付</span><span class="ck-disc-val">¥${fmtMoney(calc.finalTotal)}</span></div>`);
+  if (hasPoint) {
+    rows.push(`<div class="ck-disc-row discount"><span>积分抵现（${pointDeduct.usable} 积分）</span><span class="ck-disc-val">-¥${fmtMoney(pointDeduct.amount)}</span></div>`);
+  }
+  const useDeduct = pointDeduct ? pointDeduct.amount : 0;
+  rows.push(`<div class="ck-disc-row total"><span>实付</span><span class="ck-disc-val">¥${fmtMoney(Math.max(0, calc.finalTotal - useDeduct))}</span></div>`);
   body.innerHTML = rows.join('');
 }
 
@@ -631,6 +837,9 @@ $('ckSubmitBtn').onclick = async () => {
   tableNumber = table; // 记住本次使用的桌号
   const items = arr.map(i => ({ dishName: i.dish.name, price: i.dish.price, quantity: i.quantity, category: i.dish.category || '' }));
   const remark = $('ckRemark').value.trim().slice(0, 200);
+  // 积分参数：手机号有效才携带（选填）；勾选抵现才使用积分
+  const phone = isValidPhoneInput() ? $('ckPhone').value.trim() : '';
+  const usePoints = phone && pointCfg.enabled && $('ckUsePoints').checked;
   const btn = $('ckSubmitBtn');
   btn.disabled = true;
   btn.textContent = '提交中…';
@@ -639,18 +848,23 @@ $('ckSubmitBtn').onclick = async () => {
     const res = await fetch('/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-shop-id': SHOP_ID },
-      body: JSON.stringify({ tableNumber, items, remark })
+      body: JSON.stringify({ tableNumber, items, remark, phone, usePoints })
     }).then(r => r.json());
     if (res.success) {
+      const orderData = res.data || {};
+      // 手机号本地记住，下次自动带出
+      if (phone) localStorage.setItem(PHONE_KEY, phone);
       Object.keys(cart).forEach(k => delete cart[k]);
       closeCheckout();
       dishes.forEach(d => refreshAfterQtyChange(d._id));
       updateCartUI();
       $('successTable').textContent = formatTable(tableNumber);
+      // 积分播报：恭喜获得 XX 积分 + 当前余额 + 可兑换提示
+      renderSuccessPoints(orderData);
       $('successPage').classList.add('show');
       document.body.style.overflow = 'hidden';
       clearTimeout(openCheckout._t);
-      openCheckout._t = setTimeout(closeSuccess, 3200);
+      openCheckout._t = setTimeout(closeSuccess, 4500);
     } else {
       toast(res.message || '下单失败');
     }
@@ -662,12 +876,159 @@ $('ckSubmitBtn').onclick = async () => {
   }
 };
 
+// 成功页积分播报：仅商家开通顾客积分且填了手机号时显示
+function renderSuccessPoints(orderData) {
+  const box = $('successPoints');
+  if (!box) return;
+  const earned = Number(orderData.pointsEarned) || 0;
+  const balance = orderData.pointsBalance;
+  if (!pointCfg.enabled || earned <= 0 || balance == null) {
+    box.style.display = 'none';
+    return;
+  }
+  box.style.display = 'block';
+  $('spEarnText').textContent = `🎉 恭喜获得 ${earned} 积分！`;
+  $('spBalanceText').textContent = `当前共 ${balance} 分`;
+  // 积分够换菜时提示可兑换（取兑换门槛最低的菜品）
+  const exLink = $('spExchange');
+  const affordable = pointCfg.exchangeDishes
+    .filter(d => Number(d.points) <= balance)
+    .sort((a, b) => a.points - b.points)[0];
+  if (affordable) {
+    exLink.style.display = 'block';
+    $('spExchangeLink').textContent = `${affordable.dishName}（${affordable.points}分），下次点餐可用 →`;
+    $('spExchangeLink').onclick = () => { closeSuccess(); openPointsSheet(); };
+  } else {
+    exLink.style.display = 'none';
+  }
+}
+
 function closeSuccess() {
   $('successPage').classList.remove('show');
   document.body.style.overflow = '';
 }
 $('successBackBtn').onclick = closeSuccess;
 $('ckBackBtn').onclick = closeCheckout;
+
+/* ---------- 积分换菜弹层 ---------- */
+let ptSheetPhone = ''; // 弹层内已验证的手机号
+
+function openPointsSheet() {
+  if (!pointCfg.enabled) { toast('本店未开通积分换菜'); return; }
+  if (!pointCfg.exchangeDishes.length) { toast('商家暂未设置兑换菜品'); return; }
+  renderPtDishList();
+  // 本地记忆自动带出并查询
+  const saved = localStorage.getItem(PHONE_KEY) || '';
+  $('ptPhoneInput').value = saved;
+  ptSheetPhone = '';
+  $('ptBalanceRow').style.display = 'none';
+  if (/^1\d{10}$/.test(saved)) queryPtBalance();
+  $('pointsMask').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+function closePointsSheet() {
+  $('pointsMask').classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+// 查询弹层内手机号余额
+async function queryPtBalance() {
+  const phone = $('ptPhoneInput').value.trim();
+  if (!/^1\d{10}$/.test(phone)) { toast('请输入正确的 11 位手机号'); return; }
+  try {
+    const res = await fetch('/api/points/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-shop-id': SHOP_ID },
+      body: JSON.stringify({ phone })
+    }).then(r => r.json());
+    if (res.success && res.data) {
+      ptSheetPhone = phone;
+      localStorage.setItem(PHONE_KEY, phone);
+      $('ptBalanceVal').textContent = res.data.points;
+      $('ptBalanceRow').style.display = 'block';
+      renderPtDishList(); // 刷新按钮可用态
+    } else {
+      toast(res.message || '查询失败');
+    }
+  } catch (e) {
+    toast('网络错误，请重试');
+  }
+}
+
+function renderPtDishList() {
+  const box = $('ptDishList');
+  const list = pointCfg.exchangeDishes || [];
+  if (!list.length) {
+    box.innerHTML = '<div class="pt-empty">商家暂未设置兑换菜品</div>';
+    return;
+  }
+  box.innerHTML = list.map(d => {
+    const enough = ptSheetPhone && phonePointsCache() >= Number(d.points);
+    return `
+    <div class="pt-dish-item">
+      <div class="pt-dish-info">
+        <div class="pt-dish-name">${esc(d.dishName)}</div>
+        <div class="pt-dish-need">需 ${d.points} 积分</div>
+      </div>
+      <button class="pt-redeem-btn" data-id="${esc(d.dishId)}" ${enough ? '' : 'disabled'}>${ptSheetPhone ? (enough ? '立即兑换' : '积分不足') : '先查积分'}</button>
+    </div>`;
+  }).join('');
+  box.querySelectorAll('.pt-redeem-btn:not(:disabled)').forEach(btn => {
+    btn.onclick = () => redeemDish(btn.dataset.id);
+  });
+}
+
+// 弹层内已查询到的余额（未查询按 0）
+function phonePointsCache() {
+  return Number($('ptBalanceVal').textContent) || 0;
+}
+
+// 用积分兑换菜品 → 生成 0 元订单进后厨
+async function redeemDish(dishId) {
+  if (!ptSheetPhone) { toast('请先输入手机号查询积分'); return; }
+  const dish = pointCfg.exchangeDishes.find(d => String(d.dishId) === String(dishId));
+  if (!dish) return;
+  if (!confirm(`确定用 ${dish.points} 积分兑换「${dish.dishName}」吗？兑换后立即送后厨出餐。`)) return;
+  try {
+    const res = await fetch('/api/points/redeem-dish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-shop-id': SHOP_ID },
+      body: JSON.stringify({ phone: ptSheetPhone, dishId })
+    }).then(r => r.json());
+    if (res.success) {
+      $('ptBalanceVal').textContent = res.data.pointsBalance;
+      toast(`兑换成功，「${res.data.dishName}」已送后厨！`);
+      renderPtDishList();
+    } else {
+      toast(res.message || '兑换失败');
+    }
+  } catch (e) {
+    toast('网络错误，请重试');
+  }
+}
+
+$('ptQueryBtn').onclick = queryPtBalance;
+$('ptPhoneInput').addEventListener('input', () => {
+  // 修改手机号后需重新查询
+  ptSheetPhone = '';
+  $('ptBalanceRow').style.display = 'none';
+  renderPtDishList();
+});
+$('ptPhoneInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') queryPtBalance(); });
+$('pointsCloseBtn').onclick = closePointsSheet;
+$('pointsMask').onclick = (e) => { if (e.target.id === 'pointsMask') closePointsSheet(); };
+
+/* ---------- 结算页手机号输入联动 ---------- */
+$('ckPhone').addEventListener('input', () => {
+  const phone = $('ckPhone').value.trim();
+  if (/^1\d{10}$/.test(phone)) {
+    queryPhonePoints();
+  } else {
+    phonePoints = null;
+    renderPointSection();
+  }
+});
+$('ckUsePoints').addEventListener('change', updateCheckoutTotal);
 
 /* ---------- 事件绑定 ---------- */
 $('checkoutBtn').onclick = openCheckout;
@@ -688,10 +1049,11 @@ $('clearCartBtn').onclick = () => {
    说明：旧版「任意键返回」会拦截 F12 等开发者工具按键，已改为仅 Esc 返回。
    embed=1 时本页以 iframe 嵌入商家后台手机框，关闭由父页面接管（不渲染返回栏、不绑按键）。 */
 function setupPreviewReturn() {
-  // 隐藏购物车栏 / 加购按钮 / 桌号 pill（预览仅展示装修效果，不交互）
+  // 隐藏购物车栏 / 桌号 pill（预览仅展示装修效果，不结算）
+  // 加减按钮保留可见可点：商家可在预览里确认「价格旁有加号、加购后有数量加减器」
   const style = document.createElement('style');
   style.textContent = `
-    .cart-bar, .stepper, .table-pill { display: none !important; }
+    .cart-bar, .table-pill { display: none !important; }
     .banner-sub { gap: 0; }
     #backNav .back-link { font-weight: 700; }
   `;

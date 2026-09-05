@@ -214,6 +214,13 @@ function toggleInherit(btn) {
 }
 window.toggleInherit = toggleInherit;
 
+/* 鼎恒币兑换月卡"权益详情"展开/收起（默认折叠，与人民币月卡权益一致） */
+function toggleEzBenefit(btn) {
+  const card = btn.closest('.ez-card');
+  if (card) card.classList.toggle('benefit-open');
+}
+window.toggleEzBenefit = toggleEzBenefit;
+
 /* 移动端侧边栏开关 */
 function openSidebar() { $('sidebar').classList.add('open'); $('scrim').classList.add('show'); }
 function closeSidebar() { $('sidebar').classList.remove('open'); $('scrim').classList.remove('show'); }
@@ -2156,6 +2163,9 @@ document.querySelectorAll('.filter-tab').forEach(tab => {
 });
 
 /* ===================== 顾客积分 ===================== */
+let _ptDishes = [];                 // 本店菜单缓存（积分换菜下拉用）
+let _ptExchangeDishes = [];         // 待保存的兑换菜品列表 [{ dishId, dishName, points }]
+
 async function loadPoints() {
   try {
     const perm = await api(`/api/member/permissions/${SHOP_ID}`);
@@ -2172,32 +2182,101 @@ async function loadPoints() {
     lockedMask.style.display = 'none';
     panel.style.display = 'block';
 
-    // 加载现有 settings 中的积分设置（后端 settings 模型没有积分字段，使用 localStorage 做本地持久化）
-    const saved = JSON.parse(localStorage.getItem('pointsSettings') || 'null');
-    if (saved) {
-      $('setSpendPerPoint').value = saved.spendPerPoint ?? 1;
-      $('setPointDeductValue').value = saved.pointDeductValue ?? 0.01;
-      $('setPointMinRedeem').value = saved.pointMinRedeem ?? 100;
-    } else {
-      // 默认值
-      $('setSpendPerPoint').value = 1;
-      $('setPointDeductValue').value = 0.01;
-      $('setPointMinRedeem').value = 100;
+    // 并行拉取店铺积分设置 + 自家菜单（换菜下拉）
+    const [setRes, dishRes] = await Promise.all([
+      api('/api/settings'),
+      api('/api/admin/dishes')
+    ]);
+    const s = (setRes && setRes.success && setRes.data) || {};
+    _ptDishes = (dishRes && dishRes.data) || [];
+
+    // 积分总开关 / 返积分比例 / 积分抵现
+    $('setPointEnabled').checked = s.pointEnabled !== false;
+    $('setSpendPerPoint').value = s.pointSpendPerPoint ?? 1;
+    $('setPointDeductEnabled').checked = s.pointDeductEnabled !== false;
+    $('setPointDeductPoints').value = s.pointDeductPoints ?? 100;
+    $('setPointDeductMaxPercent').value = s.pointDeductMaxPercent ?? 20;
+
+    // 兑换菜品列表 + 下拉填充
+    _ptExchangeDishes = Array.isArray(s.pointExchangeDishes) ? s.pointExchangeDishes.map(d => ({
+      dishId: String(d.dishId), dishName: d.dishName, points: d.points
+    })) : [];
+    renderPtExchangeList();
+    const sel = $('ptDishSelect');
+    if (sel) {
+      sel.innerHTML = _ptDishes.length
+        ? _ptDishes.map(d => `<option value="${esc(d._id)}" data-name="${esc(d.name)}">${esc(d.category ? d.category + ' · ' : '')}${esc(d.name)}（¥${Number(d.price).toFixed(0)}）</option>`).join('')
+        : '<option value="">暂无菜品，请先在菜单管理添加</option>';
     }
   } catch (e) {
     console.error(e);
   }
 }
 
-// 保存积分设置（暂存 localStorage，后续接后端 settings 扩展字段）
-$('savePointsBtn').onclick = () => {
-  const data = {
-    spendPerPoint: Number($('setSpendPerPoint').value) || 0,
-    pointDeductValue: Number($('setPointDeductValue').value) || 0,
-    pointMinRedeem: Number($('setPointMinRedeem').value) || 0
+// 渲染已设置的兑换菜品列表
+function renderPtExchangeList() {
+  const box = $('ptExchangeList');
+  if (!box) return;
+  if (!_ptExchangeDishes.length) {
+    box.innerHTML = '<div style="font-size:12.5px;color:#9ca3af;padding:2px 0;">暂未设置，添加后顾客可在点餐页用积分换菜</div>';
+    return;
+  }
+  box.innerHTML = _ptExchangeDishes.map((d, i) => `
+    <div class="pt-ex-item">
+      <span class="pt-ex-name">${esc(d.dishName)}</span>
+      <span class="pt-ex-pts">${d.points} 积分</span>
+      <button class="pt-ex-del" data-i="${i}" title="移除" type="button">✕</button>
+    </div>
+  `).join('');
+  box.querySelectorAll('.pt-ex-del').forEach(btn => {
+    btn.onclick = () => {
+      _ptExchangeDishes.splice(Number(btn.dataset.i), 1);
+      renderPtExchangeList();
+    };
+  });
+}
+
+// 添加兑换菜品（去重，同菜仅可添加一次）
+$('ptAddDishBtn').onclick = () => {
+  const sel = $('ptDishSelect');
+  if (!sel || !sel.value) { toast('请先添加菜品', true); return; }
+  const opt = sel.options[sel.selectedIndex];
+  const dishId = sel.value;
+  const dishName = opt ? opt.dataset.name : '';
+  const points = Math.max(1, Math.round(Number($('ptDishPoints').value) || 0));
+  if (!points) { toast('请填写所需积分', true); return; }
+  if (_ptExchangeDishes.some(d => d.dishId === dishId)) { toast('该菜品已在兑换列表中', true); return; }
+  if (_ptExchangeDishes.length >= 20) { toast('最多设置 20 个兑换菜品', true); return; }
+  _ptExchangeDishes.push({ dishId, dishName, points });
+  renderPtExchangeList();
+  toast('已添加，记得点"保存积分设置"');
+};
+
+// 保存积分设置（写入后端 Setting，顾客端实时生效）
+$('savePointsBtn').onclick = async () => {
+  const btn = $('savePointsBtn');
+  const payload = {
+    pointEnabled: $('setPointEnabled').checked,
+    pointSpendPerPoint: Math.max(0, Number($('setSpendPerPoint').value) || 0),
+    pointDeductEnabled: $('setPointDeductEnabled').checked,
+    pointDeductPoints: Math.max(1, Math.round(Number($('setPointDeductPoints').value) || 100)),
+    pointDeductMaxPercent: Math.min(100, Math.max(0, Number($('setPointDeductMaxPercent').value) || 0)),
+    pointExchangeDishes: _ptExchangeDishes
   };
-  localStorage.setItem('pointsSettings', JSON.stringify(data));
-  toast('积分设置已保存');
+  btn.disabled = true;
+  const res = await api('/api/settings', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  btn.disabled = false;
+  if (res.success) {
+    toast('积分设置已保存，顾客端即时生效');
+  } else if (res.needUpgrade) {
+    toast(res.message || '需要升级会员', true);
+  } else {
+    toast(res.message || '保存失败', true);
+  }
 };
 
 /* ===================== 营销活动（满减 / 折扣 / 充值送） ===================== */
@@ -2311,7 +2390,10 @@ function renderMarketing() {
           <td>${mktTimeText(a)}</td>
           <td><span class="${st.cls}" style="padding:2px 10px;border-radius:999px;font-size:12px;">${st.text}</span></td>
           <td><div class="row-actions">
-            <button class="btn ${a.enabled ? 'btn-gray' : 'btn-green'}" data-act="toggle" data-id="${esc(a._id)}">${a.enabled ? '停用' : '启用'}</button>
+            <label class="toggle" title="${a.enabled ? '点击停用' : '点击启用'}">
+              <input type="checkbox" data-act="toggle" data-id="${esc(a._id)}" ${a.enabled ? 'checked' : ''}>
+              <span class="slider"></span>
+            </label>
             <button class="btn btn-blue" data-act="edit" data-id="${esc(a._id)}">编辑</button>
             <button class="btn btn-red" data-act="del" data-id="${esc(a._id)}">删除</button>
           </div></td>
@@ -2319,6 +2401,9 @@ function renderMarketing() {
       }).join('');
       body.querySelectorAll('button[data-act]').forEach(btn => {
         btn.onclick = () => mktAction(btn.dataset.act, btn.dataset.id);
+      });
+      body.querySelectorAll('input[data-act="toggle"]').forEach(chk => {
+        chk.onchange = () => mktAction('toggle', chk.dataset.id);
       });
     }
     // 手机卡片
@@ -2331,7 +2416,10 @@ function renderMarketing() {
           <div class="mcm-time">${mktTimeText(a)}</div>
           <span class="mcm-status ${st.cls}">${st.text}</span>
           <div class="mcm-actions">
-            <button class="btn ${a.enabled ? 'btn-gray' : 'btn-green'}" data-act="toggle" data-id="${esc(a._id)}">${a.enabled ? '停用' : '启用'}</button>
+            <label class="toggle" title="${a.enabled ? '点击停用' : '点击启用'}">
+              <input type="checkbox" data-act="toggle" data-id="${esc(a._id)}" ${a.enabled ? 'checked' : ''}>
+              <span class="slider"></span>
+            </label>
             <button class="btn btn-blue" data-act="edit" data-id="${esc(a._id)}">编辑</button>
             <button class="btn btn-red" data-act="del" data-id="${esc(a._id)}">删除</button>
           </div>
@@ -2339,6 +2427,9 @@ function renderMarketing() {
       }).join('');
       cards.querySelectorAll('button[data-act]').forEach(btn => {
         btn.onclick = () => mktAction(btn.dataset.act, btn.dataset.id);
+      });
+      cards.querySelectorAll('input[data-act="toggle"]').forEach(chk => {
+        chk.onchange = () => mktAction('toggle', chk.dataset.id);
       });
     }
   });
@@ -2356,8 +2447,11 @@ async function mktAction(act, id) {
   } else if (act === 'toggle') {
     const res = await api(`/api/marketing/${id}/toggle`, { method: 'PATCH' });
     if (res.success) { toast(res.message || '已更新'); await loadMarketing(); }
-    else if (res.needUpgrade) { toast(res.message || '会员等级不足', true); }
-    else toast(res.message || '操作失败', true);
+    else {
+      renderMarketing(); // 失败时回弹开关状态
+      if (res.needUpgrade) { toast(res.message || '会员等级不足', true); }
+      else toast(res.message || '操作失败', true);
+    }
   }
 }
 

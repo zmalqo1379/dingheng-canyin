@@ -180,13 +180,14 @@ router.delete('/:id', requireMerchant, async (req, res) => {
 });
 
 // ============ 顾客：获取当前生效的满减/折扣活动（公开，按 shopId）============
-// 仅返回 enabled=true 且在时间窗口内的 fullReduction / discount（充值送不在此返回）
+// 返回 enabled=true 且在时间窗口内的 fullReduction / discount / rechargeBonus
+// （充值送仅用于点餐页优惠条展示；下单优惠计算仍只用满减/折扣，computeDiscount 自动忽略其他类型）
 router.get('/active', requirePublicShopId, async (req, res) => {
   try {
     const now = new Date();
     const list = await Marketing.find({
       shopId: req.publicShopId,
-      type: { $in: ['fullReduction', 'discount'] },
+      type: { $in: ['fullReduction', 'discount', 'rechargeBonus'] },
       enabled: true,
       $or: [{ endTime: null }, { endTime: { $gte: now } }],
       startTime: { $lte: now }

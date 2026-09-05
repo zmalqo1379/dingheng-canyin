@@ -440,7 +440,7 @@
     .setting-row .meta { flex: 1; min-width: 0; }
     .setting-row .meta .t { font-size: 15px; font-weight: 600; color: #1f2937; }
     .setting-row .meta .d { font-size: 13px; color: #9ca3af; margin-top: 4px; }
-    /* 开关 toggle */
+    /* 开关 toggle（全站统一滑动开关组件：滑块右=启用/橙色，左=停用/灰色） */
     .toggle { position: relative; display: inline-block; width: 46px; height: 26px; flex-shrink: 0; }
     .toggle input { opacity: 0; width: 0; height: 0; }
     .toggle .slider {
@@ -455,8 +455,9 @@
       transition: transform .2s;
       box-shadow: 0 1px 3px rgba(0,0,0,.2);
     }
-    .toggle input:checked + .slider { background: var(--green); }
+    .toggle input:checked + .slider { background: var(--accent); box-shadow: 0 1px 6px rgba(255,107,53,.35); }
     .toggle input:checked + .slider::before { transform: translateX(20px); }
+    .toggle input:disabled + .slider { opacity: .5; cursor: not-allowed; }
     .setting-sub-fields {
       margin-top: 12px; padding: 14px 16px;
       background: #f9fafb; border-radius: 10px;
@@ -1107,6 +1108,40 @@
     .ez-btn.gold { background: linear-gradient(135deg, #f59e0b, #fbbf24); box-shadow: 0 6px 14px rgba(245,158,11,.3); }
     .ez-btn.gold:disabled { background: #d1d5db; box-shadow: none; }
 
+    /* 兑换月卡"权益详情"展开区：默认折叠，点击展开查看完整权益 */
+    .ez-benefit-toggle {
+      width: 100%; margin-top: 10px; padding: 9px 0;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      background: #fff7ed; color: #9a3412;
+      border: 1px dashed #fdba74; border-radius: 10px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: background .15s;
+      font-family: inherit;
+    }
+    .ez-benefit-toggle:hover { background: #ffedd5; }
+    .ezb-arrow { display: inline-block; transition: transform .2s; font-size: 11px; }
+    .ez-card.benefit-open .ezb-arrow { transform: rotate(180deg); }
+    .ez-benefit-panel { display: none; margin-top: 10px; text-align: left; }
+    .ez-card.benefit-open .ez-benefit-panel { display: block; animation: ezBenefitIn .22s ease; }
+    @keyframes ezBenefitIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    .ez-benefit-list { list-style: none; margin: 0; padding: 10px 12px; background: #fafaf9; border-radius: 10px; }
+    .ez-benefit-list li {
+      position: relative; padding: 4px 0 4px 18px;
+      font-size: 12.5px; color: #44403c; line-height: 1.55;
+    }
+    .ez-benefit-list li::before {
+      content: '✓'; position: absolute; left: 2px; top: 4px;
+      color: #16a34a; font-weight: 700; font-size: 12px;
+    }
+    .ez-benefit-list li.ezb-hot { color: #c2410c; font-weight: 700; }
+    .ez-benefit-gold {
+      margin-top: 8px; padding: 7px 10px;
+      font-size: 11.5px; line-height: 1.5; text-align: center;
+      color: #b45309; font-weight: 600;
+      background: linear-gradient(135deg, #fef3c7, #fde68a);
+      border-radius: 8px;
+    }
+
     /* 兑换专区标题行 */
     .ez-title-row { text-align: center; margin-bottom: 20px; }
     .ez-title-row h3 { font-size: 22px; font-weight: 800; color: var(--accent); margin: 0; }
@@ -1687,6 +1722,27 @@
     .inline-input .form-input { max-width: 120px; }
     .inline-input span { font-size: 13px; color: #6b7280; white-space: nowrap; }
 
+    /* 积分兑换菜品设置 */
+    .pt-exchange-add { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pt-dish-select { flex: 1; min-width: 150px; max-width: none !important; height: 38px; border: 1px solid #e5e7eb; border-radius: 10px; padding: 0 10px; font-size: 13px; background: #fafafa; outline: none; }
+    .pt-dish-select:focus { border-color: var(--accent-2, #ff8a3d); }
+    .pt-points-input { width: 100px; height: 38px; border: 1px solid #e5e7eb; border-radius: 10px; padding: 0 10px; font-size: 13px; background: #fafafa; outline: none; }
+    .pt-points-input:focus { border-color: var(--accent-2, #ff8a3d); }
+    .pt-exchange-list { display: flex; flex-direction: column; gap: 8px; }
+    .pt-exchange-list:empty { display: none; }
+    .pt-ex-item {
+      display: flex; align-items: center; gap: 10px;
+      background: #fff7ed; border: 1px solid #fed7aa;
+      border-radius: 10px; padding: 8px 12px;
+    }
+    .pt-ex-item .pt-ex-name { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: #1f2937; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pt-ex-item .pt-ex-pts { font-size: 12.5px; font-weight: 700; color: #c2410c; white-space: nowrap; }
+    .pt-ex-item .pt-ex-del {
+      border: none; background: none; color: #9ca3af;
+      font-size: 15px; cursor: pointer; padding: 2px 6px; line-height: 1;
+    }
+    .pt-ex-item .pt-ex-del:hover { color: #dc2626; }
+
     /* ============ 装修预览手机框（iframe 嵌入真实点餐页） ============ */
     .preview-modal {
       position: fixed; inset: 0; z-index: 9999;
@@ -2174,6 +2230,17 @@
               <div class="ez-coin-num">3000<small> 币</small></div>
               <div class="ez-tip">💡 本月采购满 3000 元即可免费攒够（会员 1元=1币），相当于：正常进货，会员白送！</div>
               <button class="ez-btn" id="ezBtnAdvanced" onclick="exchangeMembership('advanced')">立即兑换进阶版</button>
+              <button type="button" class="ez-benefit-toggle" onclick="toggleEzBenefit(this)">权益详情<span class="ezb-arrow">▾</span></button>
+              <div class="ez-benefit-panel">
+                <ul class="ez-benefit-list">
+                  <li class="ezb-hot">返币翻倍！1元=1币</li>
+                  <li class="ezb-hot">新增 50/100 元大额券</li>
+                  <li>顾客积分系统</li>
+                  <li>经营报表</li>
+                  <li>基础版全部功能：扫码点餐、菜单管理、桌台管理、订单管理、后厨语音看单、大屏展示、采购商城、鼎恒币（采购 1元=1币）、可兑 10-100 元采购抵用券</li>
+                </ul>
+                <div class="ez-benefit-gold">鼎恒币兑换与现金购买权益完全一致，一分不花，同等尊贵</div>
+              </div>
             </div>
             <div class="ez-card premium" id="ezPremiumCard">
               <div class="ez-badge gold">👑 超值尊享</div>
@@ -2183,6 +2250,20 @@
               <div class="ez-coin-num">5000<small> 币</small></div>
               <div class="ez-tip">💡 本月采购满 5000 元即可免费攒够（会员 1元=1币），相当于：正常进货，会员白送！</div>
               <button class="ez-btn gold" id="ezBtnPremium" onclick="exchangeMembership('premium')">立即兑换尊享版</button>
+              <button type="button" class="ez-benefit-toggle" onclick="toggleEzBenefit(this)">权益详情<span class="ezb-arrow">▾</span></button>
+              <div class="ez-benefit-panel">
+                <ul class="ez-benefit-list">
+                  <li class="ezb-hot">新增 200 元超大额券</li>
+                  <li>顾客画像</li>
+                  <li>损耗分析</li>
+                  <li>高级营销工具</li>
+                  <li>顾客积分系统</li>
+                  <li>满减活动</li>
+                  <li>经营报表</li>
+                  <li>进阶版全部功能：扫码点餐、菜单管理、桌台管理、订单管理、后厨语音看单、大屏展示、采购商城、鼎恒币（采购 1元=1币）、可兑 10-200 元采购抵用券</li>
+                </ul>
+                <div class="ez-benefit-gold">鼎恒币兑换与现金购买权益完全一致，一分不花，同等尊贵</div>
+              </div>
             </div>
           </div>
         </div>
@@ -2439,46 +2520,91 @@
         </div>
 
         <div id="pointsPanel" style="display:none;">
+          <!-- 一、积分功能与返积分比例 -->
           <div class="card">
-            <div class="card-head"><h3>积分规则设置</h3></div>
+            <div class="card-head"><h3>⭐ 返积分比例</h3></div>
             <div class="settings-card">
+              <div class="setting-row" style="padding-bottom:12px;border-bottom:1px dashed var(--line);margin-bottom:12px;">
+                <div class="meta">
+                  <div class="t">积分功能总开关</div>
+                  <div class="d">关闭后顾客端隐藏所有积分信息与入口，不再累计积分</div>
+                </div>
+                <label class="toggle">
+                  <input type="checkbox" id="setPointEnabled" checked>
+                  <span class="slider"></span>
+                </label>
+              </div>
               <div class="setting-row">
                 <div class="meta">
                   <div class="t">消费返积分</div>
-                  <div class="d">顾客每消费 1 元获得多少食客积分</div>
+                  <div class="d">顾客每消费 1 元获得多少积分，填 0 表示不返积分</div>
                 </div>
                 <div class="inline-input">
                   <input type="number" class="form-input" id="setSpendPerPoint" min="0" step="1" value="1">
                   <span>积分 / 元</span>
                 </div>
               </div>
+            </div>
+          </div>
 
+          <!-- 二、积分抵现 -->
+          <div class="card">
+            <div class="card-head"><h3>💰 积分抵现</h3></div>
+            <div class="settings-card">
               <div class="setting-row">
                 <div class="meta">
-                  <div class="t">积分抵扣比例</div>
-                  <div class="d">食客积分可用于抵扣后续消费，1 积分抵扣多少钱</div>
+                  <div class="t">启用积分抵现</div>
+                  <div class="d">顾客结算时可用积分抵扣部分餐费</div>
                 </div>
-                <div class="inline-input">
-                  <input type="number" class="form-input" id="setPointDeductValue" min="0" step="0.01" value="0.01">
-                  <span>元 / 积分</span>
-                </div>
+                <label class="toggle">
+                  <input type="checkbox" id="setPointDeductEnabled" checked>
+                  <span class="slider"></span>
+                </label>
               </div>
-
               <div class="setting-row">
                 <div class="meta">
-                  <div class="t">积分兑换门槛</div>
-                  <div class="d">顾客最低可兑换消费的积分门槛</div>
+                  <div class="t">抵现比例</div>
+                  <div class="d">多少积分抵 1 元现金</div>
                 </div>
                 <div class="inline-input">
-                  <input type="number" class="form-input" id="setPointMinRedeem" min="0" step="1" value="100">
-                  <span>积分起兑</span>
+                  <input type="number" class="form-input" id="setPointDeductPoints" min="1" step="1" value="100">
+                  <span>积分 = 1 元</span>
                 </div>
               </div>
-
-              <div class="settings-save-bar">
-                <button class="btn-add" id="savePointsBtn">保存积分设置</button>
+              <div class="setting-row">
+                <div class="meta">
+                  <div class="t">单笔抵现上限</div>
+                  <div class="d">单笔订单积分最多抵实付金额的百分比</div>
+                </div>
+                <div class="inline-input">
+                  <input type="number" class="form-input" id="setPointDeductMaxPercent" min="0" max="100" step="1" value="20">
+                  <span>%</span>
+                </div>
               </div>
             </div>
+          </div>
+
+          <!-- 三、积分兑换菜品 -->
+          <div class="card">
+            <div class="card-head"><h3>🍽️ 积分兑换菜品</h3></div>
+            <div class="settings-card">
+              <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:10px;">
+                <div class="meta">
+                  <div class="t">添加兑换菜品</div>
+                  <div class="d">从自家菜单选择菜品并设置所需积分，顾客在点餐页可直接用积分兑换（生成 0 元订单进后厨）</div>
+                </div>
+                <div class="pt-exchange-add">
+                  <select id="ptDishSelect" class="form-input pt-dish-select"></select>
+                  <input type="number" class="form-input pt-points-input" id="ptDishPoints" min="1" step="1" placeholder="所需积分" value="300">
+                  <button class="btn-add" id="ptAddDishBtn" type="button">＋ 添加</button>
+                </div>
+                <div id="ptExchangeList" class="pt-exchange-list"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-save-bar">
+            <button class="btn-add" id="savePointsBtn">保存积分设置</button>
           </div>
         </div>
       </section>
@@ -2633,9 +2759,14 @@
         <input type="datetime-local" class="form-input" id="mktEndTime">
       </div>
       <div class="form-group">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-          <input type="checkbox" id="mktEnabled" style="width:16px;height:16px;"> 立即启用
-        </label>
+        <label>启用状态</label>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <label class="toggle" style="margin:0;">
+            <input type="checkbox" id="mktEnabled">
+            <span class="slider"></span>
+          </label>
+          <span style="font-size:13px;color:#6b7280;">立即启用（关闭则保存为停用，稍后可在列表打开）</span>
+        </div>
       </div>
     </div>
     <div class="modal-foot">
@@ -2745,7 +2876,7 @@
     </div>
     <div class="upsell-body" id="upsellBody"></div>
     <div class="upsell-foot">
-      <button class="upsell-btn cancel" id="upsellCancel">再想想</button>
+      <button class="upsell-btn cancel" id="upsellCancel">我直接买</button>
       <button class="upsell-btn confirm" id="upsellConfirm">去兑换</button>
     </div>
   </div>

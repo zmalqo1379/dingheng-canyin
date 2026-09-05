@@ -18,6 +18,7 @@ const ShopAccount = require('./models/ShopAccount');
 const Member = require('./models/Member');
 const CoinHistory = require('./models/CoinHistory');
 const Coupon = require('./models/Coupon');
+const CustomerPoint = require('./models/CustomerPoint');
 
 const purchaseOrdersRouter = require('./routes/purchaseOrders');
 const coinRouter = require('./routes/coin');
@@ -26,6 +27,8 @@ const devRouter = require('./routes/dev');
 const supplierRouter = require('./routes/supplier');
 const supplyProductsRouter = require('./routes/supplyProducts');
 const marketingRouter = require('./routes/marketing');
+const customerPointsRouter = require('./routes/customerPoints');
+const { getPointConfig, settlePointsForOrder, isValidPhone } = customerPointsRouter;
 const Admin = require('./models/Admin');
 const { startDhCron } = require('./utils/dhCron');
 const Marketing = require('./models/Marketing');
@@ -120,7 +123,7 @@ app.get('/api/tables', requirePublicShopId, async (req, res) => {
 // 创建订单（顾客端）：shopId 取自公开标识，下单时写入订单
 app.post('/api/orders', requirePublicShopId, async (req, res) => {
   try {
-    const { tableNumber, items, remark } = req.body;
+    const { tableNumber, items, remark, phone, usePoints } = req.body;
     if (!tableNumber || !items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ success: false, message: '桌号和菜品不能为空' });
     }
@@ -135,16 +138,41 @@ app.post('/api/orders', requirePublicShopId, async (req, res) => {
       startTime: { $lte: now }
     }).lean();
     const calc = computeDiscount(items, activeRules);
+
+    // ============ 积分抵现（进阶版权益，后端权威计算） ============
+    let finalTotal = calc.finalTotal;
+    let pointsUsed = 0;
+    let pointsDiscount = 0;
+    const phoneStr = String(phone || '').trim();
+    const validPhone = isValidPhone(phoneStr);
+    if (validPhone && usePoints && finalTotal > 0) {
+      const pointCfg = await getPointConfig(shopId);
+      if (pointCfg.enabled && pointCfg.deductEnabled) {
+        const cp = await CustomerPoint.findOne({ shopId, phone: phoneStr }).lean();
+        if (cp && cp.points > 0) {
+          // 单笔最多抵 maxPercent%（按抵现比例换算成积分上限）
+          const maxDiscountAmount = finalTotal * pointCfg.maxPercent / 100;
+          const maxUsablePoints = Math.floor(maxDiscountAmount * pointCfg.deductPoints);
+          pointsUsed = Math.min(cp.points, maxUsablePoints);
+          if (pointsUsed > 0) {
+            pointsDiscount = Math.round(pointsUsed / pointCfg.deductPoints * 100) / 100;
+            finalTotal = Math.max(0, +(finalTotal - pointsDiscount).toFixed(2));
+          }
+        }
+      }
+    }
+
     const order = await Order.create({
       tableNumber,
       items,
-      totalPrice: calc.finalTotal,
+      totalPrice: finalTotal,
       originalTotal: calc.originalTotal,
-      discountAmount: calc.discountAmount,
+      discountAmount: +Math.max(0, calc.originalTotal - finalTotal).toFixed(2),
       discountDetail: {
         itemDiscount: calc.itemDiscountAmount,
         fullReduction: calc.fullReductionAmount,
-        finalTotal: calc.finalTotal,
+        pointsDiscount,
+        finalTotal,
         appliedRules: activeRules.map(r => ({
           type: r.type,
           threshold: r.threshold,
@@ -155,6 +183,9 @@ app.post('/api/orders', requirePublicShopId, async (req, res) => {
         }))
       },
       remark: String(remark || '').slice(0, 200),
+      customerPhone: validPhone ? phoneStr : '',
+      pointsUsed,
+      pointsDiscount,
       status: 'pending',
       shopId
     });
@@ -164,6 +195,29 @@ app.post('/api/orders', requirePublicShopId, async (req, res) => {
       { status: 'occupied' },
       { upsert: true }
     );
+
+    // ============ 顾客积分结算：扣抵现积分 + 按实付累计积分 ============
+    let pointsEarned = 0;
+    let pointsBalance = null;
+    if (validPhone) {
+      try {
+        const settled = await settlePointsForOrder({
+          shopId,
+          phone: phoneStr,
+          payAmount: finalTotal,
+          pointsUsed,
+          orderId: String(order._id)
+        });
+        pointsEarned = settled.pointsEarned || 0;
+        pointsBalance = settled.pointsBalance;
+        if (pointsEarned > 0) {
+          // 回写订单积分字段（成功页播报与商家对账用）
+          await Order.updateOne({ _id: order._id }, { pointsEarned });
+        }
+      } catch (e) {
+        console.error('顾客积分结算失败（不影响下单）', e);
+      }
+    }
 
     // ============ 通知引擎：根据店铺设置触发对应通知 ============
     let setting = await Setting.findOne({ shopId });
@@ -194,6 +248,9 @@ app.post('/api/orders', requirePublicShopId, async (req, res) => {
 
     const orderObj = order.toObject();
     orderObj.notifyTriggered = notifyTriggered;
+    // 顾客积分播报数据（未填手机号时为空）
+    orderObj.pointsEarned = pointsEarned;
+    orderObj.pointsBalance = pointsBalance;
     res.status(201).json({ success: true, data: orderObj });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -524,6 +581,44 @@ app.put('/api/settings', requireMerchant, async (req, res) => {
       delete update.layout;
     }
 
+    // ---- 顾客积分配置（进阶版权益）：字段清洗 + 等级校验 ----
+    const POINT_FIELDS = ['pointEnabled', 'pointSpendPerPoint', 'pointDeductEnabled', 'pointDeductPoints',
+      'pointDeductMaxPercent', 'pointExchangeDishes'];
+    const touchesPoints = POINT_FIELDS.some(k => update[k] !== undefined);
+    if (touchesPoints) {
+      const level = await getMemberLevel(shopId);
+      if (!['advanced', 'premium'].includes(level)) {
+        return res.status(403).json({
+          success: false,
+          message: '顾客积分为进阶版权益，请先升级会员',
+          needUpgrade: true
+        });
+      }
+    }
+    ['pointSpendPerPoint', 'pointDeductPoints', 'pointDeductMaxPercent'].forEach((k) => {
+      if (update[k] !== undefined) {
+        const n = Number(update[k]);
+        if (!isFinite(n) || n < 0) { delete update[k]; return; }
+        update[k] = n;
+      }
+    });
+    if (update.pointSpendPerPoint !== undefined) update.pointSpendPerPoint = Math.min(1000, update.pointSpendPerPoint);
+    if (update.pointDeductPoints !== undefined) update.pointDeductPoints = Math.max(1, Math.min(100000, Math.round(update.pointDeductPoints)));
+    if (update.pointDeductMaxPercent !== undefined) update.pointDeductMaxPercent = Math.min(100, update.pointDeductMaxPercent);
+    if (update.pointDeductEnabled !== undefined) update.pointDeductEnabled = toBool(update.pointDeductEnabled);
+    if (update.pointEnabled !== undefined) update.pointEnabled = toBool(update.pointEnabled);
+    if (update.pointExchangeDishes !== undefined) {
+      if (!Array.isArray(update.pointExchangeDishes)) {
+        delete update.pointExchangeDishes;
+      } else {
+        update.pointExchangeDishes = update.pointExchangeDishes.slice(0, 20).map(d => ({
+          dishId: String((d && d.dishId) || ''),
+          dishName: String((d && d.dishName) || '').slice(0, 50),
+          points: Math.max(1, Math.round(Number(d && d.points) || 1))
+        })).filter(d => d.dishId);
+      }
+    }
+
     // ---- 店铺装修：自定义图片进阶版及以上（置空/恢复默认不限等级）----
     const wantsImage = (update.bannerImage && update.bannerImage !== '') ||
                        (update.logoImage && update.logoImage !== '');
@@ -558,6 +653,7 @@ app.use('/api/supplier', supplierRouter);
 app.use('/api', coinRouter);
 app.use('/api/supply-products', supplyProductsRouter);
 app.use('/api/marketing', marketingRouter);
+app.use('/api/points', customerPointsRouter);
 
 // 供应商列表（公开浏览 + 管理端展示，不涉及多商家隔离）
 app.get('/api/suppliers', async (req, res) => {

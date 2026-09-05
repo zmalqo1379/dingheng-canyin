@@ -67,7 +67,43 @@ const settingSchema = new mongoose.Schema({
   notifyPhone: {
     type: String,
     default: ''
-  }
+  },
+  // ============ 顾客积分配置（进阶版权益，存 Setting 便于公开接口读取） ============
+  // 积分功能总开关（关闭后顾客端隐藏所有积分信息与入口，不再累计积分）
+  pointEnabled: {
+    type: Boolean,
+    default: true
+  },
+  // 返积分比例：每消费 1 元返多少积分（0 = 不返）
+  pointSpendPerPoint: {
+    type: Number,
+    default: 1,
+    min: 0
+  },
+  // 积分抵现开关
+  pointDeductEnabled: {
+    type: Boolean,
+    default: true
+  },
+  // 抵现比例：多少积分抵 1 元（默认 100 积分 = 1 元）
+  pointDeductPoints: {
+    type: Number,
+    default: 100,
+    min: 1
+  },
+  // 单笔订单积分抵现上限（占实付金额百分比，默认 20%）
+  pointDeductMaxPercent: {
+    type: Number,
+    default: 20,
+    min: 0,
+    max: 100
+  },
+  // 积分兑换菜品列表：[{ dishId, dishName, points }]
+  pointExchangeDishes: [{
+    dishId: { type: String, required: true },
+    dishName: { type: String, default: '', maxlength: 50 },
+    points: { type: Number, default: 100, min: 1 }
+  }]
 }, { timestamps: true });
 
 module.exports = mongoose.model('Setting', settingSchema);

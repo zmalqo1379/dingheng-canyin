@@ -53,6 +53,36 @@ const orderSchema = new mongoose.Schema({
     default: '',
     maxlength: 200
   },
+  // 订单类型：normal 正常点单 / pointsRedeem 积分换菜（0 元单进后厨）
+  orderType: {
+    type: String,
+    enum: ['normal', 'pointsRedeem'],
+    default: 'normal'
+  },
+  // 顾客手机号（选填，用于积分累计；未填为空）
+  customerPhone: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  // 本单使用的抵现积分数量
+  pointsUsed: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  // 积分抵现金额（元）
+  pointsDiscount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  // 本单累计获得的积分（成功页播报用）
+  pointsEarned: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
   status: {
     type: String,
     enum: ['pending', 'completed'],
