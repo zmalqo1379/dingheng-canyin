@@ -797,6 +797,109 @@
       .guide-card .guide-text { flex-basis: 100%; font-size: 13px; }
       .guide-card .guide-close { margin-left: auto; }
     }
+
+    /* ============ 供应商治理引导页（审核中/冻结/拒绝/协议/待开通接单） ============
+       首屏按 status/agreementSigned/orderEnabled 决定显示哪一张；
+       覆盖整个 .layout 区域，未通过前置门槛时不可进入正常控制台。 */
+    .gate-overlay {
+      position: fixed; inset: 0; z-index: 980;
+      display: none;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+      overflow: auto;
+    }
+    .gate-overlay.show { display: block; }
+    .gate-wrap {
+      max-width: 640px; margin: 0 auto; padding: 48px 24px 60px;
+    }
+    .gate-card {
+      background: #fff; border-radius: 18px;
+      box-shadow: 0 10px 36px rgba(15,23,42,.08), 0 2px 8px rgba(15,23,42,.04);
+      padding: 36px 32px 32px;
+    }
+    .gate-icon {
+      width: 72px; height: 72px; margin: 0 auto 16px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 34px;
+      background: linear-gradient(135deg, #fef3c7, #fde68a);
+      color: #92400e;
+    }
+    .gate-icon.frozen { background: linear-gradient(135deg, #fee2e2, #fecaca); color: #b91c1c; }
+    .gate-icon.rejected { background: linear-gradient(135deg, #fee2e2, #fecaca); color: #b91c1c; }
+    .gate-icon.agreement { background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #1d4ed8; }
+    .gate-icon.waiting-order { background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #1d4ed8; }
+    .gate-title {
+      text-align: center; font-size: 22px; font-weight: 700; color: #111827;
+      letter-spacing: 1px; margin-bottom: 8px;
+    }
+    .gate-sub { text-align: center; font-size: 13.5px; color: #6b7280; margin-bottom: 22px; line-height: 1.7; }
+    .gate-info {
+      background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px;
+      padding: 16px 18px; margin-bottom: 18px;
+    }
+    .gate-info-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
+    .gate-info-row .k { color: #6b7280; }
+    .gate-info-row .v { color: #111827; font-weight: 600; }
+    .gate-reason {
+      background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px;
+      padding: 12px 14px; margin-bottom: 18px;
+      font-size: 13px; color: #b91c1c; line-height: 1.7;
+    }
+    .gate-contact {
+      text-align: center; font-size: 12.5px; color: #9ca3af; margin-top: 14px; line-height: 1.7;
+    }
+    .gate-btn {
+      width: 100%; padding: 13px;
+      background: linear-gradient(135deg, #ff6b35, #ff8e53);
+      color: #fff; border: none; border-radius: 12px;
+      font-size: 16px; font-weight: 700; cursor: pointer;
+      transition: transform .1s, box-shadow .2s;
+      margin-top: 4px;
+    }
+    .gate-btn:hover { box-shadow: 0 8px 20px rgba(255,107,53,.35); }
+    .gate-btn:active { transform: scale(.99); }
+    .gate-btn:disabled { opacity: .6; cursor: not-allowed; }
+    .gate-btn.blue { background: linear-gradient(135deg, #2563eb, #3b82f6); }
+    .gate-btn.blue:hover { box-shadow: 0 8px 20px rgba(37,99,235,.35); }
+
+    /* 协议正文容器 */
+    .agreement-text {
+      max-height: 320px; overflow-y: auto;
+      background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px;
+      padding: 16px 18px; margin: 4px 0 14px;
+      font-size: 13px; color: #374151; line-height: 1.85;
+    }
+    .agreement-text h4 { font-size: 14px; color: #111827; margin: 12px 0 6px; font-weight: 700; }
+    .agreement-text h4:first-child { margin-top: 0; }
+    .agreement-text p { margin: 4px 0; }
+    .agreement-check {
+      display: flex; align-items: center; gap: 8px; margin: 12px 0 14px;
+      font-size: 13.5px; color: #374151; cursor: pointer;
+    }
+    .agreement-check input { width: 16px; height: 16px; cursor: pointer; }
+
+    /* 平台合作规则阶梯表 */
+    .platform-rules {
+      background: linear-gradient(135deg, #fffbeb 0%, #ffffff 70%);
+      border: 1px solid #fde68a;
+      border-radius: 14px; padding: 16px 18px; margin-bottom: 16px;
+    }
+    .platform-rules h4 {
+      font-size: 14px; color: #92400e; margin: 0 0 10px; font-weight: 700;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .platform-rules .ladder-table {
+      width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px;
+    }
+    .platform-rules .ladder-table th,
+    .platform-rules .ladder-table td {
+      padding: 7px 8px; text-align: center; border-bottom: 1px solid #fde68a;
+    }
+    .platform-rules .ladder-table th { background: #fef3c7; color: #92400e; font-weight: 600; }
+    .platform-rules .ladder-table td.tier-cur { font-weight: 700; color: #b45309; }
+    .platform-rules .ladder-note {
+      font-size: 12px; color: #92400e; margin-top: 8px; line-height: 1.7;
+    }
   </style>
 </head>
 <body>
@@ -810,6 +913,17 @@
     <div style="display:flex; align-items:center; gap:14px;">
       <span class="who">您好，<span id="supplierName">供应商</span></span>
       <button class="logout" id="logoutBtn">退出登录</button>
+    </div>
+  </div>
+
+  <!-- ============ 治理引导页：根据治理状态首屏渲染 ============
+       pending → 审核中；rejected → 被拒绝；frozen → 已冻结；
+       active && !agreementSigned → 协议签署；active && agreementSigned && !orderEnabled → 待开通接单 -->
+  <div class="gate-overlay" id="gateOverlay">
+    <div class="gate-wrap">
+      <div class="gate-card" id="gateCard">
+        <!-- 内容由 renderGate() 动态注入 -->
+      </div>
     </div>
   </div>
 
@@ -993,6 +1107,18 @@
           <button class="btn btn-primary" id="settleQueryBtn">查询</button>
         </div>
 
+        <!-- 《平台合作规则》公示区块：展示平台默认阶梯返点表 -->
+        <div class="platform-rules">
+          <h4>📜 平台合作规则 · 默认阶梯返点</h4>
+          <table class="ladder-table" id="platformLadderTable">
+            <thead>
+              <tr><th>月累计采购额</th><th>返点率</th><th>累进方式</th></tr>
+            </thead>
+            <tbody><tr><td colspan="3" class="no-data">加载中...</td></tr></tbody>
+          </table>
+          <div class="ladder-note">返点按平台公示阶梯执行，每月 1 号自动结算。无专属返点规则的供应商一律按此阶梯计算。</div>
+        </div>
+
         <!-- 经营月报 hero：本月累计订单金额是主角，服务费只是其中一行 -->
         <div class="report-hero">
           <div class="report-label" id="settleHeroLabel">本月累计订单金额</div>
@@ -1049,11 +1175,12 @@
                 <th>月份</th>
                 <th>采购总额</th>
                 <th>服务费金额</th>
+                <th>结算状态</th>
                 <th>结算时间</th>
               </tr>
             </thead>
             <tbody id="settleHistoryTbody">
-              <tr><td colspan="4" class="no-data">加载中...</td></tr>
+              <tr><td colspan="5" class="no-data">加载中...</td></tr>
             </tbody>
           </table>
         </div>
@@ -1183,6 +1310,208 @@
     function fmtMoney(n) {
       const v = Number(n || 0);
       return '¥' + v.toFixed(2);
+    }
+
+    // ============ 供应商治理引导页 ============
+    // 首屏调用 /api/supplier/profile，根据 status/agreementSigned/orderEnabled
+    // 决定显示哪个引导页；未通过前置门槛时 .gate-overlay 覆盖整个 .layout，禁止进入控制台。
+    let _gateProfile = null;
+    const STATUS_TEXT = {
+      pending: '审核中', active: '已通过', frozen: '已冻结', rejected: '已拒绝'
+    };
+
+    function gateClose() { $('gateOverlay').classList.remove('show'); }
+    function gateShow(html) {
+      $('gateCard').innerHTML = html;
+      $('gateOverlay').classList.add('show');
+    }
+
+    function fmtDate(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return '—';
+      const p = (n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+    }
+
+    function renderGate(profile) {
+      _gateProfile = profile;
+      const status = profile.status;
+      // 通过门槛：status=active && agreementSigned && orderEnabled
+      if (status === 'active' && profile.agreementSigned && profile.orderEnabled) {
+        gateClose();
+        return;
+      }
+      const contactBlock = '<div class="gate-contact">如有疑问请联系平台客服<br>📞 客服电话：400-000-0000（占位）<br>📧 邮箱：support@dingheng.com（占位）</div>';
+
+      if (status === 'pending') {
+        // 审核中等待页：显示提交时间、审核进度说明、客服联系方式占位
+        gateShow(`
+          <div class="gate-icon">⏳</div>
+          <div class="gate-title">审核中</div>
+          <div class="gate-sub">你的入驻申请已提交，平台正在审核中，请耐心等待。</div>
+          <div class="gate-info">
+            <div class="gate-info-row"><span class="k">提交时间</span><span class="v">${fmtDate(profile.createdAt)}</span></div>
+            <div class="gate-info-row"><span class="k">审核进度</span><span class="v">平台审核中（预计 1-2 个工作日）</span></div>
+            <div class="gate-info-row"><span class="k">当前状态</span><span class="v">${STATUS_TEXT[status] || status}</span></div>
+          </div>
+          <div class="gate-sub" style="margin-bottom:6px;">审核通过后，你需在控制台完成《供应商入驻合作协议》签署，并由平台开通接单权限。</div>
+          <button class="gate-btn blue" id="gateRefreshBtn">↻ 刷新审核状态</button>
+          <button class="gate-btn" style="margin-top:10px;background:#9ca3af;" id="gateLogoutBtn">退出登录</button>
+          ${contactBlock}
+        `);
+        $('gateRefreshBtn').onclick = loadProfile;
+        $('gateLogoutBtn').onclick = () => $('logoutBtn').click();
+        return;
+      }
+
+      if (status === 'rejected') {
+        gateShow(`
+          <div class="gate-icon rejected">✕</div>
+          <div class="gate-title">入驻申请未通过</div>
+          <div class="gate-sub">很遗憾，你的入驻申请暂未通过平台审核。</div>
+          ${profile.rejectReason ? `<div class="gate-reason"><b>拒绝原因：</b><br>${esc(profile.rejectReason)}</div>` : ''}
+          <div class="gate-sub" style="margin-bottom:6px;">如需重新申请或对结果有疑问，请联系平台客服沟通。</div>
+          <button class="gate-btn" style="background:#9ca3af;" id="gateLogoutBtn">退出登录</button>
+          ${contactBlock}
+        `);
+        $('gateLogoutBtn').onclick = () => $('logoutBtn').click();
+        return;
+      }
+
+      if (status === 'frozen') {
+        gateShow(`
+          <div class="gate-icon frozen">❄</div>
+          <div class="gate-title">账户已被冻结</div>
+          <div class="gate-sub">你的账户已被平台冻结，请联系平台处理。</div>
+          ${profile.frozenReason ? `<div class="gate-reason"><b>冻结原因：</b><br>${esc(profile.frozenReason)}</div>` : ''}
+          <div class="gate-info">
+            <div class="gate-info-row"><span class="k">冻结前在途订单</span><span class="v">可正常完成发货与收货</span></div>
+            <div class="gate-info-row"><span class="k">新订单</span><span class="v">暂停接收</span></div>
+            <div class="gate-info-row"><span class="k">店铺展示</span><span class="v">已从采购商城隐藏</span></div>
+          </div>
+          <button class="gate-btn" style="background:#9ca3af;" id="gateLogoutBtn">退出登录</button>
+          ${contactBlock}
+        `);
+        $('gateLogoutBtn').onclick = () => $('logoutBtn').click();
+        return;
+      }
+
+      // status === 'active' 但未签协议
+      if (status === 'active' && !profile.agreementSigned) {
+        gateShow(`
+          <div class="gate-icon agreement">📜</div>
+          <div class="gate-title">签署合作协议</div>
+          <div class="gate-sub">恭喜通过审核！首次进入控制台需阅读并签署《供应商入驻合作协议》。</div>
+          <div class="agreement-text">
+            <h4>《供应商入驻合作协议》</h4>
+            <p>甲方（平台）：鼎恒餐饮供应链</p>
+            <p>乙方（供应商）：${esc(profile.name)}</p>
+            <h4>第一条 合作目的</h4>
+            <p>双方本着平等、自愿、互利的原则，就乙方通过甲方平台向餐饮商家供应食材等商品事宜达成以下协议。本协议为框架性占位文本，正式条款将由平台后续替换。</p>
+            <h4>第二条 入驻条件</h4>
+            <p>乙方经平台审核通过后，须签署本协议并由平台开通接单权限，方可上架商品、接收订单。</p>
+            <h4>第三条 返点与结算</h4>
+            <p>乙方向平台支付合作服务费（返点），按月累计采购额定档执行平台公示阶梯；每月 1 号自动结算。平台可为乙方单独配置专属返点规则。</p>
+            <h4>第四条 订单与履约</h4>
+            <p>乙方应及时确认、按时发货，保证商品质量与数量。如发生退货、缺货等情形，按双方约定处理。</p>
+            <h4>第五条 协议期限与终止</h4>
+            <p>本协议自签署之日起生效。任何一方提前 7 天书面通知可终止合作；平台保留对违规供应商冻结、清退的权利。</p>
+            <h4>第六条 其他</h4>
+            <p>本协议为占位正文，正式文本将由平台后续替换，乙方签署即视为已知悉并接受当前条款的约束。</p>
+          </div>
+          <label class="agreement-check">
+            <input type="checkbox" id="agreeChk">
+            <span>我已阅读并同意协议</span>
+          </label>
+          <button class="gate-btn blue" id="gateSignBtn">签署协议</button>
+          <div class="gate-sub" style="margin-top:14px;margin-bottom:0;">签署后仍需平台"确认开通接单"才可上架与接单。</div>
+          ${contactBlock}
+        `);
+        $('gateSignBtn').onclick = async () => {
+          if (!$('agreeChk').checked) { toast('请先勾选"我已阅读并同意协议"', true); return; }
+          const btn = $('gateSignBtn');
+          btn.disabled = true; btn.textContent = '签署中...';
+          const res = await api('/api/supplier/agreement/sign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ agree: true })
+          });
+          btn.disabled = false; btn.textContent = '签署协议';
+          if (res.success) {
+            toast('协议签署成功');
+            await loadProfile();
+          } else {
+            toast(res.message || '签署失败', true);
+          }
+        };
+        return;
+      }
+
+      // status === 'active' && agreementSigned && !orderEnabled → 待开通接单
+      if (status === 'active' && profile.agreementSigned && !profile.orderEnabled) {
+        gateShow(`
+          <div class="gate-icon waiting-order">⏳</div>
+          <div class="gate-title">已签署，待平台开通接单</div>
+          <div class="gate-sub">协议已签署完成，平台正在为你开通接单权限，请耐心等待。</div>
+          <div class="gate-info">
+            <div class="gate-info-row"><span class="k">协议签署时间</span><span class="v">${fmtDate(profile.agreementSignedAt)}</span></div>
+            <div class="gate-info-row"><span class="k">接单状态</span><span class="v">待平台开通</span></div>
+          </div>
+          <button class="gate-btn blue" id="gateRefreshBtn">↻ 刷新状态</button>
+          <button class="gate-btn" style="margin-top:10px;background:#9ca3af;" id="gateLogoutBtn">退出登录</button>
+          ${contactBlock}
+        `);
+        $('gateRefreshBtn').onclick = loadProfile;
+        $('gateLogoutBtn').onclick = () => $('logoutBtn').click();
+        return;
+      }
+    }
+
+    // 拉取供应商档案（治理状态）；首屏调用，未通过门槛时禁止进入控制台
+    let _profileLoaded = false;
+    async function loadProfile() {
+      try {
+        const res = await api('/api/supplier/profile');
+        if (!res.success || !res.data) {
+          // 接口失败：不阻断，交由后续业务接口处理
+          return;
+        }
+        _profileLoaded = true;
+        renderGate(res.data);
+      } catch (e) { /* 忽略，不阻断 */ }
+    }
+
+    function tierRangeText(t, idx, list) {
+      const min = Number(t.minAmount);
+      const next = list[idx + 1];
+      if (next) {
+        return `¥${min.toLocaleString()} - ¥${Number(next.minAmount).toLocaleString()}`;
+      }
+      return `¥${min.toLocaleString()} 以上`;
+    }
+
+    function renderPlatformLadder(defaultLadder, currentTier, totalPurchase) {
+      const tbody = $('platformLadderTable');
+      if (!Array.isArray(defaultLadder) || !defaultLadder.length) {
+        tbody.innerHTML = '<tr><td colspan="3" class="no-data">暂无默认阶梯</td></tr>';
+        return;
+      }
+      // 命中档判定（与后端 calcRebate 一致：minAmount <= amount 的最高一档）
+      const amount = Number(totalPurchase) || 0;
+      let hitIdx = -1;
+      for (let i = 0; i < defaultLadder.length; i++) {
+        if (amount >= Number(defaultLadder[i].minAmount)) hitIdx = i;
+      }
+      tbody.innerHTML = defaultLadder.map((t, i) => {
+        const isCur = i === hitIdx;
+        const modeText = t.mode === 'marginal' ? '超额累进' : '全额累进';
+        return `<tr${isCur ? ' class="tier-cur"' : ''}>
+          <td>${tierRangeText(t, i, defaultLadder)}</td>
+          <td>${(Number(t.rate) * 100).toFixed(0)}%${isCur ? ' ← 当前' : ''}</td>
+          <td>${modeText}</td>
+        </tr>`;
+      }).join('');
     }
 
     // 状态 → 样式类名映射
@@ -1542,7 +1871,7 @@
     }
     function pct(v) { return (Number(v || 0) * 100).toFixed(1) + '%'; }
     function modeText(m) {
-      return m === 'marginal' ? '超额累进' : (m === 'full' ? '全额累进' : (m === 'default' ? '默认兜底' : '—'));
+      return m === 'marginal' ? '超额累进' : (m === 'full' ? '全额累进' : (m === 'default' ? '默认阶梯' : '—'));
     }
     async function loadSettle() {
       const monthInput = $('settleMonth');
@@ -1568,18 +1897,21 @@
       $('settleTierGap').textContent = '';
       $('settleGrowthLine').style.display = 'none';
       $('settleCatTbody').innerHTML = '<tr><td colspan="6" class="no-data">加载中...</td></tr>';
-      $('settleHistoryTbody').innerHTML = '<tr><td colspan="4" class="no-data">加载中...</td></tr>';
+      $('settleHistoryTbody').innerHTML = '<tr><td colspan="5" class="no-data">加载中...</td></tr>';
 
       const res = await api('/api/supplier/settle?month=' + encodeURIComponent(month));
       if (!res.success || !res.data) {
         $('settleTier').textContent = '—';
         $('settleCatTbody').innerHTML = `<tr><td colspan="6" class="no-data">${esc(res.message || '加载失败')}</td></tr>`;
-        $('settleHistoryTbody').innerHTML = `<tr><td colspan="4" class="no-data">${esc(res.message || '加载失败')}</td></tr>`;
+        $('settleHistoryTbody').innerHTML = `<tr><td colspan="5" class="no-data">${esc(res.message || '加载失败')}</td></tr>`;
         return;
       }
       const d = res.data;
       $('settleTotalPurchase').textContent = Number(d.totalPurchase || 0).toFixed(2);
       $('settleTotalRebate').textContent = Number(d.totalRebate || 0).toFixed(2);
+
+      // 《平台合作规则》阶梯表（公示 + 命中档高亮）
+      renderPlatformLadder(d.defaultLadder, d.currentTier, d.totalPurchase);
 
       // 较上月增长（上月同口径实时数据；上月无采购则不展示）
       const growthLine = $('settleGrowthLine');
@@ -1611,7 +1943,12 @@
       const t = d.currentTier || {};
       let tierText;
       if (t.mode === 'default') {
-        tierText = `默认兜底 · ${pct(t.tierRate)}`;
+        // 默认阶梯：tiers 已填充，命中档展示
+        if (t.tierMinAmount != null) {
+          tierText = `平台默认阶梯 · 满 ¥${Number(t.tierMinAmount).toLocaleString()} 档 · ${pct(t.tierRate)}`;
+        } else {
+          tierText = `平台默认阶梯 · ${pct(t.tierRate)}`;
+        }
       } else if (t.tierMinAmount != null) {
         tierText = `满 ¥${Number(t.tierMinAmount).toLocaleString()} 档 · ${pct(t.tierRate)}`;
       } else {
@@ -1620,7 +1957,7 @@
       $('settleTier').textContent = tierText;
 
       const tiers = Array.isArray(t.tiers) ? t.tiers : [];
-      if (t.mode === 'default' || !tiers.length) {
+      if (!tiers.length) {
         $('tierBarFill').style.width = '100%';
         $('tierLegend').innerHTML = '<span class="lg">该品类按平台默认兜底比例执行</span>';
         $('settleTierGap').textContent = '';
@@ -1629,8 +1966,9 @@
         const curVal = Number(d.totalPurchase || 0);
         const width = maxMin > 0 ? Math.min(100, curVal / maxMin * 100) : 0;
         $('tierBarFill').style.width = width.toFixed(1) + '%';
+        const prefix = t.mode === 'default' ? '平台默认阶梯 · ' : '';
         $('tierLegend').innerHTML = tiers.map(x =>
-          `<span class="lg">满 ¥${Number(x.minAmount).toLocaleString()} → ${pct(x.rate)}</span>`).join('');
+          `<span class="lg">${prefix}满 ¥${Number(x.minAmount).toLocaleString()} → ${pct(x.rate)}</span>`).join('');
         if (t.gapToNext != null && Number(t.gapToNext) > 0) {
           $('settleTierGap').textContent = `距离下一档（满 ¥${Number(t.nextTierMinAmount).toLocaleString()}）还差 ¥${Number(t.gapToNext).toLocaleString()}`;
         } else if (curVal >= maxMin && maxMin > 0) {
@@ -1646,10 +1984,10 @@
         $('settleCatTbody').innerHTML = `<tr><td colspan="6" class="no-data">「${esc(month)}」暂无已完成采购</td></tr>`;
       } else {
         $('settleCatTbody').innerHTML = cats.map(c => {
-          const tierCell = c.mode === 'default'
-            ? '默认兜底'
-            : (c.tierMinAmount != null ? `满 ¥${Number(c.tierMinAmount).toLocaleString()}` : '未达首档');
-          const rateCell = c.mode === 'default' ? pct(c.tierRate) : (c.tierMinAmount != null ? pct(c.tierRate) : '0%');
+          const tierCell = c.tierMinAmount != null
+            ? `满 ¥${Number(c.tierMinAmount).toLocaleString()}`
+            : '未达首档';
+          const rateCell = c.tierMinAmount != null ? pct(c.tierRate) : '0%';
           return `
             <tr>
               <td data-label="品类">${esc(c.category || '未分类')}</td>
@@ -1665,15 +2003,22 @@
       // 历史月度结算记录
       const hist = d.history || [];
       if (!hist.length) {
-        $('settleHistoryTbody').innerHTML = `<tr><td colspan="4" class="no-data">暂无历史结算记录</td></tr>`;
+        $('settleHistoryTbody').innerHTML = `<tr><td colspan="5" class="no-data">暂无历史结算记录</td></tr>`;
       } else {
-        $('settleHistoryTbody').innerHTML = hist.map(h => `
+        $('settleHistoryTbody').innerHTML = hist.map(h => {
+          const st = h.status || '待结算';
+          const overdue = !!h.overdue && st !== '已收款';
+          const stCls = st === '已收款' ? 's-done' : (st === '已确认' ? 's-confirmed' : 's-pending');
+          const stHtml = `<span class="badge ${stCls}">${esc(st)}</span>${overdue ? '<span class="badge" style="background:#fee2e2;color:#b91c1c;margin-left:4px;">逾期</span>' : ''}`;
+          return `
           <tr>
             <td data-label="月份"><b>${esc(h.month)}</b></td>
             <td data-label="采购总额">${fmtMoney(h.totalPurchaseAmount)}</td>
             <td data-label="服务费金额" style="color:#334155;font-weight:600;">${fmtMoney(h.totalRebateAmount)}</td>
+            <td data-label="结算状态">${stHtml}</td>
             <td data-label="结算时间">${fmtTime(h.settledAt)}</td>
-          </tr>`).join('');
+          </tr>`;
+        }).join('');
       }
     }
 
@@ -1866,7 +2211,9 @@
       }
     }
 
-    // 启动：首次加载订单 + 建立轮询基线 + 新手接单引导
+    // 启动：先拉取治理档案决定是否进入引导页（pending/frozen/rejected/协议/待开通接单），
+    // 通过门槛后再加载订单 + 建立轮询基线 + 新手接单引导
+    loadProfile();
     loadOrders();
     loadSupOnboarding();
     pollNewOrders();

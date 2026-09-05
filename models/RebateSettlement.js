@@ -72,15 +72,29 @@ const rebateSettlementSchema = new mongoose.Schema({
     type: [settlementDetailSchema],
     default: []
   },
+  // 结算单状态流：待结算（生成即此态）→ 已确认（开发者确认）→ 已收款（开发者标记已收款）
+  // 兼容历史数据：旧记录可能为 '已结算'，读取时按 '已确认' 兜底展示
   status: {
     type: String,
-    enum: ['已结算'],
-    default: '已结算'
+    enum: ['待结算', '已确认', '已收款', '已结算'],
+    default: '待结算',
+    index: true
   },
   settledAt: {
     type: Date,
     default: Date.now
   },
+  // 开发者确认时间（status → 已确认）
+  confirmedAt: {
+    type: Date,
+    default: null
+  },
+  // 开发者标记已收款时间（status → 已收款）
+  paidAt: {
+    type: Date,
+    default: null
+  },
+  // 是否逾期（超过 15 天未"已收款"），由接口实时计算，不入库
   remark: {
     type: String,
     default: ''

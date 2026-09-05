@@ -164,6 +164,44 @@
     .w-btn:hover { box-shadow: 0 12px 28px rgba(31,42,68,.45); }
     .w-btn:active { transform: scale(.99); }
     .w-note { text-align: center; font-size: 12px; color: #9ca3af; margin-top: 10px; }
+
+    /* ============ 注册审核提示弹窗 ============ */
+    .review-overlay {
+      position: fixed; inset: 0; z-index: 999;
+      display: none; align-items: center; justify-content: center;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(3px);
+      padding: 20px;
+    }
+    .review-overlay.show { display: flex; animation: wFadeIn .25s ease both; }
+    .review-card {
+      width: 420px; max-width: 90%;
+      background: #fff; border-radius: 16px; overflow: hidden;
+      box-shadow: 0 24px 64px rgba(0,0,0,.32), 0 4px 16px rgba(0,0,0,.14);
+    }
+    .review-overlay.show .review-card { animation: wRise .38s cubic-bezier(.22,.85,.3,1.1) both; }
+    .r-band {
+      background: linear-gradient(135deg, #b45309 0%, #d97706 100%);
+      color: #fff; text-align: center;
+      padding: 26px 52px 22px;
+    }
+    .r-band .r-icon { font-size: 32px; margin-bottom: 8px; }
+    .r-band h2 { font-size: 19px; font-weight: 700; letter-spacing: 1px; }
+    .r-body { padding: 22px 26px 6px; }
+    .r-body p { font-size: 13.5px; color: #4b5563; line-height: 1.85; margin: 0 0 9px; }
+    .r-body p strong { color: #111827; font-weight: 700; }
+    .r-cta { padding: 14px 26px 22px; }
+    .r-btn {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, #b45309, #d97706);
+      color: #fff; border: none; border-radius: 12px;
+      font-size: 16px; font-weight: 700; letter-spacing: 1px;
+      cursor: pointer; transition: transform .1s, box-shadow .2s;
+      box-shadow: 0 10px 24px rgba(180,83,9,.35);
+    }
+    .r-btn:hover { box-shadow: 0 12px 28px rgba(180,83,9,.45); }
+    .r-btn:active { transform: scale(.99); }
   </style>
 </head>
 <body>
@@ -259,6 +297,25 @@
     </div>
   </div>
 
+  <!-- 注册审核提示弹窗：注册成功后弹出，确定后进入"审核中"等待页 -->
+  <div class="review-overlay" id="reviewOverlay">
+    <div class="review-card">
+      <div class="r-band">
+        <div class="r-icon">⏳</div>
+        <h2>入驻申请已提交</h2>
+      </div>
+      <div class="r-body">
+        <p>平台将在 <strong>1-2 个工作日</strong> 内完成审核，</p>
+        <p>结果将以 <strong>短信/页面通知</strong> 形式告知，请留意。</p>
+        <p>审核通过后，你需在控制台完成《供应商入驻合作协议》签署，</p>
+        <p>并由平台开通接单权限后，店铺即可出现在采购商城。</p>
+      </div>
+      <div class="r-cta">
+        <button class="r-btn" id="reviewOkBtn" type="button">我已了解，进入审核中页面</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const $ = (id) => document.getElementById(id);
 
@@ -330,6 +387,7 @@
           localStorage.setItem('supplierToken', res.data.token);
           localStorage.setItem('supplierId', res.data.supplierId);
           localStorage.setItem('supplierName', res.data.supplierName);
+          // 控制台首屏会按 status/agreementSigned/orderEnabled 决定显示哪个引导页
           location.href = '/supplier-dashboard.html';
         } else {
           showAlert($('loginAlert'), res.message || '登录失败');
@@ -366,7 +424,8 @@
           localStorage.setItem('supplierToken', res.data.token);
           localStorage.setItem('supplierId', res.data.supplierId);
           localStorage.setItem('supplierName', res.data.supplierName);
-          location.href = '/supplier-dashboard.html';
+          // 新供应商 status=pending，弹出审核提示弹窗，确定后进入"审核中"等待页
+          $('reviewOverlay').classList.add('show');
         } else {
           showAlert($('regAlert'), res.message || '注册失败');
         }
@@ -375,6 +434,12 @@
       } finally {
         $('regBtn').disabled = false;
       }
+    };
+
+    // 审核提示弹窗"我已了解"按钮：进入控制台（首屏会显示审核中等待页）
+    $('reviewOkBtn').onclick = () => {
+      $('reviewOverlay').classList.remove('show');
+      location.href = '/supplier-dashboard.html';
     };
   </script>
 </body>

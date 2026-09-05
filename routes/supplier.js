@@ -11,6 +11,75 @@ const { requireSupplier } = require('../middlewares/auth');
 // 所有供应商接口均需供应商身份鉴权
 router.use(requireSupplier);
 
+// ============ GET /api/supplier/profile 供应商档案与治理状态 ============
+// 返回：基本信息（名称/联系人/手机/品类/起送价）+ 治理字段（status/agreementSigned/orderEnabled/审核/拒绝/冻结信息）
+// 供应商控制台首屏调用此接口决定显示哪个引导页（等待页/冻结页/拒绝页/协议页/待开通接单页/正常控制台）
+router.get('/profile', async (req, res) => {
+  try {
+    const supplier = await Supplier.findById(req.user.supplierId)
+      .select('-password')
+      .lean();
+    if (!supplier) {
+      return res.status(404).json({ success: false, message: '供应商不存在' });
+    }
+    res.json({
+      success: true,
+      data: {
+        _id: String(supplier._id),
+        name: supplier.name,
+        contact: supplier.contact || '',
+        phone: supplier.phone || '',
+        categories: Array.isArray(supplier.categories) ? supplier.categories : [],
+        minOrderAmount: Number(supplier.minOrderAmount) > 0 ? Number(supplier.minOrderAmount) : 300,
+        createdAt: supplier.createdAt,
+        // 治理字段
+        status: supplier.status,
+        approvedAt: supplier.approvedAt || null,
+        rejectReason: supplier.rejectReason || '',
+        frozenReason: supplier.frozenReason || '',
+        agreementSigned: !!supplier.agreementSigned,
+        agreementSignedAt: supplier.agreementSignedAt || null,
+        orderEnabled: !!supplier.orderEnabled,
+        orderEnabledAt: supplier.orderEnabledAt || null
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ POST /api/supplier/agreement/sign 签署《供应商入驻合作协议》 ============
+// 仅审核通过（status=active）且未签署过的供应商可签署；签署后记录时间，仍需开发者开通接单
+router.post('/agreement/sign', async (req, res) => {
+  try {
+    const supplier = await Supplier.findById(req.user.supplierId);
+    if (!supplier) {
+      return res.status(404).json({ success: false, message: '供应商不存在' });
+    }
+    if (supplier.status !== 'active') {
+      return res.status(403).json({ success: false, message: '账号未通过审核，暂不可签署协议' });
+    }
+    if (supplier.agreementSigned) {
+      return res.json({ success: true, message: '协议已签署，无需重复签署', data: { agreementSigned: true, agreementSignedAt: supplier.agreementSignedAt } });
+    }
+    // 请求体需携带 agree=true（前端勾选"我已阅读并同意协议"）
+    const agree = req.body && req.body.agree === true;
+    if (!agree) {
+      return res.status(400).json({ success: false, message: '请先勾选"我已阅读并同意协议"' });
+    }
+    supplier.agreementSigned = true;
+    supplier.agreementSignedAt = new Date();
+    await supplier.save();
+    res.json({
+      success: true,
+      message: '协议签署成功，请等待平台开通接单权限',
+      data: { agreementSigned: true, agreementSignedAt: supplier.agreementSignedAt }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // ============ GET /api/supplier/orders/pending ============
 // 今日待处理订单（"待确认"状态）数量与列表
 router.get('/orders/pending', async (req, res) => {
@@ -168,11 +237,23 @@ router.get('/settle', async (req, res) => {
           gainToNext: tierInfo.gainToNext,
           tiers: tierInfo.tiers
         },
+        // 平台公示的默认阶梯返点表（无专属规则时按此执行，《平台合作规则》区块展示用）
+        defaultLadder: rebate.DEFAULT_TIERS.map(t => ({
+          minAmount: t.minAmount,
+          rate: t.rate,
+          mode: t.mode
+        })),
+        // 当前供应商是否走默认阶梯（无专属 RebateRule）
+        usingDefaultLadder: !tierInfo.hasRule,
         history: history.map(h => ({
           month: h.month,
           totalPurchaseAmount: h.totalPurchaseAmount,
           totalRebateAmount: h.totalRebateAmount,
           settledAt: h.settledAt,
+          status: rebate.normalizeSettlementStatus(h.status),
+          confirmedAt: h.confirmedAt || null,
+          paidAt: h.paidAt || null,
+          overdue: rebate.isSettlementOverdue(h),
           details: h.details
         }))
       }

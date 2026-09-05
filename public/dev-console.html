@@ -190,6 +190,34 @@
       background: #ffedd5; color: #ea580c; font-weight: 600;
       margin-right: 4px;
     }
+    /* 供应商治理状态标签 */
+    .sup-status {
+      display: inline-block; padding: 3px 10px;
+      border-radius: 12px; font-size: 12px; font-weight: 700;
+    }
+    .sup-status.pending { background: #fef3c7; color: #92400e; }
+    .sup-status.active { background: #dcfce7; color: #166534; }
+    .sup-status.frozen { background: #fee2e2; color: #991b1b; }
+    .sup-status.rejected { background: #fee2e2; color: #991b1b; }
+    .sup-action {
+      display: inline-block; padding: 4px 10px;
+      border-radius: 7px; font-size: 12px; font-weight: 600;
+      border: none; cursor: pointer; margin: 2px;
+      transition: opacity .15s;
+    }
+    .sup-action:hover { opacity: .88; }
+    .sup-action.approve { background: #dcfce7; color: #166534; }
+    .sup-action.reject { background: #fee2e2; color: #991b1b; }
+    .sup-action.freeze { background: #dbeafe; color: #1e40af; }
+    .sup-action.unfreeze { background: #dcfce7; color: #166534; }
+    .sup-action.enable { background: #fef3c7; color: #92400e; }
+    .sup-action.disable { background: #f3f4f6; color: #6b7280; }
+    .sup-action.delete { background: #fee2e2; color: #991b1b; }
+    .overdue-tag {
+      display: inline-block; padding: 2px 6px; border-radius: 6px;
+      font-size: 11px; font-weight: 700;
+      background: #fecaca; color: #991b1b; margin-left: 4px;
+    }
 
     /* ============ 筛选栏 ============ */
     .filter-bar {
@@ -475,7 +503,7 @@
       <section class="pane" id="pane-suppliers">
         <div class="pane-title">🚚 供应商管理</div>
         <div class="table-wrap">
-          <table class="dtable">
+          <table class="dtable" style="min-width:1100px;">
             <thead>
               <tr>
                 <th>供应商名称</th>
@@ -483,14 +511,25 @@
                 <th>手机号</th>
                 <th>主营品类</th>
                 <th>起送价</th>
+                <th>状态</th>
+                <th>协议/接单</th>
+                <th>本月流水</th>
+                <th>本月返点</th>
+                <th>结算状态</th>
                 <th>注册时间</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody id="supplierTbody">
-              <tr><td colspan="6" class="no-data">加载中...</td></tr>
+              <tr><td colspan="12" class="no-data">加载中...</td></tr>
             </tbody>
           </table>
         </div>
+        <p style="font-size:12px;color:#9ca3af;margin-top:10px;line-height:1.7;">
+          状态说明：待审核（置顶，可"通过/拒绝"）/ 已通过 / 已冻结 / 已拒绝。
+          接单门槛：审核通过 + 签署协议 + 开通接单 三者同时满足，店铺才会出现在采购商城。
+          冻结后店铺从商城隐藏、不能接新单；在途订单可正常完成。清退删除需二次确认。
+        </p>
       </section>
 
       <!-- 4. 返点中心（统一整合：月度结算操作 + 供应商返点概览 + 结算历史 + 规则配置） -->
@@ -512,7 +551,7 @@
         <!-- 4.3 结算历史 -->
         <div class="section-title">结算历史</div>
         <div class="table-wrap">
-          <table class="dtable" style="min-width:760px;">
+          <table class="dtable" style="min-width:960px;">
             <thead>
               <tr>
                 <th>结算月份</th>
@@ -520,11 +559,13 @@
                 <th>当月采购总额</th>
                 <th>实际返点合计</th>
                 <th>分品类明细</th>
+                <th>结算状态</th>
                 <th>结算时间</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody id="settleTbody">
-              <tr><td colspan="6" class="no-data">加载中...</td></tr>
+              <tr><td colspan="8" class="no-data">加载中...</td></tr>
             </tbody>
           </table>
         </div>
@@ -1056,28 +1097,83 @@
       if (e.target === $('merchantModal')) $('merchantModal').classList.remove('show');
     };
 
-    // ============ 供应商管理 ============
+    // ============ 供应商管理（含治理状态与操作） ============
+    const SUP_STATUS_TEXT = {
+      pending: '待审核', active: '已通过', frozen: '已冻结', rejected: '已拒绝'
+    };
     async function loadSuppliers() {
       const tbody = $('supplierTbody');
-      tbody.innerHTML = '<tr><td colspan="6" class="no-data">加载中...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="12" class="no-data">加载中...</td></tr>';
       const res = await api('/api/dev/suppliers');
       if (!res.success || !Array.isArray(res.data)) {
-        tbody.innerHTML = `<tr><td colspan="6" class="no-data">${esc(res.message || '加载失败')}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="12" class="no-data">${esc(res.message || '加载失败')}</td></tr>`;
         return;
       }
       if (!res.data.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="no-data">暂无注册供应商</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" class="no-data">暂无注册供应商</td></tr>';
       } else {
-        tbody.innerHTML = res.data.map(s => `
+        tbody.innerHTML = res.data.map(s => {
+          const status = s.status || 'pending';
+          const statusText = SUP_STATUS_TEXT[status] || status;
+          // 协议/接单状态
+          let agreeTxt, orderTxt;
+          agreeTxt = s.agreementSigned ? '已签署' : '未签署';
+          if (status === 'frozen') orderTxt = '已冻结';
+          else if (status !== 'active') orderTxt = '—';
+          else if (!s.agreementSigned) orderTxt = '待签协议';
+          else if (s.orderEnabled) orderTxt = '已开通';
+          else orderTxt = '待开通';
+          // 结算状态
+          let settleTxt = s.settleStatus || '未结算';
+          if (s.overdue) settleTxt += '<span class="overdue-tag">逾期</span>';
+
+          // 操作按钮（根据状态显示）
+          let actions = '';
+          if (status === 'pending') {
+            actions += `<button class="sup-action approve" data-act="approve" data-id="${esc(String(s._id))}">通过</button>`;
+            actions += `<button class="sup-action reject" data-act="reject" data-id="${esc(String(s._id))}">拒绝</button>`;
+          }
+          if (status === 'rejected') {
+            actions += `<button class="sup-action approve" data-act="approve" data-id="${esc(String(s._id))}">重新通过</button>`;
+          }
+          if (status === 'active') {
+            if (s.agreementSigned) {
+              if (s.orderEnabled) {
+                actions += `<button class="sup-action disable" data-act="order-disable" data-id="${esc(String(s._id))}">暂停接单</button>`;
+              } else {
+                actions += `<button class="sup-action enable" data-act="order-enable" data-id="${esc(String(s._id))}">开通接单</button>`;
+              }
+            }
+            actions += `<button class="sup-action freeze" data-act="freeze" data-id="${esc(String(s._id))}">冻结</button>`;
+          }
+          if (status === 'frozen') {
+            actions += `<button class="sup-action unfreeze" data-act="unfreeze" data-id="${esc(String(s._id))}">解冻</button>`;
+          }
+          actions += `<button class="sup-action delete" data-act="delete" data-id="${esc(String(s._id))}" data-name="${esc(s.name || '')}">清退</button>`;
+
+          return `
           <tr>
             <td data-label="供应商名称"><b>${esc(s.name || '平台直供')}</b></td>
             <td data-label="联系人">${esc(s.contactName || '—')}</td>
             <td data-label="手机号">${esc(s.phone || '—')}</td>
             <td data-label="主营品类">${s.categories && s.categories.length ? s.categories.map(c => `<span class="tag">${esc(c)}</span>`).join('') : '—'}</td>
-            <td data-label="起送价">${fmtMoney(s.minOrderAmount)} 起送</td>
+            <td data-label="起送价">${fmtMoney(s.minOrderAmount)}</td>
+            <td data-label="状态"><span class="sup-status ${status}">${statusText}</span></td>
+            <td data-label="协议/接单">
+              <div style="font-size:12px;line-height:1.6;">
+                <div>协议：<b>${agreeTxt}</b></div>
+                <div>接单：<b>${orderTxt}</b></div>
+              </div>
+            </td>
+            <td data-label="本月流水" class="money-green">${fmtMoney(s.monthTurnover)}</td>
+            <td data-label="本月返点" class="money-red">${fmtMoney(s.monthRebate)}</td>
+            <td data-label="结算状态">${settleTxt}</td>
             <td data-label="注册时间">${fmtTime(s.createdAt)}</td>
-          </tr>
-        `).join('');
+            <td data-label="操作" style="white-space:normal;">${actions}</td>
+          </tr>`;
+        }).join('');
+        // 绑定操作按钮
+        bindSupplierActions();
       }
       // 同步填充对账中心的供应商下拉框
       const sel = $('rcSupplier');
@@ -1086,6 +1182,70 @@
         `<option value="${esc(String(s._id))}">${esc(s.name || '平台直供')}</option>`
       ).join('');
       if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
+    }
+
+    // 供应商治理操作绑定
+    function bindSupplierActions() {
+      document.querySelectorAll('.sup-action[data-act]').forEach(btn => {
+        btn.onclick = async () => {
+          const act = btn.dataset.act;
+          const id = btn.dataset.id;
+          const name = btn.dataset.name || '';
+          if (act === 'approve') {
+            if (!confirm(`确认通过供应商「${name || id}」的入驻申请？`)) return;
+            const r = await api(`/api/dev/suppliers/${id}/approve`, { method: 'PUT' });
+            if (r.success) { alert(r.message || '已审核通过'); loadSuppliers(); }
+            else alert(r.message || '操作失败');
+          } else if (act === 'reject') {
+            const reason = prompt(`请输入拒绝原因（供应商端可见）：`);
+            if (reason === null) return;
+            const r = await api(`/api/dev/suppliers/${id}/reject`, {
+              method: 'PUT', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ reason })
+            });
+            if (r.success) { alert(r.message || '已拒绝'); loadSuppliers(); }
+            else alert(r.message || '操作失败');
+          } else if (act === 'freeze') {
+            const reason = prompt(`请输入冻结原因（供应商端可见）：`);
+            if (reason === null) return;
+            const r = await api(`/api/dev/suppliers/${id}/freeze`, {
+              method: 'PUT', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ reason })
+            });
+            if (r.success) { alert(r.message || '已冻结'); loadSuppliers(); }
+            else alert(r.message || '操作失败');
+          } else if (act === 'unfreeze') {
+            if (!confirm(`确认解冻供应商「${name || id}」？解冻后可重新登录控制台。`)) return;
+            const r = await api(`/api/dev/suppliers/${id}/unfreeze`, { method: 'PUT' });
+            if (r.success) { alert(r.message || '已解冻'); loadSuppliers(); }
+            else alert(r.message || '操作失败');
+          } else if (act === 'order-enable') {
+            if (!confirm(`确认为供应商「${name || id}」开通接单权限？开通后店铺将出现在采购商城。`)) return;
+            const r = await api(`/api/dev/suppliers/${id}/order-enable`, {
+              method: 'PUT', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ enabled: true })
+            });
+            if (r.success) { alert(r.message || '已开通接单'); loadSuppliers(); }
+            else alert(r.message || '操作失败');
+          } else if (act === 'order-disable') {
+            if (!confirm(`确认暂停供应商「${name || id}」的接单权限？暂停后店铺从采购商城隐藏。`)) return;
+            const r = await api(`/api/dev/suppliers/${id}/order-enable`, {
+              method: 'PUT', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ enabled: false })
+            });
+            if (r.success) { alert(r.message || '已暂停接单'); loadSuppliers(); }
+            else alert(r.message || '操作失败');
+          } else if (act === 'delete') {
+            const step1 = confirm(`【清退删除】\n\n确认清退供应商「${name || id}」？\n\n清退后：该供应商账号删除、上架商品删除，历史订单与结算记录保留用于对账。`);
+            if (!step1) return;
+            const step2 = confirm(`【二次确认】\n\n请再次确认：删除「${name || id}」操作不可撤销，是否继续？`);
+            if (!step2) return;
+            const r = await api(`/api/dev/suppliers/${id}`, { method: 'DELETE' });
+            if (r.success) { alert(r.message || '已清退删除'); loadSuppliers(); }
+            else alert(r.message || '操作失败');
+          }
+        };
+      });
     }
 
     // ============ 对账中心（仅订单明细与平台净利；返点概览/结算/历史在「返点中心」）============
@@ -1196,24 +1356,36 @@
       }).join('');
     }
 
-    // 历史结算记录
+    // 历史结算记录（含状态流：待结算→已确认→已收款，逾期标红）
     async function loadSettlements(month) {
       const tbody = $('settleTbody');
-      tbody.innerHTML = '<tr><td colspan="6" class="no-data">加载中...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="no-data">加载中...</td></tr>';
       const qs = new URLSearchParams();
       if (month) qs.set('month', month);
       const res = await api('/api/dev/rebate/settlements?' + qs.toString());
       if (!res.success || !Array.isArray(res.data)) {
-        tbody.innerHTML = `<tr><td colspan="6" class="no-data">${esc(res.message || '加载失败')}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="no-data">${esc(res.message || '加载失败')}</td></tr>`;
         return;
       }
       if (!res.data.length) {
-        tbody.innerHTML = `<tr><td colspan="6" class="no-data">「${esc(month)}」暂无结算记录（点击上方「执行月度结算」生成）</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="no-data">「${esc(month)}」暂无结算记录（点击上方「执行月度结算」生成）</td></tr>`;
         return;
       }
       tbody.innerHTML = res.data.map(d => {
         const detailText = (d.details || []).map(x =>
           `<span class="tag">${esc(x.category)} ${fmtMoney(x.rebateAmount)}</span>`).join('') || '—';
+        // 结算状态标签
+        const statusClass = d.status === '已收款' ? 's-done' : (d.status === '已确认' ? 's-confirmed' : 's-pending');
+        let statusHtml = `<span class="badge ${statusClass}">${esc(d.status)}</span>`;
+        if (d.overdue) statusHtml += `<span class="overdue-tag">逾期</span>`;
+        // 操作按钮
+        let actions = '';
+        if (d.status === '待结算') {
+          actions += `<button class="sup-action approve" data-settle-act="confirm" data-id="${esc(String(d._id))}">确认</button>`;
+          actions += `<button class="sup-action enable" data-settle-act="paid" data-id="${esc(String(d._id))}">标记收款</button>`;
+        } else if (d.status === '已确认') {
+          actions += `<button class="sup-action enable" data-settle-act="paid" data-id="${esc(String(d._id))}">标记收款</button>`;
+        }
         return `
           <tr>
             <td data-label="结算月份"><b>${esc(d.month)}</b></td>
@@ -1221,9 +1393,34 @@
             <td data-label="当月采购总额">${fmtMoney(d.totalPurchaseAmount)}</td>
             <td data-label="实际返点合计" class="money-red">+${fmtMoney(d.totalRebateAmount)}</td>
             <td data-label="分品类明细" style="white-space:normal;max-width:280px;">${detailText}</td>
+            <td data-label="结算状态">${statusHtml}</td>
             <td data-label="结算时间">${fmtTime(d.settledAt)}</td>
+            <td data-label="操作" style="white-space:normal;">${actions}</td>
           </tr>`;
       }).join('');
+      // 绑定结算单状态流转按钮
+      bindSettlementActions();
+    }
+
+    // 结算单状态流转操作绑定
+    function bindSettlementActions() {
+      document.querySelectorAll('.sup-action[data-settle-act]').forEach(btn => {
+        btn.onclick = async () => {
+          const act = btn.dataset.settleAct;
+          const id = btn.dataset.id;
+          if (act === 'confirm') {
+            if (!confirm('确认该结算单？确认后状态变为「已确认」，等待收款。')) return;
+            const r = await api(`/api/dev/rebate/settlements/${id}/confirm`, { method: 'PUT' });
+            if (r.success) { alert(r.message || '已确认'); const m = $('rbMonth').value || curMonth(); loadSettlements(m); }
+            else alert(r.message || '操作失败');
+          } else if (act === 'paid') {
+            if (!confirm('标记该结算单为已收款？标记后状态变为「已收款」，结算流程完成。')) return;
+            const r = await api(`/api/dev/rebate/settlements/${id}/paid`, { method: 'PUT' });
+            if (r.success) { alert(r.message || '已标记收款'); const m = $('rbMonth').value || curMonth(); loadSettlements(m); }
+            else alert(r.message || '操作失败');
+          }
+        };
+      });
     }
 
     async function loadReconciliation() {

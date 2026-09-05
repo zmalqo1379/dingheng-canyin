@@ -146,6 +146,7 @@ router.post('/supplier/register', async (req, res) => {
       loginAccount,
       password,
       categories: Array.isArray(categories) ? categories : []
+      // status 默认 pending（待审核），由模型默认值提供
     });
     // JWT payload 规范化：role + userId + supplierId(对应 Supplier._id)
     const token = signToken({
@@ -155,8 +156,15 @@ router.post('/supplier/register', async (req, res) => {
     });
     res.status(201).json({
       success: true,
-      message: '注册成功',
-      data: { token, supplierId: String(supplier._id), supplierName: supplier.name }
+      message: '注册成功，请等待平台审核',
+      data: {
+        token,
+        supplierId: String(supplier._id),
+        supplierName: supplier.name,
+        status: supplier.status,
+        agreementSigned: supplier.agreementSigned,
+        orderEnabled: supplier.orderEnabled
+      }
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -186,7 +194,16 @@ router.post('/supplier/login', async (req, res) => {
     res.json({
       success: true,
       message: '登录成功',
-      data: { token, supplierId: String(supplier._id), supplierName: supplier.name }
+      data: {
+        token,
+        supplierId: String(supplier._id),
+        supplierName: supplier.name,
+        status: supplier.status,
+        agreementSigned: supplier.agreementSigned,
+        orderEnabled: supplier.orderEnabled,
+        rejectReason: supplier.rejectReason || '',
+        frozenReason: supplier.frozenReason || ''
+      }
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

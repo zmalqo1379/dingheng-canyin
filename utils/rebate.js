@@ -7,8 +7,9 @@
  * 两种累进算法（tier.mode）：
  *   full（全额累进）：月累计额命中某档后，全部金额按该档费率计返点
  *   marginal（超额累进）：各档门槛之间的金额分段按各档费率计，逐段求和
- * 没有配置规则的供应商：默认按 8% 全额累进兜底（DEFAULT_REBATE_RATE，mode 记为 'default'）
- * 规则 enabled=false 时视为不存在，回退该供应商「全部」通用规则或默认兜底率。
+ * 没有配置规则的供应商：按平台公示默认阶梯返点（DEFAULT_TIERS，全额累进，按月）；
+ *   mode 记为 'default'，结果中 tiers 仍返回默认阶梯供前端公示展示。
+ * 规则 enabled=false 时视为不存在，回退该供应商「全部」通用规则或默认阶梯。
  */
 const RebateRule = require('../models/RebateRule');
 const RebateSettlement = require('../models/RebateSettlement');
@@ -16,12 +17,27 @@ const PurchaseOrder = require('../models/PurchaseOrder');
 const Supplier = require('../models/Supplier');
 const SupplyProduct = require('../models/SupplyProduct');
 
-// 无规则时的默认兜底返点率（原 8% 逻辑的唯一出处，全额累进口径）
-const DEFAULT_REBATE_RATE = 0.08;
+// 平台公示的默认阶梯返点表（全额累进，按月）：
+//   0-1万 3% / 1-5万 5% / 5-15万 7% / 15-50万 9% / 50万以上 12%
+// 供应商无专属 RebateRule 时一律按此阶梯计算（替代原 8% 兜底）
+const DEFAULT_TIERS = [
+  { minAmount: 0,      rate: 0.03, mode: 'full' },
+  { minAmount: 10000,  rate: 0.05, mode: 'full' },
+  { minAmount: 50000,  rate: 0.07, mode: 'full' },
+  { minAmount: 150000, rate: 0.09, mode: 'full' },
+  { minAmount: 500000, rate: 0.12, mode: 'full' }
+];
+// 兼容旧引用：无规则时单笔订单完成预估返点的兜底边际费率（取默认阶梯第一档 3%）
+const DEFAULT_REBATE_RATE = 0.03;
 // 通用品类规则标识
 const ALL_CATEGORY = '全部';
 // 建议品类（前端表单下拉建议用，不强制）
 const SUGGESTED_CATEGORIES = ['肉类', '蔬菜', '粮油', '酒水', '冻品', '调料', '其他'];
+
+// 返回平台默认阶梯规则（合成 RebateRule 形态的对象，供无规则供应商计算用）
+function getDefaultRule() {
+  return { tiers: DEFAULT_TIERS.map(t => ({ ...t })), enabled: true };
+}
 
 // ============ 基础工具 ============
 
@@ -98,21 +114,49 @@ async function getEffectiveRule(supplierId, category) {
 function calcRebate(rule, amount) {
   amount = Math.max(0, Number(amount) || 0);
 
-  // 没有配置规则：默认按 8% 全额累进兜底
+  // 没有配置规则：按平台公示默认阶梯返点（全额累进）计算
+  // mode 记为 'default'，但 tiers 仍返回默认阶梯，供前端公示展示
   if (!rule || !Array.isArray(rule.tiers) || rule.tiers.length === 0) {
-    const rebate = +(amount * DEFAULT_REBATE_RATE).toFixed(2);
+    const defaultRule = getDefaultRule();
+    const tiers = normalizeTiers(defaultRule.tiers);
+    let tierIndex = -1;
+    for (let i = 0; i < tiers.length; i++) {
+      if (amount >= tiers[i].minAmount) tierIndex = i;
+    }
+    if (tierIndex === -1) {
+      // 默认阶梯首档门槛为 0，理论上必命中；防御性兜底返 0
+      return {
+        hasRule: false, rebate: 0, rate: 0, tierIndex: -1,
+        tierMinAmount: null, tierRate: 0, mode: 'default',
+        nextTierMinAmount: tiers[0] ? tiers[0].minAmount : null,
+        gapToNext: tiers[0] ? +(tiers[0].minAmount - amount).toFixed(2) : null,
+        gainToNext: tiers[0] ? +(calcRebate(defaultRule, tiers[0].minAmount).rebate).toFixed(2) : null,
+        tiers
+      };
+    }
+    const active = tiers[tierIndex];
+    // 默认阶梯一律全额累进
+    const rebate = +(amount * active.rate).toFixed(2);
+    const next = tiers[tierIndex + 1] || null;
+    let gainToNext = null;
+    if (next) {
+      const gap = next.minAmount - amount;
+      if (gap > 0) {
+        gainToNext = +(calcRebate(defaultRule, next.minAmount).rebate - rebate).toFixed(2);
+      }
+    }
     return {
       hasRule: false,
       rebate,
-      rate: amount > 0 ? +(rebate / amount).toFixed(6) : DEFAULT_REBATE_RATE,
-      tierIndex: -1,
-      tierMinAmount: null,
-      tierRate: DEFAULT_REBATE_RATE,
+      rate: amount > 0 ? +(rebate / amount).toFixed(6) : active.rate,
+      tierIndex,
+      tierMinAmount: active.minAmount,
+      tierRate: active.rate,
       mode: 'default',
-      nextTierMinAmount: null,
-      gapToNext: null,
-      gainToNext: null,
-      tiers: []
+      nextTierMinAmount: next ? next.minAmount : null,
+      gapToNext: next ? +(next.minAmount - amount).toFixed(2) : null,
+      gainToNext,
+      tiers
     };
   }
 
@@ -187,13 +231,15 @@ function calcRebate(rule, amount) {
 /**
  * 月累计额对应的「边际费率」——新增 1 元采购额适用的费率
  * 用于订单完成时计算本单预估返点（本单金额 × 当月累计定档后的边际费率）
+ * 无规则时按平台默认阶梯定档返回边际费率
  */
 function marginalRateAt(rule, amount) {
   amount = Math.max(0, Number(amount) || 0);
-  if (!rule || !Array.isArray(rule.tiers) || rule.tiers.length === 0) {
-    return DEFAULT_REBATE_RATE;
-  }
-  const tiers = normalizeTiers(rule.tiers);
+  const tiers = normalizeTiers(
+    (!rule || !Array.isArray(rule.tiers) || rule.tiers.length === 0)
+      ? getDefaultRule().tiers
+      : rule.tiers
+  );
   let tierIndex = -1;
   for (let i = 0; i < tiers.length; i++) {
     if (amount >= tiers[i].minAmount) tierIndex = i;
@@ -444,7 +490,8 @@ async function settleMonth(month, opts = {}) {
         totalPurchaseAmount: totalPurchase,
         totalRebateAmount: totalRebate,
         details,
-        status: '已结算',
+        // 新结算单生成即「待结算」，需开发者后续确认 → 已收款
+        status: '待结算',
         settledAt: new Date()
       }], session ? { session } : {});
 
@@ -539,7 +586,12 @@ async function getMonthOverview(month) {
           gapToNext: null,
           gainToNext: null,
           tiers: []
-        }))
+        })),
+        // 结算单状态流
+        settleStatus: normalizeSettlementStatus(settledDoc.status),
+        confirmedAt: settledDoc.confirmedAt || null,
+        paidAt: settledDoc.paidAt || null,
+        overdue: isSettlementOverdue(settledDoc)
       });
     } else {
       // 未结算：实时预估口径
@@ -562,10 +614,39 @@ async function getMonthOverview(month) {
   return result;
 }
 
+// ============ 结算单状态流工具 ============
+// 逾期阈值：自结算单生成（settledAt）起超过 15 天未进入「已收款」即逾期
+const SETTLEMENT_OVERDUE_DAYS = 15;
+
+/**
+ * 判断结算单是否逾期（status 非「已收款」且自 settledAt 起超过 15 天）
+ * 历史状态「已结算」视为已确认（未付款），同样参与逾期判定
+ */
+function isSettlementOverdue(settlement) {
+  if (!settlement) return false;
+  const status = settlement.status || settlement.get && settlement.get('status');
+  if (status === '已收款') return false;
+  const settledAt = settlement.settledAt || (settlement.get && settlement.get('settledAt'));
+  if (!settledAt) return false;
+  const ageMs = Date.now() - new Date(settledAt).getTime();
+  return ageMs > SETTLEMENT_OVERDUE_DAYS * 24 * 60 * 60 * 1000;
+}
+
+/**
+ * 规范结算单状态用于展示：历史「已结算」归并为「已确认」
+ */
+function normalizeSettlementStatus(status) {
+  if (status === '已结算') return '已确认';
+  return status;
+}
+
 module.exports = {
   DEFAULT_REBATE_RATE,
+  DEFAULT_TIERS,
+  getDefaultRule,
   ALL_CATEGORY,
   SUGGESTED_CATEGORIES,
+  SETTLEMENT_OVERDUE_DAYS,
   monthKeyOf,
   monthRange,
   normalizeTiers,
@@ -579,5 +660,7 @@ module.exports = {
   calcSupplierMonthRebate,
   estimateOrderRebate,
   settleMonth,
-  getMonthOverview
+  getMonthOverview,
+  isSettlementOverdue,
+  normalizeSettlementStatus
 };

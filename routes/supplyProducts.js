@@ -17,9 +17,10 @@ function toMerchantView(product, multMap) {
 }
 
 // ============ GET /api/supply-products ============
-// 公开接口：商家浏览商品时可查看（保持公开，确保商家能看到商品）
+// 公开接口：商家浏览商品时可查看
+// 治理过滤：仅展示 status=active && agreementSigned && orderEnabled 的供应商的商品
+//   未通过审核/未签协议/未开通接单/冻结 的供应商商品不在采购商城出现
 // 可选 query: supplierId、status、category
-// 同时 populate supplierId 取供应商名，保证前端 supplierId.name 可用
 router.get('/', async (req, res) => {
   try {
     const { supplierId, status, category } = req.query;
@@ -28,10 +29,16 @@ router.get('/', async (req, res) => {
     if (status) filter.status = status;
     if (category) filter.category = category;
     const products = await SupplyProduct.find(filter)
-      .populate('supplierId', 'name')
+      .populate('supplierId', 'name status agreementSigned orderEnabled')
       .sort({ createdAt: -1 });
+    // 治理过滤：仅保留已通过审核 + 已签协议 + 已开通接单的供应商的商品
+    const visible = products.filter(p => {
+      const s = p.supplierId;
+      if (!s) return false;
+      return s.status === 'active' && s.agreementSigned === true && s.orderEnabled === true;
+    });
     const multMap = await coinRule.getMultiplierMap();
-    const data = products.map(p => toMerchantView(p, multMap));
+    const data = visible.map(p => toMerchantView(p, multMap));
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -39,11 +46,16 @@ router.get('/', async (req, res) => {
 });
 
 // ============ GET /api/supply-products/:id ============
-// 公开接口：查看单个商品详情，populate 供应商名，避免前端显示 undefined
+// 公开接口：查看单个商品详情，populate 供应商名与治理状态
+// 治理过滤：若供应商未通过审核/未签协议/未开通接单，商品不对外展示
 router.get('/:id', async (req, res) => {
   try {
-    const product = await SupplyProduct.findById(req.params.id).populate('supplierId', 'name');
+    const product = await SupplyProduct.findById(req.params.id).populate('supplierId', 'name status agreementSigned orderEnabled');
     if (!product) {
+      return res.status(404).json({ success: false, message: '商品不存在' });
+    }
+    const s = product.supplierId;
+    if (!s || s.status !== 'active' || !s.agreementSigned || !s.orderEnabled) {
       return res.status(404).json({ success: false, message: '商品不存在' });
     }
     const multMap = await coinRule.getMultiplierMap();
@@ -55,6 +67,7 @@ router.get('/:id', async (req, res) => {
 
 // ============ POST /api/supply-products ============
 // 供应商新增商品：supplierId 必须取自 JWT，supplierName 自动回填
+// 治理门槛：status=active && agreementSigned && orderEnabled 才可上架商品
 router.post('/', requireSupplier, async (req, res) => {
   try {
     const { name, category, unit, costPrice, marketPrice, rebateRate, stock, status, image, description } = req.body;
@@ -67,6 +80,16 @@ router.post('/', requireSupplier, async (req, res) => {
     const supplier = await Supplier.findById(supplierId);
     if (!supplier) {
       return res.status(404).json({ success: false, message: '供应商不存在' });
+    }
+    // 治理门槛校验
+    if (supplier.status !== 'active') {
+      return res.status(403).json({ success: false, message: '账号未通过审核，暂不可上架商品' });
+    }
+    if (!supplier.agreementSigned) {
+      return res.status(403).json({ success: false, message: '请先签署合作协议后再上架商品' });
+    }
+    if (!supplier.orderEnabled) {
+      return res.status(403).json({ success: false, message: '接单权限尚未开通，暂不可上架商品' });
     }
 
     const product = await SupplyProduct.create({

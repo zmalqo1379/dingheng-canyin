@@ -135,25 +135,235 @@ router.get('/merchants/:id', async (req, res) => {
 });
 
 // ============ GET /api/dev/suppliers 供应商管理列表 ============
-// 查 Supplier 全量，真实查询
+// 查 Supplier 全量，附治理状态 + 本月流水 + 本月应付返点 + 本月结算状态
+// 待审核（pending）置顶
 router.get('/suppliers', async (req, res) => {
   try {
     const suppliers = await Supplier.find()
-      .select('name contact phone categories minOrderAmount createdAt')
-      .sort({ createdAt: -1 })
+      .select('name contact phone categories minOrderAmount createdAt status rejectReason frozenReason approvedAt agreementSigned agreementSignedAt orderEnabled orderEnabledAt')
       .lean();
 
-    const data = suppliers.map(s => ({
-      _id: s._id,
-      name: s.name || '平台直供',
-      contactName: s.contact || '—',
-      phone: s.phone || '—',
-      categories: Array.isArray(s.categories) ? s.categories : [],
-      minOrderAmount: Number(s.minOrderAmount) > 0 ? Number(s.minOrderAmount) : 300,
-      createdAt: s.createdAt
-    }));
+    // 本月已完成的采购订单按供应商聚合流水（actualPayAmount 总和）
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthKey = rebate.monthKeyOf(now);
+    const monthAgg = await PurchaseOrder.aggregate([
+      { $match: { createdAt: { $gte: monthStart }, status: '已完成' } },
+      {
+        $group: {
+          _id: '$supplierId',
+          total: {
+            $sum: {
+              $cond: [
+                { $gt: [{ $ifNull: ['$actualPayAmount', 0] }, 0] },
+                '$actualPayAmount',
+                { $ifNull: ['$totalAmount', 0] }
+              ]
+            }
+          }
+        }
+      }
+    ]);
+    const monthTurnoverMap = new Map();
+    monthAgg.forEach(a => {
+      if (a._id) monthTurnoverMap.set(String(a._id), +Number(a.total).toFixed(2));
+    });
+
+    // 本月结算单（取本月 RebateSettlement）
+    const settlements = await RebateSettlement.find({ month: monthKey }).lean();
+    const settlementMap = new Map(settlements.map(s => [String(s.supplierId), s]));
+
+    // 本月应付返点：已结算取结算单 totalRebateAmount，未结算实时计算
+    const sidList = suppliers.map(s => String(s._id));
+    const liveCalcPromises = sidList.map(async sid => {
+      if (settlementMap.has(sid)) return null; // 已结算跳过实时计算
+      try {
+        const calc = await rebate.calcSupplierMonthRebate(sid, monthKey);
+        return { sid, totalRebate: calc.totalRebate };
+      } catch (e) { return { sid, totalRebate: 0 }; }
+    });
+    const liveCalcs = await Promise.all(liveCalcPromises);
+    const liveRebateMap = new Map();
+    liveCalcs.forEach(c => { if (c) liveRebateMap.set(c.sid, c.totalRebate); });
+
+    const STATUS_RANK = { pending: 0, rejected: 1, frozen: 2, active: 3 };
+    const data = suppliers.map(s => {
+      const sid = String(s._id);
+      const settled = settlementMap.get(sid);
+      const turnover = monthTurnoverMap.get(sid) || 0;
+      const rebateAmount = settled
+        ? +Number(settled.totalRebateAmount || 0).toFixed(2)
+        : +(liveRebateMap.get(sid) || 0).toFixed(2);
+      let settleStatus = '未结算';
+      let overdue = false;
+      if (settled) {
+        settleStatus = rebate.normalizeSettlementStatus(settled.status);
+        overdue = rebate.isSettlementOverdue(settled);
+      }
+      return {
+        _id: s._id,
+        name: s.name || '平台直供',
+        contactName: s.contact || '—',
+        phone: s.phone || '—',
+        categories: Array.isArray(s.categories) ? s.categories : [],
+        minOrderAmount: Number(s.minOrderAmount) > 0 ? Number(s.minOrderAmount) : 300,
+        createdAt: s.createdAt,
+        // 治理字段
+        status: s.status || 'pending',
+        rejectReason: s.rejectReason || '',
+        frozenReason: s.frozenReason || '',
+        approvedAt: s.approvedAt || null,
+        agreementSigned: !!s.agreementSigned,
+        agreementSignedAt: s.agreementSignedAt || null,
+        orderEnabled: !!s.orderEnabled,
+        orderEnabledAt: s.orderEnabledAt || null,
+        // 本月经营指标
+        monthTurnover: +turnover.toFixed(2),
+        monthRebate: rebateAmount,
+        settleStatus,
+        overdue
+      };
+    });
+
+    // 待审核置顶；同状态按注册时间倒序
+    data.sort((a, b) => {
+      const ra = STATUS_RANK[a.status] != null ? STATUS_RANK[a.status] : 99;
+      const rb = STATUS_RANK[b.status] != null ? STATUS_RANK[b.status] : 99;
+      if (ra !== rb) return ra - rb;
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
 
     res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ 供应商治理操作（审核/冻结/清退/开通接单）============
+// 工具：从 body 安全提取字符串原因
+function safeReason(body) {
+  const r = String((body && body.reason) || '').trim();
+  return r.slice(0, 200);
+}
+
+// PUT /api/dev/suppliers/:id/approve  审核通过：pending → active，记录 approvedAt
+router.put('/suppliers/:id/approve', async (req, res) => {
+  try {
+    const supplier = await Supplier.findById(req.params.id);
+    if (!supplier) return res.status(404).json({ success: false, message: '供应商不存在' });
+    if (supplier.status === 'active') {
+      return res.json({ success: true, message: '该供应商已是审核通过状态', data: { status: 'active' } });
+    }
+    supplier.status = 'active';
+    supplier.rejectReason = '';
+    supplier.frozenReason = '';
+    if (!supplier.approvedAt) supplier.approvedAt = new Date();
+    await supplier.save();
+    res.json({ success: true, message: '已审核通过，供应商可登录签署协议', data: { status: 'active', approvedAt: supplier.approvedAt } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PUT /api/dev/suppliers/:id/reject  审核拒绝：pending → rejected，可填拒绝原因
+router.put('/suppliers/:id/reject', async (req, res) => {
+  try {
+    const supplier = await Supplier.findById(req.params.id);
+    if (!supplier) return res.status(404).json({ success: false, message: '供应商不存在' });
+    supplier.status = 'rejected';
+    supplier.rejectReason = safeReason(req.body);
+    await supplier.save();
+    res.json({ success: true, message: '已拒绝该供应商入驻申请', data: { status: 'rejected', rejectReason: supplier.rejectReason } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PUT /api/dev/suppliers/:id/freeze  冻结：任意状态 → frozen，可填冻结原因
+// 冻结后：店铺从采购商城隐藏、不能接新单、在途订单可正常完成
+router.put('/suppliers/:id/freeze', async (req, res) => {
+  try {
+    const supplier = await Supplier.findById(req.params.id);
+    if (!supplier) return res.status(404).json({ success: false, message: '供应商不存在' });
+    if (supplier.status === 'frozen') {
+      return res.json({ success: true, message: '该供应商已被冻结', data: { status: 'frozen' } });
+    }
+    // 保留冻结前状态，便于解冻恢复（仅 active 可直接恢复；pending/rejected 解冻后仍需审核）
+    supplier._preFreezeStatus = supplier.status;
+    supplier.status = 'frozen';
+    supplier.frozenReason = safeReason(req.body);
+    supplier.orderEnabled = false; // 冻结同时关闭接单
+    await supplier.save();
+    res.json({ success: true, message: '已冻结该供应商，店铺已从采购商城隐藏', data: { status: 'frozen', frozenReason: supplier.frozenReason } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PUT /api/dev/suppliers/:id/unfreeze  解冻：frozen → active
+router.put('/suppliers/:id/unfreeze', async (req, res) => {
+  try {
+    const supplier = await Supplier.findById(req.params.id);
+    if (!supplier) return res.status(404).json({ success: false, message: '供应商不存在' });
+    if (supplier.status !== 'frozen') {
+      return res.json({ success: true, message: '该供应商未处于冻结状态', data: { status: supplier.status } });
+    }
+    // 解冻后回到 active（如原先是 pending/rejected，需开发者重新走审核流程或直接通过 approve）
+    // 若冻结前已签协议且已开通接单，解冻后自动恢复接单权限，商品重新上架到采购商城
+    supplier.status = 'active';
+    supplier.frozenReason = '';
+    if (supplier.agreementSigned) {
+      supplier.orderEnabled = true;
+    }
+    await supplier.save();
+    res.json({ success: true, message: '已解冻，供应商可重新登录控制台', data: { status: 'active', orderEnabled: supplier.orderEnabled } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PUT /api/dev/suppliers/:id/order-enable  开通/暂停接单开关
+// body: { enabled: true|false }；前置：status=active && agreementSigned=true 才可开通
+router.put('/suppliers/:id/order-enable', async (req, res) => {
+  try {
+    const enabled = req.body && req.body.enabled === true;
+    const supplier = await Supplier.findById(req.params.id);
+    if (!supplier) return res.status(404).json({ success: false, message: '供应商不存在' });
+    if (enabled) {
+      if (supplier.status !== 'active') {
+        return res.status(400).json({ success: false, message: '供应商未通过审核，无法开通接单' });
+      }
+      if (!supplier.agreementSigned) {
+        return res.status(400).json({ success: false, message: '供应商尚未签署合作协议，无法开通接单' });
+      }
+      supplier.orderEnabled = true;
+      if (!supplier.orderEnabledAt) supplier.orderEnabledAt = new Date();
+    } else {
+      supplier.orderEnabled = false;
+    }
+    await supplier.save();
+    res.json({
+      success: true,
+      message: enabled ? '已开通接单权限，店铺将出现在采购商城' : '已暂停接单，店铺从采购商城隐藏',
+      data: { orderEnabled: supplier.orderEnabled, orderEnabledAt: supplier.orderEnabledAt }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// DELETE /api/dev/suppliers/:id  清退删除（二次确认由前端弹窗保证）
+// 同时删除该供应商的商品；保留历史采购订单（含 supplierName 快照）用于对账
+router.delete('/suppliers/:id', async (req, res) => {
+  try {
+    const supplier = await Supplier.findById(req.params.id);
+    if (!supplier) return res.status(404).json({ success: false, message: '供应商不存在' });
+    const sid = String(supplier._id);
+    // 删除该供应商的上架商品（采购订单上的商品快照不受影响）
+    const SupplyProduct = require('../models/SupplyProduct');
+    await SupplyProduct.deleteMany({ supplierId: sid });
+    await Supplier.deleteOne({ _id: sid });
+    res.json({ success: true, message: '供应商已清退，上架商品已删除，历史订单与结算记录保留' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -466,6 +676,7 @@ router.post('/coin-rules', async (req, res) => {
 
 // ============ 历史结算记录 ============
 // GET /api/dev/rebate/settlements?month=YYYY-MM&supplierId=xxx
+// 附 status（规范为 待结算/已确认/已收款）、overdue（超 15 天未收款）、confirmedAt、paidAt
 router.get('/rebate/settlements', async (req, res) => {
   try {
     const filter = {};
@@ -474,7 +685,58 @@ router.get('/rebate/settlements', async (req, res) => {
     const list = await RebateSettlement.find(filter)
       .sort({ month: -1, settledAt: -1 })
       .lean();
-    res.json({ success: true, data: list });
+    const data = list.map(s => ({
+      _id: s._id,
+      month: s.month,
+      supplierId: s.supplierId,
+      supplierName: s.supplierName,
+      totalPurchaseAmount: s.totalPurchaseAmount,
+      totalRebateAmount: s.totalRebateAmount,
+      details: s.details,
+      status: rebate.normalizeSettlementStatus(s.status),
+      settledAt: s.settledAt,
+      confirmedAt: s.confirmedAt || null,
+      paidAt: s.paidAt || null,
+      overdue: rebate.isSettlementOverdue(s),
+      remark: s.remark || ''
+    }));
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ 结算单状态流转 ============
+// PUT /api/dev/rebate/settlements/:id/confirm  待结算 → 已确认
+router.put('/rebate/settlements/:id/confirm', async (req, res) => {
+  try {
+    const doc = await RebateSettlement.findById(req.params.id);
+    if (!doc) return res.status(404).json({ success: false, message: '结算单不存在' });
+    const cur = rebate.normalizeSettlementStatus(doc.status);
+    if (cur === '已收款') return res.status(400).json({ success: false, message: '该结算单已标记为已收款，不可再确认' });
+    if (cur === '已确认') return res.json({ success: true, message: '该结算单已确认', data: { status: '已确认' } });
+    doc.status = '已确认';
+    doc.confirmedAt = new Date();
+    await doc.save();
+    res.json({ success: true, message: '结算单已确认', data: { status: '已确认', confirmedAt: doc.confirmedAt } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PUT /api/dev/rebate/settlements/:id/paid  已确认 → 已收款
+router.put('/rebate/settlements/:id/paid', async (req, res) => {
+  try {
+    const doc = await RebateSettlement.findById(req.params.id);
+    if (!doc) return res.status(404).json({ success: false, message: '结算单不存在' });
+    const cur = rebate.normalizeSettlementStatus(doc.status);
+    if (cur === '已收款') return res.json({ success: true, message: '该结算单已标记为已收款', data: { status: '已收款' } });
+    // 允许从 待结算 直接收款（兼容跳过确认的快速流程）
+    doc.status = '已收款';
+    doc.paidAt = new Date();
+    if (!doc.confirmedAt) doc.confirmedAt = new Date();
+    await doc.save();
+    res.json({ success: true, message: '结算单已标记为已收款', data: { status: '已收款', paidAt: doc.paidAt } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

@@ -63,6 +63,51 @@ const supplierSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
+  // ============ 供应商治理体系字段 ============
+  // 入驻审核状态：pending=待审核（默认，新注册）/ active=已通过 / frozen=已冻结 / rejected=已拒绝
+  status: {
+    type: String,
+    enum: ['pending', 'active', 'frozen', 'rejected'],
+    default: 'pending',
+    index: true
+  },
+  // 审核拒绝原因（status=rejected 时由开发者填写，供应商端可见）
+  rejectReason: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  // 冻结原因（status=frozen 时由开发者填写，供应商端可见）
+  frozenReason: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  // 审核通过时间（status 切换到 active 时记录）
+  approvedAt: {
+    type: Date,
+    default: null
+  },
+  // 是否已签署《供应商入驻合作协议》
+  agreementSigned: {
+    type: Boolean,
+    default: false
+  },
+  // 协议签署时间
+  agreementSignedAt: {
+    type: Date,
+    default: null
+  },
+  // 是否已开通接单权限（开发者后台"确认开通接单"开关；agreementSigned && orderEnabled 才可在采购商城上架/接单）
+  orderEnabled: {
+    type: Boolean,
+    default: false
+  },
+  // 开通接单时间
+  orderEnabledAt: {
+    type: Date,
+    default: null
+  },
   // ============ 新手接单引导（三步走）进度标记 ============
   // 是否已保存过新订单提醒设置（点"保存设置"即完成第二步）
   onboardNotifySet: {

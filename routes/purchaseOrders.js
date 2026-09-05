@@ -114,6 +114,20 @@ router.post('/', requireMerchant, async (req, res) => {
     if (!supplier) {
       return res.status(404).json({ success: false, message: '供应商不存在' });
     }
+    // 治理门槛：必须 status=active && agreementSigned && orderEnabled 才可被下单
+    // 冻结/未审核/未签协议/未开通接单的供应商一律不可接新单
+    if (supplier.status !== 'active' || !supplier.agreementSigned || !supplier.orderEnabled) {
+      const reason = supplier.status === 'frozen'
+        ? '该供应商已被冻结，暂不接受新订单'
+        : (supplier.status === 'pending'
+            ? '该供应商正在审核中，暂不开放采购'
+            : (supplier.status === 'rejected'
+                ? '该供应商未通过审核，暂不开放采购'
+                : (!supplier.agreementSigned
+                    ? '该供应商尚未签署合作协议，暂不开放采购'
+                    : '该供应商尚未开通接单权限，暂不开放采购')));
+      return res.status(400).json({ success: false, message: reason });
+    }
     // 起送价（兜底 300，避免老数据缺字段导致 undefined）
     const minOrderAmount = Number(supplier.minOrderAmount) > 0 ? Number(supplier.minOrderAmount) : 300;
 
@@ -247,6 +261,15 @@ async function supplierConfirmHandler(req, res) {
     }
     if (order.status !== '待确认') {
       return res.status(400).json({ success: false, message: `当前状态为「${order.status}」，无法确认` });
+    }
+
+    // 治理门槛：冻结供应商不可接新单（不能确认待确认订单）；在途的已确认订单仍可发货/完成
+    const curSupplier = await Supplier.findById(order.supplierId).select('status agreementSigned orderEnabled frozenReason');
+    if (!curSupplier || curSupplier.status === 'frozen') {
+      return res.status(403).json({ success: false, message: '账户已被冻结，请联系平台' });
+    }
+    if (curSupplier.status !== 'active' || !curSupplier.agreementSigned || !curSupplier.orderEnabled) {
+      return res.status(403).json({ success: false, message: '账号暂未开通接单权限，无法确认订单' });
     }
 
     order.status = '已确认';
