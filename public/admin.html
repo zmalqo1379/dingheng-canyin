@@ -1842,6 +1842,175 @@
       #pane-marketing .table-wrap { display: none; }
       #pane-marketing .mkt-cards-mobile { display: block; }
     }
+
+    /* ============ 新手任务卡（开张四步曲） ============ */
+    .ob-card {
+      background: linear-gradient(135deg, #fff7f0 0%, #ffffff 65%);
+      border: 1px solid #ffddc7;
+      border-radius: 16px;
+      padding: 16px 20px 12px;
+      margin-bottom: 18px;
+      box-shadow: 0 4px 16px rgba(255,107,53,.09);
+      position: relative;
+    }
+    .ob-gift {
+      background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 60%, #fcd34d 100%);
+      color: #5b3408;
+      font-weight: 700; font-size: 13px; line-height: 1.5;
+      border-radius: 10px;
+      padding: 9px 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(245,158,11,.25);
+    }
+    .ob-head {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 4px;
+    }
+    .ob-title { font-size: 16px; font-weight: 800; color: #7c2d12; }
+    .ob-count {
+      font-size: 12px; font-weight: 700; color: var(--accent);
+      background: rgba(255,107,53,.1);
+      border-radius: 999px; padding: 2px 10px;
+    }
+    .ob-hide {
+      margin-left: auto;
+      background: none; border: none; cursor: pointer;
+      font-size: 12.5px; color: #9ca3af;
+      padding: 4px 6px; font-family: inherit;
+    }
+    .ob-hide:hover { color: #6b7280; text-decoration: underline; }
+    .ob-task {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 0;
+      border-top: 1px dashed #ffe3d1;
+    }
+    .ob-check {
+      width: 24px; height: 24px; border-radius: 50%;
+      border: 2px solid #f3c7aa;
+      background: #fff;
+      color: transparent;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 800;
+      flex-shrink: 0;
+      transition: all .25s;
+    }
+    .ob-task.done .ob-check {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      border-color: #16a34a;
+      color: #fff;
+    }
+    .ob-task.done .ob-check::before { content: '✓'; }
+    .ob-task.just-done .ob-check { animation: obPop .55s cubic-bezier(.34,1.56,.64,1); }
+    @keyframes obPop {
+      0% { transform: scale(.4); }
+      60% { transform: scale(1.25); }
+      100% { transform: scale(1); }
+    }
+    .ob-task-icon { font-size: 17px; width: 22px; text-align: center; flex-shrink: 0; }
+    .ob-task-text { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: #374151; }
+    .ob-task.done .ob-task-text { color: #9ca3af; font-weight: 500; }
+    .ob-go {
+      flex-shrink: 0;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff; border: none;
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 12.5px; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+      box-shadow: 0 3px 8px rgba(255,107,53,.3);
+      transition: transform .1s, opacity .15s;
+    }
+    .ob-go:active { transform: scale(.94); }
+    .ob-task.done .ob-go { display: none; }
+    .ob-done-tag { flex-shrink: 0; font-size: 12.5px; color: #16a34a; font-weight: 700; display: none; }
+    .ob-task.done .ob-done-tag { display: inline; }
+    /* 完成小礼花：打勾瞬间从对勾位置飘起 */
+    .ob-burst {
+      position: absolute;
+      pointer-events: none;
+      font-size: 16px;
+      animation: obBurst 1s ease-out forwards;
+    }
+    @keyframes obBurst {
+      0% { opacity: 0; transform: translateY(4px) scale(.6); }
+      30% { opacity: 1; }
+      100% { opacity: 0; transform: translateY(-26px) scale(1.2); }
+    }
+    .ob-ready {
+      margin-top: 10px;
+      background: rgba(22,163,74,.1);
+      color: #15803d;
+      font-weight: 700; font-size: 13.5px;
+      border-radius: 10px;
+      padding: 10px 14px;
+    }
+    @media (max-width: 768px) {
+      .ob-card { padding: 14px 14px 10px; border-radius: 14px; }
+      .ob-title { font-size: 15px; }
+      .ob-task { padding: 9px 0; gap: 8px; }
+      .ob-task-text { font-size: 13.5px; }
+      .ob-go { padding: 6px 12px; font-size: 12px; }
+    }
+
+    /* ============ 采购商城：本月鼎恒币进度条 ============ */
+    .mall-progress {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 13px 16px;
+      margin: 10px 0 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.04);
+    }
+    .mp-top {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 10px; flex-wrap: wrap;
+    }
+    .mp-earned { font-size: 14px; font-weight: 700; color: #374151; }
+    .mp-earned b { color: #d97706; font-size: 18px; padding: 0 2px; }
+    .mp-target { font-size: 12.5px; color: #92400e; font-weight: 600; }
+    .mp-bar {
+      height: 10px; border-radius: 999px;
+      background: #f3f4f6;
+      overflow: hidden;
+      margin: 9px 0 5px;
+    }
+    .mp-fill {
+      height: 100%; border-radius: 999px;
+      background: linear-gradient(90deg, #f59e0b, #fbbf24);
+      width: 0;
+      transition: width .7s cubic-bezier(.33,.85,.3,1);
+    }
+    .mp-foot { font-size: 11.5px; color: #9ca3af; }
+
+    /* ============ 空状态引导卡（可关闭，localStorage 记忆） ============ */
+    .guide-card {
+      display: flex; align-items: center; gap: 12px;
+      background: linear-gradient(135deg, #fffbeb 0%, #ffffff 70%);
+      border: 1px dashed #fbbf24;
+      border-radius: 14px;
+      padding: 13px 16px;
+      margin-bottom: 14px;
+    }
+    .guide-card .guide-icon { font-size: 22px; flex-shrink: 0; }
+    .guide-card .guide-text {
+      flex: 1; min-width: 0;
+      font-size: 13.5px; color: #78350f; line-height: 1.6; font-weight: 500;
+    }
+    .guide-card .guide-close {
+      flex-shrink: 0;
+      background: rgba(245,158,11,.12);
+      border: none; color: #92400e;
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 12.5px; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+    }
+    .guide-card .guide-close:active { transform: scale(.95); }
+    @media (max-width: 768px) {
+      .guide-card { flex-wrap: wrap; padding: 12px 14px; gap: 8px; }
+      .guide-card .guide-text { flex-basis: 100%; font-size: 13px; }
+      .guide-card .guide-close { margin-left: auto; }
+    }
   </style>
 </head>
 <body>
@@ -1886,6 +2055,18 @@
     <main class="main">
       <!-- 1. 菜单管理 -->
       <section class="pane active" id="pane-dishes">
+        <!-- 新手任务：开张四步曲（全部完成自动消失，可手动"不再显示"） -->
+        <div class="ob-card" id="onboardCard" style="display:none;">
+          <!-- 金色欢迎语：仅首月赠送进阶版生效期间显示 -->
+          <div class="ob-gift" id="obGiftLine" style="display:none;">🎁 欢迎礼：首月进阶版会员（价值¥99）已免费开通，正在生效中！</div>
+          <div class="ob-head">
+            <span class="ob-title">🎯 新手任务 · 开张四步曲</span>
+            <span class="ob-count" id="obCount">0/4</span>
+            <button class="ob-hide" id="obHideBtn" type="button">不再显示</button>
+          </div>
+          <div id="obTaskList"></div>
+        </div>
+
         <div class="pane-title">
           <span>📋 菜单管理</span>
           <button class="btn-add" id="addDishBtn">+ 新增菜品</button>
@@ -2390,6 +2571,23 @@
         <!-- 顶部鼎恒币激励横幅（按会员等级差异化文案） -->
         <div class="mall-coin-banner" id="mallCoinBanner"></div>
 
+        <!-- 本月鼎恒币进度条：本月采购已得币 + 最近兑换目标 -->
+        <div class="mall-progress" id="mallProgress" style="display:none;">
+          <div class="mp-top">
+            <span class="mp-earned">本月采购已得 <b id="mpEarned">0</b> 鼎恒币</span>
+            <span class="mp-target" id="mpTarget"></span>
+          </div>
+          <div class="mp-bar"><div class="mp-fill" id="mpFill"></div></div>
+          <div class="mp-foot">鼎恒币可兑采购抵用券、兑会员月卡，采购越多得币越多</div>
+        </div>
+
+        <!-- 空状态引导：从未采购过的商家（可关闭，localStorage 记忆） -->
+        <div class="guide-card" id="mallGuide" style="display:none;">
+          <span class="guide-icon">💡</span>
+          <span class="guide-text">在这里进货，每花 1 元都得鼎恒币，币能换采购券、换会员</span>
+          <button class="guide-close" id="mallGuideClose" type="button">知道了</button>
+        </div>
+
         <!-- ===== 第1层：供应商店铺列表 ===== -->
         <div id="mallStoreList">
           <!-- 搜索框 + 品类筛选标签栏 -->
@@ -2665,6 +2863,12 @@
         </div>
 
         <div id="marketingPanel" style="display:none;">
+          <!-- 空状态引导：从未创建过活动的商家（可关闭，localStorage 记忆） -->
+          <div class="guide-card" id="mktGuide" style="display:none;">
+            <span class="guide-icon">🚀</span>
+            <span class="guide-text">开了活动的店，回头客就是多。点右上角「新建满减」，30 秒创建第一个活动</span>
+            <button class="guide-close" id="mktGuideClose" type="button">知道了</button>
+          </div>
           <!-- 满减活动 -->
           <div class="card" id="mktCard-fullReduction" style="margin-bottom:18px;">
             <div class="card-head">
@@ -2919,6 +3123,23 @@
     <div class="upsell-foot">
       <button class="upsell-btn cancel" id="upsellCancel">我直接买</button>
       <button class="upsell-btn confirm" id="upsellConfirm">去兑换</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 开张四步曲全部完成庆祝框 ============ -->
+<div class="upsell-mask" id="obCelebrateModal" role="dialog" aria-modal="true" aria-labelledby="obCelebrateTitle">
+  <div class="upsell-modal">
+    <div class="upsell-head" style="background:linear-gradient(135deg,#f59e0b,#fbbf24);">
+      <div class="upsell-icon">🎉</div>
+      <h3 id="obCelebrateTitle">恭喜开张！</h3>
+    </div>
+    <div class="upsell-body">
+      <p>🎉 恭喜开张！送你 <b>500</b><span class="upsell-coin-unit"> 鼎恒币</span>，已到账</p>
+      <p class="upsell-tip">鼎恒币可兑换采购抵用券、兑换会员月卡，采购还能持续赚币</p>
+    </div>
+    <div class="upsell-foot">
+      <button class="upsell-btn confirm" id="obCelebrateOk">开心收下</button>
     </div>
   </div>
 </div>

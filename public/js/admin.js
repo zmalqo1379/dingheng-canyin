@@ -75,6 +75,8 @@ if (MERCHANT_TOKEN) {
   const h = location.hash.replace('#', '');
   const initTab = (h && ['dishes','tables','orders','stats','decorate','settings','member','coin','mall','purchase','points','marketing'].includes(h)) ? h : 'dishes';
   try { switchTab(initTab); } catch (e) { console.error('初始化失败', e); }
+  // 新手开张四步曲任务卡（首页顶部，状态实时检测）
+  try { loadOnboarding(); } catch (e) { console.error('新手任务加载失败', e); }
 }
 
 /* ---------- 侧边栏导航 ---------- */
@@ -91,7 +93,7 @@ function switchTab(tab) {
     if (tab === 'settings') loadSettings();
     if (tab === 'member') loadMemberCenter();
     if (tab === 'coin') loadCoinCenter();
-    if (tab === 'mall') loadMall();
+    if (tab === 'mall') { loadMall(); reportOnboardStep('mall'); }
     if (tab === 'purchase') loadPurchaseOrders();
     if (tab === 'points') loadPoints();
     if (tab === 'marketing') loadMarketing();
@@ -227,6 +229,154 @@ function closeSidebar() { $('sidebar').classList.remove('open'); $('scrim').clas
 $('menuToggle').onclick = openSidebar;
 $('scrim').onclick = closeSidebar;
 
+/* ===================== 新手开张引导（开张四步曲） =====================
+   菜品 / 装修：后端查库实时判定；预览 / 逛商城：动作上报标记。
+   全部完成后自动调用 claim-gift 领取 500 鼎恒币（后端幂等防重），弹庆祝框。
+   "不再显示"按店铺记忆在 localStorage。 */
+const OB_HIDE_KEY = 'ob_hidden_' + SHOP_ID;
+let _obData = null;        // 最近一次后端返回的任务状态
+let _obClaiming = false;   // 领奖防并发
+
+const OB_TASKS = [
+  {
+    key: 'dish', icon: '🍜', text: '上传第一道菜', btn: '去完成',
+    go() { switchTab('dishes'); setTimeout(() => { const b = $('addDishBtn'); if (b) b.click(); }, 150); }
+  },
+  {
+    key: 'decorate', icon: '🎨', text: '装修你的店铺', btn: '去完成',
+    go() { switchTab('decorate'); }
+  },
+  {
+    key: 'preview', icon: '👀', text: '预览你的点餐页', btn: '去预览',
+    go() { openCustomerPreview(); reportOnboardStep('preview'); }
+  },
+  {
+    key: 'mall', icon: '🛒', text: '逛逛采购商城', btn: '去逛逛',
+    go() { switchTab('mall'); reportOnboardStep('mall'); }
+  }
+];
+
+async function loadOnboarding() {
+  try {
+    const res = await api('/api/admin/onboarding');
+    if (!res.success || !res.data) return;
+    const prevTasks = _obData ? _obData.tasks : null;
+    _obData = res.data;
+    renderOnboarding(prevTasks);
+    // 全部完成且未发奖：自动领奖（后端幂等，重复调用不会重复发币）
+    if (_obData.allDone && !_obData.giftClaimed && !_obClaiming) {
+      claimOnboardingGift();
+    }
+  } catch (e) { /* 引导模块异常不阻塞后台主流程 */ }
+}
+
+function renderOnboarding(prevTasks) {
+  const card = $('onboardCard');
+  if (!card || !_obData) return;
+  // 手动"不再显示"或四步全部完成且奖已到账 → 卡片自动消失
+  const hidden = localStorage.getItem(OB_HIDE_KEY) === '1';
+  const finished = _obData.allDone && _obData.giftClaimed;
+  if (hidden || finished) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+
+  // 金色欢迎语：首月赠送进阶版生效期间显示
+  const giftLine = $('obGiftLine');
+  if (giftLine) giftLine.style.display = (_obData.trial && _obData.trial.active) ? 'block' : 'none';
+
+  const tasks = _obData.tasks || {};
+  const doneCount = OB_TASKS.filter(t => tasks[t.key]).length;
+  $('obCount').textContent = doneCount + '/4';
+
+  $('obTaskList').innerHTML = OB_TASKS.map((t, i) => {
+    const done = !!tasks[t.key];
+    const justDone = done && prevTasks && prevTasks[t.key] === false;
+    return `<div class="ob-task ${done ? 'done' : ''} ${justDone ? 'just-done' : ''}" data-i="${i}">
+      <span class="ob-check"></span>
+      <span class="ob-task-icon">${t.icon}</span>
+      <span class="ob-task-text">${t.text}</span>
+      <button class="ob-go" type="button" data-go="${i}">${t.btn}</button>
+      <span class="ob-done-tag">已完成</span>
+    </div>`;
+  }).join('');
+
+  // 刚完成项：对勾处飘小礼花
+  OB_TASKS.forEach((t, i) => {
+    if (tasks[t.key] && prevTasks && prevTasks[t.key] === false) {
+      const row = $('obTaskList').querySelector(`.ob-task[data-i="${i}"]`);
+      if (row) {
+        row.style.position = 'relative';
+        const burst = document.createElement('span');
+        burst.className = 'ob-burst';
+        burst.textContent = '🎉';
+        burst.style.left = '4px';
+        burst.style.top = '0';
+        row.appendChild(burst);
+        setTimeout(() => burst.remove(), 1100);
+      }
+    }
+  });
+
+  $('obTaskList').querySelectorAll('.ob-go').forEach(btn => {
+    btn.onclick = () => {
+      const t = OB_TASKS[Number(btn.dataset.go)];
+      if (t) t.go();
+    };
+  });
+}
+
+// 动作上报（preview / mall），已完成则不重复请求
+async function reportOnboardStep(step) {
+  if (_obData && _obData.tasks && _obData.tasks[step === 'preview' ? 'preview' : 'mall']) return;
+  try {
+    const res = await api('/api/admin/onboarding/step', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ step })
+    });
+    if (res.success) loadOnboarding();
+  } catch (e) { /* 忽略 */ }
+}
+
+// 领取 500 鼎恒币开张礼（全部完成后自动调用；后端幂等防重复发放）
+async function claimOnboardingGift() {
+  if (_obClaiming) return;
+  _obClaiming = true;
+  try {
+    const res = await api('/api/admin/onboarding/claim-gift', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    if (res.success) {
+      if (!res.data.alreadyClaimed) showObCelebrate();
+      _obData.giftClaimed = true;
+      renderOnboarding(_obData.tasks);
+    } else if (res.message && res.message !== 'network') {
+      toast(res.message, true);
+    }
+  } catch (e) { /* 忽略，下次进入会重试 */ } finally {
+    _obClaiming = false;
+  }
+}
+
+function showObCelebrate() {
+  const m = $('obCelebrateModal');
+  if (m) m.classList.add('show');
+}
+function closeObCelebrate() {
+  const m = $('obCelebrateModal');
+  if (m) m.classList.remove('show');
+}
+$('obHideBtn').onclick = () => {
+  localStorage.setItem(OB_HIDE_KEY, '1');
+  $('onboardCard').style.display = 'none';
+  toast('新手任务已隐藏，祝生意兴隆！');
+};
+$('obCelebrateOk').onclick = closeObCelebrate;
+(function () {
+  const m = $('obCelebrateModal');
+  if (m) m.addEventListener('click', (e) => { if (e.target === m) closeObCelebrate(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeObCelebrate(); });
+})();
+
 /* ===================== 菜单管理 ===================== */
 async function loadCategories() {
   const res = await api('/api/categories');
@@ -239,6 +389,8 @@ async function loadDishes() {
   const body = $('dishesBody');
   const cardsBox = $('dishesCards');
   const dishes = res.data || [];
+  // 新手任务：菜品数量实时影响"上传第一道菜"状态
+  try { loadOnboarding(); } catch (e) {}
   if (!dishes.length) {
     if (body) body.innerHTML = `<tr><td colspan="5" class="empty">暂无菜品，点击右上角“新增菜品”添加</td></tr>`;
     if (cardsBox) cardsBox.innerHTML = `<div class="empty" style="padding:40px 16px;text-align:center;color:#9ca3af;">暂无菜品，点击右上角“新增菜品”添加</div>`;
@@ -766,6 +918,8 @@ function openCustomerPreview(overrides) {
   if (_customerPreviewEscHandler) document.removeEventListener('keydown', _customerPreviewEscHandler);
   _customerPreviewEscHandler = (e) => { if (e.key === 'Escape') closeCustomerPreview(); };
   document.addEventListener('keydown', _customerPreviewEscHandler);
+  // 新手任务：预览过点餐页即完成"预览你的点餐页"
+  try { reportOnboardStep('preview'); } catch (e) {}
 }
 function closeCustomerPreview() {
   const modal = $('customerPreviewModal');
@@ -805,6 +959,8 @@ async function applyDeco(field, value) {
     if (field === 'theme') renderThemeGrid(_decoState.theme);
     else if (field === 'shopNameFont') renderFontGrid(_decoState.shopNameFont);
     else if (field === 'layout') renderLayoutGrid(_decoState.layout);
+    // 新手任务：主题/字体/排版被修改即完成"装修你的店铺"
+    try { loadOnboarding(); } catch (e) {}
   } else if (res.needUpgrade) {
     toast(res.message || '升级会员解锁全部店铺风格 →', true);
     goUpgrade('advanced');
@@ -868,6 +1024,8 @@ async function uploadDecoImage(file, kind) {
       toast(kind === 'poster' ? '海报已上传，顾客端实时生效' : '已更新，顾客端实时生效');
       _decoState[map.field] = up.data.url;
       setDecoPreview($(map.preview), up.data.url);
+      // 新手任务：上传头图 / LOGO / 海报也算完成店铺装修
+      try { loadOnboarding(); } catch (e) {}
     } else if (res.needUpgrade) {
       toast(res.message || DECO_UPGRADE_TIP, true);
       goUpgrade('advanced');
@@ -1447,12 +1605,53 @@ async function loadMall() {
     _mallSearchKey = '';
     _mallStoreCat = 'all';
     renderMallCoinBanner();
+    renderMallProgressGuide();
     renderMallStoreCatTabs();
     renderStoreList();
     showStoreListView();
   } catch (e) {
     console.error(e);
     toast('加载采购商城失败', true);
+  }
+}
+
+// 本月鼎恒币进度条 + 从未采购空状态引导卡（引导卡可关闭，localStorage 按店铺记忆）
+async function renderMallProgressGuide() {
+  const box = $('mallProgress');
+  const guide = $('mallGuide');
+  const guideKey = 'guide_dismiss_' + SHOP_ID + '_mall';
+  if (guide && !guide._bound) {
+    guide._bound = true;
+    guide.querySelector('.guide-close').onclick = () => {
+      localStorage.setItem(guideKey, '1');
+      guide.style.display = 'none';
+    };
+  }
+  try {
+    const res = await api(`/api/coin/month-progress/${SHOP_ID}`);
+    if (!res.success || !res.data) { if (box) box.style.display = 'none'; return; }
+    const d = res.data;
+    if (box) {
+      box.style.display = 'block';
+      $('mpEarned').textContent = d.monthEarned || 0;
+      const fill = $('mpFill');
+      const targetEl = $('mpTarget');
+      if (d.target) {
+        fill.style.width = (d.target.percent || 0) + '%';
+        targetEl.textContent = d.allReached
+          ? '本月兑换目标全部达成，继续保持！'
+          : `再得 ${d.target.needMore} 币即可兑换${d.target.label}`;
+      } else {
+        fill.style.width = '0%';
+        targetEl.textContent = '';
+      }
+    }
+    // 空状态引导：从未采购且未手动关闭时展示；有采购记录后自动消失
+    if (guide) {
+      guide.style.display = (!d.hasPurchased && localStorage.getItem(guideKey) !== '1') ? 'flex' : 'none';
+    }
+  } catch (e) {
+    if (box) box.style.display = 'none';
   }
 }
 
@@ -2415,6 +2614,20 @@ async function loadMarketing() {
     const res = await api('/api/marketing');
     _mktList = (res.success && Array.isArray(res.data)) ? res.data : [];
     renderMarketing();
+
+    // 空状态引导：从未创建过活动的商家（可关闭，localStorage 按店铺记忆）
+    const guide = $('mktGuide');
+    if (guide) {
+      const guideKey = 'guide_dismiss_' + SHOP_ID + '_mkt';
+      guide.style.display = (_mktList.length === 0 && localStorage.getItem(guideKey) !== '1') ? 'flex' : 'none';
+      if (!guide._bound) {
+        guide._bound = true;
+        guide.querySelector('.guide-close').onclick = () => {
+          localStorage.setItem(guideKey, '1');
+          guide.style.display = 'none';
+        };
+      }
+    }
   } catch (e) {
     console.error('loadMarketing', e);
     toast('营销活动加载失败', true);

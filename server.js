@@ -530,6 +530,177 @@ app.get('/api/admin/merchant-stats', requireMerchant, async (req, res) => {
   }
 });
 
+// --- 新手开张引导（开张四步曲）---
+// 任务状态实时检测：菜品 / 装修 由数据库实时判定；预览 / 逛商城 为动作上报标记；
+// 500 鼎恒币开张礼全局仅发一次（ShopAccount.onboardGiftClaimed + CoinHistory 双重防重）。
+
+const ONBOARDING_GIFT_COIN = 500;
+
+// 装修任务判定：主题 / 排版 / 字体任一被修改，或已上传自定义头图 / LOGO / 优惠海报
+function isDecorateDone(setting) {
+  if (!setting) return false;
+  return setting.theme !== 'classic' ||
+    setting.layout !== 'list' ||
+    setting.shopNameFont !== 'modern' ||
+    !!(setting.bannerImage) ||
+    !!(setting.logoImage) ||
+    !!(setting.promoPoster);
+}
+
+// 赠送体验期判定（与 /api/coin/status 口径一致：memberIsTrial 且进阶版未到期；
+// 老数据无字段时按"进阶版且剩余不足 31 天"兜底识别）
+function isTrialActive(member, now) {
+  if (!member) return false;
+  if (member.memberIsTrial === true) {
+    return !!(member.memberExpire && member.memberExpire > now);
+  }
+  if (member.memberIsTrial == null) {
+    return member.memberLevel === 'advanced' &&
+      !!member.memberExpire &&
+      member.memberExpire > now &&
+      (member.memberExpire - now) <= 31 * 24 * 60 * 60 * 1000;
+  }
+  return false;
+}
+
+// GET /api/admin/onboarding 新手任务状态
+app.get('/api/admin/onboarding', requireMerchant, async (req, res) => {
+  try {
+    const shopId = req.shopId;
+    const [dishCount, setting, account, memberDoc, giftDoc] = await Promise.all([
+      Dish.countDocuments({ shopId }),
+      Setting.findOne({ shopId }).lean(),
+      ShopAccount.findOne({ shopId }).lean(),
+      Member.findOne({ shopId }),
+      CoinHistory.findOne({ shopId, type: 'new_shop_gift' }).lean()
+    ]);
+    // 会员档案不存在则创建（pre-save 钩子自动赠送首月进阶版），
+    // 保证新商家注册后首次进入后台即可看到金色欢迎礼提示
+    const member = memberDoc
+      ? memberDoc.toObject()
+      : (await Member.create({ shopId })).toObject();
+
+    const dishDone = dishCount > 0;
+    const decorateDone = isDecorateDone(setting);
+    const previewDone = !!(account && account.onboardPreview);
+    const mallDone = !!(account && account.onboardMallVisited);
+    const giftClaimed = !!(account && account.onboardGiftClaimed) || !!giftDoc;
+    const now = new Date();
+    const trialActive = isTrialActive(member, now);
+
+    const tasks = { dish: dishDone, decorate: decorateDone, preview: previewDone, mall: mallDone };
+    const allDone = dishDone && decorateDone && previewDone && mallDone;
+
+    res.json({
+      success: true,
+      data: {
+        tasks,
+        allDone,
+        giftClaimed,
+        giftCoin: ONBOARDING_GIFT_COIN,
+        trial: {
+          active: trialActive,
+          memberExpire: member ? member.memberExpire : null
+        }
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/admin/onboarding/step 动作上报：{ step: 'preview' | 'mall' }
+app.post('/api/admin/onboarding/step', requireMerchant, async (req, res) => {
+  try {
+    const step = String((req.body && req.body.step) || '');
+    const field = step === 'preview' ? 'onboardPreview'
+      : step === 'mall' ? 'onboardMallVisited' : '';
+    if (!field) {
+      return res.status(400).json({ success: false, message: 'step 仅支持 preview / mall' });
+    }
+    await ShopAccount.updateOne({ shopId: req.shopId }, { $set: { [field]: true } });
+    res.json({ success: true, data: { step, done: true } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/admin/onboarding/claim-gift 四步全部完成后领取 500 鼎恒币（幂等，防重复发放）
+app.post('/api/admin/onboarding/claim-gift', requireMerchant, async (req, res) => {
+  const session = await mongoose.startSession();
+  try {
+    const shopId = req.shopId;
+
+    // 幂等快速返回：已发过（标记位或流水任一存在）则不再发放
+    const [account, giftDoc] = await Promise.all([
+      ShopAccount.findOne({ shopId }).session(session),
+      CoinHistory.findOne({ shopId, type: 'new_shop_gift' }).session(session)
+    ]);
+    if ((account && account.onboardGiftClaimed) || giftDoc) {
+      const m = await Member.findOne({ shopId }).session(session);
+      return res.json({
+        success: true,
+        data: { alreadyClaimed: true, coin: ONBOARDING_GIFT_COIN, balance: m ? m.dinghengCoin : 0 }
+      });
+    }
+
+    // 服务端复核四个任务全部完成（菜品 / 装修查库权威判定，预览 / 逛商城取动作标记）
+    const [dishCount, setting] = await Promise.all([
+      Dish.countDocuments({ shopId }).session(session),
+      Setting.findOne({ shopId }).session(session)
+    ]);
+    const tasksDone = dishCount > 0 &&
+      isDecorateDone(setting) &&
+      !!(account && account.onboardPreview) &&
+      !!(account && account.onboardMallVisited);
+    if (!tasksDone) {
+      return res.status(400).json({ success: false, message: '还有新手任务未完成，完成后再来领奖' });
+    }
+
+    const result = await session.withTransaction(async () => {
+      // 会员币账户（不存在则创建）并发加币
+      let member = await Member.findOne({ shopId }).session(session);
+      if (!member) {
+        const [m] = await Member.create([{ shopId }], { session });
+        member = m;
+      }
+      member.dinghengCoin = (member.dinghengCoin || 0) + ONBOARDING_GIFT_COIN;
+      member.totalEarnedCoin = (member.totalEarnedCoin || 0) + ONBOARDING_GIFT_COIN;
+      await member.save({ session });
+
+      // 流水（FIFO 扣减依据 remaining；有效期 90 天，与采购返币一致）
+      const expireAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+      await CoinHistory.create([{
+        shopId,
+        amount: ONBOARDING_GIFT_COIN,
+        type: 'new_shop_gift',
+        balanceAfter: member.dinghengCoin,
+        expireAt,
+        remaining: ONBOARDING_GIFT_COIN,
+        isExpired: false,
+        description: '新手开张礼：完成开张四步曲奖励'
+      }], { session });
+
+      // 发放标记位（防重复发放的第二道保险）
+      await ShopAccount.updateOne(
+        { shopId },
+        { $set: { onboardGiftClaimed: true } }
+      ).session(session);
+
+      return { balance: member.dinghengCoin };
+    });
+
+    res.json({
+      success: true,
+      data: { alreadyClaimed: false, coin: ONBOARDING_GIFT_COIN, balance: result.balance }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  } finally {
+    session.endSession();
+  }
+});
+
 // --- 商家后台修改设置（按 JWT shopId 匹配，绝不窜改他人店铺）---
 
 // 店铺装修权限：主题按会员等级锁定，自定义图片为进阶版及以上可用

@@ -15,7 +15,7 @@ const coinHistorySchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['purchase_reward', 'redeem_membership', 'redeem_coupon', 'refund_deduct', 'expired', 'system_gift'],
+    enum: ['purchase_reward', 'redeem_membership', 'redeem_coupon', 'refund_deduct', 'expired', 'system_gift', 'new_shop_gift'],
     required: true
   },
   // 关联采购订单ID（字符串形式，便于跨表对账）

@@ -766,6 +766,8 @@
     .promo-arrow.prev { left: 5px; }
     .promo-arrow.next { right: 5px; }
     .promo-arrow:active { transform: translateY(-50%) scale(.88); }
+    /* 多条优惠（箭头可见）时，卡片文字左右留白避让箭头，防止箭头压住横幅文字 */
+    .promo-stage.has-arrows .promo-card { padding-left: 31px; padding-right: 31px; }
     /* 底部小圆点指示器 */
     .promo-dots {
       display: none; justify-content: center; gap: 5px;

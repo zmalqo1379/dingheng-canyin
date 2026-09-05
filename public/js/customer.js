@@ -311,6 +311,7 @@ function renderPromoBanner() {
     dots.classList.remove('show');
     $('promoPrev').classList.remove('show');
     $('promoNext').classList.remove('show');
+    if (stage) stage.classList.remove('has-arrows');
     return;
   }
   promoCount = items.length;
@@ -325,6 +326,8 @@ function renderPromoBanner() {
   dots.classList.toggle('show', multi);
   $('promoPrev').classList.toggle('show', multi);
   $('promoNext').classList.toggle('show', multi);
+  // 箭头可见时给卡片加左右留白，避免箭头遮挡横幅文字
+  stage.classList.toggle('has-arrows', multi);
   if (multi) startPromoAuto();
 }
 

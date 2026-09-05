@@ -62,6 +62,17 @@ const supplierSchema = new mongoose.Schema({
     type: Number,
     default: 0,
     min: 0
+  },
+  // ============ 新手接单引导（三步走）进度标记 ============
+  // 是否已保存过新订单提醒设置（点"保存设置"即完成第二步）
+  onboardNotifySet: {
+    type: Boolean,
+    default: false
+  },
+  // 是否查看过合作结算页（点"去看看"即完成第三步）
+  onboardSettleSeen: {
+    type: Boolean,
+    default: false
   }
 }, { timestamps: true });
 

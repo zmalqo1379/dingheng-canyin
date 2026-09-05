@@ -4,6 +4,7 @@ const router = express.Router();
 const Supplier = require('../models/Supplier');
 const PurchaseOrder = require('../models/PurchaseOrder');
 const RebateSettlement = require('../models/RebateSettlement');
+const SupplyProduct = require('../models/SupplyProduct');
 const rebate = require('../utils/rebate');
 const { requireSupplier } = require('../middlewares/auth');
 
@@ -100,6 +101,8 @@ async function saveSettingsHandler(req, res) {
     if (popup !== undefined) update['notificationSettings.popup'] = toBool(popup);
     if (sms !== undefined) update['notificationSettings.sms'] = toBool(sms);
     if (voice !== undefined) update['notificationSettings.voice'] = toBool(voice);
+    // 保存过提醒设置即视为完成新手任务"设置新订单提醒"
+    update.onboardNotifySet = true;
 
     const supplier = await Supplier.findByIdAndUpdate(
       req.user.supplierId,
@@ -174,6 +177,50 @@ router.get('/settle', async (req, res) => {
         }))
       }
     });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ 新手接单引导（三步走） ============
+// GET /api/supplier/onboarding 任务状态：
+//   1. 上架第一个商品（SupplyProduct 有"上架"商品）
+//   2. 设置新订单提醒（保存过通知设置，onboardNotifySet）
+//   3. 查看合作结算（点过"去看看"，onboardSettleSeen）
+router.get('/onboarding', async (req, res) => {
+  try {
+    const supplierId = req.user.supplierId;
+    const [supplier, onSaleCount] = await Promise.all([
+      Supplier.findById(supplierId).select('onboardNotifySet onboardSettleSeen').lean(),
+      SupplyProduct.countDocuments({ supplierId, status: '上架' })
+    ]);
+    const productDone = onSaleCount > 0;
+    const notifyDone = !!(supplier && supplier.onboardNotifySet);
+    const settleDone = !!(supplier && supplier.onboardSettleSeen);
+    res.json({
+      success: true,
+      data: {
+        tasks: { product: productDone, notify: notifyDone, settle: settleDone },
+        allDone: productDone && notifyDone && settleDone
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/supplier/onboarding/step 动作上报：{ step: 'settle' }（点"去看看"查看合作结算）
+router.post('/onboarding/step', async (req, res) => {
+  try {
+    const step = String((req.body && req.body.step) || '');
+    if (step !== 'settle') {
+      return res.status(400).json({ success: false, message: 'step 仅支持 settle' });
+    }
+    await Supplier.updateOne(
+      { _id: req.user.supplierId },
+      { $set: { onboardSettleSeen: true } }
+    );
+    res.json({ success: true, data: { step, done: true } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

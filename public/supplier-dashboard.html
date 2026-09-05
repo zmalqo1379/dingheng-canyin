@@ -687,6 +687,116 @@
       .alert-btns .btn { width: 100%; }
       .report-fee { flex-direction: column; align-items: flex-start; gap: 8px; }
     }
+
+    /* ============ 新手任务卡（接单三步走） ============ */
+    .ob-card {
+      background: linear-gradient(135deg, #fff7f0 0%, #ffffff 65%);
+      border: 1px solid #ffddc7;
+      border-radius: 16px;
+      padding: 16px 20px 12px;
+      margin-bottom: 18px;
+      box-shadow: 0 4px 16px rgba(255,107,53,.09);
+    }
+    .ob-head {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 4px;
+    }
+    .ob-title { font-size: 16px; font-weight: 800; color: #7c2d12; }
+    .ob-count {
+      font-size: 12px; font-weight: 700; color: var(--accent);
+      background: rgba(255,107,53,.1);
+      border-radius: 999px; padding: 2px 10px;
+    }
+    .ob-task {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 0;
+      border-top: 1px dashed #ffe3d1;
+    }
+    .ob-check {
+      width: 24px; height: 24px; border-radius: 50%;
+      border: 2px solid #f3c7aa;
+      background: #fff;
+      color: transparent;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 800;
+      flex-shrink: 0;
+      transition: all .25s;
+    }
+    .ob-task.done .ob-check {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      border-color: #16a34a;
+      color: #fff;
+    }
+    .ob-task.done .ob-check::before { content: '✓'; }
+    .ob-task.just-done .ob-check { animation: obPop .55s cubic-bezier(.34,1.56,.64,1); }
+    @keyframes obPop {
+      0% { transform: scale(.4); }
+      60% { transform: scale(1.25); }
+      100% { transform: scale(1); }
+    }
+    .ob-task-icon { font-size: 17px; width: 22px; text-align: center; flex-shrink: 0; }
+    .ob-task-text { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: #374151; }
+    .ob-task.done .ob-task-text { color: #9ca3af; font-weight: 500; }
+    .ob-go {
+      flex-shrink: 0;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff; border: none;
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 12.5px; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+      box-shadow: 0 3px 8px rgba(255,107,53,.3);
+      transition: transform .1s;
+    }
+    .ob-go:active { transform: scale(.94); }
+    .ob-task.done .ob-go { display: none; }
+    .ob-done-tag { flex-shrink: 0; font-size: 12.5px; color: #16a34a; font-weight: 700; display: none; }
+    .ob-task.done .ob-done-tag { display: inline; }
+    .ob-ready {
+      margin-top: 10px;
+      background: rgba(22,163,74,.1);
+      color: #15803d;
+      font-weight: 700; font-size: 13.5px;
+      border-radius: 10px;
+      padding: 10px 14px;
+    }
+    @media (max-width: 768px) {
+      .ob-card { padding: 14px 14px 10px; border-radius: 14px; }
+      .ob-title { font-size: 15px; }
+      .ob-task { padding: 9px 0; gap: 8px; }
+      .ob-task-text { font-size: 13.5px; }
+      .ob-go { padding: 6px 12px; font-size: 12px; }
+    }
+
+    /* ============ 空状态引导卡（可关闭，localStorage 记忆） ============ */
+    .guide-card {
+      display: flex; align-items: center; gap: 12px;
+      background: linear-gradient(135deg, #fffbeb 0%, #ffffff 70%);
+      border: 1px dashed #fbbf24;
+      border-radius: 14px;
+      padding: 13px 16px;
+      margin-bottom: 14px;
+    }
+    .guide-card .guide-icon { font-size: 22px; flex-shrink: 0; }
+    .guide-card .guide-text {
+      flex: 1; min-width: 0;
+      font-size: 13.5px; color: #78350f; line-height: 1.6; font-weight: 500;
+    }
+    .guide-card .guide-close {
+      flex-shrink: 0;
+      background: rgba(245,158,11,.12);
+      border: none; color: #92400e;
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 12.5px; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+    }
+    .guide-card .guide-close:active { transform: scale(.95); }
+    @media (max-width: 768px) {
+      .guide-card { flex-wrap: wrap; padding: 12px 14px; gap: 8px; }
+      .guide-card .guide-text { flex-basis: 100%; font-size: 13px; }
+      .guide-card .guide-close { margin-left: auto; }
+    }
   </style>
 </head>
 <body>
@@ -722,6 +832,17 @@
       <!-- 1. 待处理订单 -->
       <section class="pane active" id="pane-orders">
         <div class="pane-title">📦 待处理订单</div>
+
+        <!-- 新手任务：接单三步走（全部完成显示准备就绪） -->
+        <div class="ob-card" id="supObCard" style="display:none;">
+          <div class="ob-head">
+            <span class="ob-title">🎯 新手任务 · 接单三步走</span>
+            <span class="ob-count" id="supObCount">0/3</span>
+          </div>
+          <div id="supObTaskList"></div>
+          <div class="ob-ready" id="supObReady" style="display:none;">✅ 准备就绪，订单来了会第一时间通知你！</div>
+        </div>
+
         <div class="welcome">
           <h2 id="welcomeText">欢迎来到供应商控制台</h2>
           <p id="welcomeSub">订单加载中...</p>
@@ -779,6 +900,14 @@
       <!-- 2. 商品管理 -->
       <section class="pane" id="pane-products">
         <div class="pane-title">📋 商品管理</div>
+
+        <!-- 空状态引导：还没有任何商品时（可关闭，localStorage 记忆） -->
+        <div class="guide-card" id="supProdGuide" style="display:none;">
+          <span class="guide-icon">🚚</span>
+          <span class="guide-text">上架你的第一个商品，全城的餐馆都在等着买</span>
+          <button class="guide-close" id="supProdGuideClose" type="button">知道了</button>
+        </div>
+
         <div class="product-toolbar">
           <button class="btn-add-product" id="addProductBtn">＋ 新增商品</button>
         </div>
@@ -1079,6 +1208,86 @@
       if (tab === 'settle') loadSettle();
     }
     document.querySelectorAll('.nav-item').forEach(t => t.onclick = () => switchTab(t.dataset.tab));
+
+    // ============ 新手接单引导（三步走） ============
+    // 1.上架第一个商品（后端查"上架"商品）2.设置新订单提醒（保存过提醒设置）
+    // 3.查看合作结算（点"去看看"动作上报）。全部完成显示准备就绪，无发币。
+    const SUP_OB_ID = localStorage.getItem('supplierId') || '';
+    let _supObData = null;
+
+    const SUP_OB_TASKS = [
+      { key: 'product', icon: '📦', text: '上架第一个商品', btn: '去上架',
+        go() { switchTab('products'); } },
+      { key: 'notify', icon: '🔔', text: '设置新订单提醒', btn: '去设置',
+        go() { switchTab('notify'); } },
+      { key: 'settle', icon: '💰', text: '查看合作结算', btn: '去看看',
+        go() { switchTab('settle'); reportSupStep('settle'); } }
+    ];
+
+    async function loadSupOnboarding() {
+      try {
+        const res = await api('/api/supplier/onboarding');
+        if (!res.success || !res.data) return;
+        const prev = _supObData ? _supObData.tasks : null;
+        _supObData = res.data;
+        renderSupOnboarding(prev);
+      } catch (e) { /* 引导失败不阻塞 */ }
+    }
+
+    function renderSupOnboarding(prev) {
+      const card = $('supObCard');
+      if (!card || !_supObData) return;
+      card.style.display = 'block';
+      const tasks = _supObData.tasks || {};
+      const doneCount = SUP_OB_TASKS.filter(t => tasks[t.key]).length;
+      $('supObCount').textContent = doneCount + '/3';
+      $('supObReady').style.display = _supObData.allDone ? 'block' : 'none';
+      $('supObTaskList').style.display = _supObData.allDone ? 'none' : 'block';
+      $('supObTaskList').innerHTML = SUP_OB_TASKS.map((t, i) => {
+        const done = !!tasks[t.key];
+        const justDone = done && prev && prev[t.key] === false;
+        return `<div class="ob-task ${done ? 'done' : ''} ${justDone ? 'just-done' : ''}" data-i="${i}">
+          <span class="ob-check"></span>
+          <span class="ob-task-icon">${t.icon}</span>
+          <span class="ob-task-text">${t.text}</span>
+          <button class="ob-go" type="button" data-go="${i}">${t.btn}</button>
+          <span class="ob-done-tag">已完成</span>
+        </div>`;
+      }).join('');
+      $('supObTaskList').querySelectorAll('.ob-go').forEach(btn => {
+        btn.onclick = () => {
+          const t = SUP_OB_TASKS[Number(btn.dataset.go)];
+          if (t) t.go();
+        };
+      });
+    }
+
+    // 动作上报（目前仅 settle：查看合作结算）
+    async function reportSupStep(step) {
+      if (_supObData && _supObData.tasks && _supObData.tasks[step]) return;
+      try {
+        const res = await api('/api/supplier/onboarding/step', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ step })
+        });
+        if (res.success) loadSupOnboarding();
+      } catch (e) { /* 忽略 */ }
+    }
+
+    // 商品空状态引导卡（localStorage 按供应商记忆，可关闭）
+    function renderSupProductGuide(hasProducts) {
+      const guide = $('supProdGuide');
+      if (!guide) return;
+      const key = 'guide_dismiss_supplier_' + SUP_OB_ID + '_products';
+      if (!guide._bound) {
+        guide._bound = true;
+        guide.querySelector('.guide-close').onclick = () => {
+          localStorage.setItem(key, '1');
+          guide.style.display = 'none';
+        };
+      }
+      guide.style.display = (!hasProducts && localStorage.getItem(key) !== '1') ? 'flex' : 'none';
+    }
 
     function openSidebar() { $('sidebar').classList.add('open'); $('scrim').classList.add('show'); }
     function closeSidebar() { $('sidebar').classList.remove('open'); $('scrim').classList.remove('show'); }
@@ -1480,8 +1689,10 @@
             voice: $('setVoice').checked
           })
         }).then(r => r.json());
-        if (res.success) toast('保存成功');
-        else toast(res.message || '保存失败', true);
+        if (res.success) {
+          toast('保存成功');
+          loadSupOnboarding(); // 新手任务：设置新订单提醒
+        } else toast(res.message || '保存失败', true);
       } catch (e) {
         toast('网络错误', true);
       }
@@ -1503,6 +1714,10 @@
         return;
       }
       productsCache = res.data || [];
+
+      // 新手引导：商品数量实时影响"上架第一个商品"任务，并控制空状态引导卡
+      renderSupProductGuide(productsCache.length > 0);
+      loadSupOnboarding();
 
       if (!productsCache.length) {
         tbody.innerHTML = `<tr><td colspan="8" class="no-data">📦 暂无商品，点击右上角「新增商品」添加</td></tr>`;
@@ -1651,8 +1866,9 @@
       }
     }
 
-    // 启动：首次加载订单 + 建立轮询基线
+    // 启动：首次加载订单 + 建立轮询基线 + 新手接单引导
     loadOrders();
+    loadSupOnboarding();
     pollNewOrders();
   </script>
 </body>

@@ -5,6 +5,7 @@ const router = express.Router();
 const Member = require('../models/Member');
 const CoinHistory = require('../models/CoinHistory');
 const Coupon = require('../models/Coupon');
+const PurchaseOrder = require('../models/PurchaseOrder');
 const dhConfig = require('../utils/dhConfig');
 const coinRule = require('../utils/coinRule');
 
@@ -340,6 +341,81 @@ router.get('/coin/category-multipliers', async (req, res) => {
       data[category] = multiplier;
     }
     res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ GET /api/coin/month-progress/:shopId ============
+// 本月采购得币进度条：本月采购已得币数 + "跳一跳够得着"的最近兑换目标
+// 目标按币价升序，仅保留当前会员等级可兑换的券与月卡；
+// 最近目标 = 币价高于本月已得币数的第一个目标（进度百分比可视化）。
+// 注意：本接口只讲鼎恒币，不出现任何返点 / 档位字样。
+router.get('/coin/month-progress/:shopId', async (req, res) => {
+  try {
+    const { shopId } = req.params;
+    const member = await getOrCreateMember(shopId);
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // 本月采购返币合计（仅 purchase_reward 收入流水；开张礼等赠送不计入"采购已得"）
+    const agg = await CoinHistory.aggregate([
+      {
+        $match: {
+          shopId,
+          type: 'purchase_reward',
+          amount: { $gt: 0 },
+          createdAt: { $gte: monthStart }
+        }
+      },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    const monthEarned = (agg[0] && agg[0].total) || 0;
+
+    // 是否曾经采购过（空状态引导卡用，任意状态采购订单计 1 笔即算）
+    const purchaseCount = await PurchaseOrder.countDocuments({ shopId });
+    const hasPurchased = purchaseCount > 0;
+
+    // 组装当前等级可达的全部兑换目标，按币价升序
+    const rank = LEVEL_RANK[member.memberLevel] || 0;
+    const targets = [];
+    for (const c of dhConfig.coupons) {
+      if (LEVEL_RANK[c.needLevel] <= rank) {
+        targets.push({ kind: 'coupon', cost: c.coinCost, label: `¥${c.faceValue} 采购抵用券` });
+      }
+    }
+    // 会员月卡：进阶版任何等级可兑；尊享版仅非尊享（尊享不可降级兑进阶）
+    targets.push({ kind: 'membership', cost: dhConfig.membership.advanced.coinCost, label: '进阶版月卡' });
+    if (member.memberLevel !== 'premium') {
+      targets.push({ kind: 'membership', cost: dhConfig.membership.premium.coinCost, label: '尊享版月卡' });
+    }
+    targets.sort((a, b) => a.cost - b.cost);
+
+    // 最近目标：币价 > 本月已得的第一个；全部达标则返回最高目标（100%）
+    let target = targets.find(t => t.cost > monthEarned) || null;
+    let allReached = false;
+    if (!target && targets.length) {
+      target = targets[targets.length - 1];
+      allReached = true;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        monthEarned,
+        balance: member.dinghengCoin,
+        memberLevel: member.memberLevel,
+        hasPurchased,
+        allReached,
+        target: target ? {
+          kind: target.kind,
+          label: target.label,
+          cost: target.cost,
+          needMore: Math.max(0, target.cost - monthEarned),
+          percent: Math.min(100, Math.floor(monthEarned / target.cost * 100))
+        } : null
+      }
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

@@ -37,6 +37,22 @@ const shopAccountSchema = new mongoose.Schema({
     type: Number,
     default: 0,
     min: 0
+  },
+  // ============ 新手开张引导（四步曲）进度标记 ============
+  // 已预览过点餐页（点"去预览"即完成）
+  onboardPreview: {
+    type: Boolean,
+    default: false
+  },
+  // 已进入过采购商城页
+  onboardMallVisited: {
+    type: Boolean,
+    default: false
+  },
+  // 500 鼎恒币开张礼是否已发放（防重复，配合 CoinHistory new_shop_gift 双重校验）
+  onboardGiftClaimed: {
+    type: Boolean,
+    default: false
   }
 }, { timestamps: true });
 
