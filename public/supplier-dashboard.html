@@ -1077,12 +1077,29 @@
       cursor: pointer; line-height: 1;
     }
     .agm-close:hover { background: rgba(255,255,255,.34); }
-    .agm-countdown {
-      flex-shrink: 0; text-align: center; padding: 8px 12px;
-      font-size: 13px; font-weight: 700; color: #ea580c; line-height: 1.6;
-      background: #fff7ed; border-bottom: 1px solid #fed7aa;
+    /* 顶部重要法律文件提示条（文案固定）+ 右侧纯秒数倒计时胶囊 */
+    .agm-notice {
+      flex-shrink: 0; display: flex; align-items: center; gap: 12px;
+      padding: 10px 16px; background: #fff7ed; border-bottom: 1px solid #fed7aa;
     }
-    .agm-countdown.done { color: #16a34a; background: #f0fdf4; border-bottom-color: #bbf7d0; }
+    .agm-notice-text { margin: 0; flex: 1; font-size: 12.5px; line-height: 1.7; color: #7c2d12; }
+    .agm-countdown {
+      flex-shrink: 0; min-width: 70px; text-align: center;
+      padding: 5px 12px; border-radius: 999px;
+      background: #fff; border: 1.5px solid #fdba74;
+      font-size: 14px; font-weight: 800; color: #ea580c; line-height: 1.3;
+    }
+    .agm-countdown.done { color: #16a34a; border-color: #86efac; background: #f0fdf4; }
+    /* 倒计时结束后出现在协议滚动区底部的同意勾选框 */
+    .agm-check {
+      display: none; align-items: center; gap: 10px;
+      margin-top: 18px; padding: 12px 14px;
+      border: 1.5px solid #fdba74; border-radius: 10px;
+      background: #fff7ed; font-size: 13.5px; font-weight: 700; color: #7c2d12;
+      line-height: 1.5; cursor: pointer;
+    }
+    .agm-check.show { display: flex; }
+    .agm-check input { width: 17px; height: 17px; flex-shrink: 0; accent-color: #ea580c; cursor: pointer; }
     /* overflow-anchor:none 防止浏览器滚动锚定在重开模态框时恢复上次滚动位置，造成"未滚动即判定已读" */
     .agm-body { flex: 1; min-height: 0; overflow-y: auto; overflow-anchor: none; background: #fff; -webkit-overflow-scrolling: touch; }
     /* 复用闸门页协议正文排版（h4/at-table/at-party），去掉其外框与固定高度 */
@@ -1117,6 +1134,8 @@
     @media (max-width: 768px) {
       .agm-overlay { padding: 0; }
       .agm-modal { max-width: 100%; max-height: 100vh; height: 100%; border-radius: 0; }
+      .agm-notice { flex-direction: column; align-items: stretch; gap: 8px; padding: 10px 14px; }
+      .agm-countdown { align-self: center; min-width: 64px; font-size: 13px; }
       .agm-body .agreement-text { padding: 14px 16px 22px; }
       .agm-agree-btn { width: 100%; }
     }
@@ -1517,7 +1536,10 @@
         <span class="agm-title">📜 供应商入驻合作协议</span>
         <button class="agm-close" id="agmCloseBtn" title="关闭">×</button>
       </div>
-      <div class="agm-countdown" id="agmCountdown">⏳ 强制阅读中，请等待倒计时结束（剩余 30 秒）</div>
+      <div class="agm-notice">
+        <p class="agm-notice-text">本协议为平台入驻的重要法律文件，关系到您的合法权益，请完整阅读后再确认签署。平台对入驻商户实行严格准入审核，我们只与认真对待合作的伙伴同行。感谢您的信任。</p>
+        <div class="agm-countdown" id="agmCountdown">120秒</div>
+      </div>
       <div class="agm-body" id="agmBody"><!-- 协议全文由 JS 渲染（7章 + 附件） --></div>
       <div class="agm-foot">
         <div class="agm-signer" id="agmSigner">乙方（供应商）电子签署</div>
@@ -2121,15 +2143,16 @@
     }
 
     // ============ 协议强制阅读模态框 ============
-    // 双条件解锁「同意并继续」：① 30 秒倒计时结束；② 协议滚动到底部。
+    // 三条件解锁「同意并继续」：① 120 秒倒计时结束；② 协议滚动到底部；③ 勾选"我已仔细阅读并同意全部条款"。
     // 提交资质（含驳回后重新提交）与「查看协议」入口共用本模态框；
     // onAgree 为空表示纯查看（同意后仅关闭，不构成签署），非空表示同意后执行资质提交
     // ——此时点击「同意并继续」即构成乙方电子签署（见协议第八章），平台存档签署证据。
-    const AGM_SECS = 30;
+    // 点击右上角 × 或遮罩关闭弹窗一律视为未同意，不触发任何提交。
+    const AGM_SECS = 120;
     // 协议版本号（与后端 routes/supplier.js AGREEMENT_VERSION 保持一致；改协议文本必须同步升版）
     const AGM_VERSION = 'DH-GYS-2026-V1';
     let _agmTimer = null;
-    let _agm = { remain: AGM_SECS, countdownDone: false, scrolledBottom: false, onAgree: null, textHash: '' };
+    let _agm = { remain: AGM_SECS, countdownDone: false, scrolledBottom: false, agreedChecked: false, onAgree: null, textHash: '' };
 
     // 协议文本哈希（签署证据之一）：优先 Web Crypto SHA-256，非安全上下文降级 FNV-1a
     async function sha256Hex(text) {
@@ -2145,28 +2168,30 @@
     }
 
     function agmUpdateControls() {
-      const tip = $('agmCountdown');
+      const cd = $('agmCountdown');
       const btn = $('agmAgreeBtn');
       const hint = $('agmHint');
+      const chkLabel = $('agmCheckLabel');
+      // 倒计时胶囊：纯秒数递减（120秒、119秒……），结束后变绿
       if (!_agm.countdownDone) {
-        tip.classList.remove('done');
-        tip.textContent = `⏳ 强制阅读中，请等待倒计时结束（剩余 ${_agm.remain} 秒）`;
-      } else if (!_agm.scrolledBottom) {
-        tip.classList.add('done');
-        tip.textContent = '⏳ 倒计时已结束，请继续滚动阅读至协议底部';
+        cd.classList.remove('done');
+        cd.textContent = `${_agm.remain}秒`;
       } else {
-        tip.classList.add('done');
-        tip.textContent = '✅ 已满足阅读要求（倒计时结束 + 已滚动到底部）';
+        cd.classList.add('done');
+        cd.textContent = '✓ 计时结束';
       }
-      const ok = _agm.countdownDone && _agm.scrolledBottom;
+      // 倒计时结束后，协议滚动区域底部出现同意勾选框
+      if (chkLabel) chkLabel.classList.toggle('show', _agm.countdownDone);
+      const ok = _agm.countdownDone && _agm.scrolledBottom && _agm.agreedChecked;
       btn.disabled = !ok;
       hint.classList.toggle('ok', ok);
       if (ok) {
-        hint.textContent = '已完成阅读要求，点击「同意并继续」';
+        hint.textContent = '已完成全部阅读要求，点击「同意并继续」';
       } else {
         const missing = [];
-        if (!_agm.scrolledBottom) missing.push('请将协议滚动至底部');
         if (!_agm.countdownDone) missing.push(`倒计时剩余 ${_agm.remain} 秒`);
+        if (!_agm.scrolledBottom) missing.push('请将协议滚动至底部');
+        if (_agm.countdownDone && !_agm.agreedChecked) missing.push('请勾选“我已仔细阅读并同意全部条款”');
         hint.textContent = '「同意并继续」暂未解锁：' + missing.join('，');
       }
     }
@@ -2198,8 +2223,13 @@
     }
 
     function openAgreementModal(onAgree) {
-      _agm = { remain: AGM_SECS, countdownDone: false, scrolledBottom: false, onAgree: onAgree || null, textHash: '' };
-      $('agmBody').innerHTML = `<div class="agreement-text">${buildAgreementHtml()}</div>`;
+      _agm = { remain: AGM_SECS, countdownDone: false, scrolledBottom: false, agreedChecked: false, onAgree: onAgree || null, textHash: '' };
+      // 协议滚动区域底部：同意勾选框（倒计时结束后才显示，见 agmUpdateControls）
+      $('agmBody').innerHTML = `<div class="agreement-text">${buildAgreementHtml()}<label class="agm-check" id="agmCheckLabel"><input type="checkbox" id="agmAgreeChk"><span>我已仔细阅读并同意全部条款</span></label></div>`;
+      $('agmAgreeChk').addEventListener('change', (e) => {
+        _agm.agreedChecked = e.target.checked;
+        agmUpdateControls();
+      });
       $('agmBody').scrollTop = 0;
       // 渲染帧后再复位一次滚动位置：防止浏览器滚动锚定把上次阅读位置带回（导致未滚动即误判已读）
       requestAnimationFrame(() => { $('agmBody').scrollTop = 0; });
@@ -2222,13 +2252,18 @@
       if (_agmTimer) { clearInterval(_agmTimer); _agmTimer = null; }
     }
 
-    // 「查看协议」入口：同样强制倒计时+滚动，纯阅读（同意后仅关闭，不触发提交）
+    // 「查看协议」入口：同样强制倒计时+滚动+勾选，纯阅读（同意后仅关闭，不触发提交）
     $('viewAgreementLink').onclick = () => openAgreementModal(null);
     $('agmCloseBtn').onclick = closeAgreementModal;
+    // 点击遮罩空白处：关闭弹窗，视为未同意（不触发任何提交）
+    $('agmOverlay').addEventListener('click', (e) => {
+      if (e.target === $('agmOverlay')) closeAgreementModal();
+    });
     $('agmBody').addEventListener('scroll', agmCheckBottom);
 
     $('agmAgreeBtn').onclick = async () => {
-      if (!_agm.countdownDone || !_agm.scrolledBottom) return;   // 双条件校验（按钮禁用之外的双保险）
+      // 三条件校验（按钮禁用之外的双保险）：倒计时结束 + 滚动到底部 + 已勾选同意
+      if (!_agm.countdownDone || !_agm.scrolledBottom || !_agm.agreedChecked) return;
       const cb = _agm.onAgree;
       // 签署证据之一：对供应商实际阅读到的协议文本计算哈希（提交模式随接口存档）
       _agm.textHash = await sha256Hex($('agmBody').innerText || '');
@@ -2244,7 +2279,7 @@
       }
       const missing = QUAL_PHOTOS.filter(p => !_qualPhotos[p.key]);
       if (missing.length) { toast('请先上传：' + missing.map(p => p.label).join('、'), true); return; }
-      // 强制阅读闸门：首次提交与驳回后重新提交统一走协议模态框，双条件满足并同意后方可实际提交
+      // 强制阅读闸门：首次提交与驳回后重新提交统一走协议模态框，三条件（倒计时结束+滚动到底部+勾选同意）满足后方可实际提交
       openAgreementModal(submitQualification);
     };
 
