@@ -28,6 +28,7 @@ const supplierRouter = require('./routes/supplier');
 const supplyProductsRouter = require('./routes/supplyProducts');
 const marketingRouter = require('./routes/marketing');
 const customerPointsRouter = require('./routes/customerPoints');
+const procurementMonitorRouter = require('./routes/procurementMonitor');
 const { getPointConfig, settlePointsForOrder, isValidPhone } = customerPointsRouter;
 const Admin = require('./models/Admin');
 const { startDhCron } = require('./utils/dhCron');
@@ -860,6 +861,8 @@ app.use('/api', coinRouter);
 app.use('/api/supply-products', supplyProductsRouter);
 app.use('/api/marketing', marketingRouter);
 app.use('/api/points', customerPointsRouter);
+// 采购监控（防回扣）：商家身份 + shopId 隔离，全部只读接口
+app.use('/api/admin/procurement-monitor', procurementMonitorRouter);
 
 // 供应商列表（公开浏览 + 管理端展示，不涉及多商家隔离）
 // 采购商城可见的供应商列表：仅 status=active && agreementSigned && orderEnabled

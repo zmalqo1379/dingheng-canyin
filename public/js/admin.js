@@ -73,7 +73,7 @@ if (MERCHANT_TOKEN) {
   document.getElementById('adminPage').classList.add('show');
   // 响应 URL hash：从预览返回时自动定位到装修栏目
   const h = location.hash.replace('#', '');
-  const initTab = (h && ['dishes','tables','orders','stats','decorate','settings','member','coin','mall','purchase','points','marketing'].includes(h)) ? h : 'dishes';
+  const initTab = (h && ['dishes','tables','orders','stats','decorate','settings','member','coin','mall','purchase','procurement','points','marketing'].includes(h)) ? h : 'dishes';
   try { switchTab(initTab); } catch (e) { console.error('初始化失败', e); }
   // 新手开张四步曲任务卡（首页顶部，状态实时检测）
   try { loadOnboarding(); } catch (e) { console.error('新手任务加载失败', e); }
@@ -95,6 +95,7 @@ function switchTab(tab) {
     if (tab === 'coin') loadCoinCenter();
     if (tab === 'mall') { loadMall(); reportOnboardStep('mall'); }
     if (tab === 'purchase') loadPurchaseOrders();
+    if (tab === 'procurement') loadProcurement();
     if (tab === 'points') loadPoints();
     if (tab === 'marketing') loadMarketing();
   } catch (e) { console.error('tab load error', tab, e); }
@@ -1650,6 +1651,12 @@ async function renderMallProgressGuide() {
     if (box) {
       box.style.display = 'block';
       $('mpEarned').textContent = d.monthEarned || 0;
+      // 动态展示当前会员等级的实际得币率（基础版 0.5 / 进阶·尊享 1.0）
+      const rateEl = $('mpRate');
+      if (rateEl) {
+        const rate = COIN_RATE[_mallMemberLevel] ?? 0.5;
+        rateEl.textContent = `当前 1 元 = ${rate} 鼎恒币 · `;
+      }
     }
     // 空状态引导：从未采购且未手动关闭时展示；有采购记录后自动消失
     if (guide) {
@@ -1660,9 +1667,9 @@ async function renderMallProgressGuide() {
   }
 }
 
-// 顶部鼎恒币激励横幅：统一展示（按规则只保留指定文案）
+// 顶部鼎恒币激励横幅：统一展示（按规则只保留指定文案，不出现"1元=1币"绝对表述）
 function renderMallCoinBanner() {
-  const head = `🎁 采购即得鼎恒币：会员每采购 1 元 = 1 币，币可兑采购抵用券、兑会员月卡`;
+  const head = `🎁 采购即得鼎恒币：每笔消费都可获得鼎恒币，币可兑采购抵用券、兑会员月卡`;
   const el = $('mallCoinBanner');
   el.innerHTML = head;
   el.classList.remove('basic');
@@ -2416,6 +2423,404 @@ document.querySelectorAll('.filter-tab').forEach(tab => {
     loadPurchaseOrders();
   };
 });
+
+/* ===================== 采购监控（防回扣） ===================== */
+// 数据全部来自 /api/admin/procurement-monitor/*（shopId 由 JWT 隔离）；
+// 明细查询复用 /api/purchase-orders?status=已完成。阈值与后端一致：>均价20% warning，>30% danger。
+
+let _procCharts = { trend: null, cat: null, sup: null };
+let _procTrends = [];          // price-trends 缓存（商品下拉数据源）
+let _procHistoryRows = [];     // 明细扁平行缓存 [{date, name, supplierName, price, quantity, total, orderNo}]
+let _procHistoryAvg = {};      // 明细行着色用：name|supplierId → 均价
+let _procSearchBound = false;
+let _procSearchTimer = null;
+const PROC_PALETTE = ['#ff6b35', '#1a88ff', '#16a34a', '#f59e0b', '#8b5cf6', '#06b6d4', '#ef4444', '#64748b', '#ec4899', '#84cc16', '#a855f7', '#14b8a6'];
+
+function fmtMoney(n) {
+  return (Number(n) || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function procChartOk() { return typeof Chart !== 'undefined'; }
+
+function destroyProcChart(key) {
+  if (_procCharts[key]) { _procCharts[key].destroy(); _procCharts[key] = null; }
+}
+
+// 入口：会员防御性校验 → 并行拉取 5 个接口 → 分区块渲染
+async function loadProcurement() {
+  const lockedEl = $('procurementLocked');
+  const panelEl = $('procurementPanel');
+  const bodyEl = $('procurementBody');
+  const emptyEl = $('procurementEmpty');
+  try {
+    // 权限控制：所有会员等级（basic/advanced/premium）可用；无会员状态防御性锁定
+    const status = await api(`/api/coin/status/${SHOP_ID}`);
+    const level = status && status.success && status.data ? status.data.memberLevel : '';
+    if (!['basic', 'advanced', 'premium'].includes(level)) {
+      if (lockedEl) lockedEl.style.display = 'block';
+      if (panelEl) panelEl.style.display = 'none';
+      return;
+    }
+    if (lockedEl) lockedEl.style.display = 'none';
+    if (panelEl) panelEl.style.display = 'block';
+
+    const [ov, alerts, trends, catRes, supRes, ordersRes] = await Promise.all([
+      api('/api/admin/procurement-monitor/overview'),
+      api('/api/admin/procurement-monitor/alerts'),
+      api('/api/admin/procurement-monitor/price-trends'),
+      api('/api/admin/procurement-monitor/category-breakdown'),
+      api('/api/admin/procurement-monitor/supplier-breakdown'),
+      api('/api/purchase-orders?status=' + encodeURIComponent('已完成'))
+    ]);
+
+    const ovData = (ov && ov.success && ov.data) || null;
+    const orderList = (ordersRes && ordersRes.data) || [];
+
+    // 空状态：从未完成过采购
+    if (!ovData || (ovData.totalOrders === 0 && orderList.length === 0)) {
+      if (emptyEl) emptyEl.style.display = 'block';
+      if (bodyEl) bodyEl.style.display = 'none';
+      return;
+    }
+    if (emptyEl) emptyEl.style.display = 'none';
+    if (bodyEl) bodyEl.style.display = 'block';
+
+    renderProcOverview(ovData);
+    renderProcAlerts((alerts && alerts.success && alerts.data) || []);
+    _procTrends = (trends && trends.success && trends.data) || [];
+    renderProcTrendSelect();
+    renderProcPies(
+      (catRes && catRes.success && catRes.data) || [],
+      (supRes && supRes.success && supRes.data) || []
+    );
+    buildProcHistoryRows(orderList);
+    renderProcHistory();
+    if (!_procSearchBound) {
+      _procSearchBound = true;
+      const si = $('procHistorySearch');
+      si.oninput = () => {
+        if (_procSearchTimer) clearTimeout(_procSearchTimer);
+        _procSearchTimer = setTimeout(renderProcHistory, 300);
+      };
+    }
+  } catch (e) {
+    console.error('采购监控加载失败', e);
+    toast('采购监控加载失败', true);
+  }
+}
+
+// 区块1：顶部统计卡
+function renderProcOverview(d) {
+  $('procTotalAmount').textContent = fmtMoney(d.totalAmount);
+  $('procOrderCount').textContent = d.totalOrders ?? 0;
+  $('procSupplierCount').textContent = d.supplierCount ?? 0;
+
+  const growth = Number(d.monthOverMonthGrowth) || 0;
+  const mom = $('procMom');
+  mom.classList.remove('up', 'down', 'flat');
+  if (growth > 0.05) { mom.classList.add('up'); mom.textContent = `↑ 环比上涨 ${Math.abs(growth)}%`; }
+  else if (growth < -0.05) { mom.classList.add('down'); mom.textContent = `↓ 环比下降 ${Math.abs(growth)}%`; }
+  else { mom.classList.add('flat'); mom.textContent = growth === 0 ? '— 与上月持平' : `环比 ${growth > 0 ? '+' : ''}${growth}%`; }
+
+  const alertCount = Number(d.alertCount) || 0;
+  $('procAlertCount').textContent = alertCount;
+  const card = $('procAlertCard');
+  card.classList.toggle('alert-red', alertCount > 0);
+  card.classList.toggle('alert-green', alertCount === 0);
+}
+
+// 区块2：价格异常预警列表
+function renderProcAlerts(alerts) {
+  const wrap = $('procAlertWrap');
+  const sub = $('procAlertSub');
+  if (!alerts.length) {
+    sub.textContent = '暂无异常';
+    wrap.innerHTML = `
+      <div class="proc-ok-banner">✅ 暂无异常，所有商品价格均在正常范围内
+        <small>监控规则：最新采购价高于历史均价 20% 提醒（warning），超过 30% 严重预警（danger）</small>
+      </div>`;
+    return;
+  }
+  sub.textContent = `共 ${alerts.length} 条预警，请重点核查`;
+  const dangerCount = alerts.filter(a => a.severity === 'danger').length;
+  if (dangerCount > 0) sub.textContent = `共 ${alerts.length} 条预警（含 ${dangerCount} 条严重）`;
+  wrap.innerHTML = `
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr><th>商品名</th><th>供应商</th><th>当前价</th><th>历史均价</th><th>偏离幅度</th><th>严重程度</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+          ${alerts.map(a => {
+            const rowCls = a.severity === 'danger' ? 'alert-danger' : 'alert-warning';
+            const badge = a.severity === 'danger'
+              ? '<span class="badge" style="background:#fee2e2;color:#b91c1c;">🔴 严重 danger</span>'
+              : '<span class="badge" style="background:#fef3c7;color:#b45309;">🟠 预警 warning</span>';
+            return `
+              <tr class="${rowCls}">
+                <td><b>${esc(a.productName)}</b></td>
+                <td>${esc(a.supplierName)}</td>
+                <td>¥${a.currentPrice.toFixed(2)}</td>
+                <td>¥${a.avgPrice.toFixed(2)}</td>
+                <td><b style="color:var(--red);">+${a.deviationPercent}%</b></td>
+                <td>${badge}</td>
+                <td><span class="proc-link" data-order="${esc(a.orderNo)}">查看订单</span></td>
+              </tr>
+              <tr class="alert-suggestion"><td colspan="7">💡 ${esc(a.suggestion)}（订单日期 ${esc(a.date)}）</td></tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  wrap.querySelectorAll('.proc-link').forEach(el => {
+    el.onclick = () => jumpPurchaseOrder(el.dataset.order);
+  });
+}
+
+// 区块3：商品下拉 + 折线图
+function renderProcTrendSelect() {
+  const sel = $('procProductSelect');
+  if (!_procTrends.length) {
+    sel.innerHTML = '<option value="">暂无采购商品</option>';
+    sel.disabled = true;
+    $('procTrendStats').innerHTML = '<span>暂无价格数据</span>';
+    destroyProcChart('trend');
+    return;
+  }
+  sel.disabled = false;
+  sel.innerHTML = _procTrends.map((t, i) => {
+    const mark = t.alert ? ' 🔴' : (t.trend === 'up' ? ' ↑' : '');
+    return `<option value="${i}">${esc(t.productName)}（${esc(t.supplierName)}）${mark}</option>`;
+  }).join('');
+  sel.onchange = () => renderProcTrendChart(Number(sel.value));
+  renderProcTrendChart(0);
+}
+
+async function renderProcTrendChart(idx) {
+  const t = _procTrends[idx];
+  if (!t) return;
+  const stats = $('procTrendStats');
+  let points = t.dataPoints || [];
+  let avg = t.avgPrice;
+  let latestAbnormal = !!t.alert;
+
+  // 优先用 price-history 拉近90天精确数据（含单号），失败回退趋势缓存
+  try {
+    const res = await api(`/api/admin/procurement-monitor/price-history?productName=${encodeURIComponent(t.productName)}&supplierId=${encodeURIComponent(t.supplierId)}&days=90`);
+    if (res && res.success && res.data && res.data.points && res.data.points.length) {
+      points = res.data.points;
+      avg = res.data.avgPrice;
+      latestAbnormal = res.data.enoughData && res.data.deviationPercent >= 20;
+    }
+  } catch (e) { /* 回退缓存 */ }
+
+  if (!points.length) {
+    destroyProcChart('trend');
+    stats.innerHTML = '<span>该商品暂无 90 天内的采购记录</span>';
+    return;
+  }
+
+  const lo = +(avg * 0.9).toFixed(2), hi = +(avg * 1.1).toFixed(2);
+  stats.innerHTML = `
+    <span>均价 <b>¥${avg.toFixed(2)}</b></span>
+    <span>最低 <b>¥${Math.min(...points.map(p => p.price)).toFixed(2)}</b></span>
+    <span>最高 <b>¥${Math.max(...points.map(p => p.price)).toFixed(2)}</b></span>
+    <span>建议采购价区间 <b>¥${lo.toFixed(2)} ~ ¥${hi.toFixed(2)}</b>（均价±10%）</span>
+    ${latestAbnormal ? '<span style="color:var(--red);font-weight:700;">⚠ 最新价偏高，建议核查</span>' : ''}
+  `;
+
+  if (!procChartOk()) {
+    $('procTrendBox').innerHTML = '<div class="proc-chart-fallback">图表组件（Chart.js CDN）加载失败，请检查网络后刷新页面；上方统计数值仍可用。</div>';
+    return;
+  }
+  destroyProcChart('trend');
+  const labels = points.map(p => p.date);
+  const prices = points.map(p => p.price);
+  // 最新点异常 → 标红放大
+  const pointColors = prices.map((_, i) => (latestAbnormal && i === prices.length - 1) ? '#ef4444' : '#ff6b35');
+  const pointRadius = prices.map((_, i) => (latestAbnormal && i === prices.length - 1) ? 7 : 3);
+  _procCharts.trend = new Chart($('procTrendCanvas'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: `${t.productName} 采购价`,
+          data: prices,
+          borderColor: '#ff6b35',
+          backgroundColor: 'rgba(255,107,53,.08)',
+          fill: true,
+          tension: 0.25,
+          pointBackgroundColor: pointColors,
+          pointBorderColor: pointColors,
+          pointRadius: pointRadius,
+          borderWidth: 2
+        },
+        {
+          label: '历史均价',
+          data: labels.map(() => avg),
+          borderColor: '#9ca3af',
+          borderDash: [6, 5],
+          pointRadius: 0,
+          borderWidth: 1.5,
+          fill: false
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: '#4b5563', boxWidth: 14 } },
+        tooltip: { callbacks: { label: (c) => `${c.dataset.label}：¥${Number(c.parsed.y).toFixed(2)}` } }
+      },
+      scales: {
+        x: { ticks: { color: '#6b7280', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }, grid: { color: 'rgba(0,0,0,.05)' } },
+        y: { ticks: { color: '#6b7280', callback: (v) => '¥' + v }, grid: { color: 'rgba(0,0,0,.05)' } }
+      }
+    }
+  });
+}
+
+// 区块4：品类 / 供应商双饼图
+function renderProcPies(catData, supData) {
+  const build = (key, data, nameField) => {
+    destroyProcChart(key);
+    const legendEl = $(key === 'cat' ? 'procCatLegend' : 'procSupLegend');
+    const canvas = $(key === 'cat' ? 'procCatCanvas' : 'procSupCanvas');
+    if (!data.length) {
+      canvas.style.display = 'none';
+      legendEl.innerHTML = '<span style="color:#9ca3af;">本月暂无采购数据</span>';
+      return;
+    }
+    canvas.style.display = 'block';
+    legendEl.innerHTML = data.map((d, i) => `
+      <div class="pl-row">
+        <span><span class="pl-dot" style="background:${PROC_PALETTE[i % PROC_PALETTE.length]};"></span>${esc(d[nameField])}</span>
+        <span>¥${fmtMoney(d.amount)} · ${d.percent}%</span>
+      </div>`).join('');
+    if (!procChartOk()) {
+      // CDN 加载失败时保留 canvas（下次重试仍可用），仅用图例区域提示
+      legendEl.innerHTML = '<span style="color:#9ca3af;">图表组件加载失败，下方明细仍可查看</span>' + legendEl.innerHTML;
+      return;
+    }
+    _procCharts[key] = new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: data.map(d => d[nameField]),
+        datasets: [{
+          data: data.map(d => d.amount),
+          backgroundColor: data.map((_, i) => PROC_PALETTE[i % PROC_PALETTE.length]),
+          borderWidth: 2,
+          borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '52%',
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (c) => `${c.label}：¥${fmtMoney(c.parsed)}（${data[c.dataIndex].percent}%）` } }
+        }
+      }
+    });
+  };
+  build('cat', catData, 'category');
+  build('sup', supData, 'supplierName');
+}
+
+// 区块5：历史采购明细（搜索 + 单价高于/低于均价20%着色）
+function buildProcHistoryRows(orders) {
+  const rows = [];
+  const avgMap = {};
+  for (const o of orders) {
+    const sup = o.supplierId;
+    const supplierName = (sup && typeof sup === 'object' && sup.name) ? sup.name : '未知供应商';
+    const supplierId = sup && typeof sup === 'object' ? String(sup._id) : String(sup || '');
+    const d = o.receiveAt || o.createdAt;
+    const date = fmtTime(d).slice(0, 10);
+    for (const it of (o.items || [])) {
+      rows.push({
+        date,
+        name: it.name,
+        supplierName,
+        key: it.name + '|' + supplierId,
+        price: Number(it.unitPrice) || 0,
+        quantity: Number(it.quantity) || 0,
+        total: Number(it.totalPrice) || 0,
+        orderNo: o.orderNo || ''
+      });
+    }
+  }
+  rows.sort((a, b) => (a.date < b.date ? 1 : -1));
+  // 同 商品+供应商 均价（用于着色）
+  const sum = {}, cnt = {};
+  rows.forEach(r => {
+    sum[r.key] = (sum[r.key] || 0) + r.price;
+    cnt[r.key] = (cnt[r.key] || 0) + 1;
+  });
+  Object.keys(sum).forEach(k => { avgMap[k] = sum[k] / cnt[k]; });
+  _procHistoryRows = rows;
+  _procHistoryAvg = avgMap;
+}
+
+function renderProcHistory() {
+  const wrap = $('procHistoryWrap');
+  const kw = ($('procHistorySearch').value || '').trim().toLowerCase();
+  const rows = kw ? _procHistoryRows.filter(r => r.name.toLowerCase().includes(kw)) : _procHistoryRows;
+  if (!rows.length) {
+    wrap.innerHTML = `<div class="empty">${kw ? '未找到匹配的采购记录' : '暂无已完成采购记录'}</div>`;
+    return;
+  }
+  wrap.innerHTML = `
+    <table class="data">
+      <thead>
+        <tr><th>日期</th><th>商品</th><th>供应商</th><th>单价</th><th>数量</th><th>总价</th><th>订单号</th></tr>
+      </thead>
+      <tbody>
+        ${rows.map(r => {
+          const avg = _procHistoryAvg[r.key] || 0;
+          // 高于均价20%标红（疑似买贵），低于均价20%标绿（拿到好价）
+          const cls = avg > 0 && r.price > avg * 1.2 ? 'price-up'
+            : (avg > 0 && r.price < avg * 0.8 ? 'price-down' : '');
+          return `
+            <tr>
+              <td>${esc(r.date)}</td>
+              <td><b>${esc(r.name)}</b></td>
+              <td>${esc(r.supplierName)}</td>
+              <td class="${cls}">¥${r.price.toFixed(2)}</td>
+              <td>${r.quantity}</td>
+              <td>¥${r.total.toFixed(2)}</td>
+              <td><span class="proc-link" data-order="${esc(r.orderNo)}">${esc(r.orderNo)}</span></td>
+            </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+  wrap.querySelectorAll('.proc-link').forEach(el => {
+    el.onclick = () => jumpPurchaseOrder(el.dataset.order);
+  });
+}
+
+// 跳转采购订单页并高亮定位到对应订单
+function jumpPurchaseOrder(orderNo) {
+  if (!orderNo) return;
+  _purchaseFilterStatus = '';
+  document.querySelectorAll('.filter-tab').forEach(t => t.classList.toggle('active', !t.dataset.status));
+  switchTab('purchase');
+  // 等订单列表渲染完成后滚动 + 闪烁高亮
+  setTimeout(() => {
+    const rows = document.querySelectorAll('#purchaseOrdersBody tr, #purchaseCardList .pcard');
+    for (const r of rows) {
+      if (r.textContent.includes(orderNo)) {
+        r.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        r.classList.add('proc-flash-row');
+        setTimeout(() => r.classList.remove('proc-flash-row'), 3200);
+        break;
+      }
+    }
+  }, 700);
+}
 
 /* ===================== 顾客积分 ===================== */
 let _ptDishes = [];                 // 本店菜单缓存（积分换菜下拉用）

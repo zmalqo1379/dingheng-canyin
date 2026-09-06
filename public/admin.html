@@ -1698,6 +1698,84 @@
       .filter-tab { flex-shrink: 0; white-space: nowrap; }
     }
 
+    /* ============ 采购监控（防回扣） ============ */
+    .proc-stat-grid { grid-template-columns: repeat(4, 1fr); }
+    .proc-mom { margin-top: 8px; font-size: 13px; font-weight: 600; }
+    .proc-mom.up { color: var(--red); }
+    .proc-mom.down { color: var(--green); }
+    .proc-mom.flat { color: #6b7280; font-weight: 500; }
+    .stat-card.alert-red { border-top-color: var(--red); }
+    .stat-card.alert-red .value { color: var(--red); }
+    .stat-card.alert-green { border-top-color: var(--green); }
+    .stat-card.alert-green .value { color: var(--green); }
+    .proc-block { margin-top: 16px; }
+    .proc-alert-sub { font-size: 12px; color: #9ca3af; }
+    /* 预警行配色：danger 深红底 + 闪烁边光动画；warning 橙黄底 */
+    @keyframes procDangerBlink {
+      0%, 100% { box-shadow: inset 3px 0 0 0 var(--red); background: rgba(239,68,68,.10); }
+      50% { box-shadow: inset 3px 0 0 0 rgba(239,68,68,.4); background: rgba(239,68,68,.20); }
+    }
+    tr.alert-danger td {
+      background: rgba(239,68,68,.10);
+      animation: procDangerBlink 1.6s ease-in-out infinite;
+    }
+    tr.alert-danger td:first-child { border-left: 3px solid var(--red); }
+    tr.alert-warning td { background: rgba(245,158,11,.12); }
+    tr.alert-warning td:first-child { border-left: 3px solid #f59e0b; }
+    tr.alert-suggestion td {
+      background: #fafafa;
+      font-size: 12px;
+      color: #8a6d3b;
+      padding-top: 8px; padding-bottom: 8px;
+      white-space: normal;
+    }
+    .proc-ok-banner {
+      padding: 22px 20px; text-align: center;
+      color: var(--green); font-size: 14px; font-weight: 600;
+    }
+    .proc-ok-banner small { display: block; margin-top: 4px; color: #9ca3af; font-weight: 400; }
+    .proc-chart-box { padding: 18px 20px 8px; height: 340px; position: relative; }
+    .proc-chart-box canvas { width: 100% !important; height: 100% !important; }
+    .proc-chart-fallback { padding: 40px 20px; text-align: center; color: #9ca3af; font-size: 13px; }
+    .proc-trend-stats {
+      display: flex; flex-wrap: wrap; gap: 8px 26px;
+      padding: 12px 20px 18px;
+      font-size: 13px; color: #4b5563;
+    }
+    .proc-trend-stats b { color: #1f2937; }
+    .proc-pie-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding: 18px 20px; }
+    .proc-pie-title { font-size: 14px; font-weight: 600; margin-bottom: 10px; text-align: center; }
+    .proc-pie-box { height: 240px; position: relative; }
+    .proc-pie-legend {
+      margin-top: 12px; font-size: 12.5px; color: #4b5563;
+      display: flex; flex-direction: column; gap: 4px;
+      max-height: 150px; overflow-y: auto;
+    }
+    .proc-pie-legend .pl-row { display: flex; justify-content: space-between; gap: 8px; }
+    .proc-pie-legend .pl-dot {
+      display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+      margin-right: 6px; vertical-align: middle;
+    }
+    .price-up { color: var(--red); font-weight: 700; }
+    .price-down { color: var(--green); font-weight: 700; }
+    .proc-link { color: var(--blue); cursor: pointer; text-decoration: underline; word-break: break-all; }
+    @keyframes procFlashBg {
+      0%, 100% { background: rgba(255,107,53,.16); }
+      50% { background: rgba(255,107,53,.05); }
+    }
+    tr.proc-flash-row td { animation: procFlashBg 1s ease-in-out 3; }
+    .pcard.proc-flash-row { animation: procFlashBg 1s ease-in-out 3; }
+
+    @media (max-width: 768px) {
+      .proc-stat-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+      .proc-stat-grid .stat-card { padding: 18px 16px; }
+      .proc-stat-grid .stat-card .value { font-size: 28px; }
+      .proc-chart-box { height: 240px; padding: 12px 12px 6px; }
+      .proc-pie-grid { grid-template-columns: 1fr; padding: 14px; gap: 14px; }
+      .proc-pie-box { height: 200px; }
+      .proc-trend-stats { gap: 6px 16px; padding: 10px 14px 14px; font-size: 12px; }
+    }
+
     /* ============ 顾客积分 ============ */
     .locked-mask {
       position: relative;
@@ -2022,6 +2100,7 @@
         <div class="nav-item" data-tab="coin"><span class="icon">🪙</span> 鼎恒币中心</div>
         <div class="nav-item" data-tab="mall"><span class="icon">🛒</span> 采购商城</div>
         <div class="nav-item" data-tab="purchase"><span class="icon">📑</span> 采购订单</div>
+        <div class="nav-item" data-tab="procurement"><span class="icon">📈</span> 采购监控</div>
         <div class="nav-item" data-tab="points"><span class="icon">⭐</span> 顾客积分</div>
         <div class="nav-item" data-tab="marketing"><span class="icon">🎯</span> 营销活动</div>
         <div class="nav-divider"></div>
@@ -2314,7 +2393,7 @@
           <div class="vplan-card basic" id="vplanBasic">
             <div class="vplan-name">基础版</div>
             <div class="vplan-price">¥59<small>/月</small></div>
-            <div class="vplan-tagline">注册即送 30 天体验，或 2000 鼎恒币/月</div>
+            <div class="vplan-tagline">注册即送 30 天体验，到期后仍保留扫码点餐至采购商城功能可供终身免费使用</div>
             <ul class="vplan-features">
               <li>扫码点餐</li>
               <li>菜单管理</li>
@@ -2577,13 +2656,13 @@
         <!-- 本月鼎恒币激励卡：本月采购已得币 -->
         <div class="mall-progress" id="mallProgress" style="display:none;">
           <div class="mp-earned">本月采购已得 <b id="mpEarned">0</b> 鼎恒币</div>
-          <div class="mp-foot">鼎恒币可兑采购抵用券、兑会员月卡，采购越多得币越多</div>
+          <div class="mp-foot"><span id="mpRate"></span>鼎恒币可兑采购抵用券、兑会员月卡，采购越多得币越多</div>
         </div>
 
         <!-- 空状态引导：从未采购过的商家（可关闭，localStorage 记忆） -->
         <div class="guide-card" id="mallGuide" style="display:none;">
           <span class="guide-icon">💡</span>
-          <span class="guide-text">在这里进货，每花 1 元都得鼎恒币，币能换采购券、换会员</span>
+          <span class="guide-text">在这里进货，每笔消费都可获得鼎恒币，币能换采购券、换会员</span>
           <button class="guide-close" id="mallGuideClose" type="button">知道了</button>
         </div>
 
@@ -2741,6 +2820,100 @@
           </div>
           <!-- 手机端卡片式订单列表（<768px 显示，替代表格，避免横向滑动） -->
           <div class="purchase-card-list" id="purchaseCardList"></div>
+        </div>
+      </section>
+
+      <!-- 8.5 采购监控（防回扣：历史查询 + 价格曲线 + 异常提醒） -->
+      <section class="pane" id="pane-procurement">
+        <div class="pane-title"><span>📈 采购监控</span></div>
+
+        <!-- 权限锁：无有效会员状态时显示（防御性，正常会员等级均可使用） -->
+        <div id="procurementLocked" class="locked-mask" style="display:none;">
+          <div class="locked-content">
+            <div class="locked-icon">🔒</div>
+            <h3>开通会员解锁采购监控</h3>
+            <p>采购监控帮你随时掌握后厨采购真实价格，防止采购员与供应商串通吃回扣。开通/续费会员后立即开放。</p>
+            <button class="btn-add" onclick="goUpgrade('basic')">去开通/续费会员</button>
+          </div>
+        </div>
+
+        <div id="procurementPanel" style="display:none;">
+          <!-- 空状态引导：从未完成过采购 -->
+          <div class="card" id="procurementEmpty" style="display:none;">
+            <div class="empty">
+              <div style="font-size:42px;margin-bottom:12px;">🗂️</div>
+              <div>完成首单采购后，此处将生成价格监控报表</div>
+              <button class="btn-add" style="margin-top:14px;" onclick="switchTab('mall')">去采购商城进货</button>
+            </div>
+          </div>
+
+          <div id="procurementBody">
+            <!-- 区块1：顶部统计卡（4张） -->
+            <div class="stat-grid proc-stat-grid">
+              <div class="stat-card orange">
+                <div class="label">本月采购额</div>
+                <div class="value">¥<span id="procTotalAmount">0</span></div>
+                <div class="proc-mom flat" id="procMom">—</div>
+              </div>
+              <div class="stat-card">
+                <div class="label">采购订单数</div>
+                <div class="value"><span id="procOrderCount">0</span><small> 单</small></div>
+              </div>
+              <div class="stat-card green">
+                <div class="label">合作供应商</div>
+                <div class="value"><span id="procSupplierCount">0</span><small> 家</small></div>
+              </div>
+              <div class="stat-card alert-green" id="procAlertCard">
+                <div class="label">异常预警</div>
+                <div class="value"><span id="procAlertCount">0</span><small> 次</small></div>
+              </div>
+            </div>
+
+            <!-- 区块2：价格异常预警列表 -->
+            <div class="card proc-block" id="procAlertBlock">
+              <div class="card-head">
+                <h3>🚨 价格异常预警</h3>
+                <span class="proc-alert-sub" id="procAlertSub">最新采购价高于历史均价 20% 即预警</span>
+              </div>
+              <div id="procAlertWrap"></div>
+            </div>
+
+            <!-- 区块3：价格趋势总览（折线图） -->
+            <div class="card proc-block">
+              <div class="card-head">
+                <h3>📉 价格趋势总览（近 90 天）</h3>
+                <select class="form-select" id="procProductSelect" style="max-width:280px;"></select>
+              </div>
+              <div class="proc-chart-box" id="procTrendBox"><canvas id="procTrendCanvas"></canvas></div>
+              <div class="proc-trend-stats" id="procTrendStats"></div>
+            </div>
+
+            <!-- 区块4：采购结构分析（双饼图） -->
+            <div class="card proc-block">
+              <div class="card-head"><h3>🧮 采购结构分析（本月）</h3></div>
+              <div class="proc-pie-grid">
+                <div class="proc-pie-cell">
+                  <div class="proc-pie-title">品类占比</div>
+                  <div class="proc-pie-box"><canvas id="procCatCanvas"></canvas></div>
+                  <div class="proc-pie-legend" id="procCatLegend"></div>
+                </div>
+                <div class="proc-pie-cell">
+                  <div class="proc-pie-title">供应商占比</div>
+                  <div class="proc-pie-box"><canvas id="procSupCanvas"></canvas></div>
+                  <div class="proc-pie-legend" id="procSupLegend"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 区块5：历史采购明细查询 -->
+            <div class="card proc-block">
+              <div class="card-head">
+                <h3>🔍 历史采购明细</h3>
+                <input type="text" class="form-input" id="procHistorySearch" placeholder="输入商品名模糊查询…" autocomplete="off" style="max-width:240px;">
+              </div>
+              <div class="table-wrap" id="procHistoryWrap"></div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -3190,6 +3363,8 @@
     });
   })();
 </script>
+<!-- Chart.js：采购监控价格折线图 / 采购结构饼图 -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="/js/admin.js"></script>
 </body>
 </html>
