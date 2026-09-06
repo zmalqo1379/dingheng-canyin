@@ -118,6 +118,15 @@ const supplierSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  // 协议签署证据存档（电子签名法律效力依据，见《电子签名法》第13/14条）：
+  // 记录签署时间、来源IP、设备信息、协议版本号、协议文本哈希，作为签署事实的证明材料
+  agreementEvidence: {
+    confirmedAt: { type: Date, default: null },
+    ip: { type: String, default: '' },
+    ua: { type: String, default: '' },
+    version: { type: String, default: '' },
+    textHash: { type: String, default: '' }
+  },
   // 是否已开通接单权限（开发者后台"确认开通接单"开关；agreementSigned && orderEnabled 才可在采购商城上架/接单）
   orderEnabled: {
     type: Boolean,
@@ -143,7 +152,15 @@ const supplierSchema = new mongoose.Schema({
     goods: { type: String, default: '' },           // 货品照 URL
     submittedAt: { type: Date, default: null },     // 最近一次提交时间
     reviewedAt: { type: Date, default: null },      // 平台核验时间
-    rejectReason: { type: String, default: '', trim: true } // 核验驳回原因（供应商端可见）
+    rejectReason: { type: String, default: '', trim: true }, // 核验驳回原因（供应商端可见）
+    // 本次提交资质前的协议确认证据（每次提交/重新提交均记录一份，作为电子签署存档）
+    agreementEvidence: {
+      confirmedAt: { type: Date, default: null },
+      ip: { type: String, default: '' },
+      ua: { type: String, default: '' },
+      version: { type: String, default: '' },
+      textHash: { type: String, default: '' }
+    }
   },
   // ============ 新手接单引导（三步走）进度标记 ============
   // 是否已保存过新订单提醒设置（点"保存设置"即完成第二步）

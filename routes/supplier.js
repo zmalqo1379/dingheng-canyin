@@ -12,6 +12,16 @@ const { requireSupplier } = require('../middlewares/auth');
 // 所有供应商接口均需供应商身份鉴权
 router.use(requireSupplier);
 
+// 《供应商入驻合作协议》当前版本号（与前端 supplier-dashboard.html AGM_VERSION 保持一致；
+// 协议文本修改时必须同步升版，签署证据按版本存档以便追溯）
+const AGREEMENT_VERSION = 'DH-GYS-2026-V1';
+
+// 提取签署来源 IP（兼容反向代理 x-forwarded-for）
+function clientIp(req) {
+  const fwd = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  return fwd || req.ip || '';
+}
+
 // ============ GET /api/supplier/profile 供应商档案与治理状态 ============
 // 返回：基本信息（名称/联系人/手机/品类/起送价）+ 治理字段（status/agreementSigned/orderEnabled/审核/拒绝/冻结信息）
 //       + 资质核验字段（qualification）+ 平台甲方全称（协议页用）
@@ -94,6 +104,10 @@ router.post('/qualification/submit', async (req, res) => {
       return res.status(400).json({ success: false, message: '店铺已开通接单，无需重复提交资质' });
     }
     const body = req.body || {};
+    // 电子签署强制校验：提交资质前必须完成协议阅读并点击「同意并继续」（agree 动作即电子签署行为）
+    if (body.agreementConfirmed !== true) {
+      return res.status(403).json({ success: false, message: '请先阅读并同意《供应商入驻合作协议》后再提交资质' });
+    }
     const photos = {};
     for (const f of QUALIFICATION_FIELDS) {
       const url = String(body[f] || '').trim();
@@ -111,7 +125,15 @@ router.post('/qualification/submit', async (req, res) => {
       'qualification.status': 'pending',
       'qualification.submittedAt': new Date(),
       'qualification.reviewedAt': null,
-      'qualification.rejectReason': ''
+      'qualification.rejectReason': '',
+      // 电子签署证据存档：签署时间/来源IP/设备信息/协议版本/协议文本哈希（法律效力依据见协议第八章）
+      'qualification.agreementEvidence': {
+        confirmedAt: new Date(),
+        ip: clientIp(req),
+        ua: String(req.headers['user-agent'] || ''),
+        version: String(body.agreementVersion || AGREEMENT_VERSION),
+        textHash: typeof body.agreementTextHash === 'string' ? body.agreementTextHash.slice(0, 128) : ''
+      }
     });
     await Supplier.updateOne({ _id: supplier._id }, { $set: update });
 
@@ -141,12 +163,21 @@ router.post('/agreement/sign', async (req, res) => {
       return res.json({ success: true, message: '协议已签署，无需重复签署', data: { agreementSigned: true, agreementSignedAt: supplier.agreementSignedAt } });
     }
     // 请求体需携带 agree=true（前端勾选"我已阅读并同意协议"）
-    const agree = req.body && req.body.agree === true;
+    const body = req.body || {};
+    const agree = body.agree === true;
     if (!agree) {
       return res.status(400).json({ success: false, message: '请先勾选"我已阅读并同意协议"' });
     }
     supplier.agreementSigned = true;
     supplier.agreementSignedAt = new Date();
+    // 电子签署证据存档（可靠电子签名，与手写签名/盖章具有同等法律效力，见协议第八章）
+    supplier.agreementEvidence = {
+      confirmedAt: supplier.agreementSignedAt,
+      ip: clientIp(req),
+      ua: String(req.headers['user-agent'] || ''),
+      version: String(body.agreementVersion || AGREEMENT_VERSION),
+      textHash: typeof body.agreementTextHash === 'string' ? body.agreementTextHash.slice(0, 128) : ''
+    };
     await supplier.save();
     res.json({
       success: true,
