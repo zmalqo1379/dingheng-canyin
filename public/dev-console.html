@@ -1565,6 +1565,30 @@
         ${p.status === 'rejected' && p.rejectReason ? `<p style="font-size:12.5px;color:#b91c1c;margin-top:8px;">入驻拒绝原因：${esc(p.rejectReason)}</p>` : ''}
         ${qual.status === 'rejected' && qual.rejectReason ? `<p style="font-size:12.5px;color:#b91c1c;margin-top:8px;">资质驳回原因：${esc(qual.rejectReason)}</p>` : ''}
 
+        <div class="sub-title" style="margin-top:18px;">返点结算模式</div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--line,#e5e7eb);border-radius:8px;background:#f9fafb;">
+          <div style="font-size:13px;color:#374151;">当前模式：
+            <b style="color:${p.rebateMode === 'byCategory' ? '#7c3aed' : '#059669'};">${p.rebateMode === 'byCategory' ? '按品类分类阶梯（低/中/高毛利三档）' : '统一全品类阶梯（默认）'}</b>
+          </div>
+          <button class="btn btn-sm" id="sdToggleRebateMode" style="margin-left:auto;">
+            ${p.rebateMode === 'byCategory' ? '切换为「统一阶梯」' : '切换为「分类阶梯」'}
+          </button>
+        </div>
+        ${(p.rebateModeLogs && p.rebateModeLogs.length) ? `
+        <div class="table-wrap" style="margin-top:10px;">
+          <table class="dtable" style="min-width:520px;">
+            <thead><tr><th>切换时间</th><th>操作人</th><th>原模式</th><th>新模式</th></tr></thead>
+            <tbody>
+              ${p.rebateModeLogs.slice().reverse().map(l => `<tr>
+                <td data-label="切换时间" class="mono">${fmtTime(l.at)}</td>
+                <td data-label="操作人">${esc(l.by || '—')}</td>
+                <td data-label="原模式">${l.from === 'byCategory' ? '分类阶梯' : '统一阶梯'}</td>
+                <td data-label="新模式"><b>${l.to === 'byCategory' ? '分类阶梯' : '统一阶梯'}</b></td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>` : '<p style="font-size:12px;color:#9ca3af;margin:8px 2px 0;">暂无切换记录（入驻后默认统一阶梯）</p>'}
+
         <div class="sub-title" style="margin-top:18px;">资质照片（点击图片可放大查看）</div>
         <div class="qual-photo-grid">${qualPhotosHtml}</div>
         ${qualActionBar}
@@ -1656,6 +1680,33 @@
         } else {
           alert(r.message || '操作失败');
           rejectBtn.disabled = false;
+        }
+      };
+      // 返点模式切换（需供应商同意；切换次月结算起生效，操作记入审计日志）
+      const modeBtn = $('sdToggleRebateMode');
+      if (modeBtn) modeBtn.onclick = async () => {
+        const curMode = p.rebateMode === 'byCategory' ? 'byCategory' : 'unified';
+        const target = curMode === 'unified' ? 'byCategory' : 'unified';
+        const targetText = target === 'byCategory'
+          ? '按品类分类阶梯（蔬菜/肉类等低毛利 0.5% 起，调料等中毛利 1% 起，酒水等高毛利 2% 起）'
+          : '统一全品类阶梯（全品类合并额定档，1% 起，最高 5%）';
+        if (!confirm(
+          `确认切换供应商「${p.name}」的返点模式？\n\n` +
+          `当前：${curMode === 'unified' ? '统一全品类阶梯' : '按品类分类阶梯'}\n` +
+          `切换为：${targetText}\n\n` +
+          `请确认已征得供应商同意。切换自次月结算起生效，操作将记录日志（操作人/时间/前后模式）。`
+        )) return;
+        modeBtn.disabled = true;
+        const r = await api(`/api/dev/suppliers/${_sdCurrentId}/rebate-mode`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode: target })
+        });
+        if (r.success) {
+          alert(r.message || '切换成功');
+          openSupplierDetail(_sdCurrentId); // 刷新详情（模式与日志）
+        } else {
+          alert(r.message || '切换失败');
+          modeBtn.disabled = false;
         }
       };
     }
@@ -1757,6 +1808,12 @@
         const statusBadge = s.settled
           ? `<span class="badge s-done">已结算 ${esc(month)}</span>`
           : `<span class="badge s-confirmed">预估中</span>`;
+        // 返点模式：unified=统一全品类阶梯（整单额定档）；byCategory=分类阶梯（低/中/高毛利分别定档）
+        const isByCat = s.rebateMode === 'byCategory';
+        const modeBadge = isByCat
+          ? '<span class="badge" style="background:#f3e8ff;color:#7c3aed;">分类阶梯（低/中/高毛利）</span>'
+          : '<span class="badge" style="background:#dcfce7;color:#059669;">统一阶梯</span>';
+        const MARGIN_TEXT = { lowMargin: '低毛利', midMargin: '中毛利', highMargin: '高毛利', unified: '' };
         const rows = (s.categories || []).map(c => {
           // 当前档位描述
           let tierHtml = '';
@@ -1777,9 +1834,11 @@
           } else if (!c.hasRule || c.tierIndex === -1 || c.tierIndex === null) {
             gapHtml = '—';
           }
+          const marginTag = (isByCat && MARGIN_TEXT[c.marginType])
+            ? `<span class="tag" style="background:#f5f3ff;color:#6d28d9;">${MARGIN_TEXT[c.marginType]}</span> ` : '';
           return `
             <tr>
-              <td data-label="品类"><span class="tag">${esc(c.category)}</span></td>
+              <td data-label="品类">${marginTag}<span class="tag">${esc(c.category)}</span></td>
               <td data-label="当月采购额">${fmtMoney(c.purchaseAmount)}</td>
               <td data-label="当前档位">${tierHtml}</td>
               <td data-label="${s.settled ? '实际返点' : '预估返点'}" class="money-red">+${fmtMoney(c.rebateAmount)}</td>
@@ -1792,6 +1851,7 @@
             <div class="rebate-card-head">
               🚚 ${esc(s.supplierName || '未知供应商')}
               ${statusBadge}
+              ${modeBadge}
               <span class="sum">采购总额 <b>${fmtMoney(s.totalPurchase)}</b> ｜ ${s.settled ? '实际返点' : '预估返点'} <b>${fmtMoney(s.totalRebate)}</b></span>
             </div>
             <table>
@@ -1820,8 +1880,17 @@
         return;
       }
       tbody.innerHTML = res.data.map(d => {
-        const detailText = (d.details || []).map(x =>
-          `<span class="tag">${esc(x.category)} ${fmtMoney(x.rebateAmount)}</span>`).join('') || '—';
+        // 分类模式明细按毛利档着色标注（低/中/高毛利）；统一模式为一条「全部」
+        const MT = { lowMargin: ['低毛利', '#f5f3ff', '#6d28d9'], midMargin: ['中毛利', '#fef3c7', '#b45309'], highMargin: ['高毛利', '#dcfce7', '#047857'] };
+        const isByCat = d.rebateMode === 'byCategory';
+        const detailText = (d.details || []).map(x => {
+          const mt = isByCat && MT[x.marginType];
+          const mtTag = mt ? `<span style="display:inline-block;font-size:11px;padding:0 5px;border-radius:4px;margin-right:4px;background:${mt[1]};color:${mt[2]};">${mt[0]}</span>` : '';
+          return `<span class="tag">${mtTag}${esc(x.category)} ${fmtMoney(x.rebateAmount)}</span>`;
+        }).join('') || '—';
+        const modeTag = isByCat
+          ? ' <span style="font-size:11px;color:#7c3aed;">分类阶梯</span>'
+          : ' <span style="font-size:11px;color:#059669;">统一阶梯</span>';
         // 结算状态标签
         const statusClass = d.status === '已收款' ? 's-done' : (d.status === '已确认' ? 's-confirmed' : 's-pending');
         let statusHtml = `<span class="badge ${statusClass}">${esc(d.status)}</span>`;
@@ -1837,7 +1906,7 @@
         return `
           <tr>
             <td data-label="结算月份"><b>${esc(d.month)}</b></td>
-            <td data-label="供应商">${esc(d.supplierName || '—')}</td>
+            <td data-label="供应商">${esc(d.supplierName || '—')}${modeTag}</td>
             <td data-label="当月采购总额">${fmtMoney(d.totalPurchaseAmount)}</td>
             <td data-label="实际返点合计" class="money-red">+${fmtMoney(d.totalRebateAmount)}</td>
             <td data-label="分品类明细" style="white-space:normal;max-width:280px;">${detailText}</td>

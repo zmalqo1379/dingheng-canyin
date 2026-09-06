@@ -192,7 +192,8 @@ async function loadData() {
     dishes = (dishRes && dishRes.data) ? dishRes.data : [];
     dishMap = {};
     dishes.forEach(d => { dishMap[d._id] = d; });
-    // 顾客积分配置（进阶版权益，未开通时 enabled=false 隐藏所有积分入口）
+    // 顾客积分配置（基础版及以上会员权益；未开通/会员过期时后端返回 enabled=false，
+    // 前端据此隐藏"可得X积分"小字、积分抵现选项、积分换菜入口等所有积分信息）
     if (pointRes && pointRes.success && pointRes.data) {
       pointCfg = Object.assign(pointCfg, pointRes.data);
     }

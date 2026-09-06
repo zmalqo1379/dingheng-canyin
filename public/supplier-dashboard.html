@@ -1227,16 +1227,18 @@
           <button class="btn btn-primary" id="settleQueryBtn">查询</button>
         </div>
 
-        <!-- 《平台合作规则》公示区块：展示平台默认阶梯返点表 -->
+        <!-- 《平台合作规则》公示区块：展示平台默认阶梯返点表（统一阶梯 / 分类阶梯三档） -->
         <div class="platform-rules">
-          <h4>📜 平台合作规则 · 默认阶梯返点</h4>
-          <table class="ladder-table" id="platformLadderTable">
-            <thead>
-              <tr><th>月累计采购额</th><th>返点率</th><th>累进方式</th></tr>
-            </thead>
-            <tbody><tr><td colspan="3" class="no-data">加载中...</td></tr></tbody>
-          </table>
-          <div class="ladder-note">返点按平台公示阶梯执行，每月 1 号自动结算。无专属返点规则的供应商一律按此阶梯计算。</div>
+          <h4 id="platformRulesTitle">📜 平台合作规则 · 默认阶梯返点</h4>
+          <div id="platformLadderBox">
+            <table class="ladder-table">
+              <thead>
+                <tr><th>月累计采购额</th><th>返点率</th><th>累进方式</th></tr>
+              </thead>
+              <tbody><tr><td colspan="3" class="no-data">加载中...</td></tr></tbody>
+            </table>
+          </div>
+          <div class="ladder-note" id="platformRulesNote">返点按平台公示阶梯执行，每月 1 号自动结算。无专属返点规则的供应商一律按此阶梯计算。</div>
         </div>
 
         <!-- 经营月报 hero：本月累计订单金额是主角，服务费只是其中一行 -->
@@ -1837,27 +1839,56 @@
       return `¥${min.toLocaleString()} 以上`;
     }
 
-    function renderPlatformLadder(defaultLadder, currentTier, totalPurchase) {
-      const tbody = $('platformLadderTable');
-      if (!Array.isArray(defaultLadder) || !defaultLadder.length) {
-        tbody.innerHTML = '<tr><td colspan="3" class="no-data">暂无默认阶梯</td></tr>';
-        return;
+    // 渲染《平台合作规则》公示阶梯：
+    //  unified    → 一张统一全品类阶梯表（整月累计额定档，命中档高亮）
+    //  byCategory → 三张表：低毛利（蔬菜/肉类/冻品/粮油/海鲜等）/ 中毛利（调料/纸品等）/ 高毛利（酒水/饮料等）
+    function renderPlatformLadder(d) {
+      const box = $('platformLadderBox');
+      const titleEl = $('platformRulesTitle');
+      const noteEl = $('platformRulesNote');
+      if (!box) return;
+
+      const ladderTableHtml = (ladder, amount, highlight) => {
+        if (!Array.isArray(ladder) || !ladder.length) return '<p class="no-data">暂无阶梯</p>';
+        // 命中档判定（与后端 calcRebate 一致：minAmount <= amount 的最高一档）
+        let hitIdx = -1;
+        for (let i = 0; i < ladder.length; i++) {
+          if ((Number(amount) || 0) >= Number(ladder[i].minAmount)) hitIdx = i;
+        }
+        const rows = ladder.map((t, i) => {
+          const isCur = highlight && i === hitIdx;
+          const modeTxt = t.mode === 'marginal' ? '超额累进' : '全额累进';
+          return `<tr${isCur ? ' class="tier-cur"' : ''}>
+            <td>${tierRangeText(t, i, ladder)}</td>
+            <td>${(Number(t.rate) * 100).toFixed(1)}%${isCur ? ' ← 当前档' : ''}</td>
+            <td>${modeTxt}</td>
+          </tr>`;
+        }).join('');
+        return `<table class="ladder-table"><thead>
+          <tr><th>月累计采购额</th><th>返点率</th><th>累进方式</th></tr></thead><tbody>${rows}</tbody></table>`;
+      };
+
+      if (d.rebateMode === 'byCategory' && d.categoryLadders) {
+        titleEl.textContent = '📜 平台合作规则 · 分类阶梯返点（按品类毛利三档）';
+        noteEl.textContent = '返点按品类毛利分类阶梯执行：各品类按当月同品类累计采购额分别定档，每月 1 号自动结算。未列入分类的品类按低毛利档保守执行。';
+        const groups = [
+          { key: 'lowMargin', name: '低毛利品类', desc: '蔬菜、肉类、冻品、粮油、海鲜、生鲜、豆制品（净利约 1%-3%）', ladders: d.categoryLadders.lowMargin, cats: (d.categories || []).filter(c => c.marginType === 'lowMargin') },
+          { key: 'midMargin', name: '中毛利品类', desc: '调料、一次性用品、餐厨用品、餐具、纸品、清洁用品（净利约 3%-5%）', ladders: d.categoryLadders.midMargin, cats: (d.categories || []).filter(c => c.marginType === 'midMargin') },
+          { key: 'highMargin', name: '高毛利品类', desc: '酒水、饮料、啤酒、白酒、红酒、特色干货、休闲食品、零食、罐头（净利约 10%-25%）', ladders: d.categoryLadders.highMargin, cats: (d.categories || []).filter(c => c.marginType === 'highMargin') }
+        ];
+        box.innerHTML = groups.map(g => {
+          const amt = g.cats.reduce((s, c) => s + (Number(c.purchaseAmount) || 0), 0);
+          return `<div style="margin-bottom:14px;">
+            <div style="font-size:13px;font-weight:700;color:#7c3aed;margin:6px 0 2px;">${g.name}</div>
+            <div style="font-size:12px;color:#6b7280;margin-bottom:6px;">${g.desc}</div>
+            ${ladderTableHtml(g.ladders, amt, true)}
+          </div>`;
+        }).join('');
+      } else {
+        titleEl.textContent = '📜 平台合作规则 · 统一阶梯返点（全品类）';
+        noteEl.textContent = '返点按平台公示统一阶梯执行（全品类合并月累计额定档），每月 1 号自动结算。无专属返点规则的供应商一律按此阶梯计算。';
+        box.innerHTML = ladderTableHtml(d.defaultLadder, d.totalPurchase, true);
       }
-      // 命中档判定（与后端 calcRebate 一致：minAmount <= amount 的最高一档）
-      const amount = Number(totalPurchase) || 0;
-      let hitIdx = -1;
-      for (let i = 0; i < defaultLadder.length; i++) {
-        if (amount >= Number(defaultLadder[i].minAmount)) hitIdx = i;
-      }
-      tbody.innerHTML = defaultLadder.map((t, i) => {
-        const isCur = i === hitIdx;
-        const modeText = t.mode === 'marginal' ? '超额累进' : '全额累进';
-        return `<tr${isCur ? ' class="tier-cur"' : ''}>
-          <td>${tierRangeText(t, i, defaultLadder)}</td>
-          <td>${(Number(t.rate) * 100).toFixed(0)}%${isCur ? ' ← 当前' : ''}</td>
-          <td>${modeText}</td>
-        </tr>`;
-      }).join('');
     }
 
     // 状态 → 样式类名映射
@@ -2257,8 +2288,8 @@
       $('settleTotalPurchase').textContent = Number(d.totalPurchase || 0).toFixed(2);
       $('settleTotalRebate').textContent = Number(d.totalRebate || 0).toFixed(2);
 
-      // 《平台合作规则》阶梯表（公示 + 命中档高亮）
-      renderPlatformLadder(d.defaultLadder, d.currentTier, d.totalPurchase);
+      // 《平台合作规则》阶梯表（统一阶梯一张表 / 分类阶梯低中高三张表，命中档高亮）
+      renderPlatformLadder(d);
 
       // 较上月增长（上月同口径实时数据；上月无采购则不展示）
       const growthLine = $('settleGrowthLine');
@@ -2289,7 +2320,16 @@
       // 当前档位 / 返点率 + 档位进度条（读取平台配置的 RebateRule，实时定档）
       const t = d.currentTier || {};
       let tierText;
-      if (t.mode === 'default') {
+      if (d.rebateMode === 'byCategory') {
+        // 分类阶梯：各品类按同品类月累计额分别定档，hero 不显示单一档位
+        tierText = '分类阶梯 · 低/中/高毛利品类分别定档';
+        $('settleTier').textContent = tierText;
+        $('tierBarFill').style.width = '100%';
+        $('tierLegend').innerHTML =
+          '<span class="lg">低毛利 0.5% 起</span><span class="lg">中毛利 1% 起</span><span class="lg">高毛利 2% 起</span>' +
+          '<span class="lg">各品类当月累计额分别定档，详见下方明细表</span>';
+        $('settleTierGap').textContent = '';
+      } else if (t.mode === 'default') {
         // 默认阶梯：tiers 已填充，命中档展示
         if (t.tierMinAmount != null) {
           tierText = `平台默认阶梯 · 满 ¥${Number(t.tierMinAmount).toLocaleString()} 档 · ${pct(t.tierRate)}`;
@@ -2303,29 +2343,32 @@
       }
       $('settleTier').textContent = tierText;
 
-      const tiers = Array.isArray(t.tiers) ? t.tiers : [];
-      if (!tiers.length) {
-        $('tierBarFill').style.width = '100%';
-        $('tierLegend').innerHTML = '<span class="lg">该品类按平台默认兜底比例执行</span>';
-        $('settleTierGap').textContent = '';
-      } else {
-        const maxMin = Number(tiers[tiers.length - 1].minAmount || 0);
-        const curVal = Number(d.totalPurchase || 0);
-        const width = maxMin > 0 ? Math.min(100, curVal / maxMin * 100) : 0;
-        $('tierBarFill').style.width = width.toFixed(1) + '%';
-        const prefix = t.mode === 'default' ? '平台默认阶梯 · ' : '';
-        $('tierLegend').innerHTML = tiers.map(x =>
-          `<span class="lg">${prefix}满 ¥${Number(x.minAmount).toLocaleString()} → ${pct(x.rate)}</span>`).join('');
-        if (t.gapToNext != null && Number(t.gapToNext) > 0) {
-          $('settleTierGap').textContent = `距离下一档（满 ¥${Number(t.nextTierMinAmount).toLocaleString()}）还差 ¥${Number(t.gapToNext).toLocaleString()}`;
-        } else if (curVal >= maxMin && maxMin > 0) {
-          $('settleTierGap').textContent = '已达最高档';
-        } else {
+      if (d.rebateMode !== 'byCategory') {
+        const tiers = Array.isArray(t.tiers) ? t.tiers : [];
+        if (!tiers.length) {
+          $('tierBarFill').style.width = '100%';
+          $('tierLegend').innerHTML = '<span class="lg">该品类按平台默认兜底比例执行</span>';
           $('settleTierGap').textContent = '';
+        } else {
+          const maxMin = Number(tiers[tiers.length - 1].minAmount || 0);
+          const curVal = Number(d.totalPurchase || 0);
+          const width = maxMin > 0 ? Math.min(100, curVal / maxMin * 100) : 0;
+          $('tierBarFill').style.width = width.toFixed(1) + '%';
+          const prefix = t.mode === 'default' ? '平台默认阶梯 · ' : '';
+          $('tierLegend').innerHTML = tiers.map(x =>
+            `<span class="lg">${prefix}满 ¥${Number(x.minAmount).toLocaleString()} → ${pct(x.rate)}</span>`).join('');
+          if (t.gapToNext != null && Number(t.gapToNext) > 0) {
+            $('settleTierGap').textContent = `距离下一档（满 ¥${Number(t.nextTierMinAmount).toLocaleString()}）还差 ¥${Number(t.gapToNext).toLocaleString()}`;
+          } else if (curVal >= maxMin && maxMin > 0) {
+            $('settleTierGap').textContent = '已达最高档';
+          } else {
+            $('settleTierGap').textContent = '';
+          }
         }
       }
 
-      // 分品类采购金额明细
+      // 分品类采购金额明细（分类模式按毛利档标注；统一模式为一条「全部」）
+      const MT_LABEL = { lowMargin: '低毛利', midMargin: '中毛利', highMargin: '高毛利' };
       const cats = d.categories || [];
       if (!cats.length) {
         $('settleCatTbody').innerHTML = `<tr><td colspan="6" class="no-data">「${esc(month)}」暂无已完成采购</td></tr>`;
@@ -2335,9 +2378,12 @@
             ? `满 ¥${Number(c.tierMinAmount).toLocaleString()}`
             : '未达首档';
           const rateCell = c.tierMinAmount != null ? pct(c.tierRate) : '0%';
+          const mtTag = (d.rebateMode === 'byCategory' && MT_LABEL[c.marginType])
+            ? `<span style="display:inline-block;font-size:11px;padding:1px 6px;border-radius:4px;background:#f5f3ff;color:#6d28d9;margin-right:6px;">${MT_LABEL[c.marginType]}</span>`
+            : '';
           return `
             <tr>
-              <td data-label="品类">${esc(c.category || '未分类')}</td>
+              <td data-label="品类">${mtTag}${esc(c.category || '未分类')}</td>
               <td data-label="当月采购额">${fmtMoney(c.purchaseAmount)}</td>
               <td data-label="当前档位">${tierCell}</td>
               <td data-label="返点率">${rateCell}</td>

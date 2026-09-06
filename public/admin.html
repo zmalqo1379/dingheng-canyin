@@ -2040,8 +2040,8 @@
       <section class="pane active" id="pane-dishes">
         <!-- 新手任务：开张四步曲（全部完成自动消失，可手动"不再显示"） -->
         <div class="ob-card" id="onboardCard" style="display:none;">
-          <!-- 金色欢迎语：仅首月赠送进阶版生效期间显示 -->
-          <div class="ob-gift" id="obGiftLine" style="display:none;">🎁 欢迎礼：首月进阶版会员（价值¥99）已免费开通，正在生效中！</div>
+          <!-- 金色欢迎语：仅注册赠送的 30 天基础版体验生效期间显示 -->
+          <div class="ob-gift" id="obGiftLine" style="display:none;">🎁 欢迎礼：首月基础版会员（价值¥59）已免费开通，正在生效中！</div>
           <div class="ob-head">
             <span class="ob-title">🎯 新手任务 · 开张四步曲</span>
             <span class="ob-count" id="obCount">0/4</span>
@@ -2311,10 +2311,10 @@
         <!-- 二、第一屏主角：三版本功能展示 -->
         <div class="vplans">
           <!-- 基础版 -->
-          <div class="vplan-card basic">
+          <div class="vplan-card basic" id="vplanBasic">
             <div class="vplan-name">基础版</div>
-            <div class="vplan-price">¥0 <small>永久免费</small></div>
-            <div class="vplan-tagline">注册即享，零成本起步</div>
+            <div class="vplan-price">¥59<small>/月</small></div>
+            <div class="vplan-tagline">注册即送 30 天体验，或 2000 鼎恒币/月</div>
             <ul class="vplan-features">
               <li>扫码点餐</li>
               <li>菜单管理</li>
@@ -2323,11 +2323,12 @@
               <li>后厨语音看单</li>
               <li>大屏展示</li>
               <li>采购商城</li>
+              <li>顾客积分系统</li>
               <li>鼎恒币（采购 2元=1币）</li>
               <li>可兑 10-30 元 采购抵用券</li>
             </ul>
-            <div class="vplan-footer-note">永久免费 · 注册即享，无需任何门槛</div>
-            <button class="vplan-btn ghost" disabled>已默认开通</button>
+            <div class="vplan-footer-note">新注册商家赠送 30 天基础版体验 · 到期后 ¥59/月 或 2000 鼎恒币/月</div>
+            <button class="vplan-btn ghost" onclick="exchangeMembership('basic')">2000 币兑换/续费</button>
           </div>
 
           <!-- 进阶版（热销） -->
@@ -2339,7 +2340,6 @@
             <ul class="vplan-features">
               <li class="vplan-feature-highlight">返币翻倍！1元=1币</li>
               <li class="vplan-feature-highlight">新增 50/100 元大额券</li>
-              <li>顾客积分系统</li>
               <li>经营报表</li>
               <li class="vplan-inherit-item">
                 <button type="button" class="vplan-inherit-toggle" onclick="toggleInherit(this)">基础版全部功能<span class="vi-arrow">▾</span></button>
@@ -2351,6 +2351,7 @@
                   <li>后厨语音看单</li>
                   <li>大屏展示</li>
                   <li>采购商城</li>
+                  <li>顾客积分系统</li>
                   <li>鼎恒币（采购 1元=1币）</li>
                   <li>可兑 10-100 元采购抵用券</li>
                 </ul>
@@ -2428,6 +2429,26 @@
           </div>
           <div class="ez-cards">
             <div class="ez-card">
+              <div class="ez-badge">🌱 入门首选</div>
+              <div class="ez-name">基础版月卡</div>
+              <div class="ez-price"><del>原价 ¥59/月</del></div>
+              <div class="ez-coin">鼎恒币兑换仅需</div>
+              <div class="ez-coin-num">2000<small> 币</small></div>
+              <div class="ez-tip">💡 注册即送 30 天基础版体验；到期后可用鼎恒币续费，采购 2元=1币，正常进货即可攒够</div>
+              <button class="ez-btn" id="ezBtnBasic" onclick="exchangeMembership('basic')">兑换基础版月卡</button>
+              <button type="button" class="ez-benefit-toggle" onclick="toggleEzBenefit(this)">权益详情<span class="ezb-arrow">▾</span></button>
+              <div class="ez-benefit-panel">
+                <ul class="ez-benefit-list">
+                  <li class="ezb-hot">顾客积分系统（积分抵现、积分换菜）</li>
+                  <li>扫码点餐、菜单管理、桌台管理、订单管理</li>
+                  <li>后厨语音看单、大屏展示、采购商城</li>
+                  <li>鼎恒币（采购 2元=1币）</li>
+                  <li>可兑 10/20/30 元采购抵用券</li>
+                </ul>
+                <div class="ez-benefit-gold">鼎恒币兑换与现金购买权益完全一致，一分不花，同等尊贵</div>
+              </div>
+            </div>
+            <div class="ez-card">
               <div class="ez-badge">🔥 热门推荐</div>
               <div class="ez-name">进阶版月卡</div>
               <div class="ez-price"><del>原价 ¥99/月</del></div>
@@ -2440,9 +2461,8 @@
                 <ul class="ez-benefit-list">
                   <li class="ezb-hot">返币翻倍！1元=1币</li>
                   <li class="ezb-hot">新增 50/100 元大额券</li>
-                  <li>顾客积分系统</li>
                   <li>经营报表</li>
-                  <li>基础版全部功能：扫码点餐、菜单管理、桌台管理、订单管理、后厨语音看单、大屏展示、采购商城、鼎恒币（采购 1元=1币）、可兑 10-100 元采购抵用券</li>
+                  <li>基础版全部功能：扫码点餐、菜单管理、桌台管理、订单管理、后厨语音看单、大屏展示、采购商城、顾客积分系统、鼎恒币（采购 1元=1币）、可兑 10-100 元采购抵用券</li>
                 </ul>
                 <div class="ez-benefit-gold">鼎恒币兑换与现金购买权益完全一致，一分不花，同等尊贵</div>
               </div>
@@ -2731,9 +2751,9 @@
         <div id="pointsLocked" class="locked-mask" style="display:none;">
           <div class="locked-content">
             <div class="locked-icon">🔒</div>
-            <h3>升级解锁顾客积分</h3>
-            <p>当前会员等级无法使用顾客积分功能，该功能可用于锁客引流，提升回头客。</p>
-            <button class="btn-add" onclick="goUpgrade('advanced')">去升级会员</button>
+            <h3>开通/续费会员后可用</h3>
+            <p>顾客积分功能基础版即可使用（积分抵现、积分换菜，锁客引流提升回头客）。当前会员未开通或已过期，开通/续费后立即开放设置。</p>
+            <button class="btn-add" onclick="goUpgrade('basic')">去开通/续费会员</button>
           </div>
         </div>
 

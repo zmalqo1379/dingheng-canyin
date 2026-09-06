@@ -300,10 +300,18 @@ router.get('/settle', async (req, res) => {
       data: {
         month,
         supplierId,
+        // 返点模式：unified=统一全品类阶梯 / byCategory=按品类分类阶梯
+        rebateMode: calc.rebateMode || 'unified',
         totalPurchase: calc.totalPurchase,       // 本月累计订单金额（已完成订单）
         totalRebate: calc.totalRebate,           // 本月合作服务费（按阶梯规则实时计算）
         orderCount: calc.orderCount,
-        categories: calc.categories,             // 分品类采购金额明细（含档位/费率）
+        categories: calc.categories,             // 采购明细（统一模式一条「全部」；分类模式分品类，含 marginType）
+        // 分类模式公示阶梯（低/中/高毛利三档）；统一模式为 null（前端用 defaultLadder）
+        categoryLadders: calc.rebateMode === 'byCategory' ? {
+          lowMargin: rebate.DEFAULT_TIERS_BY_CATEGORY.lowMargin.map(t => ({ minAmount: t.minAmount, rate: t.rate, mode: t.mode })),
+          midMargin: rebate.DEFAULT_TIERS_BY_CATEGORY.midMargin.map(t => ({ minAmount: t.minAmount, rate: t.rate, mode: t.mode })),
+          highMargin: rebate.DEFAULT_TIERS_BY_CATEGORY.highMargin.map(t => ({ minAmount: t.minAmount, rate: t.rate, mode: t.mode }))
+        } : null,
         currentTier: {                           // 当前所在返点档位、当前返点率
           hasRule: tierInfo.hasRule,
           tierMinAmount: tierInfo.tierMinAmount,
@@ -325,6 +333,7 @@ router.get('/settle', async (req, res) => {
         usingDefaultLadder: !tierInfo.hasRule,
         history: history.map(h => ({
           month: h.month,
+          rebateMode: h.rebateMode === 'byCategory' ? 'byCategory' : 'unified',
           totalPurchaseAmount: h.totalPurchaseAmount,
           totalRebateAmount: h.totalRebateAmount,
           settledAt: h.settledAt,
@@ -332,7 +341,8 @@ router.get('/settle', async (req, res) => {
           confirmedAt: h.confirmedAt || null,
           paidAt: h.paidAt || null,
           overdue: rebate.isSettlementOverdue(h),
-          details: h.details
+          // details 含 marginType（unified/lowMargin/midMargin/highMargin），历史数据默认 unified
+          details: (h.details || []).map(d => ({ ...d, marginType: d.marginType || 'unified' }))
         }))
       }
     });

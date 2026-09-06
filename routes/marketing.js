@@ -17,8 +17,8 @@ const TYPE_FEATURE = {
   rechargeBonus: 'marketingRecharge'         // 充值送：尊享版
 };
 
-// 获取或创建商家会员等级
-async function getMemberLevel(shopId) {
+// 获取或创建商家会员档案
+async function getMember(shopId) {
   let member = await Member.findOne({ shopId });
   if (!member) {
     try { member = await Member.create({ shopId }); }
@@ -27,13 +27,13 @@ async function getMemberLevel(shopId) {
       else throw e;
     }
   }
-  return member.memberLevel;
+  return member;
 }
 
-// 校验当前商家等级是否有权创建/编辑该类型活动
-function hasFeature(feature, level) {
+// 校验当前商家是否有权创建/编辑该类型活动（等级达标且会员在有效期内）
+function hasFeature(feature, member) {
   const allow = dhConfig.features[feature] || [];
-  return allow.includes(level);
+  return dhConfig.isMembershipActive(member) && allow.includes(member.memberLevel);
 }
 
 // 活动标题自动生成（未填 title 时用规则拼出）
@@ -49,16 +49,19 @@ function buildTitle(a) {
 }
 
 // 规范化活动数据并校验规则合法性
-function normalizeActivity(body, shopId, level) {
+function normalizeActivity(body, shopId, member) {
   const type = body.type;
   if (!['fullReduction', 'discount', 'rechargeBonus'].includes(type)) {
     return { error: '活动类型无效' };
   }
-  // 权限校验：按类型检查对应功能权限
+  // 权限校验：按类型检查对应功能权限（等级达标且会员在有效期内）
   const feature = TYPE_FEATURE[type];
-  if (!hasFeature(feature, level)) {
+  if (!hasFeature(feature, member)) {
     const need = feature === 'marketingDiscount' ? '进阶版' : '尊享版';
-    return { error: `该活动需${need}及以上会员，请先升级`, needUpgrade: true };
+    const reason = dhConfig.isMembershipActive(member)
+      ? `该活动需${need}及以上会员，请先升级`
+      : `会员已过期，开通/续费会员后即可使用（该活动需${need}）`;
+    return { error: reason, needUpgrade: true };
   }
 
   const data = { shopId, type };
@@ -109,8 +112,8 @@ router.get('/', requireMerchant, async (req, res) => {
 // ============ 商家：新建活动 ============
 router.post('/', requireMerchant, async (req, res) => {
   try {
-    const level = await getMemberLevel(req.shopId);
-    const r = normalizeActivity(req.body, req.shopId, level);
+    const member = await getMember(req.shopId);
+    const r = normalizeActivity(req.body, req.shopId, member);
     if (r.error) {
       return res.status(400).json({ success: false, message: r.error, needUpgrade: !!r.needUpgrade });
     }
@@ -129,9 +132,9 @@ router.put('/:id', requireMerchant, async (req, res) => {
     if (existing.shopId !== req.shopId) {
       return res.status(403).json({ success: false, message: '无权操作其他商家的活动' });
     }
-    const level = await getMemberLevel(req.shopId);
+    const member = await getMember(req.shopId);
     const body = { ...req.body, type: req.body.type || existing.type };
-    const r = normalizeActivity(body, req.shopId, level);
+    const r = normalizeActivity(body, req.shopId, member);
     if (r.error) {
       return res.status(400).json({ success: false, message: r.error, needUpgrade: !!r.needUpgrade });
     }
@@ -151,10 +154,10 @@ router.patch('/:id/toggle', requireMerchant, async (req, res) => {
     if (a.shopId !== req.shopId) {
       return res.status(403).json({ success: false, message: '无权操作其他商家的活动' });
     }
-    // 充值送/折扣尊享版、满减进阶版——切换启用同样按类型校验权限
-    const level = await getMemberLevel(req.shopId);
-    if (!hasFeature(TYPE_FEATURE[a.type], level)) {
-      return res.status(403).json({ success: false, message: '会员等级不足，无法操作该活动', needUpgrade: true });
+    // 充值送/折扣尊享版、满减进阶版——切换启用同样按类型校验权限（含有效期）
+    const member = await getMember(req.shopId);
+    if (!hasFeature(TYPE_FEATURE[a.type], member)) {
+      return res.status(403).json({ success: false, message: '会员等级不足或已过期，无法操作该活动', needUpgrade: true });
     }
     a.enabled = !a.enabled;
     await a.save();

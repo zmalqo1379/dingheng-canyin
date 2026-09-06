@@ -57,6 +57,26 @@ const supplierSchema = new mongoose.Schema({
     min: 0,
     max: 1
   },
+  // 返点模式（供应商全局策略开关，入驻时自选，默认统一阶梯）：
+  //   unified    = 统一全品类阶梯返点（DEFAULT_TIERS_UNIFIED，整单/整月累计额定档）
+  //   byCategory = 按品类分类阶梯返点（低/中/高毛利三档，DEFAULT_TIERS_BY_CATEGORY）
+  // 供应商专属 RebateRule 仍然优先于平台默认阶梯，rebateMode 仅决定无规则时的默认计法
+  rebateMode: {
+    type: String,
+    enum: ['unified', 'byCategory'],
+    default: 'unified',
+    required: true
+  },
+  // 返点模式切换审计日志（开发者在供应商同意后切换时记录：who/when/from/to）
+  rebateModeLogs: {
+    type: [{
+      by: { type: String, default: '' },        // 操作人（开发者账号/标识）
+      at: { type: Date, default: Date.now },    // 切换时间
+      from: { type: String, default: '' },      // 切换前模式
+      to: { type: String, default: '' }         // 切换后模式
+    }],
+    default: []
+  },
   // 应付给我的返点累计金额
   balance: {
     type: Number,

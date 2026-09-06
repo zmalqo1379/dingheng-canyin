@@ -575,8 +575,8 @@ function isDecorateDone(setting) {
     !!(setting.promoPoster);
 }
 
-// 赠送体验期判定（与 /api/coin/status 口径一致：memberIsTrial 且进阶版未到期；
-// 老数据无字段时按"进阶版且剩余不足 31 天"兜底识别）
+// 赠送体验期判定（与 /api/coin/status 口径一致：memberIsTrial 且会员未到期；
+// 新商家赠送的是 30 天基础版体验；老数据无字段时按"进阶版且剩余不足 31 天"兜底识别）
 function isTrialActive(member, now) {
   if (!member) return false;
   if (member.memberIsTrial === true) {
@@ -602,7 +602,7 @@ app.get('/api/admin/onboarding', requireMerchant, async (req, res) => {
       Member.findOne({ shopId }),
       CoinHistory.findOne({ shopId, type: 'new_shop_gift' }).lean()
     ]);
-    // 会员档案不存在则创建（pre-save 钩子自动赠送首月进阶版），
+    // 会员档案不存在则创建（pre-save 钩子自动赠送首月 30 天基础版体验），
     // 保证新商家注册后首次进入后台即可看到金色欢迎礼提示
     const member = memberDoc
       ? memberDoc.toObject()

@@ -19,7 +19,7 @@ const memberSchema = new mongoose.Schema({
     enum: ['basic', 'advanced', 'premium'],
     default: 'basic'
   },
-  // 基础版为 null；进阶/尊享为到期日
+  // 会员到期日：基础版（体验/月卡）/进阶/尊享有效内为到期日；失活（未开通/过期）为 null
   memberExpire: {
     type: Date,
     default: null
@@ -36,12 +36,12 @@ const memberSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
-  // 是否开启顾客积分，进阶/尊享自动为 true
+  // 是否开启顾客积分：基础版起开放（新注册即 true）；会员过期失活后由定时任务置 false
   customerPointsEnabled: {
     type: Boolean,
     default: false
   },
-  // 是否为注册赠送的进阶版体验期（前端据此显示倒计时提示条）
+  // 是否为注册赠送的首月体验期（基础版 30 天免费体验，前端据此显示倒计时提示条）
   memberIsTrial: {
     type: Boolean,
     default: false
@@ -55,15 +55,17 @@ const memberSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// 首月赠送：商家注册（Member 创建）时自动升级为进阶版 30 天
+// 首月策略：商家注册（Member 创建）时自动开通基础版，赠送 30 天免费体验
+//   memberLevel='basic' + memberIsTrial=true + memberExpire=30天后
+//   基础版起即开放顾客积分（customerPointsEnabled=true）；币余额从 0 起，采购返币
 memberSchema.pre('save', function (next) {
   if (this.isNew) {
-    this.memberLevel = 'advanced';
-    const expire = new Date();
-    expire.setDate(expire.getDate() + 30);
-    this.memberExpire = expire;
-    this.customerPointsEnabled = true;
+    this.memberLevel = 'basic';
     this.memberIsTrial = true;
+    this.memberExpire = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    this.customerPointsEnabled = true;
+    this.totalEarnedCoin = 0;
+    this.dinghengCoin = 0;
   }
   next();
 });

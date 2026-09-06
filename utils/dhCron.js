@@ -59,13 +59,14 @@ async function clearExpiredCoins() {
   return Object.keys(byShop).length;
 }
 
-// ============ 2) 会员到期降级 ============
-// memberExpire < now 且非 basic → 降级 basic、memberExpire=null、customerPointsEnabled=false
+// ============ 2) 会员到期失活 ============
+// memberExpire < now 的会员统一失活：memberExpire=null、memberIsTrial=false、customerPointsEnabled=false；
+// 进阶/尊享同时降级为 basic（基础版体验/月卡过期后保持 basic 等级但失去会员权益，续费/重新兑换即恢复）
 async function downgradeExpiredMembers() {
   const now = new Date();
   const res = await Member.updateMany(
-    { memberExpire: { $ne: null, $lt: now }, memberLevel: { $ne: 'basic' } },
-    { $set: { memberLevel: 'basic', memberExpire: null, customerPointsEnabled: false } }
+    { memberExpire: { $ne: null, $lt: now } },
+    { $set: { memberLevel: 'basic', memberExpire: null, memberIsTrial: false, customerPointsEnabled: false } }
   );
   return res.modifiedCount;
 }

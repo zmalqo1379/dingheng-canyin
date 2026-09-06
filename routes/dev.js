@@ -336,6 +336,9 @@ router.get('/suppliers/:id/detail', async (req, res) => {
           phone: supplier.phone || '—',
           categories: Array.isArray(supplier.categories) ? supplier.categories : [],
           minOrderAmount: Number(supplier.minOrderAmount) > 0 ? Number(supplier.minOrderAmount) : 300,
+          // 返点模式：unified=统一全品类阶梯 / byCategory=按品类分类阶梯（默认 unified）
+          rebateMode: supplier.rebateMode === 'byCategory' ? 'byCategory' : 'unified',
+          rebateModeLogs: Array.isArray(supplier.rebateModeLogs) ? supplier.rebateModeLogs : [],
           createdAt: supplier.createdAt,
           status: supplier.status || 'pending',
           rejectReason: supplier.rejectReason || '',
@@ -493,6 +496,50 @@ router.put('/suppliers/:id/order-enable', async (req, res) => {
       success: true,
       message: enabled ? '已开通接单权限，店铺将出现在采购商城' : '已暂停接单，店铺从采购商城隐藏',
       data: { orderEnabled: supplier.orderEnabled, orderEnabledAt: supplier.orderEnabledAt }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PUT /api/dev/suppliers/:id/rebate-mode  切换供应商返点模式（开发者在供应商同意后切换）
+// body: { mode: 'unified' | 'byCategory' }
+//   unified    = 统一全品类阶梯返点（默认，整单/整月累计额定档）
+//   byCategory = 按品类分类阶梯返点（低/中/高毛利三档分别定档）
+// 审计：切换记录写入 Supplier.rebateModeLogs（who/when/from/to）并输出服务端日志
+router.put('/suppliers/:id/rebate-mode', async (req, res) => {
+  try {
+    const mode = String((req.body && req.body.mode) || '').trim();
+    if (mode !== 'unified' && mode !== 'byCategory') {
+      return res.status(400).json({ success: false, message: 'mode 只能为 unified（统一阶梯）或 byCategory（分类阶梯）' });
+    }
+    const supplier = await Supplier.findById(req.params.id);
+    if (!supplier) return res.status(404).json({ success: false, message: '供应商不存在' });
+
+    const from = supplier.rebateMode === 'byCategory' ? 'byCategory' : 'unified';
+    if (from === mode) {
+      return res.json({ success: true, message: '该供应商已是此返点模式，无需切换', data: { rebateMode: mode } });
+    }
+
+    // 操作人（开发者账号名）
+    let operator = 'dev';
+    try {
+      const Admin = require('../models/Admin');
+      const admin = await Admin.findById(req.user && req.user.userId).select('username name').lean();
+      if (admin) operator = `${admin.name || '开发者'}(${admin.username})`;
+    } catch (e) { /* 身份查询失败不阻断切换，操作人记 dev */ }
+
+    supplier.rebateMode = mode;
+    supplier.rebateModeLogs = Array.isArray(supplier.rebateModeLogs) ? supplier.rebateModeLogs : [];
+    supplier.rebateModeLogs.push({ by: operator, at: new Date(), from, to: mode });
+    await supplier.save();
+
+    const modeText = mode === 'byCategory' ? '按品类分类阶梯返点（低/中/高毛利三档）' : '统一全品类阶梯返点';
+    console.log(`[DEV] 供应商「${supplier.name}」返点模式切换：${from} → ${mode}；操作人：${operator}；时间：${new Date().toISOString()}`);
+    res.json({
+      success: true,
+      message: `已切换为「${modeText}」，次月结算起按新模式执行`,
+      data: { rebateMode: mode, from, to: mode, switchedAt: new Date(), by: operator }
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -724,18 +771,33 @@ router.get('/reconciliation', async (req, res) => {
     const settleDocs = await RebateSettlement.find({ month, supplierId: { $in: supplierIds } }).lean();
     const settleMap = new Map(settleDocs.map(s => [String(s.supplierId), s]));
     const rateMapCache = new Map();
+    // 返回 { map: 品类→费率, allRate: 统一模式整单费率（null=非统一模式） }
     async function getCategoryRateMap(sid) {
       if (rateMapCache.has(sid)) return rateMapCache.get(sid);
       const map = new Map();
+      let allRate = null;
+      const applyDetails = (details) => {
+        (details || []).forEach(d => {
+          const rate = Number(d.rate != null ? d.rate : d.tierRate) || 0;
+          map.set(d.category, rate);
+          // 统一模式明细为一条「全部」，其费率适用于所有品类行
+          if (d.category === rebate.ALL_CATEGORY || d.marginType === 'unified') allRate = rate;
+        });
+      };
       const settled = settleMap.get(sid);
       if (settled) {
-        (settled.details || []).forEach(d => map.set(d.category, Number(d.rate) || 0));
+        applyDetails(settled.details);
+        if (settled.rebateMode === 'unified') {
+          // 历史结算单无 rebateMode 字段但明细只有一条「全部」时，applyDetails 已捕获 allRate
+        }
       } else {
         const calc = await rebate.calcSupplierMonthRebate(sid, month);
-        calc.categories.forEach(c => map.set(c.category, Number(c.tierRate) || 0));
+        applyDetails(calc.categories);
+        if (calc.rebateMode === 'unified') allRate = Number(calc.categories[0] && calc.categories[0].tierRate) || allRate;
       }
-      rateMapCache.set(sid, map);
-      return map;
+      const result = { map, allRate };
+      rateMapCache.set(sid, result);
+      return result;
     }
 
     // 逐单计算对账字段（后端计算，前端只渲染）
@@ -756,11 +818,15 @@ router.get('/reconciliation', async (req, res) => {
         rebateKind = 'estimate';
       } else {
         const sid = String(o.supplierId && o.supplierId._id ? o.supplierId._id : o.supplierId);
-        const rateMap = await getCategoryRateMap(sid);
+        const { map: rateMap, allRate } = await getCategoryRateMap(sid);
         let sum = 0;
         (o.items || []).forEach(it => {
           const cat = it.category || '未分类';
-          const rate = rateMap.has(cat) ? rateMap.get(cat) : rebate.DEFAULT_REBATE_RATE;
+          // 统一模式（整单费率）优先；分类模式按品类费率；都取不到走兜底费率
+          let rate;
+          if (rateMap.has(cat)) rate = rateMap.get(cat);
+          else if (allRate != null) rate = allRate;
+          else rate = rebate.DEFAULT_REBATE_RATE;
           sum += (Number(it.totalPrice) || 0) * rate;
         });
         rebateIncome = +sum.toFixed(2);
@@ -997,9 +1063,11 @@ router.get('/rebate/settlements', async (req, res) => {
       month: s.month,
       supplierId: s.supplierId,
       supplierName: s.supplierName,
+      // 返点模式与明细毛利档（历史数据无字段时兜底 unified）
+      rebateMode: s.rebateMode === 'byCategory' ? 'byCategory' : 'unified',
       totalPurchaseAmount: s.totalPurchaseAmount,
       totalRebateAmount: s.totalRebateAmount,
-      details: s.details,
+      details: (s.details || []).map(detail => ({ ...detail, marginType: detail.marginType || 'unified' })),
       status: rebate.normalizeSettlementStatus(s.status),
       settledAt: s.settledAt,
       confirmedAt: s.confirmedAt || null,

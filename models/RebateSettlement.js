@@ -35,6 +35,14 @@ const settlementDetailSchema = new mongoose.Schema({
     type: String,
     enum: ['full', 'marginal', 'default'],
     default: 'default'
+  },
+  // 毛利分档（仅 byCategory 模式有意义）：
+  //   unified=统一模式整单汇总；lowMargin=低毛利；midMargin=中毛利；highMargin=高毛利
+  // 历史数据无该字段时按 'unified' 兜底读取
+  marginType: {
+    type: String,
+    enum: ['unified', 'lowMargin', 'midMargin', 'highMargin'],
+    default: 'unified'
   }
 }, { _id: false });
 
@@ -55,6 +63,13 @@ const rebateSettlementSchema = new mongoose.Schema({
   supplierName: {
     type: String,
     default: ''
+  },
+  // 结算时供应商采用的返点模式：unified=统一全品类阶梯 / byCategory=按品类分类阶梯
+  // 历史数据无该字段时按 'unified' 兜底读取
+  rebateMode: {
+    type: String,
+    enum: ['unified', 'byCategory'],
+    default: 'unified'
   },
   // 当月已完成采购总额（全品类合计）
   totalPurchaseAmount: {

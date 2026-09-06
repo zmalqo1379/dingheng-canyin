@@ -14,17 +14,22 @@ function isValidPhone(phone) {
   return /^1\d{10}$/.test(String(phone || '').trim());
 }
 
-// 读取商家积分配置（Setting 存储）+ 按会员等级判定功能开关（进阶版权益）
+// 读取商家积分配置（Setting 存储）+ 按会员状态判定功能开关
+// 顾客积分为基础版起权益：basic/advanced/premium 在会员有效期内均可用；
+// 无有效会员（未开通/体验过期/月卡过期）一律关闭（顾客端隐藏、不累计）
 // 总开关 pointEnabled=false 时整体关闭（顾客端隐藏、不累计）
 async function getPointConfig(shopId) {
   const s = await Setting.findOne({ shopId }).lean();
   const member = await Member.findOne({ shopId }).lean();
   const level = member ? member.memberLevel : 'basic';
+  const memberActive = dhConfig.isMembershipActive(member);
   const enabled = (s ? s.pointEnabled !== false : true) &&
     dhConfig.features.customerPoints.includes(level) &&
+    memberActive &&
     Number(s ? s.pointSpendPerPoint : 1) > 0;
   return {
     enabled,
+    memberActive,
     spendPerPoint: Number(s ? s.pointSpendPerPoint : 1) || 0,
     deductEnabled: s ? s.pointDeductEnabled !== false : true,
     deductPoints: Number(s ? s.pointDeductPoints : 100) || 100,   // X 积分 = 1 元

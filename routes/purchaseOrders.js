@@ -372,14 +372,14 @@ async function confirmReceiveHandler(req, res) {
     const pointsGenerated = +(order.totalAmount).toFixed(2);
     const receiveAt = new Date();
 
-    // 预估返点：按当月该供应商分品类累计额（含本单）实时定档计算
-    // 费率全部来自 RebateRule（分品类/通用规则），无规则时由服务按默认兜底率处理
+    // 预估返点：按供应商返点模式（unified 统一阶梯 / byCategory 分类毛利阶梯），
+    // 以当月累计额（含本单）实时定档计算；专属 RebateRule 优先，无规则走平台默认阶梯
     const rebateEstimate = await rebate.estimateOrderRebate({
       _id: order._id,
       supplierId: order.supplierId,
       receiveAt,
       items: order.items
-    });
+    }, supplier);
     const preRebate = rebateEstimate.preRebate;
     const preRebateRate = rebateEstimate.preRebateRate;
     const rebateMonth = rebateEstimate.month;
