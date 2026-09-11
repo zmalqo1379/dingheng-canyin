@@ -245,6 +245,10 @@ let _obClaiming = false;   // 领奖防并发
 
 const OB_TASKS = [
   {
+    key: 'storeInfo', icon: '🏪', text: '完善门店信息', btn: '去完善',
+    go() { openStoreInfoModal({ force: true }); }
+  },
+  {
     key: 'dish', icon: '🍜', text: '上传第一道菜', btn: '去完成',
     go() { switchTab('dishes'); setTimeout(() => { const b = $('addDishBtn'); if (b) b.click(); }, 150); }
   },
@@ -269,6 +273,8 @@ async function loadOnboarding() {
     const prevTasks = _obData ? _obData.tasks : null;
     _obData = res.data;
     renderOnboarding(prevTasks);
+    // 门店资料完善引导：新商家未弹过→强制弹窗；老商家已弹过未完善→黄条提醒
+    handleStoreInfoStatus(_obData.storeInfo);
     // 全部完成且未发奖：自动领奖（后端幂等，重复调用不会重复发币）
     if (_obData.allDone && !_obData.giftClaimed && !_obClaiming) {
       claimOnboardingGift();
@@ -279,7 +285,7 @@ async function loadOnboarding() {
 function renderOnboarding(prevTasks) {
   const card = $('onboardCard');
   if (!card || !_obData) return;
-  // 手动"不再显示"或四步全部完成且奖已到账 → 卡片自动消失
+  // 手动"不再显示"或五步全部完成且奖已到账 → 卡片自动消失
   const hidden = localStorage.getItem(OB_HIDE_KEY) === '1';
   const finished = _obData.allDone && _obData.giftClaimed;
   if (hidden || finished) { card.style.display = 'none'; return; }
@@ -291,7 +297,7 @@ function renderOnboarding(prevTasks) {
 
   const tasks = _obData.tasks || {};
   const doneCount = OB_TASKS.filter(t => tasks[t.key]).length;
-  $('obCount').textContent = doneCount + '/4';
+  $('obCount').textContent = doneCount + '/' + OB_TASKS.length;
 
   $('obTaskList').innerHTML = OB_TASKS.map((t, i) => {
     const done = !!tasks[t.key];
@@ -382,6 +388,232 @@ $('obCelebrateOk').onclick = closeObCelebrate;
   if (m) m.addEventListener('click', (e) => { if (e.target === m) closeObCelebrate(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeObCelebrate(); });
 })();
+
+/* ===================== 门店资料完善引导弹窗 =====================
+   新商家首次登录强制弹窗（不可跳过）；老商家跳过后顶部常驻黄色提醒条。
+   弹窗内：地址输入 + 一键定位(navigator.geolocation) + 门头照上传 + 街景照上传
+           + 收货方式选择 + 期望收货时段。
+   保存走 PUT /api/settings，成功后 POST /api/admin/store-info/complete 标记完成。
+   老商家"稍后填写"走 POST /api/admin/store-info/skip 仅标记 firstPrompted。 */
+let _siExistingStoreFront = '';
+let _siExistingStreetView = '';
+let _siForced = false;  // 是否为强制弹窗（新商家不可跳过）
+
+function handleStoreInfoStatus(storeInfo) {
+  if (!storeInfo) return;
+  if (storeInfo.completed) {
+    // 已完善：隐藏黄条与弹窗
+    const bar = $('storeInfoBar');
+    if (bar) bar.style.display = 'none';
+    closeStoreInfoModal();
+    return;
+  }
+  if (!storeInfo.firstPrompted && storeInfo.isNewMerchant) {
+    // 新商家首次登录：强制弹窗（不可跳过）
+    openStoreInfoModal({ force: true });
+  } else if (!storeInfo.firstPrompted) {
+    // 老商家首次见到引导：弹窗可跳过（跳过后黄条常驻）
+    openStoreInfoModal({ force: false });
+  } else {
+    // 已跳过未完善：常驻黄条提醒
+    const bar = $('storeInfoBar');
+    if (bar) bar.style.display = 'flex';
+    closeStoreInfoModal();
+  }
+}
+
+// 打开弹窗：force=true 时隐藏"稍后填写"按钮
+async function openStoreInfoModal(opts) {
+  opts = opts || {};
+  _siForced = !!opts.force;
+  const modal = $('storeInfoModal');
+  if (!modal) return;
+  // 回填已有数据
+  try {
+    const res = await api('/api/settings');
+    const s = res.data || {};
+    $('siAddress').value = s.shopAddress || '';
+    $('siReceiveMethod').value = s.receiveMethod || 'door_container';
+    $('siRecvStart').value = s.expectedReceiveStart || '06:00';
+    $('siRecvEnd').value = s.expectedReceiveEnd || '09:00';
+    _siExistingStoreFront = s.storeFrontPhoto || '';
+    _siExistingStreetView = s.streetViewPhoto || '';
+    if (_siExistingStoreFront) {
+      $('siStoreFrontPreview').src = _siExistingStoreFront;
+      $('siStoreFrontPreview').style.display = 'block';
+    }
+    if (_siExistingStreetView) {
+      $('siStreetViewPreview').src = _siExistingStreetView;
+      $('siStreetViewPreview').style.display = 'block';
+    }
+    // 定位状态回显
+    if (s.shopLongitude != null && s.shopLatitude != null) {
+      const hint = $('siLocateHint');
+      hint.textContent = '已定位：经度 ' + s.shopLongitude + '，纬度 ' + s.shopLatitude;
+      hint.className = 'si-hint success';
+      $('siAddress').dataset.lng = s.shopLongitude;
+      $('siAddress').dataset.lat = s.shopLatitude;
+    }
+  } catch (e) { /* 回填失败不阻塞弹窗 */ }
+  // 强制模式隐藏"稍后填写"
+  $('siSkipBtn').style.display = _siForced ? 'none' : '';
+  modal.classList.add('show');
+}
+
+function closeStoreInfoModal() {
+  const modal = $('storeInfoModal');
+  if (modal) modal.classList.remove('show');
+}
+
+// 一键定位：调用浏览器 navigator.geolocation
+$('siLocateBtn').onclick = function () {
+  if (!navigator.geolocation) {
+    const hint = $('siLocateHint');
+    hint.textContent = '浏览器不支持定位，请手动输入地址';
+    hint.className = 'si-hint error';
+    return;
+  }
+  const btn = this;
+  btn.classList.add('locating');
+  btn.textContent = '📍 定位中…';
+  const hint = $('siLocateHint');
+  hint.textContent = '正在获取定位…';
+  hint.className = 'si-hint';
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      btn.classList.remove('locating');
+      btn.textContent = '📍 重新定位';
+      const lng = pos.coords.longitude;
+      const lat = pos.coords.latitude;
+      $('siAddress').dataset.lng = lng;
+      $('siAddress').dataset.lat = lat;
+      hint.textContent = '已定位：经度 ' + lng.toFixed(6) + '，纬度 ' + lat.toFixed(6);
+      hint.className = 'si-hint success';
+    },
+    (err) => {
+      btn.classList.remove('locating');
+      btn.textContent = '📍 一键定位';
+      const msg = err.code === err.PERMISSION_DENIED
+        ? '定位授权被拒绝，可手动输入地址（经纬度留空）'
+        : '定位失败，可重试或手动输入地址';
+      hint.textContent = msg;
+      hint.className = 'si-hint error';
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+};
+
+// 图片选择后即时预览
+$('siStoreFront').onchange = function () {
+  const f = this.files[0]; if (!f) return;
+  const r = new FileReader(); r.onload = (e) => {
+    $('siStoreFrontPreview').src = e.target.result;
+    $('siStoreFrontPreview').style.display = 'block';
+  }; r.readAsDataURL(f);
+};
+$('siStreetView').onchange = function () {
+  const f = this.files[0]; if (!f) return;
+  const r = new FileReader(); r.onload = (e) => {
+    $('siStreetViewPreview').src = e.target.result;
+    $('siStreetViewPreview').style.display = 'block';
+  }; r.readAsDataURL(f);
+};
+
+// 保存并完成
+$('siSaveBtn').onclick = async function () {
+  const address = $('siAddress').value.trim();
+  const recvMethod = $('siReceiveMethod').value;
+  const recvStart = $('siRecvStart').value || '06:00';
+  const recvEnd = $('siRecvEnd').value || '09:00';
+  const lng = parseFloat($('siAddress').dataset.lng);
+  const lat = parseFloat($('siAddress').dataset.lat);
+
+  if (!address) { toast('请填写门店地址', true); return; }
+
+  const btn = this;
+  btn.classList.add('loading');
+  btn.textContent = '保存中…';
+  try {
+    // 上传门头照（必传）
+    let storeFrontUrl = _siExistingStoreFront;
+    const sfFile = $('siStoreFront').files[0];
+    if (sfFile) {
+      const fd = new FormData(); fd.append('file', sfFile);
+      const u = await fetch('/api/admin/upload', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + MERCHANT_TOKEN, 'x-shop-id': SHOP_ID },
+        body: fd
+      }).then(r => r.json());
+      if (!u.success) { toast(u.message || '门头照上传失败', true); return; }
+      storeFrontUrl = u.data.url;
+    }
+    if (!storeFrontUrl) { toast('请上传门头照', true); return; }
+
+    // 上传街景照（选传）
+    let streetViewUrl = _siExistingStreetView;
+    const svFile = $('siStreetView').files[0];
+    if (svFile) {
+      const fd = new FormData(); fd.append('file', svFile);
+      const u = await fetch('/api/admin/upload', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + MERCHANT_TOKEN, 'x-shop-id': SHOP_ID },
+        body: fd
+      }).then(r => r.json());
+      if (!u.success) { toast(u.message || '街景照上传失败', true); return; }
+      streetViewUrl = u.data.url;
+    }
+
+    // 保存到 Setting（经纬度选填：手动输入未定位时为 null）
+    const body = {
+      shopAddress: address, storeFrontPhoto: storeFrontUrl, streetViewPhoto: streetViewUrl,
+      receiveMethod: recvMethod, expectedReceiveStart: recvStart, expectedReceiveEnd: recvEnd
+    };
+    if (lng && lat) { body.shopLongitude = lng; body.shopLatitude = lat; }
+    const res = await api('/api/settings', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.success) { toast(res.message || '保存失败', true); return; }
+    // 标记门店资料已完善
+    const c = await api('/api/admin/store-info/complete', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    if (c.success) {
+      toast('门店资料已完善');
+      closeStoreInfoModal();
+      $('storeInfoBar').style.display = 'none';
+      loadOnboarding();  // 刷新新手任务状态
+    } else {
+      toast(c.message || '标记完成失败，资料已保存', true);
+    }
+  } catch (e) {
+    toast('网络错误', true);
+  } finally {
+    btn.classList.remove('loading');
+    btn.textContent = '保存并完成';
+  }
+};
+
+// 稍后填写（仅老商家可跳过）
+$('siSkipBtn').onclick = async function () {
+  if (_siForced) return;  // 强制模式不可跳过
+  try {
+    const res = await api('/api/admin/store-info/skip', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    if (res.success) {
+      closeStoreInfoModal();
+      $('storeInfoBar').style.display = 'flex';
+      toast('可稍后在「店铺设置」中补全');
+    }
+  } catch (e) { /* 忽略 */ }
+};
+
+// 黄色提醒条按钮
+$('sibCompleteBtn').onclick = () => openStoreInfoModal({ force: false });
+$('sibHideBtn').onclick = () => { $('storeInfoBar').style.display = 'none'; };
 
 /* ===================== 菜单管理 ===================== */
 async function loadCategories() {
@@ -753,11 +985,27 @@ async function loadSettings() {
   $('setNotifyPhone').value = s.notifyPhone || '';
   $('printerFields').classList.toggle('show', !!s.enablePrinter);
   $('wechatFields').classList.toggle('show', !!s.enableWechat);
+  // 门店定位与收货
+  $('setShopLng').value = s.shopLongitude ?? '';
+  $('setShopLat').value = s.shopLatitude ?? '';
+  $('setShopAddr').value = s.shopAddress || '';
+  $('setReceiveMethod').value = s.receiveMethod || 'door_container';
+  $('setRecvStart').value = s.expectedReceiveStart || '06:00';
+  $('setRecvEnd').value = s.expectedReceiveEnd || '09:00';
+  if (s.storeFrontPhoto) { $('storeFrontPreview').src = s.storeFrontPhoto; $('storeFrontPreview').style.display = 'block'; }
+  else { $('storeFrontPreview').style.display = 'none'; }
+  if (s.streetViewPhoto) { $('streetViewPreview').src = s.streetViewPhoto; $('streetViewPreview').style.display = 'block'; }
+  else { $('streetViewPreview').style.display = 'none'; }
+  _existingStoreFront = s.storeFrontPhoto || '';
+  _existingStreetView = s.streetViewPhoto || '';
 }
 
 /* ===================== 店铺装修（独立栏目） ===================== */
 let _decoState = { theme: 'classic', shopNameFont: 'modern', layout: 'list', bannerImage: '', logoImage: '', promoPoster: '', promoPosterSize: 'small', shopName: '鼎恒餐饮' };
 let _decoSelected = { theme: null, shopNameFont: null, layout: null }; // 选中态（未应用），null 表示未选中
+// 门店定位与收货：已保存的门头照/街景照 URL（无新上传时保留原值）
+let _existingStoreFront = '';
+let _existingStreetView = '';
 
 const POSTER_SIZES = [
   { id: 'small',  name: '小横幅（矮）', desc: '矮横条，不遮挡菜单' },
@@ -806,10 +1054,56 @@ $('saveSettingsBtn').onclick = async () => {
   if (!body.shopName) { toast('请输入店铺名称', true); return; }
   if (body.enablePrinter && !body.printerSN) { toast('请填写打印机编号', true); return; }
   if (body.enableWechat && !body.notifyPhone) { toast('请填写通知手机号', true); return; }
+
+  // 上传门头照（如有新选文件），无则保留原 URL
+  let storeFrontUrl = _existingStoreFront;
+  const sfFile = $('setStoreFront').files[0];
+  if (sfFile) {
+    const fd = new FormData(); fd.append('file', sfFile);
+    const u = await fetch('/api/admin/upload', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + MERCHANT_TOKEN, 'x-shop-id': SHOP_ID },
+      body: fd
+    }).then(r => r.json());
+    if (!u.success) { toast(u.message || '门头照上传失败', true); return; }
+    storeFrontUrl = u.data.url;
+  }
+  // 上传街景照（选传）
+  let streetViewUrl = _existingStreetView;
+  const svFile = $('setStreetView').files[0];
+  if (svFile) {
+    const fd = new FormData(); fd.append('file', svFile);
+    const u = await fetch('/api/admin/upload', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + MERCHANT_TOKEN, 'x-shop-id': SHOP_ID },
+      body: fd
+    }).then(r => r.json());
+    if (!u.success) { toast(u.message || '街景照上传失败', true); return; }
+    streetViewUrl = u.data.url;
+  }
+
+  // 配送三件套字段
+  body.shopLongitude = parseFloat($('setShopLng').value) || null;
+  body.shopLatitude = parseFloat($('setShopLat').value) || null;
+  body.shopAddress = $('setShopAddr').value.trim();
+  body.storeFrontPhoto = storeFrontUrl;
+  body.streetViewPhoto = streetViewUrl;
+  body.receiveMethod = $('setReceiveMethod').value;
+  body.expectedReceiveStart = $('setRecvStart').value || '06:00';
+  body.expectedReceiveEnd = $('setRecvEnd').value || '09:00';
+
   const res = await api('/api/settings', {
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
   });
-  if (res.success) toast('保存成功');
+  if (res.success) {
+    toast('保存成功');
+    // 同步已保存 URL 与预览
+    _existingStoreFront = storeFrontUrl;
+    _existingStreetView = streetViewUrl;
+    if (storeFrontUrl) { $('storeFrontPreview').src = storeFrontUrl; $('storeFrontPreview').style.display = 'block'; }
+    if (streetViewUrl) { $('streetViewPreview').src = streetViewUrl; $('streetViewPreview').style.display = 'block'; }
+    $('setStoreFront').value = ''; $('setStreetView').value = '';
+  }
   else toast(res.message || '保存失败', true);
 };
 
@@ -1935,11 +2229,19 @@ function setMallCategory(cat) {
 }
 
 // 中间商品网格（按当前分类过滤，分类只影响展示不影响价格/起送价）
+// 双档次蔬菜支持：按商品名 + 档次排序，使同名蔬菜的实惠/精品档相邻展示并带档次标签
 function renderStoreProducts() {
   const grid = $('productGrid');
-  const list = _mallCategory === 'all'
+  const raw = _mallCategory === 'all'
     ? _mallProducts
     : _mallProducts.filter(p => p.category === _mallCategory);
+  // 排序：先按商品名升序，再按档次（standard 实惠档 < premium 精品档），使同名双档蔬菜相邻
+  const gradeRank = g => (g === 'standard' ? 0 : (g === 'premium' ? 1 : 2));
+  const list = raw.slice().sort((a, b) => {
+    const nameCmp = String(a.name || '').localeCompare(String(b.name || ''), 'zh');
+    if (nameCmp !== 0) return nameCmp;
+    return gradeRank(a.grade) - gradeRank(b.grade);
+  });
   if (!list.length) {
     grid.innerHTML = `<div class="empty" style="grid-column:1/-1;">${_mallCategory === 'all' ? '该店铺暂无上架商品' : `「${_mallCategory}」分类下暂无商品`}</div>`;
     return;
@@ -1948,6 +2250,15 @@ function renderStoreProducts() {
     const qtyVal = _mallPendingQty[p._id] || 1;
     const unit = p.unit || '个';
     const desc = p.description ? `<div class="product-supplier">${esc(p.description)}</div>` : '';
+    // 双档次蔬菜标签：实惠档/精品档
+    const gradeTag = p.grade === 'standard'
+      ? `<span class="mall-grade-tag standard">实惠</span>`
+      : (p.grade === 'premium' ? `<span class="mall-grade-tag premium">精品</span>` : '');
+    // 保鲜期冻结提示：商品价格更新中时禁用加入采购车
+    const frozen = !!p.priceFrozen;
+    const cartBtn = frozen
+      ? `<button class="btn-cart btn-cart-frozen" disabled>价格更新中</button>`
+      : `<button class="btn-cart" data-add="${p._id}" onclick="addToCart('${p._id}')">加入采购车</button>`;
     // 品类得币倍率标注：接口返回 coinMultiplier（未配置默认 1）；>1 高亮激励，=1 普通展示
     const coinMult = Number(p.coinMultiplier);
     const multVal = (!isNaN(coinMult) && coinMult > 0) ? coinMult : 1;
@@ -1955,21 +2266,21 @@ function renderStoreProducts() {
       ? `<div class="coin-boost">🪙 该品类 ${multVal} 倍得币</div>`
       : `<div class="coin-boost coin-boost-normal">🪙 该品类 1 倍得币</div>`;
     return `
-      <div class="product-card">
+      <div class="product-card${frozen ? ' product-card-frozen' : ''}">
         <div class="product-img">${p.image ? `<img src="${esc(p.image)}" alt="" onerror="this.parentElement.innerHTML='📦'">` : '📦'}</div>
         <div class="product-body">
-          <div class="product-name">${esc(p.name)}</div>
+          <div class="product-name">${esc(p.name)}${gradeTag}</div>
           <div class="product-category">规格：${esc(unit)}${p.category ? ' · ' + esc(p.category) : ''}</div>
           ${coinBadge}
           <div class="product-price">¥${Number(p.costPrice).toFixed(2)}<small> 批发价</small></div>
           ${desc}
           <div class="product-actions">
             <div class="qty-ctrl">
-              <button onclick="adjustQty('${p._id}', -1)">−</button>
-              <input type="number" min="1" value="${qtyVal}" data-pid="${p._id}" oninput="setQty('${p._id}', this.value)">
-              <button onclick="adjustQty('${p._id}', 1)">+</button>
+              <button onclick="adjustQty('${p._id}', -1)"${frozen ? ' disabled' : ''}>−</button>
+              <input type="number" min="1" value="${qtyVal}" data-pid="${p._id}" oninput="setQty('${p._id}', this.value)"${frozen ? ' disabled' : ''}>
+              <button onclick="adjustQty('${p._id}', 1)"${frozen ? ' disabled' : ''}>+</button>
             </div>
-            <button class="btn-cart" data-add="${p._id}" onclick="addToCart('${p._id}')">加入采购车</button>
+            ${cartBtn}
           </div>
         </div>
       </div>
@@ -2266,6 +2577,7 @@ function closeMallCartDrawer() {
 
 // 提交采购订单（shopId 由后端从 JWT 取；couponId 随单提交，后端同事务核销）
 // 桌面端 submitPurchaseBtn 与手机端 mSubmitPurchaseBtn 共用此函数
+// 囤货保护：后端预检若返回 STOCKPILE_WARNING，弹窗提示商家选择"修改"或"坚持下单"
 async function submitMallOrder() {
   if (!_mallCurrentStore) { toast('请先选择供应商店铺', true); return; }
   if (!_mallCart.length) { toast('采购车为空', true); return; }
@@ -2290,9 +2602,41 @@ async function submitMallOrder() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
-  if (!orderRes.success) { toast(orderRes.message || '下单失败', true); return; }
+  // 囤货保护：预检返回 STOCKPILE_WARNING 时弹窗提醒，商家可选"坚持下单"(force=true)或"修改"
+  if (!orderRes.success && orderRes.code === 'STOCKPILE_WARNING') {
+    const w = orderRes.data || {};
+    const stockpile = w.stockpileWarnings || [];
+    const drops = w.priceDropWarnings || [];
+    let msg = '';
+    if (stockpile.length) {
+      msg += '⚠️ 量异常：\n' + stockpile.map(s =>
+        `「${s.name}」本次 ${s.quantity} 超过近7日总量 ${s.history7DayTotal}（${s.ratio}倍）`).join('\n') + '\n\n';
+    }
+    if (drops.length) {
+      msg += '📉 跌价预警：\n' + drops.map(d =>
+        `「${d.name}」售价 ¥${d.unitPrice} 低于近7日均价 ¥${d.avg7Day}（跌 ${d.dropRatio}%）`).join('\n');
+    }
+    msg += '\n请确认是否有误。点击"确定"坚持下单，"取消"返回修改。';
+    if (confirm(msg)) {
+      // 商家坚持下单：带 force=true 重新提交
+      const forceRes = await api('/api/purchase-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supplierId, items, couponId: couponId || undefined, force: true })
+      });
+      if (!forceRes.success) { toast(forceRes.message || '下单失败', true); return; }
+      toast('采购订单已提交（已标注异常提醒供应商）');
+    } else {
+      toast('已取消，请修改后重新提交', true);
+      return;
+    }
+  } else if (!orderRes.success) {
+    toast(orderRes.message || '下单失败', true);
+    return;
+  } else {
+    toast('采购订单已提交！');
+  }
 
-  toast('采购订单已提交！');
   _mallCart = [];
   _mallSelectedCouponId = '';
   closeMallCartDrawer();
@@ -2332,12 +2676,20 @@ async function loadPurchaseOrders() {
   const badgeCls = {
     '待确认': 'b-gray', '已确认': 'b-blue', '已发货': 'b-orange', '已完成': 'b-green'
   };
+  // 商品行文案：已过秤行追加实称重量
+  const itemLine = (i) => {
+    const w = Number(i.actualWeight || 0);
+    return w > 0
+      ? `${esc(i.name)}×${i.quantity}<small style="color:#b45309;">（实称${w.toFixed(2)}kg）</small>`
+      : `${esc(i.name)}×${i.quantity}`;
+  };
   // 桌面端表格行
   body.innerHTML = orders.map(o => {
     const sup = o.supplierId;
     const supplierName = (sup && typeof sup === 'object' && sup.name) ? sup.name : (typeof sup === 'string' ? sup : '未知供应商');
-    const itemsText = (o.items || []).slice(0, 2).map(i => `${esc(i.name)}×${i.quantity}`).join('，') + (o.items?.length > 2 ? '…' : '');
+    const itemsText = (o.items || []).slice(0, 2).map(itemLine).join('，') + (o.items?.length > 2 ? '…' : '');
     const bc = badgeCls[o.status] || 'b-gray';
+    const sortTag = o.sorted ? '<span class="badge b-green" style="margin-left:4px;font-size:11px;">已分拣</span>' : '';
     const actionHtml = o.status === '已发货'
       ? `<button class="btn btn-orange" data-id="${o._id}">确认收货</button>`
       : (o.status === '已完成' ? `<span style="color:#16a34a;">✓ 已返 ${o.rewardCoin || 0} DH</span>` : '—');
@@ -2346,9 +2698,9 @@ async function loadPurchaseOrders() {
       <tr>
         <td><b>${esc(o.orderNo || o._id)}</b><br><small style="color:#9ca3af;">${fmtTime(o.createdAt)}</small></td>
         <td>${esc(supplierName)}</td>
-        <td title="${esc((o.items || []).map(i => `${i.name}×${i.quantity}`).join('，'))}">${esc(itemsText)}</td>
+        <td title="${esc((o.items || []).map(i => `${i.name}×${i.quantity}${i.actualWeight ? '（实称' + i.actualWeight + 'kg）' : ''}`).join('，'))}">${itemsText}</td>
         <td>¥${Number(o.totalAmount).toFixed(2)}</td>
-        <td><span class="badge ${bc}">${o.status}</span></td>
+        <td><span class="badge ${bc}">${o.status}</span>${sortTag}</td>
         <td>${o.status === '已完成' ? (o.rewardCoin || 0) + ' DH' : '—'}</td>
         <td>${actionHtml}</td>
       </tr>
@@ -2361,12 +2713,15 @@ async function loadPurchaseOrders() {
       const sup = o.supplierId;
       const supplierName = (sup && typeof sup === 'object' && sup.name) ? sup.name : (typeof sup === 'string' ? sup : '未知供应商');
       const itemsCount = (o.items || []).length;
-      const itemsSummary = (o.items || []).slice(0, 3).map(i => `${esc(i.name)}×${i.quantity}`).join('，') + (itemsCount > 3 ? ` 等 ${itemsCount} 项` : '');
+      const itemsSummary = (o.items || []).slice(0, 3).map(itemLine).join('，') + (itemsCount > 3 ? ` 等 ${itemsCount} 项` : '');
       const bc = badgeCls[o.status] || 'b-gray';
       const totalAmt = Number(o.totalAmount || 0);
       const discount = Number(o.discountAmount || 0);
       const actualPay = Number(o.actualPayAmount || totalAmt);
       const rewardCoin = o.rewardCoin || 0;
+      // 已分拣则实付按实称重算，标注提示
+      const weighedCount = (o.items || []).filter(i => i.weighed).length;
+      const sortedTip = weighedCount > 0 ? `<span class="pcard-amount"><small style="color:#b45309;">${weighedCount}项已实称</small></span>` : '';
       // 卡片操作按钮：已发货显示「确认收货」，已完成显示返币，其他状态显示占位
       const actionHtml = o.status === '已发货'
         ? `<button class="btn btn-orange" data-id="${o._id}">确认收货</button>`
@@ -2387,6 +2742,7 @@ async function loadPurchaseOrders() {
             ${discount > 0 ? `<span class="pcard-amount discount">券抵扣 <b>-¥${discount.toFixed(2)}</b></span>` : ''}
             <span class="pcard-amount pay">实付 <b>¥${actualPay.toFixed(2)}</b></span>
             ${o.status === '已完成' ? `<span class="pcard-amount coin">返币 <b>${rewardCoin} DH</b></span>` : ''}
+            ${sortedTip}
           </div>
           ${actionHtml ? `<div class="pcard-actions">${actionHtml}</div>` : ''}
         </div>

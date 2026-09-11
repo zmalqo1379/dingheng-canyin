@@ -29,9 +29,11 @@ const supplyProductsRouter = require('./routes/supplyProducts');
 const marketingRouter = require('./routes/marketing');
 const customerPointsRouter = require('./routes/customerPoints');
 const procurementMonitorRouter = require('./routes/procurementMonitor');
+const supplierPriceRouter = require('./routes/supplierPrice');
 const { getPointConfig, settlePointsForOrder, isValidPhone } = customerPointsRouter;
 const Admin = require('./models/Admin');
 const { startDhCron } = require('./utils/dhCron');
+const priceRule = require('./utils/priceRule');
 const Marketing = require('./models/Marketing');
 const { computeDiscount } = require('./utils/marketingCalc');
 const {
@@ -576,6 +578,14 @@ function isDecorateDone(setting) {
     !!(setting.promoPoster);
 }
 
+// 门店资料完善判定：地址、门头照齐全视为完善（经纬度定位选填，收货方式有默认值）
+// 用于新手任务第一步"完善门店信息"及首次登录强制引导状态检测
+function isStoreInfoDone(setting) {
+  if (!setting) return false;
+  return !!(setting.shopAddress && setting.shopAddress.trim()) &&
+    !!(setting.storeFrontPhoto);
+}
+
 // 赠送体验期判定（与 /api/coin/status 口径一致：memberIsTrial 且会员未到期；
 // 新商家赠送的是 30 天基础版体验；老数据无字段时按"进阶版且剩余不足 31 天"兜底识别）
 function isTrialActive(member, now) {
@@ -613,12 +623,18 @@ app.get('/api/admin/onboarding', requireMerchant, async (req, res) => {
     const decorateDone = isDecorateDone(setting);
     const previewDone = !!(account && account.onboardPreview);
     const mallDone = !!(account && account.onboardMallVisited);
+    const storeInfoDone = !!(account && account.storeInfoCompleted) || isStoreInfoDone(setting);
+    const storeInfoFirstPrompted = !!(account && account.storeInfoFirstPrompted);
+    // 新商家判定：账号创建于 5 分钟内且从未弹过引导 → 首次登录强制完善（不可跳过）
+    // 老商家（注册早于本功能）firstPrompted 同为 false 但 createdAt 较早 → 允许跳过
+    const isNewMerchant = !!(account && account.createdAt &&
+      (Date.now() - new Date(account.createdAt).getTime() < 5 * 60 * 1000));
     const giftClaimed = !!(account && account.onboardGiftClaimed) || !!giftDoc;
     const now = new Date();
     const trialActive = isTrialActive(member, now);
 
-    const tasks = { dish: dishDone, decorate: decorateDone, preview: previewDone, mall: mallDone };
-    const allDone = dishDone && decorateDone && previewDone && mallDone;
+    const tasks = { storeInfo: storeInfoDone, dish: dishDone, decorate: decorateDone, preview: previewDone, mall: mallDone };
+    const allDone = storeInfoDone && dishDone && decorateDone && previewDone && mallDone;
 
     res.json({
       success: true,
@@ -630,6 +646,16 @@ app.get('/api/admin/onboarding', requireMerchant, async (req, res) => {
         trial: {
           active: trialActive,
           memberExpire: member ? member.memberExpire : null
+        },
+        // 门店资料完善引导状态：
+        //   completed=已完善；firstPrompted=已弹过引导；isNewMerchant=刚注册的新商家
+        //   前端判定：未完善 + 未弹过 + 新商家 → 强制弹窗（不可跳过）
+        //            未完善 + 未弹过 + 老商家 → 弹窗可跳过 → 跳过后黄条
+        //            未完善 + 已弹过 → 常驻黄条提醒
+        storeInfo: {
+          completed: storeInfoDone,
+          firstPrompted: storeInfoFirstPrompted,
+          isNewMerchant: isNewMerchant
         }
       }
     });
@@ -673,12 +699,13 @@ app.post('/api/admin/onboarding/claim-gift', requireMerchant, async (req, res) =
       });
     }
 
-    // 服务端复核四个任务全部完成（菜品 / 装修查库权威判定，预览 / 逛商城取动作标记）
+    // 服务端复核五个任务全部完成（门店资料 / 菜品 / 装修查库权威判定，预览 / 逛商城取动作标记）
     const [dishCount, setting] = await Promise.all([
       Dish.countDocuments({ shopId }).session(session),
       Setting.findOne({ shopId }).session(session)
     ]);
-    const tasksDone = dishCount > 0 &&
+    const tasksDone = isStoreInfoDone(setting) &&
+      dishCount > 0 &&
       isDecorateDone(setting) &&
       !!(account && account.onboardPreview) &&
       !!(account && account.onboardMallVisited);
@@ -727,6 +754,39 @@ app.post('/api/admin/onboarding/claim-gift', requireMerchant, async (req, res) =
     res.status(500).json({ success: false, message: err.message });
   } finally {
     session.endSession();
+  }
+});
+
+// POST /api/admin/store-info/complete 标记门店资料已完善（首次引导保存后调用）
+// 同时置 storeInfoFirstPrompted=true，防止再次弹出强制引导
+app.post('/api/admin/store-info/complete', requireMerchant, async (req, res) => {
+  try {
+    const shopId = req.shopId;
+    const setting = await Setting.findOne({ shopId }).lean();
+    if (!isStoreInfoDone(setting)) {
+      return res.status(400).json({ success: false, message: '门店资料尚不完整（地址/门头照/定位），请补全后再提交' });
+    }
+    await ShopAccount.updateOne(
+      { shopId },
+      { $set: { storeInfoCompleted: true, storeInfoFirstPrompted: true } }
+    );
+    res.json({ success: true, data: { completed: true } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/admin/store-info/skip 老商家跳过首次完善引导（仅标记 firstPrompted，不标 completed）
+// 跳过后后台顶部常驻黄色提醒条直至补全
+app.post('/api/admin/store-info/skip', requireMerchant, async (req, res) => {
+  try {
+    await ShopAccount.updateOne(
+      { shopId: req.shopId },
+      { $set: { storeInfoFirstPrompted: true } }
+    );
+    res.json({ success: true, data: { skipped: true } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -840,6 +900,22 @@ app.put('/api/settings', requireMerchant, async (req, res) => {
       delete update.promoPosterSize;
     }
 
+    // ---- 配送三件套：门店定位/门头照/收货方式/期望时段字段清洗 ----
+    ['shopLongitude', 'shopLatitude'].forEach((k) => {
+      if (update[k] !== undefined) {
+        const n = Number(update[k]);
+        update[k] = (isFinite(n) && Math.abs(n) <= 180) ? n : null;
+      }
+    });
+    if (update.receiveMethod !== undefined &&
+        !['door_container', 'open_door', 'self_pickup'].includes(update.receiveMethod)) {
+      delete update.receiveMethod;
+    }
+    ['shopAddress', 'storeFrontPhoto', 'streetViewPhoto',
+      'expectedReceiveStart', 'expectedReceiveEnd'].forEach((k) => {
+      if (update[k] !== undefined) update[k] = String(update[k]).slice(0, 500);
+    });
+
     const setting = await Setting.findOneAndUpdate(
       { shopId },
       update,
@@ -863,6 +939,8 @@ app.use('/api/marketing', marketingRouter);
 app.use('/api/points', customerPointsRouter);
 // 采购监控（防回扣）：商家身份 + shopId 隔离，全部只读接口
 app.use('/api/admin/procurement-monitor', procurementMonitorRouter);
+// 供应商智能定价系统（改价工作台 / 品类规则 / 保鲜期提醒）：供应商身份鉴权
+app.use('/api/supplier/price', supplierPriceRouter);
 
 // 供应商列表（公开浏览 + 管理端展示，不涉及多商家隔离）
 // 采购商城可见的供应商列表：仅 status=active && agreementSigned && orderEnabled
@@ -948,6 +1026,13 @@ mongoose
       console.error('创建默认开发者账号失败：', e.message);
     }
     startDhCron();
+    // 预置平台品类保鲜期 / 加价率规则（幂等，仅 supplierId=null 的全局预置）
+    try {
+      await priceRule.seedGlobalPresets();
+      console.log('[PriceRule] 平台预置品类规则已就绪');
+    } catch (e) {
+      console.error('[PriceRule] 预置规则入库失败:', e.message);
+    }
     app.listen(PORT, () => {
       console.log(`服务器已启动: http://localhost:${PORT}`);
     });

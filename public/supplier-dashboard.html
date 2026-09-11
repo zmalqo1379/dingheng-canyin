@@ -211,6 +211,96 @@
     .placeholder h3 { font-size: 17px; color: #4b5563; margin-bottom: 8px; }
     .placeholder p { font-size: 13px; }
 
+    /* ============ 今日改价工作台 ============ */
+    .pw-summary {
+      display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
+      background: #fff; border-radius: 14px; padding: 16px 18px;
+      margin-bottom: 16px; box-shadow: 0 2px 10px rgba(0,0,0,.05);
+    }
+    .pw-sum-card {
+      background: linear-gradient(135deg, #fff7ed, #ffedd5);
+      border-radius: 10px; padding: 10px 16px; min-width: 130px;
+    }
+    .pw-sum-card .label { font-size: 12px; color: #9a3412; }
+    .pw-sum-card .value { font-size: 20px; font-weight: 700; color: #c2410c; }
+    .pw-sum-tip { font-size: 12px; color: #6b7280; flex: 1; min-width: 200px; }
+    .pw-fresh-banner {
+      background: linear-gradient(135deg, #fef08a, #fde68a);
+      border: 1px solid #facc15; border-left: 4px solid #ca8a04;
+      border-radius: 10px; padding: 12px 16px; margin-bottom: 14px;
+      font-size: 13px; color: #713f12; display: flex; align-items: center; gap: 8px;
+    }
+    .pw-fresh-banner.frozen { background: linear-gradient(135deg, #fee2e2, #fecaca); border-color: #ef4444; border-left-color: #b91c1c; color: #7f1d1d; }
+    .pw-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+    .pw-tab {
+      padding: 8px 14px; border-radius: 20px; background: #fff;
+      border: 1px solid var(--line); font-size: 13px; color: #6b7280;
+      cursor: pointer; user-select: none; transition: all .15s;
+    }
+    .pw-tab:hover { background: #fff7ed; color: var(--accent); }
+    .pw-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .pw-tab .cnt { font-size: 11px; opacity: .8; margin-left: 4px; }
+    .pw-group { background: #fff; border-radius: 14px; padding: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.05); }
+    .pw-group-head {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line);
+    }
+    .pw-group-title { font-size: 15px; font-weight: 600; color: #1f2937; }
+    .pw-carryall-btn {
+      background: linear-gradient(135deg, #16a34a, #15803d);
+      color: #fff; border: none; padding: 8px 16px; border-radius: 9px;
+      font-size: 13px; cursor: pointer; font-weight: 600;
+    }
+    .pw-carryall-btn:hover { filter: brightness(1.08); }
+    .pw-carryall-btn:disabled { background: #d1d5db; cursor: not-allowed; }
+    .pw-table { width: 100%; border-collapse: collapse; }
+    .pw-table th { text-align: left; padding: 8px 6px; font-size: 12px; color: #6b7280; font-weight: 600; border-bottom: 1px solid var(--line); }
+    .pw-table td { padding: 8px 6px; font-size: 13px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+    .pw-table tr.frozen-row { background: #fef2f2; }
+    .pw-table tr.done-row { background: #f0fdf4; }
+    .pw-table tr.under-cost { background: #fef2f2; }
+    .pw-table tr.under-cost .pw-price-input { border-color: #ef4444; background: #fef2f2; }
+    .pw-name-cell { display: flex; flex-direction: column; gap: 2px; }
+    .pw-name-cell .nm { font-weight: 600; color: #1f2937; }
+    .pw-grade-tag {
+      display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 4px;
+      margin-left: 6px; vertical-align: middle;
+    }
+    .pw-grade-tag.standard { background: #e0f2fe; color: #0369a1; }
+    .pw-grade-tag.premium { background: #fef3c7; color: #b45309; }
+    .pw-price-input {
+      width: 80px; padding: 6px 8px; border: 1px solid var(--line);
+      border-radius: 6px; font-size: 13px; text-align: right;
+    }
+    .pw-price-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(255,107,53,.15); }
+    .pw-suggest { font-size: 12px; color: #16a34a; font-weight: 600; }
+    .pw-profit { font-size: 12px; color: #6b7280; }
+    .pw-profit.neg { color: #ef4444; font-weight: 600; }
+    .pw-act-btn {
+      padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer;
+      border: 1px solid var(--line); background: #fff; color: #374151; margin-right: 4px;
+    }
+    .pw-act-btn.save { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .pw-act-btn.carry { background: #f0fdf4; color: #16a34a; border-color: #86efac; }
+    .pw-status-chip { font-size: 11px; padding: 2px 8px; border-radius: 10px; }
+    .pw-status-chip.done { background: #dcfce7; color: #16a34a; }
+    .pw-status-chip.pending { background: #fef3c7; color: #b45309; }
+    .pw-status-chip.frozen { background: #fee2e2; color: #ef4444; }
+    /* 囤货保护：量异常订单标红 + 标签 */
+    .order-table tr.anomaly-row { background: #fef2f2 !important; }
+    .order-table tr.anomaly-row:hover { background: #fee2e2 !important; }
+    .anomaly-chip {
+      display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 4px;
+      background: #ef4444; color: #fff; font-weight: 600; margin-left: 6px; vertical-align: middle;
+    }
+    @media (max-width: 768px) {
+      .pw-table thead { display: none; }
+      .pw-table, .pw-table tbody, .pw-table tr, .pw-table td { display: block; width: 100%; }
+      .pw-table tr { padding: 10px 0; border-bottom: 1px solid var(--line); }
+      .pw-table td { border: none; padding: 4px 0; display: flex; justify-content: space-between; align-items: center; }
+      .pw-table td::before { content: attr(data-label); font-size: 12px; color: #9ca3af; font-weight: 600; }
+    }
+
     /* ============ 订单过滤标签条 ============ */
     .filter-bar {
       display: flex; gap: 8px; flex-wrap: wrap;
@@ -355,7 +445,13 @@
 
     .order-refresh {
       display: flex; justify-content: flex-end;
+      gap: 8px;
       margin-bottom: 12px;
+    }
+    .btn-refresh.btn-print-all {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff; border-color: transparent;
+      font-weight: 600;
     }
     .btn-refresh {
       background: #fff; border: 1px solid var(--line);
@@ -1139,6 +1235,132 @@
       .agm-body .agreement-text { padding: 14px 16px 22px; }
       .agm-agree-btn { width: 100%; }
     }
+
+    /* ============ 打印小票（80mm 热敏纸，独立 print CSS） ============ */
+    /* 屏幕显示与打印输出分离：#printArea 平时隐藏，@media print 时屏显全部隐藏、仅 #printArea 可见 */
+    #printArea { display: none; }
+    .receipt {
+      font-family: "PingFang SC", "Microsoft YaHei", monospace;
+      width: 76mm;
+      color: #000;
+      background: #fff;
+      padding: 2mm 1mm;
+    }
+    .receipt .r-top { text-align: center; font-weight: 700; font-size: 14px; margin-bottom: 2px; }
+    .receipt .r-meta { font-size: 11px; line-height: 1.5; }
+    .receipt .r-table { width: 100%; font-size: 11px; border-collapse: collapse; margin-top: 3px; }
+    .receipt .r-table th, .receipt .r-table td { border-top: 1px dashed #000; padding: 1px 0; text-align: left; vertical-align: top; }
+    .receipt .r-table th { border-top: 1px solid #000; font-weight: 600; }
+    .receipt .r-table td.qty, .receipt .r-table td.wt, .receipt .r-table td.price, .receipt .r-table td.amt { text-align: right; }
+    .receipt .r-sum { text-align: right; font-size: 12px; font-weight: 700; margin-top: 3px; }
+    .receipt .r-foot { text-align: center; font-size: 12px; margin-top: 4px; border-top: 1px dashed #000; padding-top: 4px; }
+    /* 分拣标签 50mm */
+    .receipt.label { width: 48mm; }
+    .receipt.label .r-top { font-size: 13px; }
+
+    @media print {
+      body * { visibility: hidden; }
+      #printArea, #printArea * { visibility: visible; }
+      #printArea { display: block; position: absolute; left: 0; top: 0; width: 80mm; }
+      .receipt { page-break-after: always; }
+      .receipt:last-child { page-break-after: auto; }
+      .no-print { display: none !important; }
+    }
+
+    /* ============ 分拣过秤页 ============ */
+    .sort-toolbar {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 14px; flex-wrap: wrap;
+    }
+    .sort-tip { font-size: 13px; color: #6b7280; }
+    .sort-list { display: flex; flex-direction: column; gap: 14px; }
+    .sort-order {
+      background: #fff; border-radius: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.05); overflow: hidden;
+    }
+    .sort-order-head {
+      padding: 12px 18px; display: flex; justify-content: space-between;
+      align-items: center; gap: 10px; flex-wrap: wrap;
+      border-bottom: 1px solid #f3f4f6; cursor: pointer;
+    }
+    .sort-order-head .so-no { font-size: 14px; font-weight: 700; color: #1f2937; }
+    .sort-order-head .so-shop { font-size: 13px; color: #6b7280; }
+    .sort-order-head .so-right { display: flex; align-items: center; gap: 10px; }
+    .sort-chip { font-size: 11px; padding: 2px 9px; border-radius: 10px; font-weight: 600; }
+    .sort-chip.done { background: #dcfce7; color: #16a34a; }
+    .sort-chip.pending { background: #fef3c7; color: #b45309; }
+    .sort-order-body { padding: 6px 18px 14px; }
+    .sort-item {
+      display: grid; grid-template-columns: 1.6fr 70px 130px 90px 80px;
+      gap: 8px; align-items: center;
+      padding: 10px 0; border-bottom: 1px dashed #f3f4f6;
+    }
+    .sort-item:last-child { border-bottom: none; }
+    .sort-item .si-name { font-size: 14px; color: #1f2937; }
+    .sort-item .si-name small { color: #9ca3af; font-size: 11px; margin-left: 4px; }
+    .sort-item .si-qty { font-size: 13px; color: #6b7280; }
+    .sort-item .si-wt-input { display: flex; gap: 4px; align-items: center; }
+    .sort-item .si-wt-input input {
+      width: 70px; padding: 6px 8px; border: 1px solid var(--line);
+      border-radius: 7px; font-size: 13px;
+    }
+    .sort-item .si-wt-input button {
+      background: #f0fdf4; color: #16a34a; border: 1px solid #86efac;
+      padding: 6px 8px; border-radius: 7px; font-size: 12px; cursor: pointer; white-space: nowrap;
+    }
+    .sort-item .si-line { font-size: 13px; font-weight: 600; color: var(--accent); }
+    .sort-item .si-confirm {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff;
+      border: none; padding: 7px 12px; border-radius: 8px; font-size: 13px; cursor: pointer;
+    }
+    .sort-item .si-confirm:disabled { opacity: .5; cursor: not-allowed; }
+    .sort-item .si-done { font-size: 12px; color: #16a34a; font-weight: 600; }
+    @media (max-width: 768px) {
+      .sort-item { grid-template-columns: 1fr; gap: 6px; }
+      .sort-item .si-qty::before { content: '下单：'; color: #9ca3af; }
+    }
+
+    /* ============ 配送单页 ============ */
+    .deliver-list { display: flex; flex-direction: column; gap: 14px; }
+    .deliver-card {
+      background: #fff; border-radius: 14px; padding: 16px 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.05);
+      display: grid; grid-template-columns: 90px 1fr; gap: 16px;
+      border-left: 4px solid var(--accent);
+    }
+    .deliver-card.done { border-left-color: var(--green); }
+    .dc-photo { width: 90px; height: 68px; object-fit: cover; border-radius: 8px; cursor: pointer; background: #f3f4f6; }
+    .dc-photo.placeholder {
+      display: flex; align-items: center; justify-content: center;
+      color: #9ca3af; font-size: 11px; border: 1px dashed var(--line);
+    }
+    /* 商家未完善XX 灰字提示（无报错感） */
+    .dc-missing { color: #9ca3af; font-size: 12px; font-style: italic; }
+    .dc-street-thumb { width: 60px; height: 45px; object-fit: cover; border-radius: 6px; cursor: pointer; border: 1px solid var(--line); }
+    .dc-street-row { display: flex; align-items: center; gap: 8px; }
+    .dc-info { display: flex; flex-direction: column; gap: 5px; }
+    .dc-shop { font-size: 15px; font-weight: 700; color: #1f2937; }
+    .dc-addr { font-size: 13px; color: #374151; line-height: 1.5; }
+    .dc-row { font-size: 12px; color: #6b7280; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .dc-method-chip { background: #eff6ff; color: #1e40af; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+    .dc-time { color: #b45309; font-weight: 600; }
+    .dc-actions { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; align-items: center; }
+    .dc-nav {
+      background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe;
+      padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      text-decoration: none; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
+    }
+    .dc-nav:hover { background: #dbeafe; }
+    .dc-photo-btn {
+      background: var(--green); color: #fff; border: none;
+      padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+      position: relative; overflow: hidden;
+    }
+    .dc-photo-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .dc-delivered { display: flex; align-items: center; gap: 6px; }
+    .dc-delivered img { width: 50px; height: 50px; object-fit: cover; border-radius: 6px; cursor: pointer; }
+    .dc-delivered span { font-size: 12px; color: #16a34a; font-weight: 600; }
+    @media (max-width: 768px) { .deliver-card { grid-template-columns: 1fr; } .dc-photo { width: 100%; height: 120px; } }
   </style>
 </head>
 <body>
@@ -1171,8 +1393,11 @@
     <aside class="sidebar" id="sidebar">
       <nav class="nav">
         <div class="nav-item active" data-tab="orders"><span class="icon">📦</span> 待处理订单</div>
+        <div class="nav-item" data-tab="price"><span class="icon">💹</span> 今日改价</div>
+        <div class="nav-item" data-tab="sort"><span class="icon">⚖️</span> 分拣过秤</div>
         <div class="nav-item" data-tab="products"><span class="icon">📋</span> 商品管理</div>
         <div class="nav-item" data-tab="qualify" id="navQualify"><span class="icon">🪪</span> 开通接单<span class="nav-badge" id="navQualifyBadge" style="display:none;">待办</span></div>
+        <div class="nav-item" data-tab="deliver"><span class="icon">🚚</span> 配送单</div>
         <div class="nav-item" data-tab="notify"><span class="icon">🔔</span> 通知设置</div>
         <div class="nav-item" data-tab="stats"><span class="icon">📊</span> 数据统计</div>
         <div class="nav-item" data-tab="settle"><span class="icon">💰</span> 合作结算</div>
@@ -1247,6 +1472,7 @@
 
         <!-- 状态过滤 + 刷新 -->
         <div class="order-refresh">
+          <button class="btn-refresh btn-print-all" id="printAllBtn">🖨️ 一键打全票（今日已确认）</button>
           <button class="btn-refresh" id="refreshBtn">↻ 刷新订单</button>
         </div>
         <div class="filter-bar" id="filterBar">
@@ -1280,7 +1506,36 @@
         </div>
       </section>
 
-      <!-- 2. 商品管理 -->
+      <!-- 2. 今日改价工作台 -->
+      <section class="pane" id="pane-price">
+        <div class="pane-title">💹 今日改价工作台</div>
+
+        <!-- 顶部统计：今日已更新 X/Y -->
+        <div class="pw-summary" id="pwSummary">
+          <div class="pw-sum-card">
+            <div class="label">今日已更新</div>
+            <div class="value"><span id="pwUpdated">0</span>/<span id="pwTotal">0</span> 个商品</div>
+          </div>
+          <div class="pw-sum-card">
+            <div class="label">待改价</div>
+            <div class="value"><span id="pwPending">0</span> 个</div>
+          </div>
+          <div class="pw-sum-tip">填进价 → 自动算建议售价 → 一键沿用昨日价 / 改最终售价 → 低于成本线标红</div>
+        </div>
+
+        <!-- 保鲜期提醒横幅（超期未更新时显示） -->
+        <div class="pw-fresh-banner" id="pwFreshBanner" style="display:none;"></div>
+
+        <!-- 分类标签 -->
+        <div class="pw-tabs" id="pwTabs"></div>
+
+        <!-- 当前分类的商品改价表 -->
+        <div class="pw-group" id="pwGroup">
+          <div class="no-data">加载中...</div>
+        </div>
+      </section>
+
+      <!-- 3. 商品管理 -->
       <section class="pane" id="pane-products">
         <div class="pane-title">📋 商品管理</div>
 
@@ -1456,10 +1711,70 @@
           </table>
         </div>
       </section>
+
+      <!-- 分拣过秤 -->
+      <section class="pane" id="pane-sort">
+        <div class="pane-title">⚖️ 今日分拣过秤</div>
+        <div class="sort-toolbar">
+          <button class="btn-refresh" id="sortRefreshBtn">↻ 刷新</button>
+          <button class="btn-refresh" id="scaleCfgBtn">⚙️ 秤配置</button>
+          <span class="sort-tip" id="sortScaleTip">秤模式：手输</span>
+        </div>
+        <div class="filter-bar" id="sortFilter">
+          <div class="filter-chip active" data-s="待分拣">待分拣 <span class="cnt" id="sortCnt-pending">0</span></div>
+          <div class="filter-chip" data-s="已分拣">已分拣 <span class="cnt" id="sortCnt-done">0</span></div>
+        </div>
+        <div id="sortList" class="sort-list"></div>
+      </section>
+
+      <!-- 配送单 -->
+      <section class="pane" id="pane-deliver">
+        <div class="pane-title">🚚 今日配送单</div>
+        <div class="sort-toolbar">
+          <button class="btn-refresh" id="deliverRefreshBtn">↻ 刷新</button>
+          <span class="sort-tip" id="deliverTip">按商家期望收货时段排序</span>
+        </div>
+        <div id="deliverList" class="deliver-list"></div>
+      </section>
     </main>
   </div>
 
   <div class="toast" id="toast"></div>
+
+  <!-- 打印隐藏容器（80mm 小票 / 50mm 标签，@media print 时可见） -->
+  <div id="printArea"></div>
+
+  <!-- 秤配置弹窗 -->
+  <div class="modal-scrim" id="scaleModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>⚙️ 电子秤对接配置</h3>
+        <button class="modal-close" id="scaleModalClose">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-item">
+          <label>对接方式</label>
+          <select id="scaleAdapterSel">
+            <option value="manual">手输（无秤，手动填写实称重量）</option>
+            <option value="webserial">WebSerial（串口电子秤，Chrome/Edge）</option>
+            <option value="webusb">WebUSB（USB 电子秤，预留）</option>
+            <option value="bluetooth">蓝牙（Web Bluetooth，预留）</option>
+          </select>
+        </div>
+        <div class="form-item">
+          <label>说明</label>
+          <p style="font-size:13px;color:#9ca3af;line-height:1.6;">
+            选 WebSerial 后点击"读取秤"会弹串口选择框（9600 波特率，ASCII 解析）。<br>
+            WebUSB / 蓝牙为预留接口，按实际电子秤协议开发时填入读取逻辑。<br>
+            无秤时选手输，重量框可直接手动输入。
+          </p>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-primary" id="scaleSaveBtn">保存</button>
+      </div>
+    </div>
+  </div>
 
   <!-- 商品新增/编辑弹窗 -->
   <div class="modal-scrim" id="productModal">
@@ -1496,6 +1811,20 @@
         </div>
         <div class="form-row">
           <div class="form-item">
+            <label>单品加价率%（选填）</label>
+            <input type="number" id="prodMarkupRate" min="0" step="1" placeholder="留空按品类默认">
+          </div>
+          <div class="form-item">
+            <label>档次（双档次蔬菜用）</label>
+            <select id="prodGrade">
+              <option value="">无档次</option>
+              <option value="standard">实惠档</option>
+              <option value="premium">精品档</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-item">
             <label>库存<span class="req">*</span></label>
             <input type="number" id="prodStock" min="0" step="1" placeholder="非负整数">
           </div>
@@ -1503,6 +1832,10 @@
             <label>图片链接（选填）</label>
             <input type="text" id="prodImage" maxlength="300" placeholder="http://...">
           </div>
+        </div>
+        <div class="form-item">
+          <label>关联主品（精品档关联其实惠档主品，采购商城相邻展示）</label>
+          <select id="prodParentProductId"><option value="">无（本品为主品/单档品）</option></select>
         </div>
         <div class="form-item">
           <label>商品描述（选填）</label>
@@ -2402,10 +2735,13 @@
       document.querySelectorAll('.pane').forEach(x => x.classList.toggle('active', x.id === 'pane-' + tab));
       closeSidebar();
       if (tab === 'orders') loadOrders();
+      if (tab === 'price') loadPriceWorkbench();
       if (tab === 'products') loadProducts();
       if (tab === 'qualify' && _gateProfile) renderQualifyPane(_gateProfile);
       if (tab === 'notify') loadNotifySettings();
       if (tab === 'settle') loadSettle();
+      if (tab === 'sort') loadSortOrders();
+      if (tab === 'deliver') loadDeliverOrders();
     }
     document.querySelectorAll('.nav-item').forEach(t => t.onclick = () => switchTab(t.dataset.tab));
 
@@ -2553,7 +2889,14 @@
       const discount = Number(o.discountAmount || 0);
       const actual = Number(o.actualPayAmount || 0) || Number(o.totalAmount || 0);
 
-      // 操作按钮（按状态流转）
+      // 囤货保护：量异常订单标红 + "量异常"标签
+      const anomalyFlag = !!o.anomalyFlag;
+      const rowClass = anomalyFlag ? 'anomaly-row' : '';
+      const anomalyTag = anomalyFlag
+        ? `<span class="anomaly-chip" title="${esc((o.anomalyItems||[]).map(i=>`${i.name}×${i.quantity}/近7日${i.history7DayTotal}`).join('，'))}">量异常</span>`
+        : '';
+
+      // 操作按钮（按状态流转）+ 打印小票按钮（所有状态均可打）
       let act = '';
       if (o.status === '待确认') {
         act = `<button class="btn btn-primary" data-act="confirm" data-id="${esc(String(o._id))}">确认订单</button>`;
@@ -2565,12 +2908,13 @@
         // 单笔订单不再展示任何返点数字，返点统一在「合作结算」栏目按月汇总查看
         act = `<span class="rebate-tag">已完成</span>`;
       }
+      act += ` <button class="btn btn-ghost" data-act="print" data-id="${esc(String(o._id))}" title="打印小票（80mm）">🖨️ 打印小票</button>`;
 
       return `
-        <tr>
+        <tr class="${rowClass}">
           <td class="mono" data-label="订单号" title="${esc(o.orderNo || '')}">…${esc(orderNoTail)}</td>
           <td data-label="商家名称">${shopName}</td>
-          <td class="summary" data-label="商品摘要" title="${esc(summary)}">${esc(summary)}</td>
+          <td class="summary" data-label="商品摘要" title="${esc(summary)}">${esc(summary)} ${anomalyTag}</td>
           <td data-label="订单总额">${fmtMoney(o.totalAmount)}</td>
           <td data-label="券抵扣">${discount > 0 ? '-' + fmtMoney(discount) : '—'}</td>
           <td class="pay" data-label="实付金额">${fmtMoney(actual)}</td>
@@ -2683,8 +3027,15 @@
     }
     setInterval(pollNewOrders, 30000);
 
-    // 处理订单操作（确认 / 发货），POST 动词
+    // 处理订单操作（确认 / 发货 / 打印小票），POST 动词
     async function handleOrderAction(act, id, btn) {
+      // 打印小票：纯前端，不调后端，从当前列表数据取订单直接打印
+      if (act === 'print') {
+        const o = allOrders.find(x => String(x._id) === String(id));
+        if (!o) { toast('订单数据未找到，请刷新后重试', true); return; }
+        openReceiptPrint([o]);
+        return;
+      }
       const url = act === 'confirm'
         ? `/api/purchase-orders/${id}/confirm`
         : `/api/purchase-orders/${id}/ship`;
@@ -2718,6 +3069,386 @@
 
     // 刷新按钮
     $('refreshBtn').onclick = loadOrders;
+
+    // ============ 打印小票（80mm 热敏纸，独立 print CSS） ============
+    // 供应商名（从已加载的 profile 取，兜底"供应商"）
+    function getSupplierDisplayName() {
+      return (_gateProfile && _gateProfile.name) || localStorage.getItem('supplierName') || '供应商';
+    }
+
+    // 把订单数组渲染成 80mm 小票 HTML 字符串
+    function buildReceiptHTML(o) {
+      const supName = getSupplierDisplayName();
+      const shopLine = esc((o.shopName || '未命名商家') + (o.shopAddress ? ' · ' + o.shopAddress : ''));
+      const rows = (o.items || []).map(it => {
+        const wt = Number(it.actualWeight || 0);
+        const lineAmt = Number(it.actualLineTotal || it.totalPrice || 0);
+        return `
+        <tr>
+          <td>${esc(it.name)}<br><small>${esc(it.category || '')}</small></td>
+          <td class="qty">${it.quantity}</td>
+          <td class="wt">${wt > 0 ? wt.toFixed(2) : '—'}</td>
+          <td class="price">${fmtMoney(it.unitPrice)}</td>
+          <td class="amt">${fmtMoney(lineAmt)}</td>
+        </tr>`;
+      }).join('');
+      const actual = Number(o.actualPayAmount || 0) || Number(o.totalAmount || 0);
+      return `
+        <div class="receipt">
+          <div class="r-top">${esc(supName)}</div>
+          <div class="r-meta">
+            单号：${esc(o.orderNo || '—')}<br>
+            下单：${fmtTime(o.createdAt)}<br>
+            商家：${shopLine}<br>
+            ${o.shopContact ? '联系人：' + esc(o.shopContact) + '<br>' : ''}
+            ${o.shopPhone ? '电话：' + esc(o.shopPhone) + '<br>' : ''}
+          </div>
+          <table class="r-table">
+            <thead><tr>
+              <th>品名/规格</th><th class="qty">下单</th><th class="wt">实称</th><th class="price">单价</th><th class="amt">金额</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <div class="r-sum">合计：${fmtMoney(actual)}</div>
+          <div class="r-foot">请当面验货</div>
+        </div>`;
+    }
+
+    // 统一打印入口：把 html 塞入隐藏 #printArea，window.print 一次（多张靠 page-break 分页）
+    function openReceiptPrint(orderList) {
+      if (!orderList || orderList.length === 0) { toast('无可打印订单'); return; }
+      const html = orderList.map(buildReceiptHTML).join('');
+      const area = document.getElementById('printArea');
+      area.innerHTML = html;
+      const cleanup = () => { area.innerHTML = ''; window.removeEventListener('afterprint', cleanup); };
+      window.addEventListener('afterprint', cleanup);
+      // 兜底：某些浏览器不触发 afterprint，1.5s 后清空
+      setTimeout(() => { if (area.innerHTML) area.innerHTML = ''; }, 2000);
+      window.print();
+    }
+
+    // 一键打全票：今日已确认订单逐张批量打印
+    async function printAllTodayReceipts() {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const list = allOrders.filter(o =>
+        o.status === '已确认' && o.createdAt && new Date(o.createdAt) >= today);
+      if (list.length === 0) {
+        toast('今日暂无已确认订单，无法打全票');
+        return;
+      }
+      openReceiptPrint(list);
+    }
+    $('printAllBtn').onclick = printAllTodayReceipts;
+
+    // ============ 分拣过秤 + 智能秤接口 ============
+    // 秤配置：localStorage 存 adapter（manual/webserial/webusb/bluetooth），默认 manual 走手输
+    const SCALE_CFG_KEY = 'scale_adapter_' + (localStorage.getItem('supplierId') || 'default');
+    function getScaleAdapter() {
+      return localStorage.getItem(SCALE_CFG_KEY) || 'manual';
+    }
+    const SCALE_LABEL = { manual: '手输', webserial: 'WebSerial', webusb: 'WebUSB', bluetooth: '蓝牙' };
+
+    // 可配置秤读取入口：按 adapter 分派；manual 返回 null 表示走手输入框
+    async function getScaleWeight() {
+      const adapter = getScaleAdapter();
+      try {
+        if (adapter === 'webserial') return await readScaleWebSerial();
+        if (adapter === 'webusb') return await readScaleWebUSB();
+        if (adapter === 'bluetooth') return await readScaleBluetooth();
+      } catch (e) {
+        toast('秤读取失败：' + e.message + '，请手输入', true);
+      }
+      return null;
+    }
+
+    // WebSerial 串口电子秤（9600 波特率，ASCII 解析；多数电子秤返回形如 "= 0.123kg"）
+    let _serialPort = null;
+    async function readScaleWebSerial() {
+      if (!('serial' in navigator)) throw new Error('当前浏览器不支持 WebSerial（需 Chrome/Edge）');
+      if (!_serialPort) {
+        _serialPort = await navigator.serial.requestPort();
+        await _serialPort.open({ baudRate: 9600 });
+      }
+      const dec = new TextDecoder();
+      const reader = _serialPort.readable.getReader();
+      let buf = '';
+      const deadline = Date.now() + 1500;
+      let weight = null;
+      while (Date.now() < deadline) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const m = buf.match(/-?\d+\.?\d*/);
+        if (m) { weight = parseFloat(m[0]); break; }
+      }
+      reader.releaseLock();
+      return weight;
+    }
+    // WebUSB / 蓝牙预留接口（按实际电子秤协议开发时填入读取逻辑）
+    async function readScaleWebUSB() { throw new Error('WebUSB 接口为预留，待按设备协议开发'); }
+    async function readScaleBluetooth() { throw new Error('蓝牙接口为预留，待按设备协议开发'); }
+
+    // 秤配置弹窗
+    $('scaleCfgBtn').onclick = () => {
+      $('scaleAdapterSel').value = getScaleAdapter();
+      $('scaleModal').classList.add('show');
+    };
+    $('scaleModalClose').onclick = () => $('scaleModal').classList.remove('show');
+    $('scaleSaveBtn').onclick = () => {
+      const v = $('scaleAdapterSel').value;
+      localStorage.setItem(SCALE_CFG_KEY, v);
+      $('sortScaleTip').textContent = '秤模式：' + (SCALE_LABEL[v] || v);
+      $('scaleModal').classList.remove('show');
+      toast('秤配置已保存');
+    };
+
+    // 分拣订单列表（今日已确认订单，按 sorted 分待/已分拣）
+    let _sortOrders = [];
+    let _sortFilter = '待分拣';
+    function renderSortOrders() {
+      const pending = _sortOrders.filter(o => !o.sorted);
+      const done = _sortOrders.filter(o => o.sorted);
+      $('sortCnt-pending').textContent = pending.length;
+      $('sortCnt-done').textContent = done.length;
+      const list = _sortFilter === '待分拣' ? pending : done;
+      const wrap = $('sortList');
+      if (list.length === 0) {
+        wrap.innerHTML = `<div class="empty-tip"><div class="ico">⚖️</div><p>暂无「${_sortFilter}」订单</p></div>`;
+        return;
+      }
+      wrap.innerHTML = list.map(o => {
+        const tail = String(o.orderNo || '—').slice(-6);
+        const rows = (o.items || []).map(it => {
+          const wt = Number(it.actualWeight || 0);
+          const lineAmt = Number(it.actualLineTotal || it.totalPrice || 0);
+          return `
+          <div class="sort-item" data-oid="${esc(String(o._id))}" data-pid="${esc(String(it.productId))}">
+            <div class="si-name">${esc(it.name)} <small>${esc(it.category || '')}</small></div>
+            <div class="si-qty">下单 ${it.quantity}</div>
+            <div class="si-wt-input">
+              <input type="number" step="0.01" min="0" placeholder="实称(kg)" value="${wt > 0 ? wt.toFixed(2) : ''}">
+              <button class="si-scale" type="button">读取秤</button>
+            </div>
+            <div class="si-line">¥<span class="si-total">${lineAmt.toFixed(2)}</span></div>
+            ${it.weighed ? '<div class="si-done">✓ 已称</div>' : `<button class="si-confirm" type="button">确认</button>`}
+          </div>`;
+        }).join('');
+        return `
+          <div class="sort-order" data-oid="${esc(String(o._id))}">
+            <div class="sort-order-head" data-toggle="${esc(String(o._id))}">
+              <div><span class="so-no">…${esc(tail)}</span> <span class="so-shop">${esc(o.shopName || '')}</span></div>
+              <div class="so-right">
+                <span class="badge ${o.sorted ? 's-done' : 's-confirmed'}">${o.sorted ? '已分拣' : '待分拣'}</span>
+                <span class="so-shop">合计 ${fmtMoney(o.actualPayAmount || o.totalAmount)}</span>
+              </div>
+            </div>
+            <div class="sort-order-body">${rows}</div>
+          </div>`;
+      }).join('');
+
+      // 绑定：读取秤、确认
+      wrap.querySelectorAll('.si-scale').forEach(b => b.onclick = () => doScaleRead(b));
+      wrap.querySelectorAll('.si-confirm').forEach(b => b.onclick = () => confirmWeighRow(b));
+    }
+
+    async function loadSortOrders() {
+      $('sortScaleTip').textContent = '秤模式：' + (SCALE_LABEL[getScaleAdapter()] || getScaleAdapter());
+      const res = await api('/api/purchase-orders/supplier?status=' + encodeURIComponent('已确认'));
+      if (res.success && Array.isArray(res.data)) {
+        // 仅今日
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        _sortOrders = res.data.filter(o => o.createdAt && new Date(o.createdAt) >= today);
+      } else {
+        _sortOrders = [];
+        if (res.message && res.message !== 'network') toast(res.message || '分拣列表加载失败', true);
+      }
+      renderSortOrders();
+    }
+    $('sortRefreshBtn').onclick = loadSortOrders;
+    // 分拣过滤标签
+    $('sortFilter').addEventListener('click', (e) => {
+      const chip = e.target.closest('.filter-chip');
+      if (!chip) return;
+      document.querySelectorAll('#sortFilter .filter-chip').forEach(c => c.classList.toggle('active', c === chip));
+      _sortFilter = chip.dataset.s;
+      renderSortOrders();
+    });
+
+    // 读取秤：调 getScaleWeight，成功填入输入框
+    async function doScaleRead(btn) {
+      const input = btn.parentElement.querySelector('input');
+      const w = await getScaleWeight();
+      if (w != null && isFinite(w)) {
+        input.value = w.toFixed(2);
+        toast('已读取：' + w.toFixed(2) + ' kg');
+      } else if (getScaleAdapter() === 'manual') {
+        toast('当前为手输模式，请直接输入重量');
+        input.focus();
+      }
+    }
+
+    // 确认单行过秤：POST /:id/weigh，重算行/单金额，自动打印分拣标签
+    async function confirmWeighRow(btn) {
+      const item = btn.closest('.sort-item');
+      const oid = item.dataset.oid;
+      const pid = item.dataset.pid;
+      const input = item.querySelector('input');
+      const w = parseFloat(input.value);
+      if (!isFinite(w) || w < 0) { toast('请输入有效重量', true); return; }
+      btn.disabled = true; const orig = btn.textContent; btn.textContent = '提交中...';
+      const res = await api(`/api/purchase-orders/${oid}/weigh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: [{ productId: pid, actualWeight: w }] })
+      });
+      if (res.success) {
+        // 自动打印分拣标签（50mm）
+        printSortLabel(res.data, pid, w);
+        // 用返回数据局部刷新该订单
+        const idx = _sortOrders.findIndex(o => String(o._id) === String(oid));
+        if (idx > -1) _sortOrders[idx] = res.data;
+        renderSortOrders();
+        if (res.data.sorted) toast('该单全部称重完毕，已标记已分拣');
+      } else {
+        toast(res.message || '提交失败', true);
+        btn.disabled = false; btn.textContent = orig;
+      }
+    }
+
+    // 分拣标签（50mm：店名/品名/实称/时间）
+    function printSortLabel(order, pid, w) {
+      const item = (order.items || []).find(x => String(x.productId) === String(pid));
+      if (!item) return;
+      const html = `
+        <div class="receipt label">
+          <div class="r-top">${esc(order.shopName || '')}</div>
+          <div class="r-meta">
+            ${esc(item.name)}<br>
+            实称：${w.toFixed(2)} kg<br>
+            ${fmtTime(new Date())}
+          </div>
+        </div>`;
+      const area = document.getElementById('printArea');
+      area.innerHTML = html;
+      const cleanup = () => { area.innerHTML = ''; window.removeEventListener('afterprint', cleanup); };
+      window.addEventListener('afterprint', cleanup);
+      setTimeout(() => { if (area.innerHTML) area.innerHTML = ''; }, 2000);
+      window.print();
+    }
+
+    // ============ 配送单页 ============
+    const RECEIVE_METHOD_TEXT = {
+      door_container: '门口自备保温容器',
+      open_door: '开门后配送',
+      self_pickup: '到店自提'
+    };
+    let _deliverOrders = [];
+    function renderDeliverOrders() {
+      const wrap = $('deliverList');
+      if (_deliverOrders.length === 0) {
+        wrap.innerHTML = `<div class="empty-tip"><div class="ico">🚚</div><p>今日暂无待配送订单</p></div>`;
+        return;
+      }
+      wrap.innerHTML = _deliverOrders.map(o => {
+        const hasPhoto = !!o.deliveryPhotoUrl;
+        const hasFront = !!o.storeFrontPhoto;
+        const hasStreet = !!o.streetViewPhoto;
+        const lng = o.shopLongitude, lat = o.shopLatitude;
+        // 高德地图导航：有经纬度时跳转 marker 页（移动端自动唤起 App）
+        const navHref = (lng != null && lat != null)
+          ? `https://uri.amap.com/marker?position=${lng},${lat}&name=${encodeURIComponent(o.shopName || '门店')}`
+          : '';
+        const photoHtml = hasFront
+          ? `<img class="dc-photo" src="${esc(o.storeFrontPhoto)}" alt="门头照">`
+          : `<div class="dc-photo placeholder">商家未完善<br>门头照</div>`;
+        const navHtml = navHref
+          ? `<a class="dc-nav" href="${esc(navHref)}" target="_blank" rel="noopener">🧭 导航</a>`
+          : `<span class="dc-missing">商家未完善定位</span>`;
+        const streetHtml = hasStreet
+          ? `<div class="dc-street-row"><img class="dc-street-thumb" src="${esc(o.streetViewPhoto)}" alt="街景照"><span style="font-size:11px;color:#6b7280;">街景照</span></div>`
+          : `<span class="dc-missing">商家未完善街景照</span>`;
+        const addrHtml = o.shopAddress
+          ? `📍 ${esc(o.shopAddress)}`
+          : `<span class="dc-missing">📍 商家未完善地址</span>`;
+        const timeHtml = o.expectedReceiveStart
+          ? `<span class="dc-time">期望 ${esc(o.expectedReceiveStart)}-${esc(o.expectedReceiveEnd || '')}</span>`
+          : `<span class="dc-missing">未设时段</span>`;
+        const deliverBtn = hasPhoto
+          ? `<div class="dc-delivered"><img src="${esc(o.deliveryPhotoUrl)}" alt="送达照"><span>✓ 已送达 ${fmtTime(o.deliveredAt)}</span></div>`
+          : `<label class="dc-photo-btn">📷 拍照送达<input type="file" accept="image/*" capture="environment" data-id="${esc(String(o._id))}"></label>`;
+        return `
+          <div class="deliver-card ${hasPhoto ? 'done' : ''}">
+            ${photoHtml}
+            <div class="dc-info">
+              <div class="dc-shop">${esc(o.shopName || '未命名商家')}</div>
+              <div class="dc-addr">${addrHtml}</div>
+              <div class="dc-row">
+                <span class="dc-method-chip">${esc(RECEIVE_METHOD_TEXT[o.receiveMethod] || '门口自备保温容器')}</span>
+                ${timeHtml}
+              </div>
+              ${streetHtml}
+              <div class="dc-row">📞 ${esc(o.shopPhone || '未留电话')} ${o.shopContact ? '· ' + esc(o.shopContact) : ''}</div>
+              <div class="dc-row">📦 ${esc((o.items || []).map(i => i.name).join('、')) || '—'}</div>
+              <div class="dc-actions">${navHtml} ${deliverBtn}</div>
+            </div>
+          </div>`;
+      }).join('');
+      // 门头照/街景照/送达照点击放大
+      wrap.querySelectorAll('.dc-photo, .dc-street-thumb, .dc-delivered img').forEach(img => {
+        img.onclick = () => showImageLightbox(img.src);
+      });
+      // 拍照送达
+      wrap.querySelectorAll('.dc-photo-btn input').forEach(inp => {
+        inp.onchange = () => uploadDeliverPhoto(inp);
+      });
+    }
+
+    async function loadDeliverOrders() {
+      const res = await api('/api/purchase-orders/supplier?status=' + encodeURIComponent('已发货'));
+      if (res.success && Array.isArray(res.data)) {
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        let list = res.data.filter(o => o.createdAt && new Date(o.createdAt) >= today);
+        // 按商家期望收货时段升序排（无值排末尾）
+        list.sort((a, b) => {
+          const ta = a.expectedReceiveStart || '99:99';
+          const tb = b.expectedReceiveStart || '99:99';
+          return ta.localeCompare(tb);
+        });
+        _deliverOrders = list;
+      } else {
+        _deliverOrders = [];
+        if (res.message && res.message !== 'network') toast(res.message || '配送单加载失败', true);
+      }
+      renderDeliverOrders();
+    }
+    $('deliverRefreshBtn').onclick = loadDeliverOrders;
+
+    // 拍照送达：先上传图片，再调 deliver-photo 接口
+    async function uploadDeliverPhoto(input) {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      const oid = input.dataset.id;
+      const fd = new FormData(); fd.append('file', file);
+      try {
+        const up = await fetch('/api/supplier/upload', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token },
+          body: fd
+        }).then(r => r.json());
+        if (!up.success) { toast(up.message || '送达照片上传失败', true); return; }
+        const r2 = await api(`/api/purchase-orders/${oid}/deliver-photo`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deliveryPhotoUrl: up.data.url })
+        });
+        if (r2.success) {
+          toast('已送达，通知已推送');
+          loadDeliverOrders();
+        } else {
+          toast(r2.message || '送达失败', true);
+        }
+      } catch (e) { toast('网络错误', true); }
+    }
 
     // 加载通知设置（GET /api/supplier/settings）
     async function loadNotifySettings() {
@@ -2929,8 +3660,230 @@
       }
     };
 
+    // ============ 今日改价工作台 ============
+    let _pwData = null;       // 工作台全量数据
+    let _pwActiveTab = null;  // 当前选中的分类标签
+    // 改价表行级输入态缓存：productId → { costInput, priceInput, suggested, cost }
+    let _pwDrafts = {};
+
+    async function loadPriceWorkbench() {
+      const wrap = $('pwGroup');
+      const tabsEl = $('pwTabs');
+      wrap.innerHTML = `<div class="no-data">加载中...</div>`;
+      tabsEl.innerHTML = '';
+      const res = await api('/api/supplier/price/workbench');
+      if (!res.success) {
+        wrap.innerHTML = `<div class="no-data">加载失败：${esc(res.message || '未知错误')}</div>`;
+        return;
+      }
+      _pwData = res.data;
+      // 顶部统计
+      $('pwUpdated').textContent = _pwData.summary.updated;
+      $('pwTotal').textContent = _pwData.summary.total;
+      $('pwPending').textContent = _pwData.summary.pending;
+
+      // 保鲜期提醒横幅：扫描是否存在冻结或超期商品
+      let frozenCount = 0, alertedCount = 0;
+      for (const g of _pwData.groups) {
+        for (const p of g.products) {
+          if (p.priceFrozen) frozenCount++;
+        }
+      }
+      const banner = $('pwFreshBanner');
+      if (frozenCount > 0) {
+        banner.className = 'pw-fresh-banner frozen';
+        banner.innerHTML = `⚠️ 有 <b>${frozenCount}</b> 个商品因超过保鲜期未改价已被冻结（商家端显示"价格更新中"，不可下单）。请尽快改价或沿用昨日价以解冻。`;
+        banner.style.display = 'flex';
+      } else {
+        banner.style.display = 'none';
+      }
+
+      // 渲染分类标签（仅显示有商品的分类 + 数量）
+      const visibleTabs = _pwData.groups.filter(g => g.products.length > 0);
+      if (visibleTabs.length === 0) {
+        wrap.innerHTML = `<div class="no-data">📦 暂无商品，请先在「商品管理」添加商品</div>`;
+        return;
+      }
+      tabsEl.innerHTML = visibleTabs.map(g => {
+        const updatedInTab = g.products.filter(p => p.updatedToday).length;
+        const total = g.products.length;
+        return `<div class="pw-tab" data-tab="${esc(g.tab)}">${esc(g.tab)} <span class="cnt">${updatedInTab}/${total}</span></div>`;
+      }).join('');
+      // 默认选第一个有商品的分类
+      _pwActiveTab = visibleTabs[0].tab;
+      tabsEl.querySelectorAll('.pw-tab').forEach(el => {
+        el.onclick = () => { _pwActiveTab = el.dataset.tab; renderPriceGroup(); };
+      });
+      renderPriceGroup();
+    }
+
+    function renderPriceGroup() {
+      const wrap = $('pwGroup');
+      // 标签高亮
+      $('pwTabs').querySelectorAll('.pw-tab').forEach(el => {
+        el.classList.toggle('active', el.dataset.tab === _pwActiveTab);
+      });
+      const group = _pwData.groups.find(g => g.tab === _pwActiveTab);
+      if (!group || !group.products.length) {
+        wrap.innerHTML = `<div class="no-data">该分类下暂无商品</div>`;
+        return;
+      }
+      _pwDrafts = {}; // 切换分类时重置草稿
+      const pendingCount = group.products.filter(p => !p.updatedToday).length;
+      const allDone = pendingCount === 0;
+      let html = `
+        <div class="pw-group-head">
+          <div class="pw-group-title">${esc(group.tab)}（共 ${group.products.length} 个）</div>
+          <button class="pw-carryall-btn" id="pwCarryAll" ${allDone ? 'disabled' : ''}>
+            ${allDone ? '本类已全部改价' : '本类一键沿用昨日价'}
+          </button>
+        </div>
+        <table class="pw-table">
+          <thead>
+            <tr>
+              <th>商品</th>
+              <th>昨日售价</th>
+              <th>今日进价</th>
+              <th>建议售价</th>
+              <th>最终售价</th>
+              <th>预估毛利</th>
+              <th>状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      for (const p of group.products) {
+        // 草稿态：默认进价=当前 costPrice，最终售价=建议售价（首次）或当前 marketPrice
+        _pwDrafts[p._id] = {
+          cost: p.costPrice,
+          price: p.suggestedPrice,
+          suggested: p.suggestedPrice,
+          categoryMarkupRate: p.categoryMarkupRate
+        };
+        const gradeTag = p.grade === 'standard'
+          ? `<span class="pw-grade-tag standard">实惠</span>`
+          : (p.grade === 'premium' ? `<span class="pw-grade-tag premium">精品</span>` : '');
+        const statusChip = p.priceFrozen
+          ? `<span class="pw-status-chip frozen">价格更新中</span>`
+          : (p.updatedToday ? `<span class="pw-status-chip done">今日已改</span>` : `<span class="pw-status-chip pending">待改价</span>`);
+        const rowClass = p.priceFrozen ? 'frozen-row' : (p.updatedToday ? 'done-row' : '');
+        html += `
+          <tr id="pwRow-${esc(p._id)}" class="${rowClass}">
+            <td data-label="商品">
+              <div class="pw-name-cell">
+                <div class="nm">${esc(p.name)}${gradeTag}</div>
+                <div style="font-size:11px;color:#9ca3af;">${esc(p.category)} · 加价率 ${p.markupRate != null ? p.markupRate + '%' : '品类' + p.categoryMarkupRate + '%'}</div>
+              </div>
+            </td>
+            <td data-label="昨日售价">¥${Number(p.yesterdayPrice).toFixed(2)}</td>
+            <td data-label="今日进价">
+              <input type="number" class="pw-price-input" data-pid="${esc(p._id)}" data-field="cost"
+                value="${Number(p.costPrice).toFixed(2)}" min="0" step="0.01">
+            </td>
+            <td data-label="建议售价"><span class="pw-suggest" id="pwSuggest-${esc(p._id)}">¥${Number(p.suggestedPrice).toFixed(2)}</span></td>
+            <td data-label="最终售价">
+              <input type="number" class="pw-price-input" data-pid="${esc(p._id)}" data-field="price"
+                value="${Number(p.suggestedPrice).toFixed(2)}" min="0" step="0.01">
+            </td>
+            <td data-label="预估毛利"><span class="pw-profit" id="pwProfit-${esc(p._id)}">¥${(p.suggestedPrice - p.costPrice).toFixed(2)}</span></td>
+            <td data-label="状态">${statusChip}</td>
+            <td data-label="操作">
+              <button class="pw-act-btn save" data-act="save" data-pid="${esc(p._id)}">改价</button>
+              <button class="pw-act-btn carry" data-act="carry" data-pid="${esc(p._id)}" ${p.updatedToday ? 'disabled' : ''}>沿用</button>
+            </td>
+          </tr>
+        `;
+      }
+      html += `</tbody></table>`;
+      wrap.innerHTML = html;
+
+      // 绑定输入框实时计算建议售价 / 毛利 / 低于成本线标红
+      wrap.querySelectorAll('.pw-price-input').forEach(inp => {
+        inp.oninput = () => {
+          const pid = inp.dataset.pid;
+          const field = inp.dataset.field;
+          const val = parseFloat(inp.value);
+          if (isNaN(val)) return;
+          const d = _pwDrafts[pid];
+          d[field] = val;
+          // 进价变化 → 重算建议售价（按品类/单品加价率），同时若最终售价未手动改过则跟随
+          if (field === 'cost') {
+            const rate = d.categoryMarkupRate || 20; // 兜底20%（实际取自工作台返回值）
+            // 单品 markupRate 优先于品类（这里只影响"建议"展示，单品加价率需后端提供；
+            // 简化：用品类加价率重算建议售价）
+            const newSuggested = Math.round(val * (1 + rate / 100) * 100) / 100;
+            const oldSuggested = d.suggested;
+            d.suggested = newSuggested;
+            const suggestEl = $('pwSuggest-' + pid);
+            if (suggestEl) suggestEl.textContent = '¥' + newSuggested.toFixed(2);
+            // 若最终售价仍等于旧建议（用户未手改），则跟随新建议
+            const priceInput = wrap.querySelector(`.pw-price-input[data-pid="${pid}"][data-field="price"]`);
+            if (priceInput && Math.abs((d.price || 0) - oldSuggested) < 0.001) {
+              d.price = newSuggested;
+              priceInput.value = newSuggested.toFixed(2);
+            }
+          }
+          // 重算毛利 & 低于成本线标红
+          const profit = (d.price || 0) - (d.cost || 0);
+          const profitEl = $('pwProfit-' + pid);
+          if (profitEl) {
+            profitEl.textContent = '¥' + profit.toFixed(2);
+            profitEl.className = 'pw-profit' + (profit < 0 ? ' neg' : '');
+          }
+          // 低于成本线标红整行
+          const row = $('pwRow-' + pid);
+          if (row) {
+            row.classList.toggle('under-cost', profit < 0);
+          }
+        };
+      });
+      // 绑定操作按钮
+      wrap.querySelectorAll('.pw-act-btn[data-act]').forEach(btn => {
+        btn.onclick = () => handlePwAction(btn.dataset.act, btn.dataset.pid);
+      });
+      // 本类一键沿用
+      const carryAllBtn = $('pwCarryAll');
+      if (carryAllBtn) carryAllBtn.onclick = () => handlePwCarryAll(group.tab);
+    }
+
+    // 单品改价 / 沿用
+    async function handlePwAction(act, pid) {
+      const draft = _pwDrafts[pid];
+      if (act === 'save') {
+        if (!draft || draft.cost == null || draft.price == null) { toast('请填写进价与售价', true); return; }
+        if (draft.price < draft.cost) {
+          if (!confirm(`最终售价 ¥${draft.price.toFixed(2)} 低于进价 ¥${draft.cost.toFixed(2)}，确认按此亏损价上架？`)) return;
+        }
+        const res = await api('/api/supplier/price/product/' + pid + '/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ costPrice: draft.cost, marketPrice: draft.price })
+        });
+        if (res.success) { toast('改价成功'); loadPriceWorkbench(); }
+        else toast(res.message || '改价失败', true);
+      } else if (act === 'carry') {
+        const res = await api('/api/supplier/price/product/' + pid + '/carry-over', { method: 'POST' });
+        if (res.success) { toast('已沿用昨日价'); loadPriceWorkbench(); }
+        else toast(res.message || '操作失败', true);
+      }
+    }
+
+    // 分类一键沿用
+    async function handlePwCarryAll(tab) {
+      if (!confirm(`确认将【${tab}】分类下所有未改价商品沿用昨日价？`)) return;
+      const res = await api('/api/supplier/price/category/' + encodeURIComponent(tab) + '/carry-over', { method: 'POST' });
+      if (res.success) {
+        toast(`已沿用 ${res.data.updated} 个商品`);
+        loadPriceWorkbench();
+      } else {
+        toast(res.message || '操作失败', true);
+      }
+    }
+
     // ============ 商品管理 ============
-    const PRODUCT_CATEGORIES = ['肉类', '蔬菜', '粮油', '酒水', '冻品', '调料', '其他'];
+    // 品类选项扩展为细分品类（与保鲜期预置对应：叶菜1天/根茎茄果2天/鲜肉1天/冻品7天/米面粮油30天/干调30天/蛋3天/一次性用品90天/其他7天）
+    const PRODUCT_CATEGORIES = ['米面粮油', '鲜肉', '叶菜', '根茎茄果', '蛋', '干调', '冻品', '一次性用品', '其他'];
     let productsCache = []; // 已加载的商品列表，供编辑时取值
 
     // 拉取当前供应商自己的商品（供应商鉴权接口，不受采购商城可见性过滤；
@@ -2956,11 +3909,16 @@
         return;
       }
 
-      tbody.innerHTML = productsCache.map(p => `
+      tbody.innerHTML = productsCache.map(p => {
+        // 档次标签（双档次蔬菜支持）
+        const gradeTag = p.grade === 'standard'
+          ? `<span class="pw-grade-tag standard">实惠</span>`
+          : (p.grade === 'premium' ? `<span class="pw-grade-tag premium">精品</span>` : '');
+        return `
         <tr>
           <td data-label="商品">
             <div class="prod-name">
-              <div class="nm">${esc(p.name)}</div>
+              <div class="nm">${esc(p.name)}${gradeTag}</div>
               ${p.description ? `<div class="desc" title="${esc(p.description)}">${esc(p.description)}</div>` : ''}
             </div>
           </td>
@@ -2969,14 +3927,15 @@
           <td class="cost" data-label="成本价">${fmtMoney(p.costPrice)}</td>
           <td class="price" data-label="市场价">${fmtMoney(p.marketPrice)}</td>
           <td data-label="库存">${Number(p.stock || 0)}</td>
-          <td data-label="状态"><span class="badge ${p.status === '上架' ? 'on' : 'off'}">${esc(p.status)}</span></td>
+          <td data-label="状态"><span class="badge ${p.status === '上架' ? 'on' : 'off'}">${esc(p.status)}</span>${p.priceFrozen ? `<span class="pw-status-chip frozen" style="margin-left:4px;">价格更新中</span>` : ''}</td>
           <td class="act">
             <button class="btn btn-ghost" data-act="edit" data-id="${esc(String(p._id))}">编辑</button>
             <button class="btn ${p.status === '上架' ? 'btn-ghost' : 'btn-green'}" data-act="toggle" data-id="${esc(String(p._id))}" data-status="${p.status === '上架' ? '下架' : '上架'}">${p.status === '上架' ? '下架' : '上架'}</button>
             <button class="btn btn-red" data-act="del" data-id="${esc(String(p._id))}">删除</button>
           </td>
         </tr>
-      `).join('');
+      `;
+      }).join('');
 
       tbody.querySelectorAll('button[data-act]').forEach(btn => {
         btn.onclick = () => {
@@ -2993,6 +3952,14 @@
       const sel = $('prodCategory');
       sel.innerHTML = PRODUCT_CATEGORIES.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
 
+      // 关联主品下拉：填充当前供应商的"实惠档"商品（供精品档关联用）
+      const parentSel = $('prodParentProductId');
+      parentSel.innerHTML = '<option value="">无（本品为主品/单档品）</option>' +
+        productsCache
+          .filter(p => (p.grade === 'standard') && (!id || String(p._id) !== String(id)))
+          .map(p => `<option value="${esc(String(p._id))}">${esc(p.name)}（实惠档）</option>`)
+          .join('');
+
       if (id) {
         const p = productsCache.find(x => String(x._id) === String(id));
         if (!p) { toast('商品数据已过期，请刷新后重试', true); loadProducts(); return; }
@@ -3007,20 +3974,26 @@
         $('prodUnit').value = p.unit || '';
         $('prodCostPrice').value = p.costPrice ?? '';
         $('prodMarketPrice').value = p.marketPrice ?? '';
+        $('prodMarkupRate').value = (p.markupRate != null && p.markupRate !== '') ? p.markupRate : '';
+        $('prodGrade').value = p.grade || '';
         $('prodStock').value = p.stock ?? 0;
         $('prodImage').value = p.image || '';
         $('prodDesc').value = p.description || '';
+        if (p.parentProductId) parentSel.value = String(p.parentProductId);
       } else {
         $('productModalTitle').textContent = '新增商品';
         $('prodId').value = '';
         $('prodName').value = '';
-        sel.value = '肉类';
+        sel.value = '鲜肉';
         $('prodUnit').value = '';
         $('prodCostPrice').value = '';
         $('prodMarketPrice').value = '';
+        $('prodMarkupRate').value = '';
+        $('prodGrade').value = '';
         $('prodStock').value = '';
         $('prodImage').value = '';
         $('prodDesc').value = '';
+        parentSel.value = '';
       }
       $('productModal').classList.add('show');
       setTimeout(() => $('prodName').focus(), 50);
@@ -3053,7 +4026,10 @@
       const body = {
         name, category, unit, costPrice, marketPrice, stock,
         image: $('prodImage').value.trim(),
-        description: $('prodDesc').value.trim()
+        description: $('prodDesc').value.trim(),
+        markupRate: $('prodMarkupRate').value.trim() === '' ? null : Number($('prodMarkupRate').value.trim()),
+        grade: $('prodGrade').value || null,
+        parentProductId: $('prodParentProductId').value || null
       };
 
       const res = await api(id ? '/api/supply-products/' + id : '/api/supply-products', {
@@ -3099,11 +4075,38 @@
     }
 
     // 启动：先拉取治理档案决定是否进入引导页（pending/frozen/rejected/协议/待开通接单），
-    // 通过门槛后再加载订单 + 建立轮询基线 + 新手接单引导
+    // 通过门槛后再加载订单 + 建立轮询基线 + 新手接单引导 + 保鲜期提醒
     loadProfile();
     loadOrders();
     loadSupOnboarding();
     pollNewOrders();
+    loadFreshnessBanner();
+
+    // ============ 保鲜期保护：全局横幅提醒（控制台顶部醒目展示超期/冻结商品） ============
+    async function loadFreshnessBanner() {
+      try {
+        const res = await api('/api/supplier/price/freshness-alerts');
+        if (!res.success) return;
+        const data = res.data || {};
+        const alerted = data.alerted || [];
+        const frozen = data.frozen || [];
+        if (alerted.length === 0 && frozen.length === 0) return;
+        const banner = document.createElement('div');
+        if (frozen.length > 0) {
+          banner.className = 'pw-fresh-banner frozen';
+          const names = frozen.slice(0, 5).map(p => `${esc(p.name)}（超${p.daysSince}天/保鲜${p.freshDays}天）`).join('、');
+          banner.innerHTML = `⚠️ <b>${frozen.length}</b> 个商品已冻结（${names}${frozen.length > 5 ? '…' : ''}）— 商家端显示"价格更新中"不可下单，请前往「今日改价」改价或沿用昨日价解冻`;
+        } else {
+          banner.className = 'pw-fresh-banner';
+          const names = alerted.slice(0, 5).map(p => `${esc(p.name)}（超${p.daysSince}天/保鲜${p.freshDays}天）`).join('、');
+          banner.innerHTML = `⏰ <b>${alerted.length}</b> 个商品超过保鲜期未改价（${names}${alerted.length > 5 ? '…' : ''}）— 请尽快前往「今日改价」更新价格`;
+        }
+        banner.style.marginBottom = '14px';
+        // 插入到 main 顶部（orderBanner 之后）
+        const main = document.querySelector('.main');
+        if (main) main.insertBefore(banner, main.firstChild.nextSibling);
+      } catch (e) { /* 静默失败，不影响主流程 */ }
+    }
   </script>
 </body>
 </html>

@@ -53,6 +53,17 @@ const shopAccountSchema = new mongoose.Schema({
   onboardGiftClaimed: {
     type: Boolean,
     default: false
+  },
+  // ============ 门店资料完善引导（配送三件套） ============
+  // 门店资料是否已完善（地址/门头照/收货方式齐全），首次登录强制完善后置 true
+  storeInfoCompleted: {
+    type: Boolean,
+    default: false
+  },
+  // 是否已弹过首次完善引导（区分新商家强制弹窗 vs 老商家可跳过黄条提醒）
+  storeInfoFirstPrompted: {
+    type: Boolean,
+    default: false
   }
 }, { timestamps: true });
 
