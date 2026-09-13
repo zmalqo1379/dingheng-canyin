@@ -2393,14 +2393,24 @@
       <section class="pane active" id="pane-dishes">
         <!-- 新手任务：开张五步曲（全部完成自动消失，可手动"不再显示"） -->
         <div class="ob-card" id="onboardCard" style="display:none;">
-          <!-- 金色欢迎语：仅注册赠送的 30 天基础版体验生效期间显示 -->
-          <div class="ob-gift" id="obGiftLine" style="display:none;">🎁 欢迎礼：首月基础版会员（价值¥59）已免费开通，正在生效中！</div>
+          <!-- 金色欢迎语：仅注册赠送的首月体验（进阶版 + 采购省钱卡）生效期间显示 -->
+          <div class="ob-gift" id="obGiftLine" style="display:none;">🎁 欢迎礼：首月进阶版 + 采购省钱卡（体验）已免费开通，正在生效中！</div>
           <div class="ob-head">
             <span class="ob-title">🎯 新手任务 · 开张五步曲</span>
             <span class="ob-count" id="obCount">0/5</span>
             <button class="ob-hide" id="obHideBtn" type="button">不再显示</button>
           </div>
           <div id="obTaskList"></div>
+        </div>
+
+        <!-- 低库存菜品提醒（有配方 + 库存时显示，缺货即补货入口） -->
+        <div class="card" id="lowStockBanner" style="display:none;border-left:4px solid #f59e0b;">
+          <div class="card-head">
+            <h3>⚠️ 快断货了</h3>
+            <span class="proc-alert-sub" id="lowStockSub"></span>
+          </div>
+          <div id="lowStockBody" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
+          <div style="margin-top:10px;font-size:12px;color:#9ca3af;">按配方（BOM）与当前库存反算可售份数，提醒只作参考</div>
         </div>
 
         <div class="pane-title">
@@ -3354,6 +3364,25 @@
                 <div class="label">异常预警</div>
                 <div class="value"><span id="procAlertCount">0</span><small> 次</small></div>
               </div>
+            </div>
+
+            <!-- 区块1.5：本月省钱账单（采购价 vs 平台参考价，有数据才显示） -->
+            <div class="card proc-block" id="procSavingsBlock" style="display:none;">
+              <div class="card-head">
+                <h3>💰 本月省钱账单</h3>
+                <span class="proc-alert-sub" id="procSavingsSub"></span>
+              </div>
+              <div style="display:flex;align-items:baseline;gap:8px;margin:6px 0 12px;">
+                <span style="font-size:13px;color:#6b7280;">本月已省</span>
+                <span style="font-size:30px;font-weight:800;color:#16a34a;">¥<span id="procSavingsAmount">0</span></span>
+              </div>
+              <div class="table-wrap">
+                <table class="data">
+                  <thead><tr><th>商品</th><th>你的采购价</th><th>平台参考价</th><th>数量</th><th>已省</th></tr></thead>
+                  <tbody id="procSavingsBody"></tbody>
+                </table>
+              </div>
+              <div id="procSavingsNote" style="font-size:12px;color:#9ca3af;margin-top:8px;"></div>
             </div>
 
             <!-- 区块2：价格异常预警列表 -->

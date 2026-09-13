@@ -85,7 +85,7 @@ function switchTab(tab) {
   document.querySelectorAll('.pane').forEach(x => x.classList.toggle('active', x.id === 'pane-' + tab));
   closeSidebar();
   try {
-    if (tab === 'dishes') loadDishes();
+    if (tab === 'dishes') { loadDishes(); loadLowStockBanner(); }
     if (tab === 'tables') loadTables();
     if (tab === 'orders') loadOrders();
     if (tab === 'stats') loadStats();
@@ -617,6 +617,33 @@ async function loadCategories() {
   const res = await api('/api/categories');
   categories = res.data || [];
   return categories;
+}
+
+// 菜单管理：低库存菜品提醒（缺货即补货触点；无配方/库存数据时隐藏，不打扰）
+async function loadLowStockBanner() {
+  const banner = $('lowStockBanner');
+  if (!banner) return;
+  try {
+    const res = await api('/api/admin/low-stock-dishes?limit=6');
+    const d = (res && res.success && res.data) || {};
+    if (!d.hasBom || !(d.items || []).length) { banner.style.display = 'none'; return; }
+    const urgent = (d.items || []).filter(x => x.portionsLeft <= 5);
+    const items = urgent.length ? urgent : d.items.slice(0, 3);
+    banner.style.display = 'block';
+    const sub = $('lowStockSub');
+    if (sub) sub.textContent = `${items.length} 道菜即将售罄`;
+    const body = $('lowStockBody');
+    if (body) {
+      body.innerHTML = items.map(x => `
+        <div style="padding:8px 12px;border:1px solid #fde68a;background:#fffbeb;border-radius:10px;font-size:13px;">
+          <b>${esc(x.dishName)}</b> 仅可做 <b style="color:#d97706;">${x.portionsLeft}</b> 份
+          <div style="color:#9ca3af;font-size:12px;margin-top:2px;">瓶颈：${esc(x.bottleneck.name)}（库存 ${esc(String(x.bottleneck.have))}）</div>
+        </div>`).join('') +
+        `<button class="btn-add" type="button" style="align-self:center;" onclick="switchTab('mall')">去采购商城补货</button>`;
+    }
+  } catch (e) {
+    banner.style.display = 'none';
+  }
 }
 
 async function loadDishes() {
@@ -3699,6 +3726,8 @@ setInterval(pollPurchaseStatusChanges, 15000);
 
 let _smartReplenishData = [];   // 补货提醒（采购频率 + 库存预警）
 let _smartForecastData = [];    // 预测补货（点餐销量预测）
+let _smartForecastLocked = false; // 采购线未达省钱卡(plus) → 30 天预测锁定
+let _smartForecastPreview = [];   // 锁定时后端返回的真实前 3 条预览（前端模糊展示）
 
 async function loadSmartReplenish() {
   const listEl = $('smartReplenishList');
@@ -3710,7 +3739,10 @@ async function loadSmartReplenish() {
       api('/api/admin/smart-replenish/forecast')
     ]);
     _smartReplenishData = (srRes && srRes.success && srRes.data && srRes.data.suggestions) || [];
-    _smartForecastData = (fcRes && fcRes.success && fcRes.data && fcRes.data.forecastItems) || [];
+    const fd = (fcRes && fcRes.success && fcRes.data) || {};
+    _smartForecastLocked = fd.locked === true;
+    _smartForecastData = fd.forecastItems || [];
+    _smartForecastPreview = fd.previewSample || [];
     renderSmartReplenish();
   } catch (e) {
     console.error('智能补货加载失败', e);
@@ -3773,7 +3805,25 @@ function renderSmartReplenish() {
 
   let html = '';
   html += `<div class="sr-section-title">📈 预测补货（未来 7 天销量预测）</div>`;
-  if (forecast.length) {
+  if (_smartForecastLocked) {
+    // 采购线未达省钱卡(plus)：用真实前 3 条预览做模糊展示 + 升级引导（不弹屏、不编造数据）
+    const preview = _smartForecastPreview;
+    if (preview.length) {
+      html += `<div class="sr-group" style="position:relative;">
+        <div style="filter:blur(4px);pointer-events:none;user-select:none;">
+          ${renderSrTable({ supplierId: preview[0].supplierId, supplierName: preview[0].supplierName || '预测预览', items: preview }, 'forecast')}
+        </div>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(255,255,255,.78);border-radius:14px;">
+          <div style="font-weight:700;color:#1f2937;">🔒 30 天智能补货预测是「采购省钱卡」权益</div>
+          <div style="font-size:13px;color:#6b7280;">开通后提前知道该进什么货、进多少，备货不压货</div>
+          <button class="btn-add" type="button" onclick="goUpgrade('plus')">升级采购省钱卡解锁</button>
+        </div>
+      </div>`;
+    } else {
+      html += `<div class="empty" style="margin-bottom:24px;">🔒 30 天智能补货预测是「采购省钱卡」权益 ·
+        <a href="javascript:void(0)" onclick="goUpgrade('plus')">升级解锁</a></div>`;
+    }
+  } else if (forecast.length) {
     groupBySupplier(forecast).forEach((g) => { html += renderSrTable(g, 'forecast'); });
   } else {
     html += `<div class="empty" style="margin-bottom:24px;">暂无销量数据或未配置菜品配方，无法预测</div>`;
@@ -3902,6 +3952,7 @@ async function loadProcurement() {
 
     renderProcOverview(ovData);
     renderProcAlerts((alerts && alerts.success && alerts.data) || []);
+    renderProcSavings((savingsRes && savingsRes.success && savingsRes.data) || null);
     _procTrends = (trends && trends.success && trends.data) || [];
     renderProcTrendSelect();
     renderProcPies(
@@ -3942,6 +3993,32 @@ function renderProcOverview(d) {
   const card = $('procAlertCard');
   card.classList.toggle('alert-red', alertCount > 0);
   card.classList.toggle('alert-green', alertCount === 0);
+}
+
+// 区块1.5：本月省钱账单（采购价 vs 平台参考价；无数据时隐藏，不编造）
+function renderProcSavings(d) {
+  const block = $('procSavingsBlock');
+  if (!block) return;
+  if (!d || !d.hasData) { block.style.display = 'none'; return; }
+  block.style.display = 'block';
+  const amt = Number(d.monthSaved || 0);
+  const amtEl = $('procSavingsAmount');
+  if (amtEl) amtEl.textContent = amt.toFixed(2);
+  const sub = $('procSavingsSub');
+  if (sub) sub.textContent = `已对比 ${d.coveredItems || 0} 项有参考价的采购明细`;
+  const body = $('procSavingsBody');
+  if (body) {
+    const rows = (d.topSaved || []).map(x => `<tr>
+      <td>${esc(x.name)}</td>
+      <td>¥${Number(x.paidPrice).toFixed(2)}</td>
+      <td>¥${Number(x.refPrice).toFixed(2)}</td>
+      <td>${x.quantity}</td>
+      <td style="color:#16a34a;font-weight:700;">¥${Number(x.saved).toFixed(2)}</td>
+    </tr>`).join('');
+    body.innerHTML = rows || `<tr><td colspan="5" style="text-align:center;color:#9ca3af;">本月暂无可对比的省钱项</td></tr>`;
+  }
+  const note = $('procSavingsNote');
+  if (note) note.textContent = d.note || '';
 }
 
 // 区块2：价格异常预警列表
