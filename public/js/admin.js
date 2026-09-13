@@ -276,6 +276,8 @@ async function loadHome() {
 
 // 工作台快捷入口宫格：点击直达对应栏目
 document.querySelectorAll('#pane-home .home-grid-item').forEach(el => el.onclick = () => switchTab(el.dataset.go));
+// 今日数据卡：点击直达对应栏目（采购额→采购监控、采购单/待处理→采购订单、鼎恒币→币中心）
+document.querySelectorAll('#pane-home .home-stat[data-go]').forEach(el => el.onclick = () => switchTab(el.dataset.go));
 
 /* ---------- 升级引导统一入口（双产品线） ----------
    所有"去升级/升级会员/升级尊享版"按钮统一跳会员中心并定位目标卡片：
