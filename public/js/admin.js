@@ -73,7 +73,7 @@ if (MERCHANT_TOKEN) {
   document.getElementById('adminPage').classList.add('show');
   // 响应 URL hash：从预览返回时自动定位到装修栏目
   const h = location.hash.replace('#', '');
-  const initTab = (h && ['smartReplenish','mall','purchase','procurement','dishes','tables','orders','stats','decorate','settings','member','coin','points','storedvalue','marketing'].includes(h)) ? h : 'smartReplenish';
+  const initTab = (h && ['mall','smartReplenish','purchase','procurement','dishes','tables','orders','stats','decorate','settings','member','coin','points','storedvalue','marketing'].includes(h)) ? h : 'mall';
   try { switchTab(initTab); } catch (e) { console.error('初始化失败', e); }
   // 新手开张四步曲任务卡（首页顶部，状态实时检测）
   try { loadOnboarding(); } catch (e) { console.error('新手任务加载失败', e); }
