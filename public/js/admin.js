@@ -73,38 +73,209 @@ if (MERCHANT_TOKEN) {
   document.getElementById('adminPage').classList.add('show');
   // 响应 URL hash：从预览返回时自动定位到装修栏目
   const h = location.hash.replace('#', '');
-  const initTab = (h && ['mall','smartReplenish','purchase','procurement','dishes','tables','orders','stats','decorate','settings','member','coin','points','storedvalue','marketing'].includes(h)) ? h : 'mall';
+  const initTab = (h && ['home','mall','smartReplenish','purchase','procurement','dishes','tables','orders','stats','decorate','settings','member','coin','points','storedvalue','marketing'].includes(h)) ? h : 'home';
   // 延迟到当前脚本执行完再切换：避免 switchTab 在脚本顶层执行时，
   // 访问到尚未初始化的模块级变量（如 _obData）导致 TDZ 报错
-  setTimeout(() => { try { switchTab(initTab); } catch (e) { console.error('初始化失败', e); } }, 0);
+  setTimeout(() => {
+    try { switchTab(initTab); } catch (e) { console.error('初始化失败', e); }
+    // 首屏渲染后，后台静默预加载其余栏目，让后续点击秒开
+    setTimeout(preloadAllTabs, 300);
+  }, 0);
   // 新手开张四步曲任务卡（首页顶部，状态实时检测）
   try { loadOnboarding(); } catch (e) { console.error('新手任务加载失败', e); }
 }
 
 /* ---------- 侧边栏导航 ---------- */
+// 栏目缓存 + 预热：登录后后台静默预加载所有栏目数据，用户点击任意栏目均秒开
+const _tabCache = {};
+const _realtimeTabs = new Set(['orders', 'purchase', 'stats', 'procurement']);
+
+// 仅做数据加载（不切换 UI），供 switchTab 与预加载共用
+function runTabLoader(tab) {
+  if (tab === 'home') loadHome();
+  else if (tab === 'dishes') { loadDishes(); loadLowStockBanner(); }
+  else if (tab === 'tables') loadTables();
+  else if (tab === 'orders') loadOrders();
+  else if (tab === 'stats') loadStats();
+  else if (tab === 'decorate') loadDecorate();
+  else if (tab === 'settings') loadSettings();
+  else if (tab === 'member') loadMemberCenter();
+  else if (tab === 'coin') loadCoinCenter();
+  else if (tab === 'smartReplenish') loadSmartReplenish();
+  else if (tab === 'mall') loadMall();
+  else if (tab === 'purchase') loadPurchaseOrders();
+  else if (tab === 'procurement') loadProcurement();
+  else if (tab === 'points') loadPoints();
+  else if (tab === 'storedvalue') loadStoredValue();
+  else if (tab === 'marketing') loadMarketing();
+}
+
 function switchTab(tab) {
   document.querySelectorAll('.nav-item').forEach(x => x.classList.toggle('active', x.dataset.tab === tab));
   document.querySelectorAll('.pane').forEach(x => x.classList.toggle('active', x.id === 'pane-' + tab));
   closeSidebar();
+  if (tab === 'mall') reportOnboardStep('mall');
   try {
-    if (tab === 'dishes') { loadDishes(); loadLowStockBanner(); }
-    if (tab === 'tables') loadTables();
-    if (tab === 'orders') loadOrders();
-    if (tab === 'stats') loadStats();
-    if (tab === 'decorate') loadDecorate();
-    if (tab === 'settings') loadSettings();
-    if (tab === 'member') loadMemberCenter();
-    if (tab === 'coin') loadCoinCenter();
-    if (tab === 'smartReplenish') loadSmartReplenish();
-    if (tab === 'mall') { loadMall(); reportOnboardStep('mall'); }
-    if (tab === 'purchase') loadPurchaseOrders();
-    if (tab === 'procurement') loadProcurement();
-    if (tab === 'points') loadPoints();
-    if (tab === 'storedvalue') loadStoredValue();
-    if (tab === 'marketing') loadMarketing();
+    if (_tabCache[tab]) {
+      // 实时栏目：已缓存则静默刷新一次，保证看到最新数据；其余已缓存栏目直接秒开
+      if (_realtimeTabs.has(tab)) runTabLoader(tab);
+      return;
+    }
+    _tabCache[tab] = true;
+    runTabLoader(tab);
   } catch (e) { console.error('tab load error', tab, e); }
 }
+
+// 登录后后台静默预加载全部栏目（串行 + 间隔，避免并发压垮后端），让首次点击也秒开
+const _preloadOrder = ['home', 'mall', 'smartReplenish', 'purchase', 'procurement', 'dishes', 'tables', 'orders', 'stats', 'decorate', 'settings', 'member', 'coin', 'points', 'storedvalue', 'marketing'];
+function preloadAllTabs() {
+  let i = 0;
+  function next() {
+    if (i >= _preloadOrder.length) return;
+    const tab = _preloadOrder[i++];
+    if (!_tabCache[tab]) {
+      _tabCache[tab] = true;
+      try { runTabLoader(tab); } catch (e) { console.error('preload error', tab, e); }
+    }
+    setTimeout(next, 150);
+  }
+  next();
+}
 document.querySelectorAll('.nav-item').forEach(t => t.onclick = () => switchTab(t.dataset.tab));
+
+/* ---------- 工作台（第一栏目 · 经营门面） ----------
+   门面/热身区：问候 + 今日数据 + 待办直达 + 高倍率品类激励。
+   内部使用引导，非宣传页。任一数据源失败不阻塞其他区块。 */
+const _homeTips = [
+  '库存告急的菜品今天就补上，别让顾客失望而归',
+  '下单前看看「得币攻略」，高倍率品类得币更多',
+  '收到货记得确认收货，返的鼎恒币能免费兑换会员',
+  '每天看一眼待办，生意好坏心里有数',
+  '采购会员快到期？鼎恒币余额够就能免费续',
+  '今天还没下单？去商城逛逛今日高倍率品类',
+];
+function _homeGreetWord() {
+  const h = new Date().getHours();
+  if (h < 6) return '夜深了';
+  if (h < 9) return '早上好';
+  if (h < 12) return '上午好';
+  if (h < 14) return '中午好';
+  if (h < 18) return '下午好';
+  return '晚上好';
+}
+function _startOfDay(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+
+let _homeCoinMapRes = null; // 品类倍率缓存（得币攻略用）
+async function loadHome() {
+  // 1) 问候横幅：店名 + 日期 + 随机小贴士
+  const shopName = localStorage.getItem('merchantShopName') || '';
+  const greet = $('homeGreet');
+  if (greet) greet.textContent = `${_homeGreetWord()}，${shopName}`;
+  const dateEl = $('homeDate');
+  if (dateEl) {
+    const now = new Date();
+    const week = ['日', '一', '二', '三', '四', '五', '六'][now.getDay()];
+    dateEl.textContent = `${now.getFullYear()} 年 ${now.getMonth() + 1} 月 ${now.getDate()} 日 · 星期${week}`;
+  }
+  const tipEl = $('homeTip');
+  if (tipEl) tipEl.textContent = '💡 ' + _homeTips[Math.floor(Math.random() * _homeTips.length)];
+
+  // 2) 并行拉取：采购订单（今日额+待办）、低库存、会员状态、品类倍率
+  const [poRes, lowRes, coinRes, multRes] = await Promise.all([
+    api('/api/purchase-orders').catch(() => null),
+    api('/api/admin/low-stock-dishes?limit=6').catch(() => null),
+    api(`/api/coin/status/${SHOP_ID}`).catch(() => null),
+    (async () => {
+      if (_homeCoinMapRes) return _homeCoinMapRes;
+      try { _homeCoinMapRes = await api('/api/coin/category-multipliers'); } catch (e) { return null; }
+      return _homeCoinMapRes;
+    })(),
+  ]);
+
+  // 3) 今日数据卡：今日采购额/单数 + 较昨日趋势
+  const orders = (poRes && poRes.data) || [];
+  const today0 = _startOfDay(new Date());
+  const today24 = new Date(today0.getTime() + 86400000);
+  const yst0 = new Date(today0); yst0.setDate(yst0.getDate() - 1);
+  const inRange = (o, from, to) => { const t = new Date(o.createdAt); return t >= from && t < to; };
+  const todayOrders = orders.filter(o => inRange(o, today0, today24));
+  const ystOrders = orders.filter(o => inRange(o, yst0, today0));
+  const sumAmt = (arr) => arr.reduce((s, o) => s + Number(o.totalAmount || 0), 0);
+  const todayAmt = sumAmt(todayOrders), ystAmt = sumAmt(ystOrders);
+  const setTrend = (id, nowV, ystV) => {
+    const tr = $(id); if (!tr) return;
+    if (!ystV) {
+      tr.textContent = nowV > 0 ? '今日开张' : '';
+      tr.className = nowV > 0 ? 'up' : '';
+      return;
+    }
+    const pct = Math.round(((nowV - ystV) / ystV) * 100);
+    tr.textContent = pct >= 0 ? `较昨日 +${pct}%` : `较昨日 ${pct}%`;
+    tr.className = pct >= 0 ? 'up' : 'down';
+  };
+  const amtEl = $('hsTodayAmount'); if (amtEl) amtEl.textContent = '¥' + todayAmt.toFixed(2);
+  const cntEl = $('hsTodayOrders'); if (cntEl) cntEl.textContent = String(todayOrders.length);
+  setTrend('hsAmountTrend', todayAmt, ystAmt);
+  setTrend('hsOrdersTrend', todayOrders.length, ystOrders.length);
+
+  // 4) 待办清单：待收货 > 库存告急 > 待确认 > 会员临期
+  const shipping = orders.filter(o => o.status === '已发货');
+  const pending = orders.filter(o => o.status === '待确认');
+  const lowData = (lowRes && lowRes.success && lowRes.data) || {};
+  const lowItems = (lowData.hasBom && lowData.items) || [];
+  const urgent = lowItems.filter(x => x.portionsLeft <= 5);
+  const coinData = (coinRes && coinRes.success && coinRes.data) || {};
+  const coinEl = $('hsCoin'); if (coinEl) coinEl.textContent = String(Number(coinData.dinghengCoin ?? 0));
+  const todoEl = $('hsTodoCount'); if (todoEl) todoEl.textContent = String(shipping.length + pending.length);
+
+  let expiringDays = null;
+  if (coinData.purchaseActive !== false && coinData.purchaseExpire) {
+    const days = Math.ceil((new Date(coinData.purchaseExpire) - new Date()) / 86400000);
+    if (days > 0 && days <= 30) expiringDays = days;
+  }
+
+  const todos = [];
+  if (shipping.length) todos.push({ tone: 'red', text: `${shipping.length} 笔订单已发货，核对重量后确认收货、坐等返币`, sub: '待收货', btn: '确认收货', tab: 'purchase' });
+  if (urgent.length) todos.push({ tone: 'red', text: `${urgent.length} 道菜库存告急（${urgent.slice(0, 2).map(x => x.dishName).join('、')}${urgent.length > 2 ? ' 等' : ''}）`, sub: '库存告急', btn: '去补货', tab: 'mall' });
+  else if (lowItems.length) todos.push({ tone: 'orange', text: `${lowItems.length} 道菜原料偏低，酌情补货`, sub: '库存偏低', btn: '去补货', tab: 'mall' });
+  if (pending.length) todos.push({ tone: 'orange', text: `${pending.length} 笔订单已提交，等待供应商接单确认`, sub: '待确认', btn: '去查看', tab: 'purchase' });
+  if (expiringDays !== null) todos.push({ tone: 'orange', text: `采购管家会员剩 ${expiringDays} 天到期，鼎恒币余额够可免费续`, sub: '会员临期', btn: '去续费', tab: 'member' });
+
+  const list = $('homeTodoList');
+  if (list) {
+    if (!todos.length) {
+      list.innerHTML = `<div class="home-todo-all">🎉 今日待办全部处理完，生意兴隆！</div>`;
+      const sub = $('homeTodoSub'); if (sub) sub.textContent = '全部完成';
+    } else {
+      list.innerHTML = todos.map(t => `
+        <div class="home-todo-item">
+          <span class="ht-dot ${t.tone}"></span>
+          <div class="ht-text">${esc(t.text)}<small>${t.sub}</small></div>
+          <button class="btn" data-go="${t.tab}">${t.btn}</button>
+        </div>`).join('');
+      const sub = $('homeTodoSub'); if (sub) sub.textContent = `${todos.length} 项待处理`;
+      list.querySelectorAll('.btn').forEach(b => b.onclick = () => switchTab(b.dataset.go));
+    }
+  }
+
+  // 5) 得币攻略：品类倍率倒序（>1 高亮激励，=1 弱化展示）
+  const tips = $('homeCoinTips');
+  if (tips) {
+    const map = (multRes && multRes.success && multRes.data) || {};
+    const entries = Object.entries(map).sort((a, b) => (Number(b[1]) || 0) - (Number(a[1]) || 0)).slice(0, 6);
+    if (!entries.length) {
+      tips.innerHTML = `<span class="home-coin-tag">所有品类均按 1 倍得币，正常采购即可</span>`;
+    } else {
+      tips.innerHTML = entries.map(([cat, m]) => {
+        const mult = Number(m) || 1;
+        return `<span class="home-coin-tag ${mult > 1 ? '' : 'mult1'}">${esc(cat)} <b>${mult} 倍得币</b></span>`;
+      }).join('');
+    }
+  }
+}
+
+// 工作台快捷入口宫格：点击直达对应栏目
+document.querySelectorAll('#pane-home .home-grid-item').forEach(el => el.onclick = () => switchTab(el.dataset.go));
 
 /* ---------- 升级引导统一入口（双产品线） ----------
    所有"去升级/升级会员/升级尊享版"按钮统一跳会员中心并定位目标卡片：
@@ -2788,7 +2959,10 @@ function couponUsable(c) {
 }
 
 // 商城入口：拉取供应商列表 + 全平台上架商品 + 商家可用券，默认显示店铺列表层
-async function loadMall() {
+let _mallLoaded = false;
+async function loadMall(force = false) {
+  // 已加载过则直接复用缓存，秒开（商品/供应商数据量较大，避免重复请求）
+  if (_mallLoaded && !force) return;
   try {
     const [supRes, prodRes, statusRes] = await Promise.all([
       api('/api/suppliers'),
@@ -2805,6 +2979,7 @@ async function loadMall() {
     _mallCategory = 'all';
     _mallSearchKey = '';
     _mallStoreCat = 'all';
+    _mallLoaded = true;
     renderMallCoinBanner();
     renderMallProgressGuide();
     renderMallStoreCatTabs();
