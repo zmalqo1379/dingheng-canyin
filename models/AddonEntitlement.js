@@ -15,10 +15,10 @@ const addonEntitlementSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  // 该 addon 解锁的功能键（点餐线 posFeatures 或采购线 purchaseFeatures 中的 key）
-  feature: {
-    type: String,
-    required: true
+  // 该 addon 解锁的功能键列表（点餐线 posFeatures 或采购线 purchaseFeatures 中的 key，可多个）
+  features: {
+    type: [String],
+    default: []
   },
   // 归属产品线：pos / purchase（决定用哪条线的权益表判定）
   productLine: {

@@ -5,6 +5,7 @@ const router = express.Router();
 const Member = require('../models/Member');
 const CoinHistory = require('../models/CoinHistory');
 const Coupon = require('../models/Coupon');
+const AddonEntitlement = require('../models/AddonEntitlement');
 const PurchaseOrder = require('../models/PurchaseOrder');
 const dhConfig = require('../utils/dhConfig');
 const entitlements = require('../utils/entitlements');
@@ -362,6 +363,98 @@ router.post('/coin/exchange-coupon', requireMerchant, async (req, res) => {
   }
 });
 
+// ============ POST /api/coin/exchange-addon 兑换币兑增值包（阶段3） ============
+// 用鼎恒币兑换限时功能包（高级装修 / 营销工具 / 智能预测），授权期内对应功能开放。
+// 与会员线解耦：addon 只临时解锁 features，不改 purchaseLevel / memberLevel。
+// 已持有同类 addon 时允许再兑叠加（各自独立到期，取最晚到期为准）。
+router.post('/coin/exchange-addon', requireMerchant, async (req, res) => {
+  const session = await mongoose.startSession();
+  try {
+    const shopId = req.shopId;
+    const { addonKey } = req.body || {};
+    if (!addonKey) {
+      return res.status(400).json({ success: false, message: 'addonKey 不能为空' });
+    }
+    const addon = (dhConfig.ADDONS || []).find(a => a.key === addonKey);
+    if (!addon) {
+      return res.status(400).json({ success: false, message: '增值包类型无效' });
+    }
+
+    // 预校验余额（事务外快速失败）
+    const pre = await getOrCreateMember(shopId);
+    if (pre.dinghengCoin < addon.coinPrice) {
+      return res.status(400).json({
+        success: false,
+        message: `鼎恒币不足，需 ${addon.coinPrice}，当前 ${pre.dinghengCoin}`
+      });
+    }
+
+    const result = await session.withTransaction(async () => {
+      let member = await Member.findOne({ shopId }).session(session);
+      if (!member) {
+        const [m] = await Member.create([{ shopId }], { session });
+        member = m;
+      }
+      if (member.dinghengCoin < addon.coinPrice) {
+        const e = new Error('鼎恒币不足');
+        e.code = 'INSUFFICIENT_COIN';
+        throw e;
+      }
+
+      // FIFO 扣减
+      await deductCoinsFifo(shopId, addon.coinPrice, session);
+      member.dinghengCoin = member.dinghengCoin - addon.coinPrice;
+      await member.save({ session });
+
+      const startAt = new Date();
+      const expireAt = new Date(startAt.getTime() + addon.days * DAY_MS);
+      const [ent] = await AddonEntitlement.create([{
+        shopId,
+        addonKey: addon.key,
+        features: addon.features || [],
+        productLine: addon.productLine || 'pos',
+        startAt,
+        expireAt,
+        payCoin: addon.coinPrice
+      }], { session });
+
+      const [hist] = await CoinHistory.create([{
+        shopId,
+        amount: -addon.coinPrice,
+        type: 'redeem_addon',
+        balanceAfter: member.dinghengCoin,
+        expireAt: null,
+        remaining: null,
+        description: `兑换「${addon.name}」（${addon.days} 天）`
+      }], { session });
+
+      // 回填流水关联，便于对账
+      ent.sourceCoinHistoryId = hist._id;
+      await ent.save({ session });
+
+      return { member, ent };
+    });
+
+    res.status(201).json({
+      success: true,
+      data: {
+        addonKey: addon.key,
+        name: addon.name,
+        expireAt: result.ent.expireAt,
+        dinghengCoin: result.member.dinghengCoin,
+        message: `「${addon.name}」已开通，有效期至 ${fmtDate(result.ent.expireAt)}`
+      }
+    });
+  } catch (err) {
+    if (err.code === 'INSUFFICIENT_COIN') {
+      return res.status(400).json({ success: false, message: err.message });
+    }
+    res.status(500).json({ success: false, message: err.message });
+  } finally {
+    session.endSession();
+  }
+});
+
 // ============ GET /api/coin/category-multipliers 品类得币倍率（公开） ============
 // 商家采购商城展示「该品类 X 倍得币」用；只返回倍率本身，不含任何返点率信息
 router.get('/coin/category-multipliers', async (req, res) => {
@@ -480,6 +573,11 @@ router.get('/coin/status/:shopId', async (req, res) => {
 
     const pos = entitlements.posState(member);
     const purchase = entitlements.purchaseState(member);
+    // 生效中的币兑增值包（阶段3）
+    const activeAddons = await AddonEntitlement.find({ shopId, expireAt: { $gt: now } })
+      .select('addonKey features productLine expireAt')
+      .sort({ expireAt: 1 })
+      .lean();
 
     res.json({
       success: true,
@@ -505,6 +603,9 @@ router.get('/coin/status/:shopId', async (req, res) => {
         purchase,
         totalEarnedCoin: member.totalEarnedCoin,
         customerPointsEnabled: member.customerPointsEnabled,
+        // 币兑增值包货架 + 当前生效授权
+        addons: dhConfig.ADDONS || [],
+        activeAddons,
         coupons,
         expireWarning
       }

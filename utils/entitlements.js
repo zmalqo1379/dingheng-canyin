@@ -120,8 +120,12 @@ async function getActiveAddonFeatures(shopId) {
     const list = await AddonEntitlement.find({
       shopId,
       expireAt: { $gt: new Date() }
-    }).select('feature').lean();
-    return [...new Set(list.map(a => a.feature).filter(Boolean))];
+    }).select('features').lean();
+    const out = new Set();
+    for (const a of list) {
+      (a.features || []).forEach(f => { if (f) out.add(f); });
+    }
+    return [...out];
   } catch (e) {
     return [];
   }

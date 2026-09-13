@@ -2149,6 +2149,9 @@ async function loadCoinCenter() {
     `;
     $('couponGrid').innerHTML = normalHtml + upcomingSection;
 
+    // 币兑增值包货架
+    renderAddonGrid(d);
+
     // 我的抵用券表格
     const couponsBody = $('couponsBody');
     if (!coupons.length) {
@@ -2386,6 +2389,58 @@ async function loadMemberCenter() {
     toast('加载会员数据失败', true);
   }
 }
+
+// 币兑增值包货架（阶段3）：限时功能包，小额币兑换，不影响会员等级
+function renderAddonGrid(d) {
+  const grid = $('addonGrid');
+  if (!grid) return;
+  const addons = (d && d.addons) || [];
+  const active = (d && d.activeAddons) || [];
+  const coin = Number(d && d.dinghengCoin) || 0;
+  if (!addons.length) {
+    grid.innerHTML = '<div class="empty">暂无可兑换的增值包</div>';
+    return;
+  }
+  const activeMap = {};
+  active.forEach(a => { activeMap[a.addonKey] = a.expireAt; });
+  grid.innerHTML = addons.map(a => {
+    const notEnough = coin < a.coinPrice;
+    const exp = activeMap[a.key];
+    const tip = exp
+      ? `<div style="font-size:12px;color:#16a34a;margin:4px 0;">已生效 · 至 ${fmtTime(exp).slice(0, 10)}</div>`
+      : '';
+    return `<div class="ez-card">
+      <div class="ez-badge">${a.productLine === 'purchase' ? '🛒 采购' : '🍴 点餐'}</div>
+      <div class="ez-name">${esc(a.name)}</div>
+      <div class="ez-coin">鼎恒币兑换仅需</div>
+      <div class="ez-coin-num">${a.coinPrice}<small> 币</small></div>
+      <div class="ez-tip">${esc(a.desc || '')} · ${a.days} 天</div>
+      ${tip}
+      <button class="ez-btn" ${notEnough ? 'disabled' : ''} onclick="exchangeAddon('${esc(a.key)}')">${notEnough ? '鼎恒币不足' : (exp ? '续兑叠加' : '立即兑换')}</button>
+    </div>`;
+  }).join('');
+}
+
+// 兑换增值包
+async function exchangeAddon(addonKey) {
+  try {
+    const res = await api('/api/coin/exchange-addon', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ addonKey })
+    });
+    if (res.success) {
+      toast((res.data && res.data.message) || '兑换成功！');
+      loadCoinCenter();
+      loadMemberCenter();
+    } else {
+      toast(res.message || '兑换失败', true);
+    }
+  } catch (e) {
+    toast(e.message || '兑换失败', true);
+  }
+}
+window.exchangeAddon = exchangeAddon;
 
 /* ===================== 会员现金购卡（线下收款 + 客服确认开通） ===================== */
 // 服务电话：与后端 routes/membership.js SERVICE_PHONE 保持一致

@@ -166,9 +166,28 @@ const purchaseFeatures = {
 // 券所需采购等级映射：原券 needLevel(basic/advanced/premium) → 采购线(free/plus/pro)
 const COUPON_NEED_PURCHASE_LEVEL = { basic: 'free', advanced: 'plus', premium: 'pro' };
 
-// Addon 零成本币兑小产品（阶段3启用；先占位，避免前端 undefined）
-// 结构：{ key, name, coinPrice, days, feature, desc }
-const ADDONS = [];
+// Addon 零成本币兑增值包（阶段3）：用鼎恒币兑换的限时功能包，边际成本≈0
+// 定位：给商家更快到期的小额币一个"泄洪池"，同时让免费档用户零成本尝鲜付费能力。
+// 原则：小额定价（400~600 币，专收快到期零钱）、必须真有用、不打折会员等级。
+// 结构：{ key, name, coinPrice, days, productLine, features[], desc }
+//   features 为要临时解锁的功能键（对应 posFeatures / purchaseFeatures 的键）
+const ADDONS = [
+  {
+    key: 'theme30', name: '高级装修 30 天', coinPrice: 500, days: 30, productLine: 'pos',
+    features: ['premiumTheme'],
+    desc: '高级主题 + 专属头图/LOGO 装修，30 天内自由使用'
+  },
+  {
+    key: 'marketing7', name: '营销工具 7 天包', coinPrice: 400, days: 7, productLine: 'pos',
+    features: ['marketingDiscount', 'marketingCategoryDiscount', 'marketingRecharge'],
+    desc: '满减 / 分类折扣 / 充值送，7 天体验完整营销能力'
+  },
+  {
+    key: 'forecast7', name: '智能预测 7 天包', coinPrice: 600, days: 7, productLine: 'purchase',
+    features: ['smartForecast', 'priceMonitor'],
+    desc: '30 天销量预测 + 采购价监控，7 天体验采购预测能力'
+  }
+];
 
 // ============ 派生视图（兼容历史字段名，老代码零改动可继续消费） ============
 // 会员定价：{ name, price(人民币月价), coinCost(币月价) }
