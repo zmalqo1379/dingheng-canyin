@@ -176,58 +176,58 @@ onPullDownRefresh(() => load().finally(() => uni.stopPullDownRefresh()));
 </script>
 
 <style lang="scss" scoped>
-.page { min-height: 100vh; background: #f5f5f5; display: flex; flex-direction: column; }
+.page { min-height: 100vh; background: $ink-50; display: flex; flex-direction: column; }
 
 .topbar {
   display: flex; align-items: center; justify-content: space-between;
-  background: #fff; padding: 16rpx 20rpx; border-bottom: 1rpx solid #eee;
+  background: $surface; padding: 16rpx 20rpx; border-bottom: 1rpx solid $ink-100;
   position: sticky; top: 0; z-index: 5;
 }
 .filter { display: flex; flex: 1; overflow-x: auto; white-space: nowrap; }
 .ftab {
-  padding: 10rpx 24rpx; font-size: 26rpx; color: #666; border-radius: 30rpx; margin-right: 12rpx;
-  background: #f5f5f5; flex-shrink: 0;
+  padding: 10rpx 24rpx; font-size: $fs-base; color: $ink-500; border-radius: $radius-full; margin-right: 12rpx;
+  background: $ink-50; flex-shrink: 0;
 }
-.ftab.on { background: #ff6b35; color: #fff; }
-.add { background: #ff6b35; color: #fff; font-size: 26rpx; padding: 12rpx 24rpx; border-radius: 30rpx; flex-shrink: 0; }
+.ftab.on { background: $brand-grad; color: #fff; }
+.add { background: $brand-grad; color: #fff; font-size: $fs-base; padding: 12rpx 24rpx; border-radius: $radius-full; flex-shrink: 0; box-shadow: $shadow-brand; }
 
 .list { flex: 1; padding: 20rpx; }
 .dish {
-  display: flex; background: #fff; border-radius: 16rpx; padding: 20rpx; margin-bottom: 18rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0,0,0,.04); align-items: center;
+  display: flex; background: $surface; border-radius: $radius-lg; padding: 20rpx; margin-bottom: 18rpx;
+  box-shadow: $shadow-sm; align-items: center;
 }
-.img { width: 120rpx; height: 120rpx; border-radius: 12rpx; flex-shrink: 0; background: #f0f0f0; }
-.img.placeholder { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg,#ffd2bf,#ffb59a); color: #fff; font-size: 40rpx; font-weight: 700; }
+.img { width: 120rpx; height: 120rpx; border-radius: $radius; flex-shrink: 0; background: $ink-100; }
+.img.placeholder { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #ffd2bf, #ffb59a); color: #fff; font-size: 40rpx; font-weight: $fw-bold; }
 .info { flex: 1; margin-left: 20rpx; }
 .row1 { display: flex; align-items: center; gap: 12rpx; }
-.name { font-size: 30rpx; font-weight: 600; color: #222; }
-.cat { font-size: 20rpx; color: #ff6b35; background: rgba(255,107,53,.12); padding: 2rpx 12rpx; border-radius: 20rpx; }
-.desc { font-size: 24rpx; color: #999; margin: 8rpx 0; }
+.name { font-size: $fs-lg; font-weight: $fw-semibold; color: $ink-900; }
+.cat { font-size: $fs-xs; color: $brand; background: $brand-100; padding: 2rpx 12rpx; border-radius: $radius-full; }
+.desc { font-size: $fs-sm; color: $ink-400; margin: 8rpx 0; }
 .row2 { display: flex; align-items: center; justify-content: space-between; }
-.price { color: #ff6b35; font-size: 32rpx; font-weight: 700; }
-.avail { font-size: 22rpx; color: #4caf50; }
-.avail.off { color: #bbb; }
+.price { color: $brand; font-size: $fs-xl; font-weight: $fw-bold; }
+.avail { font-size: $fs-sm; color: $success; }
+.avail.off { color: $ink-300; }
 .ops { display: flex; flex-direction: column; gap: 16rpx; align-items: flex-end; }
-.op { font-size: 24rpx; padding: 6rpx 16rpx; border-radius: 8rpx; }
-.op.edit { color: #ff6b35; background: rgba(255,107,53,.1); }
-.op.del { color: #f44336; background: rgba(244,67,54,.1); }
-.empty { text-align: center; color: #bbb; padding: 80rpx 0; }
+.op { font-size: $fs-sm; padding: 6rpx 16rpx; border-radius: $radius-sm; }
+.op.edit { color: $brand; background: $brand-100; }
+.op.del { color: $danger; background: $danger-bg; }
+.empty { text-align: center; color: $ink-300; padding: 80rpx 0; }
 
 .mask { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 10; }
 .sheet {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 11; background: #fff;
-  border-radius: 24rpx 24rpx 0 0; padding: 24rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 11; background: $surface;
+  border-radius: $radius-lg $radius-lg 0 0; padding: 24rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
   max-height: 80vh;
 }
-.sheet-title { font-size: 32rpx; font-weight: 700; text-align: center; margin-bottom: 20rpx; }
-.field { display: flex; align-items: center; padding: 18rpx 0; border-bottom: 1rpx solid #f5f5f5; }
+.sheet-title { font-size: $fs-xl; font-weight: $fw-bold; text-align: center; margin-bottom: 20rpx; color: $ink-900; }
+.field { display: flex; align-items: center; padding: 18rpx 0; border-bottom: 1rpx solid $ink-50; }
 .field.switch { justify-content: space-between; }
-.fl { width: 160rpx; font-size: 28rpx; color: #333; flex-shrink: 0; }
-.fi { flex: 1; font-size: 28rpx; text-align: right; }
+.fl { width: 160rpx; font-size: $fs-md; color: $ink-700; flex-shrink: 0; }
+.fi { flex: 1; font-size: $fs-md; text-align: right; color: $ink-900; }
 .sheet-btns { display: flex; gap: 20rpx; margin-top: 30rpx; }
-.cbtn { flex: 1; height: 80rpx; line-height: 80rpx; border-radius: 40rpx; font-size: 30rpx; }
-.cbtn.cancel { background: #f5f5f5; color: #666; }
-.cbtn.ok { background: #ff6b35; color: #fff; }
+.cbtn { flex: 1; height: 80rpx; line-height: 80rpx; border-radius: $radius-full; font-size: $fs-lg; }
+.cbtn.cancel { background: $ink-50; color: $ink-500; }
+.cbtn.ok { background: $brand-grad; color: #fff; box-shadow: $shadow-brand; }
 button::after { border: none; }
 
 @media (prefers-color-scheme: dark) {

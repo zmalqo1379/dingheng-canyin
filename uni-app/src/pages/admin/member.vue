@@ -2,6 +2,8 @@
   <view class="page">
     <!-- 余额 -->
     <view class="wallet">
+      <view class="wallet-deco deco-1"></view>
+      <view class="wallet-deco deco-2"></view>
       <view class="wallet-label">鼎恒币余额</view>
       <view class="wallet-num">{{ coin }}<text class="unit"> DH</text></view>
       <view class="wallet-sub">累计获得 {{ totalEarned }} DH · 进货即得，可兑券兑会员</view>
@@ -9,18 +11,24 @@
 
     <!-- 两条产品线 -->
     <view class="line-card">
-      <view class="line-head">
-        <text class="line-name">🛒 {{ purchaseName }}</text>
-        <text class="line-state" :class="{ off: !purchaseActive }">{{ purchaseExpireText }}</text>
+      <view class="line-ico">🛒</view>
+      <view class="line-main">
+        <view class="line-head">
+          <text class="line-name">{{ purchaseName }}</text>
+          <text class="line-state" :class="{ off: !purchaseActive }">{{ purchaseExpireText }}</text>
+        </view>
+        <view class="line-desc">采购商城 · 返币翻倍 · 大额券 · 智能预测</view>
       </view>
-      <view class="line-desc">采购商城 · 返币翻倍 · 大额券 · 智能预测</view>
     </view>
     <view class="line-card">
-      <view class="line-head">
-        <text class="line-name">🍴 {{ posName }}</text>
-        <text class="line-state" :class="{ off: !posActive }">{{ posExpireText }}</text>
+      <view class="line-ico pos">🍴</view>
+      <view class="line-main">
+        <view class="line-head">
+          <text class="line-name">{{ posName }}</text>
+          <text class="line-state" :class="{ off: !posActive }">{{ posExpireText }}</text>
+        </view>
+        <view class="line-desc">扫码点餐 · 满减 · 报表 · 高级装修</view>
       </view>
-      <view class="line-desc">扫码点餐 · 满减 · 报表 · 高级装修</view>
     </view>
 
     <!-- 采购省钱卡兑换 -->
@@ -65,6 +73,19 @@
       </view>
     </view>
 
+    <!-- 人民币现金购卡（线下收款 + 平台确认） -->
+    <view class="card">
+      <view class="card-title">💳 人民币购卡</view>
+      <view class="ex-row" v-for="p in CASH_PLANS" :key="p.key">
+        <view class="ex-main">
+          <text class="ex-name">{{ p.name }}</text>
+          <text class="ex-desc">¥{{ p.price }}/月 · 或 {{ p.coinCost }} 鼎恒币/月</text>
+        </view>
+        <button class="ex-btn" @tap="openCashSheet(p)">¥{{ p.price }} 购卡</button>
+      </view>
+      <view class="tip">现金购卡需线下联系客服确认收款，确认后自动开通</view>
+    </view>
+
     <!-- 币兑增值包 -->
     <view class="card" v-if="addons.length">
       <view class="card-title">💎 币兑增值包</view>
@@ -83,6 +104,19 @@
 
     <view class="foot">
       <button class="foot-btn" @tap="logout">退出登录</button>
+    </view>
+
+    <!-- 现金购卡：选月数弹窗 -->
+    <view class="mask" v-if="showCashSheet" @tap="showCashSheet = false"></view>
+    <view class="sheet" v-if="showCashSheet">
+      <view class="sheet-title">{{ cashTarget ? cashTarget.name : '' }}</view>
+      <view class="sheet-sub">¥{{ cashTarget ? cashTarget.price : 0 }}/月 · 选择购买月数（1-12 个月）</view>
+      <view class="qty-row">
+        <text class="qty-btn" @tap="decCashMonths">－</text>
+        <input class="qty-input" type="number" v-model="cashMonths" />
+        <text class="qty-btn" @tap="incCashMonths">＋</text>
+      </view>
+      <button class="sheet-btn" :loading="cashSubmitting" @tap="submitCashOrder">确认购卡（¥{{ cashTotal() }}）</button>
     </view>
   </view>
 </template>
@@ -112,6 +146,13 @@ const PLAN_CFG = {
   plus: { coinCost: 3000 }, pro: { coinCost: 5000 },
   advanced: { coinCost: 1500 }, premium: { coinCost: 2400 }
 };
+// 人民币现金购卡定价（与后端 dhConfig POS_PRICING / PURCHASE_PRICING 保持一致）
+const CASH_PLANS = [
+  { key: 'plus', line: 'purchase', name: '采购省钱卡', price: 99, coinCost: 3000 },
+  { key: 'pro', line: 'purchase', name: '采购省钱卡Pro', price: 199, coinCost: 5000 },
+  { key: 'advanced', line: 'pos', name: '点餐进阶版', price: 39, coinCost: 1500 },
+  { key: 'premium', line: 'pos', name: '点餐尊享版', price: 79, coinCost: 2400 }
+];
 
 const coin = ref(0);
 const totalEarned = ref(0);
@@ -123,6 +164,10 @@ const purchaseExpire = ref(null);
 const posExpire = ref(null);
 const addons = ref([]);
 const activeAddons = ref([]);
+const showCashSheet = ref(false);
+const cashTarget = ref(null);
+const cashMonths = ref(1);
+const cashSubmitting = ref(false);
 
 const purchaseName = computed(() => LEVEL_NAME[purchaseLevel.value] || '采购免费版');
 const posName = computed(() => LEVEL_NAME[posLevel.value] || '点餐免费版');
@@ -232,6 +277,42 @@ async function exchangeAddon(a) {
   } catch (e) {}
 }
 
+// ---- 人民币现金购卡（线下收款 + 平台确认）----
+function openCashSheet(p) {
+  cashTarget.value = p;
+  cashMonths.value = 1;
+  showCashSheet.value = true;
+}
+function cashTotal() {
+  const t = cashTarget.value;
+  const m = Math.max(1, Math.min(12, Math.floor(Number(cashMonths.value) || 1)));
+  return t ? (t.price * m).toFixed(2) : '0.00';
+}
+function incCashMonths() { cashMonths.value = Math.min(12, (Number(cashMonths.value) || 1) + 1); }
+function decCashMonths() { cashMonths.value = Math.max(1, (Number(cashMonths.value) || 1) - 1); }
+async function submitCashOrder() {
+  const t = cashTarget.value;
+  if (!t || cashSubmitting.value) return;
+  const months = Math.max(1, Math.min(12, Math.floor(Number(cashMonths.value) || 1)));
+  cashSubmitting.value = true;
+  try {
+    const res = await post('/membership/cash-orders', { level: t.key, productLine: t.line, months }, { raw: true });
+    const phone = (res && res.servicePhone) || '';
+    const msg = (res && res.reused) ? '你已有待确认的购卡订单' : '购卡订单已提交，等待平台确认';
+    uni.showModal({
+      title: '提交成功',
+      content: `${msg}。请线下联系客服${phone ? '（' + phone + '）' : ''}确认收款，确认后会员自动开通。`,
+      showCancel: false,
+      confirmColor: '#FF6B35'
+    });
+    showCashSheet.value = false;
+  } catch (e) {
+    // request.js 已 toast
+  } finally {
+    cashSubmitting.value = false;
+  }
+}
+
 function logout() {
   uni.showModal({
     title: '退出登录',
@@ -254,61 +335,110 @@ onShow(() => { load(); });
 </script>
 
 <style lang="scss" scoped>
-.page { min-height: 100vh; background: #f5f5f5; padding-bottom: 60rpx; }
+.page { min-height: 100vh; background: $ink-50; padding-bottom: 60rpx; }
 
+/* ===== 余额卡（VIP 质感） ===== */
 .wallet {
-  background: linear-gradient(135deg, #ff6b35, #ff8a5c);
-  color: #fff; padding: 44rpx 32rpx 52rpx;
+  position: relative;
+  background: $dark-grad;
+  color: #fff; padding: 44rpx 32rpx 56rpx;
+  overflow: hidden;
 }
-.wallet-label { font-size: 24rpx; opacity: .9; }
-.wallet-num { font-size: 60rpx; font-weight: 800; margin-top: 8rpx; }
-.wallet-num .unit { font-size: 26rpx; font-weight: 400; }
-.wallet-sub { font-size: 22rpx; opacity: .85; margin-top: 10rpx; }
+.wallet-deco { position: absolute; border-radius: 50%; background: rgba(255, 255, 255, .06); }
+.wallet-deco.deco-1 { top: -120rpx; right: -80rpx; width: 320rpx; height: 320rpx; }
+.wallet-deco.deco-2 { bottom: -100rpx; left: -40rpx; width: 240rpx; height: 240rpx; }
+.wallet-label { font-size: $fs-sm; color: rgba(255, 255, 255, .75); position: relative; z-index: 1; }
+.wallet-num { font-size: $fs-4xl; font-weight: $fw-black; margin-top: 10rpx; color: #FFD6A8; position: relative; z-index: 1; }
+.wallet-num .unit { font-size: $fs-base; font-weight: $fw-medium; color: rgba(255, 255, 255, .6); }
+.wallet-sub { font-size: $fs-sm; color: rgba(255, 255, 255, .6); margin-top: 12rpx; position: relative; z-index: 1; }
 
+/* ===== 产品线 ===== */
 .line-card {
-  background: #fff; margin: 20rpx; border-radius: 16rpx; padding: 24rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0,0,0,.04);
+  display: flex; align-items: center; gap: 20rpx;
+  background: $surface; margin: 20rpx; border-radius: $radius-lg; padding: 24rpx;
+  box-shadow: $shadow-sm;
 }
-.line-card:first-of-type { margin-top: -28rpx; }
+.line-card:first-of-type { margin-top: -32rpx; position: relative; z-index: 2; }
+.line-ico {
+  width: 88rpx; height: 88rpx; border-radius: 28rpx;
+  background: $brand-50; display: flex; align-items: center; justify-content: center;
+  font-size: 44rpx; flex-shrink: 0;
+}
+.line-ico.pos { background: #F0F7FF; }
+.line-main { flex: 1; display: flex; flex-direction: column; }
 .line-head { display: flex; align-items: center; justify-content: space-between; }
-.line-name { font-size: 30rpx; font-weight: 700; color: #333; }
-.line-state { font-size: 22rpx; color: #16a34a; }
-.line-state.off { color: #ef4444; }
-.line-desc { font-size: 22rpx; color: #999; margin-top: 8rpx; }
+.line-name { font-size: $fs-lg; font-weight: $fw-bold; color: $ink-900; }
+.line-state { font-size: $fs-sm; color: $success; font-weight: $fw-medium; }
+.line-state.off { color: $danger; }
+.line-desc { font-size: $fs-sm; color: $ink-400; margin-top: 8rpx; }
 
+/* ===== 兑换卡片 ===== */
 .card {
-  background: #fff; margin: 20rpx; border-radius: 16rpx; padding: 8rpx 24rpx 20rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0,0,0,.04);
+  background: $surface; margin: 20rpx; border-radius: $radius-lg; padding: 8rpx 24rpx 20rpx;
+  box-shadow: $shadow-sm;
 }
 .card-title {
-  font-size: 26rpx; color: #ff6b35; font-weight: 600;
-  padding: 20rpx 0 8rpx; border-bottom: 1rpx solid #f5f5f5;
+  font-size: $fs-base; color: $brand; font-weight: $fw-semibold;
+  padding: 20rpx 0 8rpx; border-bottom: 1rpx solid $ink-100;
 }
 .ex-row {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 16rpx; padding: 22rpx 0; border-bottom: 1rpx solid #faf7f4;
+  gap: 16rpx; padding: 22rpx 0; border-bottom: 1rpx solid $ink-50;
 }
 .ex-row:last-child { border-bottom: 0; }
 .ex-main { flex: 1; display: flex; flex-direction: column; }
-.ex-name { font-size: 28rpx; color: #333; font-weight: 500; }
-.ex-desc { font-size: 22rpx; color: #999; margin-top: 4rpx; }
-.ex-active { font-size: 22rpx; color: #16a34a; margin-top: 4rpx; }
+.ex-name { font-size: $fs-md; color: $ink-900; font-weight: $fw-medium; }
+.ex-desc { font-size: $fs-sm; color: $ink-400; margin-top: 4rpx; }
+.ex-active { font-size: $fs-sm; color: $success; margin-top: 4rpx; }
 .ex-btn {
-  background: #ff6b35; color: #fff; border-radius: 30rpx;
-  font-size: 24rpx; height: 60rpx; line-height: 60rpx; padding: 0 26rpx;
-  min-width: 120rpx;
+  background: $brand-grad; color: #fff; border-radius: $radius-full;
+  font-size: $fs-sm; font-weight: $fw-semibold; height: 60rpx; line-height: 60rpx; padding: 0 26rpx;
+  min-width: 120rpx; box-shadow: $shadow-brand;
 }
-.ex-btn[disabled] { background: #e5e5e5; color: #aaa; }
-.tip { font-size: 22rpx; color: #bbb; margin-top: 10rpx; }
+.ex-btn[disabled] { background: $ink-100; color: $ink-300; box-shadow: none; }
+.tip { font-size: $fs-sm; color: $ink-400; margin-top: 10rpx; }
 
 .foot { padding: 20rpx 40rpx; }
-.foot-btn { background: #fff; color: #ef4444; border-radius: 40rpx; font-size: 28rpx; height: 80rpx; line-height: 80rpx; }
+.foot-btn { background: $surface; color: $danger; border-radius: $radius-full; font-size: $fs-md; height: 80rpx; line-height: 80rpx; box-shadow: $shadow-sm; }
+
+/* ===== 现金购卡弹窗 ===== */
+.mask {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, .45);
+  z-index: 99;
+}
+.sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 100;
+  background: $surface; border-radius: $radius-lg $radius-lg 0 0;
+  padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+}
+.sheet-title { font-size: $fs-xl; font-weight: $fw-bold; color: $ink-900; text-align: center; }
+.sheet-sub { font-size: $fs-base; color: $ink-400; margin-top: 8rpx; text-align: center; }
+.qty-row { display: flex; align-items: center; justify-content: center; gap: 30rpx; margin: 36rpx 0; }
+.qty-btn {
+  width: 72rpx; height: 72rpx; line-height: 72rpx; text-align: center;
+  background: $ink-50; border-radius: 50%; font-size: 36rpx; color: $ink-900;
+}
+.qty-input {
+  width: 160rpx; text-align: center; font-size: $fs-xl;
+  border-bottom: 2rpx solid $ink-100; padding: 10rpx 0;
+}
+.sheet-btn {
+  background: $brand-grad; color: #fff; border-radius: $radius-full;
+  font-size: $fs-lg; font-weight: $fw-semibold; height: 82rpx; line-height: 82rpx; margin-top: 10rpx;
+  box-shadow: $shadow-brand;
+}
 button::after { border: none; }
 
 @media (prefers-color-scheme: dark) {
   .page { background: #121212; }
   .line-card, .card, .foot-btn { background: #1e1e1e; box-shadow: none; }
+  .line-ico { background: #2a2a2a; }
+  .line-ico.pos { background: #1f2a38; }
   .card-title, .ex-row { border-color: #2a2a2a; }
   .line-name, .ex-name { color: #e6e6e6; }
+  .sheet { background: #1e1e1e; }
+  .sheet-title { color: #e6e6e6; }
+  .qty-btn { background: #2a2a2a; color: #ddd; }
+  .qty-input { color: #e6e6e6; border-color: #2a2a2a; }
 }
 </style>

@@ -39,11 +39,14 @@
           </text>
           <text class="item more" v-if="o.items.length > 4">等 {{ o.items.length }} 项</text>
         </view>
+        <view class="actions" v-if="o.status === '已发货'">
+          <button class="receive-btn" :loading="receivingId === (o._id || o.orderNo)" @tap="confirmReceive(o)">确认收货</button>
+        </view>
       </view>
     </view>
 
     <view v-else class="empty">
-      <view class="empty-ico">📑</view>
+      <view class="empty-ico"><text>📑</text></view>
       <view class="empty-txt">{{ loaded ? '暂无采购订单' : '加载中…' }}</view>
       <button class="btn" @tap="goMall">去采购商城进货</button>
     </view>
@@ -53,7 +56,7 @@
 <script setup>
 import { ref } from 'vue';
 import { onLoad, onPullDownRefresh, onShow } from '@dcloudio/uni-app';
-import { get, getToken } from '@/utils/request.js';
+import { get, post, getToken } from '@/utils/request.js';
 
 const tabs = [
   { label: '全部', value: '' },
@@ -66,6 +69,7 @@ const tabs = [
 const tab = ref('');
 const orders = ref([]);
 const loaded = ref(false);
+const receivingId = ref('');
 
 function money(v) {
   return (Number(v) || 0).toFixed(2);
@@ -81,6 +85,29 @@ function supplierName(o) {
 }
 function goMall() {
   uni.switchTab({ url: '/pages/admin/mall' });
+}
+
+function confirmReceive(o) {
+  const id = o._id || o.orderNo;
+  uni.showModal({
+    title: '确认收货',
+    content: `确认已收到「${supplierName(o)}」的货物？收货后将结算返点、采购积分并发放鼎恒币。`,
+    confirmColor: '#FF6B35',
+    success: async (r) => {
+      if (!r.confirm) return;
+      receivingId.value = id;
+      try {
+        const data = await post('/purchase-orders/' + id + '/confirm-receive', {});
+        const reward = (data && data.rewardCoin) ? ('，得 ' + data.rewardCoin + ' 鼎恒币') : '';
+        uni.showToast({ title: '收货成功' + reward, icon: 'none', duration: 2500 });
+        await load();
+      } catch (e) {
+        // request.js 已 toast
+      } finally {
+        receivingId.value = '';
+      }
+    }
+  });
 }
 
 async function load() {
@@ -114,43 +141,54 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-.page { min-height: 100vh; background: #f5f5f5; padding-bottom: 40rpx; }
+.page { min-height: 100vh; background: $ink-50; padding-bottom: 40rpx; }
 
 .tabs {
-  white-space: nowrap; background: #fff; padding: 16rpx 12rpx;
-  border-bottom: 1rpx solid #f0f0f0;
+  white-space: nowrap; background: $surface; padding: 16rpx 12rpx;
+  border-bottom: 1rpx solid $ink-100;
 }
 .tab {
   display: inline-block; padding: 10rpx 26rpx; margin: 0 8rpx;
-  font-size: 26rpx; color: #666; background: #f5f5f5; border-radius: 30rpx;
+  font-size: $fs-base; color: $ink-500; background: $ink-50; border-radius: $radius-full;
 }
-.tab.active { background: #ff6b35; color: #fff; }
+.tab.active { background: $brand-grad; color: #fff; }
 
 .list { padding: 20rpx; }
 .card {
-  background: #fff; border-radius: 16rpx; padding: 24rpx;
-  margin-bottom: 20rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,.04);
+  background: $surface; border-radius: $radius-lg; padding: 24rpx;
+  margin-bottom: 20rpx; box-shadow: $shadow-sm;
 }
 .head {
   display: flex; align-items: center; justify-content: space-between;
-  padding-bottom: 14rpx; border-bottom: 1rpx solid #f5f5f5;
+  padding-bottom: 14rpx; border-bottom: 1rpx solid $ink-100;
 }
-.no { font-size: 24rpx; color: #999; }
-.status { font-size: 24rpx; color: #ff6b35; font-weight: 600; }
+.no { font-size: $fs-sm; color: $ink-400; }
+.status { font-size: $fs-sm; color: $brand; font-weight: $fw-semibold; }
 .row { display: flex; justify-content: space-between; padding: 10rpx 0; }
-.label { font-size: 25rpx; color: #999; }
-.value { font-size: 26rpx; color: #333; }
-.value.amount { color: #ff6b35; font-weight: 700; }
-.items { margin-top: 12rpx; padding-top: 12rpx; border-top: 1rpx dashed #f0f0f0; }
-.item { display: block; font-size: 23rpx; color: #777; line-height: 1.7; }
-.item.more { color: #bbb; }
+.label { font-size: $fs-base; color: $ink-400; }
+.value { font-size: $fs-base; color: $ink-700; }
+.value.amount { color: $brand; font-weight: $fw-bold; }
+.items { margin-top: 12rpx; padding-top: 12rpx; border-top: 1rpx dashed $ink-100; }
+.item { display: block; font-size: $fs-sm; color: $ink-500; line-height: 1.7; }
+.item.more { color: $ink-300; }
+.actions { margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx solid $ink-50; display: flex; justify-content: flex-end; }
+.receive-btn {
+  background: $brand-grad; color: #fff; border-radius: $radius-full;
+  font-size: $fs-base; font-weight: $fw-semibold; height: 60rpx; line-height: 60rpx; padding: 0 30rpx;
+  box-shadow: $shadow-brand;
+}
 
 .empty { padding: 140rpx 60rpx; text-align: center; }
-.empty-ico { font-size: 80rpx; }
-.empty-txt { font-size: 26rpx; color: #999; margin: 20rpx 0 30rpx; }
+.empty-ico {
+  width: 140rpx; height: 140rpx; border-radius: 40rpx; margin: 0 auto;
+  background: $brand-50; display: flex; align-items: center; justify-content: center;
+}
+.empty-ico text { font-size: 72rpx; line-height: 1; }
+.empty-txt { font-size: $fs-base; color: $ink-400; margin: 24rpx 0 30rpx; }
 .btn {
-  background: #ff6b35; color: #fff; border-radius: 40rpx;
-  font-size: 28rpx; height: 78rpx; line-height: 78rpx;
+  background: $brand-grad; color: #fff; border-radius: $radius-full;
+  font-size: $fs-md; font-weight: $fw-semibold; height: 78rpx; line-height: 78rpx;
+  box-shadow: $shadow-brand;
 }
 button::after { border: none; }
 
@@ -161,5 +199,6 @@ button::after { border: none; }
   .card { background: #1e1e1e; box-shadow: none; }
   .head { border-color: #2a2a2a; }
   .value { color: #e6e6e6; }
+  .empty-ico { background: #2a2a2a; }
 }
 </style>

@@ -1,6 +1,8 @@
 <template>
   <view class="login-page">
     <view class="brand">
+      <view class="deco deco-1"></view>
+      <view class="deco deco-2"></view>
       <view class="brand-logo">鼎</view>
       <view class="brand-name">鼎恒餐饮</view>
       <view class="brand-sub">门店经营 · 供应链 · 会员营销</view>
@@ -143,98 +145,127 @@ async function doRegister() {
 <style lang="scss" scoped>
 .login-page {
   min-height: 100vh;
-  background: #f5f5f5;
-  padding: 0 40rpx;
+  background: $ink-50;
   box-sizing: border-box;
 }
 
+/* 顶部品牌渐变区 */
 .brand {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 100rpx 0 60rpx;
+  padding: 140rpx 40rpx 120rpx;
+  background: $brand-grad;
+  border-radius: 0 0 48rpx 48rpx;
+  overflow: hidden;
 }
+.deco {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .10);
+}
+.deco-1 { top: -120rpx; right: -120rpx; width: 360rpx; height: 360rpx; }
+.deco-2 { bottom: -80rpx; left: -60rpx; width: 260rpx; height: 260rpx; background: rgba(255, 255, 255, .08); }
+
 .brand-logo {
   width: 140rpx;
   height: 140rpx;
-  border-radius: 32rpx;
-  background: linear-gradient(135deg, #ff6b35, #ff8a5c);
-  color: #fff;
+  border-radius: 40rpx;
+  background: #fff;
+  color: $brand;
   font-size: 72rpx;
-  font-weight: 700;
+  font-weight: $fw-black;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8rpx 24rpx rgba(255, 107, 53, .35);
+  box-shadow: 0 12rpx 32rpx rgba(0, 0, 0, .18);
+  position: relative;
+  z-index: 1;
 }
 .brand-name {
-  margin-top: 24rpx;
-  font-size: 44rpx;
-  font-weight: 700;
-  color: #222;
+  margin-top: 28rpx;
+  font-size: 48rpx;
+  font-weight: $fw-bold;
+  color: #fff;
+  position: relative;
+  z-index: 1;
 }
 .brand-sub {
-  margin-top: 8rpx;
-  font-size: 24rpx;
-  color: #999;
+  margin-top: 10rpx;
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, .92);
+  letter-spacing: 2rpx;
+  position: relative;
+  z-index: 1;
 }
 
+/* 表单区（悬浮于渐变区之上） */
 .tabs {
   display: flex;
-  background: #fff;
-  border-radius: 40rpx;
+  background: $surface;
+  border-radius: $radius-full;
   padding: 8rpx;
-  margin-bottom: 24rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, .04);
+  margin: -60rpx 40rpx 0;
+  box-shadow: $shadow-lg;
+  position: relative;
+  z-index: 2;
 }
 .tab {
   flex: 1;
   text-align: center;
-  font-size: 28rpx;
-  color: #666;
+  font-size: $fs-md;
+  color: $ink-500;
   padding: 18rpx 0;
-  border-radius: 32rpx;
+  border-radius: $radius-full;
+  font-weight: $fw-medium;
 }
 .tab.on {
-  background: #ff6b35;
+  background: $brand-grad;
   color: #fff;
-  font-weight: 600;
+  font-weight: $fw-semibold;
+  box-shadow: $shadow-brand;
 }
 
 .card {
-  background: #fff;
-  border-radius: 20rpx;
-  padding: 8rpx 32rpx 32rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, .04);
+  background: $surface;
+  border-radius: $radius-lg;
+  padding: 8rpx 36rpx 40rpx;
+  margin: 24rpx 40rpx 0;
+  box-shadow: $shadow;
 }
 .field {
   display: flex;
   align-items: center;
-  padding: 28rpx 0;
-  border-bottom: 1rpx solid #f5f5f5;
+  padding: 30rpx 0;
+  border-bottom: 1rpx solid $ink-100;
 }
 .field:last-of-type {
   border-bottom: 0;
 }
 .fl {
   width: 160rpx;
-  font-size: 28rpx;
-  color: #333;
+  font-size: $fs-md;
+  color: $ink-700;
   flex-shrink: 0;
+  font-weight: $fw-medium;
 }
 .fi {
   flex: 1;
-  font-size: 28rpx;
+  font-size: $fs-md;
   text-align: right;
+  color: $ink-900;
 }
 .submit {
-  margin-top: 32rpx;
-  background: #ff6b35;
+  margin-top: 40rpx;
+  background: $brand-grad;
   color: #fff;
-  border-radius: 40rpx;
-  font-size: 30rpx;
-  height: 88rpx;
-  line-height: 88rpx;
+  border-radius: $radius-full;
+  font-size: $fs-lg;
+  font-weight: $fw-semibold;
+  height: 92rpx;
+  line-height: 92rpx;
+  box-shadow: $shadow-brand;
 }
 button::after {
   border: none;
@@ -242,14 +273,14 @@ button::after {
 
 .tip {
   text-align: center;
-  font-size: 22rpx;
-  color: #bbb;
+  font-size: $fs-sm;
+  color: $ink-400;
   margin-top: 32rpx;
 }
 
 @media (prefers-color-scheme: dark) {
   .login-page { background: #121212; }
-  .brand-name { color: #e6e6e6; }
+  .brand-name, .brand-sub { color: #fff; }
   .tabs { background: #1e1e1e; box-shadow: none; }
   .card { background: #1e1e1e; box-shadow: none; }
   .field { border-color: #2a2a2a; }

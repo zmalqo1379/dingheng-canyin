@@ -1,7 +1,11 @@
 const jwt = require('jsonwebtoken');
 
-// JWT 密钥：优先从环境变量读取，未配置时使用内置默认值（开发环境）
-const JWT_SECRET = process.env.JWT_SECRET || 'dingheng_canyin_jwt_secret_2024';
+// JWT 密钥：强制由 .env 的 JWT_SECRET 提供，缺失时直接报错退出（不再使用硬编码默认值）
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('[FATAL] 缺少环境变量 JWT_SECRET：请在项目根目录 .env 中配置 JWT_SECRET 后重启服务');
+  process.exit(1);
+}
 // Token 有效期
 const JWT_EXPIRES_IN = '7d';
 

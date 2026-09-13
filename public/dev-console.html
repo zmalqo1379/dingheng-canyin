@@ -18,6 +18,13 @@
       --gray: #9ca3af;
       --bg: #f5f6fa;
       --line: #e5e7eb;
+      /* 统一设计规范 token */
+      --radius-sm: 8px;
+      --radius: 12px;
+      --radius-lg: 16px;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, .05);
+      --shadow: 0 4px 14px rgba(0, 0, 0, .06);
+      --shadow-lg: 0 12px 32px rgba(0, 0, 0, .12);
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -241,9 +248,9 @@
     }
     .stat-card {
       background: #fff;
-      border-radius: 16px;
+      border-radius: var(--radius-lg);
       padding: 28px 26px;
-      box-shadow: 0 4px 14px rgba(0,0,0,.06);
+      box-shadow: var(--shadow);
       border-top: 4px solid var(--accent);
     }
     .stat-card.blue { border-top-color: var(--blue); }
@@ -256,11 +263,11 @@
 
     .placeholder {
       background: #fff;
-      border-radius: 14px;
+      border-radius: var(--radius-lg);
       padding: 60px 30px;
       text-align: center;
       color: #9ca3af;
-      box-shadow: 0 2px 10px rgba(0,0,0,.05);
+      box-shadow: var(--shadow);
     }
     .placeholder .ico { font-size: 44px; margin-bottom: 14px; }
     .placeholder h3 { font-size: 17px; color: #4b5563; margin-bottom: 8px; }
@@ -269,8 +276,8 @@
     /* ============ 通用表格（横向滚动适配小屏） ============ */
     .table-wrap {
       background: #fff;
-      border-radius: 14px;
-      box-shadow: 0 2px 10px rgba(0,0,0,.05);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
       overflow-x: auto;
     }
     .dtable {
@@ -571,7 +578,7 @@
   <div class="topbar">
     <div class="left">
       <button class="hamburger" id="menuToggle">☰</button>
-      <div class="brand"><span class="dot">🛠️</span> <span class="brand-sub">鼎恒餐饮·</span>开发者控制台</div>
+      <div class="brand"><span class="dot">开</span> <span class="brand-sub">鼎恒餐饮·</span>开发者控制台</div>
     </div>
     <button class="logout" id="logoutBtn">退出登录</button>
   </div>

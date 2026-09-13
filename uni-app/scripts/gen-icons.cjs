@@ -93,20 +93,24 @@ function fillTriangle(c, x0, y0, x1, y1, x2, y2, col) {
   }
 }
 
-/* ============ 图标绘制 ============ */
-// 店铺：三角屋顶 + 房身 + 门洞
+/* ============ 图标绘制（采购 / 商城 / 采购单 / 我的） ============ */
+// 采购：购物车（把手 + 车斗 + 双轮）
+function drawCart(c, col) {
+  fillRect(c, 6, 9, 42, 14, col);       // 顶部把手横杆
+  fillRect(c, 6, 9, 11, 23, col);       // 把手竖杆
+  fillRect(c, 9, 18, 39, 23, col);      // 车斗上沿
+  fillRect(c, 12, 23, 36, 33, col);     // 车斗主体
+  fillTriangle(c, 12, 33, 36, 33, 24, 39, col); // 车斗底部
+  fillRect(c, 13, 36, 20, 42, col);     // 左轮
+  fillRect(c, 28, 36, 35, 42, col);     // 右轮
+}
+// 商城：店铺（三角屋顶 + 房身 + 门洞）
 function drawShop(c, col) {
   fillTriangle(c, 8, 26, 24, 8, 40, 26, col);
   fillRect(c, 12, 26, 36, 42, col);
   eraseRect(c, 21, 33, 27, 42);
 }
-// 菜单：三条横线
-function drawMenu(c, col) {
-  fillRect(c, 8, 11, 40, 16, col);
-  fillRect(c, 8, 21, 40, 26, col);
-  fillRect(c, 8, 31, 40, 36, col);
-}
-// 订单：文档外框 + 三条文字线
+// 采购单：文档外框 + 三条文字线
 function drawOrder(c, col) {
   fillRect(c, 12, 6, 36, 42, col);
   eraseRect(c, 16, 10, 32, 38);
@@ -114,16 +118,17 @@ function drawOrder(c, col) {
   fillRect(c, 18, 22, 30, 25, col);
   fillRect(c, 18, 29, 27, 32, col);
 }
-// 数据统计：三根高低柱
-function drawStats(c, col) {
-  fillRect(c, 10, 28, 18, 42, col);
-  fillRect(c, 20, 20, 28, 42, col);
-  fillRect(c, 30, 12, 38, 42, col);
+// 我的：人形（头 + 肩身）
+function drawUser(c, col) {
+  fillRect(c, 20, 8, 28, 10, col);
+  fillRect(c, 18, 10, 30, 19, col);
+  fillRect(c, 20, 19, 28, 21, col);
+  fillRect(c, 13, 24, 35, 42, col);
 }
 
 const NORMAL = [153, 153, 153];
 const ACTIVE = [255, 107, 53]; // #FF6B35
-const glyphs = { shop: drawShop, menu: drawMenu, order: drawOrder, stats: drawStats };
+const glyphs = { purchase: drawCart, mall: drawShop, order: drawOrder, mine: drawUser };
 
 for (const name of Object.keys(glyphs)) {
   const cn = makeCanvas(48, 48); glyphs[name](cn, NORMAL);

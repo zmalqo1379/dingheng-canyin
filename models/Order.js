@@ -83,6 +83,19 @@ const orderSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
+  // ============ 储值抵扣 ============
+  // 本单使用的储值金额（从顾客储值余额扣减），未使用为 0
+  storedValueUsed: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  // 本单使用储值抵扣的顾客手机号（未使用为空）
+  storedValuePhone: {
+    type: String,
+    default: '',
+    trim: true
+  },
   status: {
     type: String,
     enum: ['pending', 'completed'],

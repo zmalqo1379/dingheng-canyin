@@ -79,6 +79,66 @@ const settingSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  // ============ 通知渠道真实对接配置（均由商家/平台填入后生效，未配置则该渠道跳过并记录日志） ============
+  // 通用 Webhook：新订单等事件以 JSON POST 到此地址（对接自建/第三方通知服务）
+  notifyWebhookUrl: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  // 云打印服务地址：POST 打印小票 payload（打印机编号/密钥在请求体中携带）
+  printerApiUrl: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  // 短信服务地址与密钥
+  smsApiUrl: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  smsApiKey: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  // 语音电话服务地址与密钥
+  voiceApiUrl: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  voiceApiKey: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  // ============ 微信通知（公众号模板消息网关 / 企业微信机器人 Webhook）============
+  // 微信通知服务地址：POST 模板消息 JSON（含模板ID/接收者/订单内容）
+  wechatApiUrl: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  // 微信通知服务密钥（如需要）
+  wechatApiKey: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  // 微信模板消息模板 ID
+  wechatTemplateId: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  // 微信接收者 OpenID / 企业微信成员 ID（留空则由服务端按配置默认接收人）
+  wechatToUser: {
+    type: String,
+    default: '',
+    trim: true
+  },
   // ============ 顾客积分配置（进阶版权益，存 Setting 便于公开接口读取） ============
   // 积分功能总开关（关闭后顾客端隐藏所有积分信息与入口，不再累计积分）
   pointEnabled: {
@@ -114,7 +174,52 @@ const settingSchema = new mongoose.Schema({
     dishId: { type: String, required: true },
     dishName: { type: String, default: '', maxlength: 50 },
     points: { type: Number, default: 100, min: 1 }
-  }]
+  }],
+  // ============ 配送三件套：门店定位与收货 ============
+  // 门店经度（地图 API 暂用经纬度输入占位，后续接入高德/腾讯地图选点）
+  shopLongitude: {
+    type: Number,
+    default: null
+  },
+  // 门店纬度
+  shopLatitude: {
+    type: Number,
+    default: null
+  },
+  // 详细地址文本（精确到门牌号，供供应商配送单页显示）
+  shopAddress: {
+    type: String,
+    default: '',
+    maxlength: 200,
+    trim: true
+  },
+  // 门头照 URL（必传，供应商配送单页缩略图显示）
+  storeFrontPhoto: {
+    type: String,
+    default: ''
+  },
+  // 街景照 URL（选传，辅助供应商找门）
+  streetViewPhoto: {
+    type: String,
+    default: ''
+  },
+  // 收货方式：supplier_arranged 按供应商安排（默认，新商家不再强制选择）
+  //             / door_container 门口自备保温容器 / open_door 开门后配送 / self_pickup 到店自提
+  receiveMethod: {
+    type: String,
+    enum: ['supplier_arranged', 'door_container', 'open_door', 'self_pickup'],
+    default: 'supplier_arranged'
+  },
+  // 期望收货时段起（HH:mm，配送单按此时段排序路线）
+  expectedReceiveStart: {
+    type: String,
+    default: '06:00'
+  },
+  // 期望收货时段止（HH:mm）
+  expectedReceiveEnd: {
+    type: String,
+    default: '09:00'
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Setting', settingSchema);

@@ -16,6 +16,13 @@
       --red: #ef4444;
       --bg: #f5f6fa;
       --line: #e5e7eb;
+      /* 统一设计规范 token */
+      --radius-sm: 8px;
+      --radius: 12px;
+      --radius-lg: 16px;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, .05);
+      --shadow: 0 4px 14px rgba(0, 0, 0, .06);
+      --shadow-lg: 0 12px 32px rgba(0, 0, 0, .12);
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -143,9 +150,9 @@
     }
     .stat-card {
       background: #fff;
-      border-radius: 16px;
+      border-radius: var(--radius-lg);
       padding: 26px 24px;
-      box-shadow: 0 4px 14px rgba(0,0,0,.06);
+      box-shadow: var(--shadow);
       border-top: 4px solid var(--accent);
     }
     .stat-card .label { font-size: 14px; color: #6b7280; margin-bottom: 10px; }
@@ -155,8 +162,8 @@
     /* 通知设置卡片 */
     .card {
       background: #fff;
-      border-radius: 14px;
-      box-shadow: 0 2px 10px rgba(0,0,0,.05);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
       overflow: hidden;
     }
     .card-head {
@@ -618,6 +625,15 @@
     .alert-box h3 { font-size: 18px; color: #1f2937; margin-bottom: 8px; }
     .alert-box p { font-size: 13px; color: #9ca3af; margin-bottom: 22px; }
     .alert-btns { display: flex; gap: 12px; justify-content: center; }
+    .alert-list { margin-bottom: 18px; max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+    .alert-list .al-item {
+      background: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px;
+      padding: 9px 12px; text-align: left; font-size: 12.5px; color: #7c2d12;
+      line-height: 1.5; display: flex; flex-direction: column; gap: 2px;
+    }
+    .alert-list .al-item .al-no { font-weight: 700; color: #9a3412; font-size: 12px; }
+    .alert-list .al-item .al-shop { color: #475569; }
+    .alert-list .al-item .al-amt { font-weight: 700; color: #c2410c; font-size: 14px; }
 
     .toast {
       position: fixed; top: 24px; left: 50%;
@@ -684,6 +700,17 @@
     .report-fee .fee-label { font-size: 14px; color: #334155; font-weight: 600; }
     .report-fee .fee-note { font-size: 12px; color: #9ca3af; margin-top: 3px; }
     .report-fee .fee-amount { font-size: 20px; font-weight: 700; color: #334155; }
+
+    /* ============ 我的分账 ============ */
+    .split-notice {
+      background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412;
+      border-radius: 12px; padding: 12px 16px; font-size: 13px; line-height: 1.6;
+      margin-bottom: 14px;
+    }
+    /* 应得分账是主角：金额用主题色大号；服务费/流水保持低调中性色 */
+    .split-hero .report-fee .fee-amount { color: #6b7280; font-weight: 600; font-size: 18px; }
+    .split-hero .report-sub { margin-bottom: 2px; }
+    .split-foot-note { font-size: 12px; color: #9ca3af; margin-top: 10px; line-height: 1.7; }
 
     /* ============ 档位进度卡 ============ */
     .tier-progress-card {
@@ -1369,7 +1396,7 @@
   <div class="topbar">
     <div class="left">
       <button class="hamburger" id="menuToggle">☰</button>
-      <div class="brand"><span class="dot">🚚</span> 供应商控制台</div>
+      <div class="brand"><span class="dot">供</span> 供应商控制台</div>
     </div>
     <div style="display:flex; align-items:center; gap:14px;">
       <span class="who">您好，<span id="supplierName">供应商</span></span>
@@ -1392,15 +1419,15 @@
     <!-- 侧边栏 -->
     <aside class="sidebar" id="sidebar">
       <nav class="nav">
-        <div class="nav-item active" data-tab="orders"><span class="icon">📦</span> 待处理订单</div>
+        <div class="nav-item active" data-tab="orders" id="navOrders"><span class="icon">📦</span> 待处理订单<span class="nav-badge" id="navOrdersBadge" style="display:none;">0</span></div>
         <div class="nav-item" data-tab="price"><span class="icon">💹</span> 今日改价</div>
         <div class="nav-item" data-tab="sort"><span class="icon">⚖️</span> 分拣过秤</div>
         <div class="nav-item" data-tab="products"><span class="icon">📋</span> 商品管理</div>
         <div class="nav-item" data-tab="qualify" id="navQualify"><span class="icon">🪪</span> 开通接单<span class="nav-badge" id="navQualifyBadge" style="display:none;">待办</span></div>
         <div class="nav-item" data-tab="deliver"><span class="icon">🚚</span> 配送单</div>
         <div class="nav-item" data-tab="notify"><span class="icon">🔔</span> 通知设置</div>
+        <div class="nav-item" data-tab="split"><span class="icon">🧾</span> 我的分账</div>
         <div class="nav-item" data-tab="stats"><span class="icon">📊</span> 数据统计</div>
-        <div class="nav-item" data-tab="settle"><span class="icon">💰</span> 合作结算</div>
       </nav>
       <div class="nav-tip">鼎恒供应链 · 供应商接单后台</div>
     </aside>
@@ -1556,8 +1583,8 @@
                 <th>商品名</th>
                 <th>品类</th>
                 <th>单位</th>
-                <th>成本价</th>
-                <th>市场价</th>
+                <th>供货价</th>
+                <th>平台卖价</th>
                 <th>库存</th>
                 <th>状态</th>
                 <th>操作</th>
@@ -1611,6 +1638,23 @@
             </div>
           </div>
         </div>
+
+        <!-- 配送时段公告（商家端可见） -->
+        <div class="card" style="margin-top:18px;">
+          <div class="card-head"><h3>🚚 配送时段公告</h3></div>
+          <div class="settings-card">
+            <div class="form-item" style="margin-bottom:0;">
+              <label>配送规则说明（展示给商家）</label>
+              <textarea id="setDeliveryNotice" maxlength="500" placeholder="如：每日上午 7:00-9:30 统一配送，节假日顺延至次日；订单截止时间前一日 22:00。" style="width:100%;min-height:90px;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;font-family:inherit;resize:vertical;"></textarea>
+              <small style="display:block;margin-top:6px;color:#9ca3af;font-size:12px;">
+                此公告将展示在：商家端采购商城本店铺页顶部、商家采购订单确认收货页。最长 500 字，留空则不显示。
+              </small>
+            </div>
+            <div class="save-bar">
+              <button class="btn-save" id="saveDeliveryNoticeBtn">保存公告</button>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- 4. 数据统计 -->
@@ -1623,94 +1667,61 @@
         </div>
       </section>
 
-      <!-- 合作结算与月度对账（经营月报风格） -->
-      <section class="pane" id="pane-settle">
-        <div class="pane-title">💰 合作结算与月度对账</div>
+      <!-- 我的分账（虚拟分账层：每笔订单货款自动分账） -->
+      <section class="pane" id="pane-split">
+        <div class="pane-title">🧾 我的分账</div>
+        <div class="split-notice">顾客下单付款即发起分账：供货价部分分账给您，差价归平台。资金为微信 T+1 结算，非实时到账。</div>
+
         <div class="filter-bar" style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
-          <label style="font-size:13px;">月份 <input type="month" id="settleMonth" style="padding:6px 8px;border:1px solid #e5e7eb;border-radius:8px;"></label>
-          <button class="btn btn-primary" id="settleQueryBtn">查询</button>
+          <label style="font-size:13px;">月份 <input type="month" id="splitMonth" style="padding:6px 8px;border:1px solid #e5e7eb;border-radius:8px;"></label>
+          <button class="btn btn-primary" id="splitQueryBtn">查询</button>
         </div>
 
-        <!-- 《平台合作规则》公示区块：展示平台默认阶梯返点表（统一阶梯 / 分类阶梯三档） -->
-        <div class="platform-rules">
-          <h4 id="platformRulesTitle">📜 平台合作规则 · 默认阶梯返点</h4>
-          <div id="platformLadderBox">
-            <table class="ladder-table">
-              <thead>
-                <tr><th>月累计采购额</th><th>返点率</th><th>累进方式</th></tr>
-              </thead>
-              <tbody><tr><td colspan="3" class="no-data">加载中...</td></tr></tbody>
-            </table>
-          </div>
-          <div class="ladder-note" id="platformRulesNote">返点按平台公示阶梯执行，每月 1 号自动结算。无专属返点规则的供应商一律按此阶梯计算。</div>
-        </div>
-
-        <!-- 经营月报 hero：本月累计订单金额是主角，服务费只是其中一行 -->
-        <div class="report-hero">
-          <div class="report-label" id="settleHeroLabel">本月累计订单金额</div>
-          <div class="report-amount">¥<span id="settleTotalPurchase">0.00</span></div>
-          <div class="report-sub" id="settleHeroSub">本月通过平台达成的生意</div>
-          <div class="report-growth" id="settleGrowthLine" style="display:none;"></div>
+        <!-- 数据卡：应得分账为绝对主角（大而醒目），平台服务费低调中性色 -->
+        <div class="report-hero split-hero">
+          <div class="report-label" id="splitHeroLabel">本月应得分账（供货价部分）</div>
+          <div class="report-amount">¥<span id="splitSupplyAmount">0.00</span></div>
+          <div class="report-sub">这是您本月通过平台卖出的货，平台自动分账给您（微信 T+1 到账）</div>
           <div class="report-divider"></div>
           <div class="report-fee">
             <div class="fee-info">
-              <div class="fee-label">本月合作服务费（按协议阶梯比例）</div>
-              <div class="fee-note">每月 1 号自动结算，无需任何操作</div>
+              <div class="fee-label">本月顾客实付（分账总额）</div>
+              <div class="fee-note">商家按平台卖价支付的货款总额</div>
             </div>
-            <div class="fee-amount">¥<span id="settleTotalRebate">0.00</span></div>
+            <div class="fee-amount">¥<span id="splitRetailAmount">0.00</span></div>
+          </div>
+          <div class="report-fee" style="margin-top:12px;">
+            <div class="fee-info">
+              <div class="fee-label">平台服务费（差价部分）</div>
+              <div class="fee-note">卖价与供货价之差，由平台收取</div>
+            </div>
+            <div class="fee-amount">¥<span id="splitPlatformAmount">0.00</span></div>
           </div>
         </div>
 
-        <!-- 档位进度 -->
-        <div class="tier-progress-card">
-          <div class="tier-head">
-            <span>当前档位与返点比例</span>
-            <span class="tier-value" id="settleTier">—</span>
-          </div>
-          <div class="tier-bar"><div class="tier-bar-fill" id="tierBarFill"></div></div>
-          <div class="tier-legend" id="tierLegend"></div>
-          <div class="tier-gap" id="settleTierGap"></div>
-        </div>
-
-        <!-- 分品类采购金额明细 -->
-        <div class="section-title">分品类采购金额明细</div>
+        <div class="section-title">分账明细</div>
         <div class="table-wrap">
           <table class="order-table">
             <thead>
               <tr>
-                <th>品类</th>
-                <th>当月采购额</th>
-                <th>当前档位</th>
-                <th>返点率</th>
-                <th>累进方式</th>
-                <th>应返金额</th>
+                <th>订单号</th>
+                <th>商家</th>
+                <th>顾客实付</th>
+                <th>我实得（供货价）</th>
+                <th>平台服务费（差价）</th>
+                <th>时间</th>
+                <th>分账状态</th>
               </tr>
             </thead>
-            <tbody id="settleCatTbody">
-              <tr><td colspan="6" class="no-data">加载中...</td></tr>
+            <tbody id="splitTbody">
+              <tr><td colspan="7" class="no-data">加载中...</td></tr>
             </tbody>
           </table>
         </div>
-
-        <!-- 历史月度结算记录 -->
-        <div class="section-title">历史月度结算记录</div>
-        <div class="table-wrap">
-          <table class="order-table">
-            <thead>
-              <tr>
-                <th>月份</th>
-                <th>采购总额</th>
-                <th>服务费金额</th>
-                <th>结算状态</th>
-                <th>结算时间</th>
-              </tr>
-            </thead>
-            <tbody id="settleHistoryTbody">
-              <tr><td colspan="5" class="no-data">加载中...</td></tr>
-            </tbody>
-          </table>
-        </div>
+        <p class="split-foot-note">下单即发起分账指令，实际到账为微信 T+1 结算；过秤数量有差异时会自动补差（补收或退款）。</p>
       </section>
+
+      <!-- 合作结算（返点月结）已随返点体系下线；货款分账改由「我的分账」栏目查看 -->
 
       <!-- 分拣过秤 -->
       <section class="pane" id="pane-sort">
@@ -1732,7 +1743,7 @@
         <div class="pane-title">🚚 今日配送单</div>
         <div class="sort-toolbar">
           <button class="btn-refresh" id="deliverRefreshBtn">↻ 刷新</button>
-          <span class="sort-tip" id="deliverTip">按商家期望收货时段排序</span>
+          <span class="sort-tip" id="deliverTip">按地址聚类 / 下单时间排序</span>
         </div>
         <div id="deliverList" class="deliver-list"></div>
       </section>
@@ -1757,15 +1768,13 @@
           <select id="scaleAdapterSel">
             <option value="manual">手输（无秤，手动填写实称重量）</option>
             <option value="webserial">WebSerial（串口电子秤，Chrome/Edge）</option>
-            <option value="webusb">WebUSB（USB 电子秤，预留）</option>
-            <option value="bluetooth">蓝牙（Web Bluetooth，预留）</option>
           </select>
         </div>
         <div class="form-item">
           <label>说明</label>
           <p style="font-size:13px;color:#9ca3af;line-height:1.6;">
-            选 WebSerial 后点击"读取秤"会弹串口选择框（9600 波特率，ASCII 解析）。<br>
-            WebUSB / 蓝牙为预留接口，按实际电子秤协议开发时填入读取逻辑。<br>
+            选 WebSerial 后点击"读取秤"会弹出串口选择框（默认 9600 波特率，8N1）。<br>
+            支持常见电子秤 ASCII 输出（如 "ST,GS,+ 1.234kg"、"= 0.123kg"），自动识别 kg/g/t 单位并统一换算为 kg。<br>
             无秤时选手输，重量框可直接手动输入。
           </p>
         </div>
@@ -1801,18 +1810,8 @@
         </div>
         <div class="form-row">
           <div class="form-item">
-            <label>成本价（元）<span class="req">*</span></label>
+            <label>供货价（元）<span class="req">*</span></label>
             <input type="number" id="prodCostPrice" min="0.01" step="0.01" placeholder="大于 0">
-          </div>
-          <div class="form-item">
-            <label>市场价（元）<span class="req">*</span></label>
-            <input type="number" id="prodMarketPrice" min="0.01" step="0.01" placeholder="大于 0">
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-item">
-            <label>单品加价率%（选填）</label>
-            <input type="number" id="prodMarkupRate" min="0" step="1" placeholder="留空按品类默认">
           </div>
           <div class="form-item">
             <label>档次（双档次蔬菜用）</label>
@@ -1823,6 +1822,7 @@
             </select>
           </div>
         </div>
+        <p style="font-size:12px;color:#9ca3af;margin:2px 2px 12px;">「平台卖价」由平台运营方手动定价（加价分销），供应商无需填写；未定价时下单默认按供货价。</p>
         <div class="form-row">
           <div class="form-item">
             <label>库存<span class="req">*</span></label>
@@ -1849,12 +1849,13 @@
     </div>
   </div>
 
-  <!-- 新订单弹窗提醒（遮罩层） -->
+  <!-- 新订单弹窗提醒（遮罩层，支持多单累积显示订单号/商家/金额） -->
   <div class="new-order-scrim" id="newOrderScrim">
     <div class="alert-box">
       <div class="ico">🔔</div>
-      <h3>您有新的采购订单</h3>
-      <p>请及时处理，避免超时影响商家备货</p>
+      <h3>您有 <span id="newOrderCount">1</span> 笔新订单</h3>
+      <p id="newOrderSub">请及时处理，避免超时影响商家备货</p>
+      <div class="alert-list" id="newOrderList"></div>
       <div class="alert-btns">
         <button class="btn btn-ghost" id="alertCloseBtn">稍后处理</button>
         <button class="btn btn-primary" id="alertViewBtn">立即查看</button>
@@ -1873,7 +1874,7 @@
         <p class="agm-notice-text">本协议为平台入驻的重要法律文件，关系到您的合法权益，请完整阅读后再确认签署。平台对入驻商户实行严格准入审核，我们只与认真对待合作的伙伴同行。感谢您的信任。</p>
         <div class="agm-countdown" id="agmCountdown">120秒</div>
       </div>
-      <div class="agm-body" id="agmBody"><!-- 协议全文由 JS 渲染（7章 + 附件） --></div>
+      <div class="agm-body" id="agmBody"><!-- 协议全文由 JS 渲染（10 条） --></div>
       <div class="agm-foot">
         <div class="agm-signer" id="agmSigner">乙方（供应商）电子签署</div>
         <button class="agm-agree-btn" id="agmAgreeBtn" disabled>同意并继续</button>
@@ -2026,7 +2027,7 @@
       }
 
       // status === 'active' 但未签协议：完整协议全文（与提交资质前的协议确认模态框共用同一文本，
-      // 由 buildAgreementHtml() 渲染，含第八章"电子签署与法律效力"与电子签署栏）+ 强制阅读（滚到底部 + 10秒倒计时）
+      // 由 buildAgreementHtml() 渲染，含电子签署栏）+ 强制阅读（滚到底部 + 10秒倒计时）
       if (status === 'active' && !profile.agreementSigned) {
         const agreementBody = buildAgreementHtml();
         gateShow(`
@@ -2037,7 +2038,7 @@
           <div class="agreement-read-tip" id="agreementReadTip">请完整阅读协议内容（需滚动到底部并等待 10 秒）</div>
           <label class="agreement-check disabled" id="agreeChkLabel">
             <input type="checkbox" id="agreeChk" disabled>
-            <span>我已阅读并同意以上协议</span>
+            <span>我已阅读并同意本协议</span>
           </label>
           <button class="gate-btn sign-btn" id="gateSignBtn" disabled>签署协议</button>
           <div class="gate-sub" style="margin-top:14px;margin-bottom:0;">勾选并点击「签署协议」即构成乙方电子签署（依据《电子签名法》与手写签名/盖章具有同等法律效力），平台将存档签署证据。</div>
@@ -2091,7 +2092,7 @@
 
         signBtn.onclick = async () => {
           if (!readUnlocked) { toast('请先完整阅读协议并等待倒计时结束', true); return; }
-          if (!chk.checked) { toast('请先勾选“我已阅读并同意以上协议”', true); return; }
+          if (!chk.checked) { toast('请先勾选“我已阅读并同意本协议”', true); return; }
           signBtn.disabled = true; signBtn.textContent = '签署中...';
           // 电子签署证据：随签署请求携带协议版本号与协议文本哈希（服务端另记录时间/IP/设备）
           const res = await api('/api/supplier/agreement/sign', {
@@ -2336,154 +2337,90 @@
       }
     }
 
-    // ============ 《供应商入驻合作协议》完整全文（7章 + 附件） ============
-    // 内容来源：项目根目录《供应商入驻合作协议.md》；甲乙方名称与协议签署闸门页保持一致
+    // ============ 《供应商入驻合作协议》完整全文（10 条） ============
+    // 内容来源：项目根目录《供应商入驻合作协议.md》
+    // 甲方全称/信用代码读取开发者后台"系统设置"，乙方信息自动读取其注册资料
     function buildAgreementHtml() {
       const partyA = (_gateProfile && _gateProfile.platformCompanyName)
         ? esc(_gateProfile.platformCompanyName) : '邹平鼎恒网络技术中心';
-      const partyB = (_gateProfile && _gateProfile.name) ? esc(_gateProfile.name) : '________________________';
+      const partyACode = (_gateProfile && _gateProfile.platformCreditCode)
+        ? esc(_gateProfile.platformCreditCode) : '92371626MAKKPMCE9L';
+      const partyB = (_gateProfile && _gateProfile.name) ? esc(_gateProfile.name) : '＿＿＿＿＿＿＿＿';
+      const partyBCode = (_gateProfile && _gateProfile.creditCode) ? esc(_gateProfile.creditCode) : '＿＿＿＿＿＿＿＿';
       const partyPhone = (_gateProfile && _gateProfile.phone) ? esc(_gateProfile.phone) : '—';
       return `
-        <h4 class="at-title">《供应商入驻合作协议》</h4>
-        <p><b>协议编号（版本号）：</b>DH-GYS-2026-V1</p>
+        <h4 class="at-title">供应商入驻合作协议（电子协议）</h4>
         <p class="at-party"><b>甲方（平台方）：</b>${partyA}</p>
+        <p class="at-party"><b>统一社会信用代码：</b>${partyACode}</p>
         <p class="at-party"><b>乙方（供应商）：</b>${partyB}</p>
-        <p>根据《中华人民共和国民法典》及相关法律法规，甲乙双方本着平等自愿、诚实信用的原则，就乙方通过甲方运营的餐饮供应链平台向餐饮门店供应食材及相关商品事宜，经友好协商，达成如下协议，以资共同遵守。</p>
+        <p class="at-party"><b>统一社会信用代码：</b>${partyBCode}</p>
+        <p>甲乙双方本着平等自愿、互利共赢原则，就乙方入驻甲方"鼎恒科技·智能餐饮管理平台"（下称"平台"）向餐饮门店供应商品事宜，达成如下协议：</p>
 
-        <h4>第一章 合作框架</h4>
-        <p><b>1.1 甲方：</b>${partyA}，系餐饮供应链撮合平台（以下简称"平台"）的运营方，为入驻供应商与餐饮门店提供订单撮合、交易结算、返点结算等平台服务。</p>
-        <p><b>1.2 乙方：</b>入驻供应商，指经甲方审核通过、在平台完成注册并签署本协议的食材及相关商品供应主体（含个体工商户、企业等）。</p>
-        <p><b>1.3 合作内容：</b>乙方通过甲方平台向餐饮门店供应食材及相关商品；甲方为乙方提供订单撮合、交易结算、返点结算等平台服务。</p>
-        <p><b>1.4 合作性质：</b>本合作为纯撮合性质。甲方不参与、不触碰货款，货款由餐饮门店直接支付给乙方；甲方仅按本协议第三章约定向乙方收取平台服务费（即"返点"）。</p>
+        <h4>第一条 合作模式</h4>
+        <p><b>1.1</b> 乙方在平台发布商品并维护供货价（即乙方交付商品的结算价格，已包含乙方成本与利润）。</p>
+        <p><b>1.2</b> 甲方在供货价基础上制定面向餐饮门店的零售价，零售价与供货价之间的差额为甲方提供平台服务的报酬，归甲方所有。</p>
+        <p><b>1.3</b> 餐饮门店支付的货款，通过持牌支付机构的分账系统按约定比例实时分账：供货价部分结算至乙方账户，差额部分结算至甲方账户。双方不再另行月结、对账、返点。</p>
+        <p><b>1.4</b> 平台不向乙方收取入驻费、年费、会员费。</p>
 
-        <h4>第二章 价格红线（最惠国待遇）</h4>
-        <p><b>2.1 最惠价格承诺：</b>乙方承诺，其在平台公示的商品售价，不得高于乙方向任何第三方（包括但不限于线下老客户、其他电商平台、连锁客户）在同等采购量、同等账期条件下的最低供货价。</p>
-        <p><b>2.2 价格监督：</b>甲方有权对乙方平台售价进行不定期价格抽检。如发现乙方平台售价高于其线下同等条件最低供货价，乙方须在接到甲方通知后 <b>48小时内</b> 完成价格调整；逾期未调整的，甲方有权下架乙方相关商品、暂停乙方接单权限，直至予以清退。</p>
-        <p><b>2.3 价格变动：</b>乙方调整平台售价，须提前 <b>24小时</b> 在平台提交申请，经系统审核通过后方可生效。单次涨幅超过15%且无正当理由的恶意涨价行为，视为违约。</p>
+        <h4>第二条 价格与报价承诺</h4>
+        <p><b>2.1</b> 乙方承诺所报供货价真实反映当日市场行情，不虚报、不恶意抬高。</p>
+        <p><b>2.2</b> 乙方理解并支持：平台零售价须维持在不高于或等于同品质市场批发价的水平，以保障平台餐饮门店的利益与平台信誉。</p>
+        <p><b>2.3</b> 乙方使用平台提供的定价工具及时维护供货价格；甲方承诺该工具操作简便（正常工作日耗时不超过 15 分钟），并提供价格保鲜期提醒与异常保护。</p>
+        <p><b>2.4</b> 若乙方报价明显偏离市场行情且经甲方提醒后仍不调整，甲方有权下架相关商品或暂停乙方接单。</p>
 
-        <h4>第三章 返点结算</h4>
-        <p><b>3.1 默认模式：统一阶梯返点（全额累进）。</b>乙方平台服务费费率按其当月平台交易总额适用以下阶梯费率：</p>
-        <table class="at-table">
-          <thead><tr><th>月采购额（元）</th><th>返点费率</th></tr></thead>
-          <tbody>
-            <tr><td>0 - 50,000</td><td>1%</td></tr>
-            <tr><td>50,000 - 150,000</td><td>1.5%</td></tr>
-            <tr><td>150,000 - 500,000</td><td>2%</td></tr>
-            <tr><td>500,000 - 1,000,000</td><td>2.5%</td></tr>
-            <tr><td>1,000,000 - 2,000,000</td><td>3%</td></tr>
-            <tr><td>2,000,000 - 5,000,000</td><td>4%</td></tr>
-            <tr><td>5,000,000 以上</td><td>5%</td></tr>
-          </tbody>
-        </table>
-        <p><b>3.2 计算方式：全额累进。</b>即乙方月采购额（交易总额）达到某一档位后，当月全部交易总额均按该档位对应费率计取服务费。</p>
-        <p><b>3.3 可选模式：</b>乙方可申请切换为"分类阶梯返点"模式，经甲方审核同意后生效。分类阶梯按低毛利、中毛利、高毛利三档品类分别计算，具体费率以本协议附件及平台公示为准。</p>
-        <p><b>3.4 结算周期：按月结算。</b>每月1日至5日为账单生成期，6日至10日为账单确认期，11日至15日为付款期。乙方应于付款期内按时结清当月应付平台服务费。</p>
-        <p><b>3.5 返点性质说明：</b>本章所称"返点费率"，系甲方向乙方收取的平台服务费费率。例如：乙方当月平台销售额为100万元，适用返点费率为2%，则乙方应向甲方支付平台服务费2万元。该费用在乙方货款结算时由系统自动扣除，或由乙方按月主动向甲方支付。</p>
-        <p><b>3.6 抵用券成本承担：</b>甲方向餐饮门店发放的采购抵用券，其面额成本 <b>100%由甲方承担</b>，乙方不承担任何券成本。</p>
-        <p><b>3.7 返点抵扣机制（不垫钱原则）：</b>月度返点结算时，乙方应付金额按以下公式计算：</p>
-        <p>· 应付返点总额 ＝ 乙方当月平台交易订单原价总额 × 对应档位返点费率<br>
-          · 券成本总额 ＝ 甲方当月就该乙方商品发放的抵用券面额总和<br>
-          · 乙方实际支付金额 ＝ 应付返点总额 － 券成本总额</p>
-        <p>（1）如计算结果为<b>正数</b>，乙方按该金额向甲方支付返点服务费；</p>
-        <p>（2）如计算结果为<b>零或负数</b>，乙方当月无需支付返点服务费，甲方不向乙方另行支付券成本补贴，负数差额不累计至次月。</p>
-        <p><b>3.8 交易总额定义：</b>本条所称"交易订单原价总额"，指餐饮门店在平台向乙方采购商品的订单原始金额总和，不因商家使用抵用券、享受折扣而扣减。</p>
-        <p><b>示例：</b>餐饮门店向乙方采购原价1,000元的商品，使用50元抵用券后实付950元。该笔订单计入乙方月交易总额仍为 <b>1,000元</b>，返点服务费按1,000元计算；其中50元券成本由甲方承担，于月度结算时从乙方应付返点服务费中抵扣。</p>
-        <p><b>3.9 发票：</b>乙方须按实际结算的返点（平台服务费）金额向甲方开具正规发票（增值税普通发票或增值税专用发票）。</p>
+        <h4>第三条 商品质量与档次</h4>
+        <p><b>3.1</b> 乙方保证所供商品新鲜、足量、符合国家食品安全标准，蔬菜等生鲜按平台规则分档次（实惠档/精品档）如实上架。</p>
+        <p><b>3.2</b> 因商品质量问题产生的退换货，由乙方负责处理并承担相应责任。</p>
 
-        <h4>第四章 供应商治理</h4>
-        <p><b>4.1 入驻审核：</b>乙方提交入驻申请后，甲方在 <b>3个工作日内</b> 完成审核，审核通过后方可签署本协议。</p>
-        <p><b>4.2 资质上传：</b>乙方须在签署协议后 <b>7个工作日内</b> 上传以下4项资质材料：① 营业执照；② 门店门头照片；③ 店内环境照片；④ 货品照片。逾期未上传的，甲方有权暂停乙方接单权限。</p>
-        <p><b>4.3 协议签署：</b>资质审核通过后，乙方须在线签署本电子协议，方可正式上架商品。</p>
-        <p><b>4.4 接单开通：</b>资质核验通过后，甲方为乙方开通接单权限。开通方式如下：</p>
-        <p>· 正常流程：上传资质 → 审核通过 → 开通接单；<br>· 特殊流程：经甲方书面（或系统）确认，乙方可先行开通接单、资质后补（适用于甲方内部测试账号或战略合作供应商）。</p>
-        <p><b>4.5 账户状态：</b>乙方账户状态包括"审核中""已通过""已冻结""已拒绝"四种。账户处于冻结状态期间，在途订单可正常完成，新订单暂停接收。</p>
+        <h4>第四条 称重与结算</h4>
+        <p><b>4.1</b> 按重量计价的商品，以实际称重为准结算，多退少补，随货附打印小票。</p>
+        <p><b>4.2</b> 乙方应保证称重设备准确，不得缺斤短两。</p>
 
-        <h4>第五章 商品与配送</h4>
-        <p><b>5.1 商品上架：</b>乙方须确保所发布商品信息真实、准确（包括名称、品类、规格、价格、库存等），图片清晰，不得进行虚假宣传。</p>
-        <p><b>5.2 库存同步：</b>乙方须在商品缺货前及时下架或更新库存，避免超卖。因超卖导致订单无法履约的，乙方须承担违约责任，按订单金额的 <b>20%</b> 向餐饮门店赔付，该赔付款由甲方从返点结算中代扣。</p>
-        <p><b>5.3 配送时效：</b>乙方须在订单确认后 <b>24小时内</b> 发货（或按双方另行书面约定的时效执行）。逾期发货的，餐饮门店有权取消订单，乙方须无条件退款。</p>
-        <p><b>5.4 售后责任：</b>因商品质量问题（包括但不限于变质、短斤缺两、与描述不符）产生的售后责任，由乙方承担全部责任，乙方须无条件为餐饮门店退换货或退款。</p>
+        <h4>第五条 配送</h4>
+        <p><b>5.1</b> 乙方按自身配送能力安排配送路线与时段，并在平台公示配送说明。</p>
+        <p><b>5.2</b> 配送至门店时，乙方通过平台"拍照送达"功能留存送达凭证。</p>
+        <p><b>5.3</b> 冬季等特殊天气，双方按平台"门口自备保温容器"等约定方式交付，以平台送达照片为交付凭据。</p>
 
-        <h4>第六章 违约责任</h4>
-        <p><b>6.1 价格违约：</b>乙方违反第二章价格红线约定的，首次予以警告并限期整改；第二次违约冻结账户7天；第三次违约永久清退，保证金（如有）不予退还。</p>
-        <p><b>6.2 质量违约：</b>因商品质量问题导致餐饮门店投诉，经查证属实的，乙方须按订单金额的 <b>100%</b> 向餐饮门店赔付，并承担甲方处理成本 <b>200元/单</b>。</p>
-        <p><b>6.3 恶意违约：</b>乙方存在包括但不限于刷单、虚假交易、贿赂甲方工作人员等恶意违约行为的，一经发现，甲方有权永久清退乙方，并依法追究其法律责任。</p>
+        <h4>第六条 甲方权利</h4>
+        <p><b>6.1</b> 乙方出现下列情形之一的，甲方有权视情节采取商品下架、账户冻结、终止合作等措施：（1）报价严重失真或价格高于市场行情；（2）商品质量连续出现问题；（3）缺斤短两、弄虚作假；（4）损害平台或餐饮门店利益的其他行为。</p>
+        <p><b>6.2</b> 甲方有权对乙方商品、价格、资质进行审核与管理。</p>
 
-        <h4>第七章 其他</h4>
-        <p><b>7.1 协议期限：</b>本协议自双方签署（含电子签署）之日起生效，有效期 <b>1年</b>。到期前30日内，双方均无书面异议的，本协议自动续期1年，续期次数不限。</p>
-        <p><b>7.2 争议解决：</b>本协议适用中华人民共和国法律。因本协议引起的或与本协议有关的任何争议，双方应友好协商解决；协商不成的，提交 <b>甲方所在地人民法院</b> 诉讼解决。</p>
-        <p><b>7.3 协议修改：</b>甲方有权根据业务需要修改本协议，修改内容公示 <b>7日</b> 后生效。乙方如不同意修改，须在公示期内书面提出异议并终止合作；逾期未提出异议的，视为同意修改后的协议。</p>
-        <p><b>7.4 联系地址：</b>甲方通讯地址以平台公示为准；乙方通讯地址以其注册时填写的信息为准。</p>
+        <h4>第七条 乙方权利</h4>
+        <p><b>7.1</b> 乙方享有平台提供的接单、定价、分拣、打票、配送等全部工具的使用权，平台持续免费升级。</p>
+        <p><b>7.2</b> 乙方有权随时查询本人的订单、流水与分账明细。</p>
 
-        <h4>第八章 电子签署与法律效力</h4>
-        <p><b>8.1 电子形式即书面形式：</b>依据《中华人民共和国民法典》第四百六十九条，本协议以电子数据（数据电文）形式订立并存储，视为书面形式，双方均认可其真实性与完整性。</p>
-        <p><b>8.2 电子签名效力：</b>依据《中华人民共和国电子签名法》第十三条、第十四条，乙方在平台页面点击「同意并继续」（提交资质确认时）或「签署协议」（首次签署时）按钮的行为，即构成乙方以可靠电子签名方式签署本协议，与手写签名或者盖章具有<b>同等的法律效力</b>，双方均不得以协议为电子形式、未签字盖章为由否认其效力。</p>
-        <p><b>8.3 签署证据存档：</b>甲方在乙方点击上述按钮时，同步记录并存档以下签署证据：① 签署账户（登录手机号及供应商名称）；② 签署时间（平台服务器时间）；③ 来源 IP 地址；④ 设备与浏览器信息；⑤ 本协议版本号及协议文本哈希值。上述记录作为签署事实的证明材料，合作期内及终止后 3 年内持续保存，乙方可随时在平台查阅。</p>
-        <p><b>8.4 真实意思表示：</b>乙方确认在点击签署按钮前已完整阅读并充分理解本协议全部条款（含附件），签署行为系其本人真实、自愿的意思表示。乙方应妥善保管平台账户及密码，凡通过乙方账户发起的签署、确认等操作行为，均视为乙方本人行为，由乙方承担相应法律后果。</p>
-        <p><b>8.5 文本留存与查阅：</b>乙方签署的协议文本、版本号及签署证据在合作期内持续可查；本协议文本修改按第七章 7.3 条约定执行，修改后重新签署的，新版本签署证据重新存档。</p>
+        <h4>第八条 数据与保密</h4>
+        <p><b>8.1</b> 双方对合作中知悉的对方经营数据、价格信息、客户信息负有保密义务，不得向第三方泄露。本条款在合作终止后仍然有效。</p>
 
-        <h4>附件：分类阶梯返点参考表（可选模式）</h4>
-        <p><b>一、低毛利品类</b>（蔬菜、肉类、冻品、粮油、海鲜、米面）</p>
-        <table class="at-table">
-          <thead><tr><th>月采购额（元）</th><th>返点费率</th></tr></thead>
-          <tbody>
-            <tr><td>0 - 50,000</td><td>0.5%</td></tr>
-            <tr><td>50,000 - 150,000</td><td>1%</td></tr>
-            <tr><td>150,000 - 500,000</td><td>1.5%</td></tr>
-            <tr><td>500,000 - 1,000,000</td><td>2%</td></tr>
-            <tr><td>1,000,000 - 2,000,000</td><td>2.5%</td></tr>
-            <tr><td>2,000,000 - 5,000,000</td><td>3%</td></tr>
-            <tr><td>5,000,000 以上</td><td>3.5%</td></tr>
-          </tbody>
-        </table>
-        <p><b>二、中毛利品类</b>（调料、一次性用品、餐厨用品）</p>
-        <table class="at-table">
-          <thead><tr><th>月采购额（元）</th><th>返点费率</th></tr></thead>
-          <tbody>
-            <tr><td>0 - 50,000</td><td>1%</td></tr>
-            <tr><td>50,000 - 150,000</td><td>2%</td></tr>
-            <tr><td>150,000 - 500,000</td><td>3%</td></tr>
-            <tr><td>500,000 - 1,000,000</td><td>4%</td></tr>
-            <tr><td>1,000,000 - 2,000,000</td><td>5%</td></tr>
-            <tr><td>2,000,000 - 5,000,000</td><td>6%</td></tr>
-            <tr><td>5,000,000 以上</td><td>7%</td></tr>
-          </tbody>
-        </table>
-        <p><b>三、高毛利品类</b>（酒水、饮料、干货、休闲食品）</p>
-        <table class="at-table">
-          <thead><tr><th>月采购额（元）</th><th>返点费率</th></tr></thead>
-          <tbody>
-            <tr><td>0 - 50,000</td><td>2%</td></tr>
-            <tr><td>50,000 - 150,000</td><td>3%</td></tr>
-            <tr><td>150,000 - 500,000</td><td>5%</td></tr>
-            <tr><td>500,000 - 1,000,000</td><td>7%</td></tr>
-            <tr><td>1,000,000 - 2,000,000</td><td>9%</td></tr>
-            <tr><td>2,000,000 - 5,000,000</td><td>10%</td></tr>
-            <tr><td>5,000,000 以上</td><td>12%</td></tr>
-          </tbody>
-        </table>
-        <p><b>注：</b>分类阶梯返点模式须经甲方审核同意后方可启用，默认不启用。</p>
+        <h4>第九条 协议期限与终止</h4>
+        <p><b>9.1</b> 本协议自乙方在线确认之日起生效，有效期一年，到期无异议自动续展。</p>
+        <p><b>9.2</b> 任何一方可提前 15 日书面通知对方终止合作；终止时在途订单正常履约完毕。</p>
+
+        <h4>第十条 其他</h4>
+        <p><b>10.1</b> 本协议以电子形式订立，乙方在线阅读并点击"同意"即视为签署，与纸质签章具有同等法律效力，签署时间、账号由平台系统记录存证。</p>
+        <p><b>10.2</b> 履行中发生争议，双方友好协商；协商不成的，提交甲方所在地人民法院诉讼解决。</p>
+        <p><b>10.3</b> 本协议条款的修改权归甲方，修改后将在平台公示，乙方继续使用平台视为接受新条款。</p>
 
         <div class="at-esign">
           <p class="es-title">✍️ 电子签署栏（本协议为电子合同，无需纸质盖章）</p>
-          <p>甲方（平台）：${partyA}</p>
+          <p>甲方（平台）：${partyA}（统一社会信用代码：${partyACode}）</p>
           <p>乙方（供应商）：${partyB}（登录手机号：${partyPhone}）</p>
           <p>签署方式：电子签名 —— 乙方点击页面「同意并继续」或「签署协议」按钮即完成签署（依据《电子签名法》与手写签名/盖章具有同等法律效力）</p>
-          <p>签署时间：以甲方服务器记录的点击时间为准（签署证据存档见第八章 8.3 条）</p>
-          <p>协议版本：DH-GYS-2026-V1</p>
+          <p>签署时间：以甲方服务器记录的点击时间为准（签署记录含供应商、时间、来源 IP，可在平台查阅）</p>
+          <p>协议版本：DH-GYS-2026-V2</p>
         </div>
       `;
     }
 
     // ============ 协议强制阅读模态框 ============
-    // 三条件解锁「同意并继续」：① 120 秒倒计时结束；② 协议滚动到底部；③ 勾选"我已仔细阅读并同意全部条款"。
+    // 三条件解锁「同意并继续」：① 120 秒倒计时结束；② 协议滚动到底部；③ 勾选"我已阅读并同意本协议"。
     // 提交资质（含驳回后重新提交）与「查看协议」入口共用本模态框；
     // onAgree 为空表示纯查看（同意后仅关闭，不构成签署），非空表示同意后执行资质提交
-    // ——此时点击「同意并继续」即构成乙方电子签署（见协议第八章），平台存档签署证据。
+    // ——此时点击「同意并继续」即构成乙方电子签署（见协议第十条），平台存档签署证据。
     // 点击右上角 × 或遮罩关闭弹窗一律视为未同意，不触发任何提交。
     const AGM_SECS = 120;
     // 协议版本号（与后端 routes/supplier.js AGREEMENT_VERSION 保持一致；改协议文本必须同步升版）
-    const AGM_VERSION = 'DH-GYS-2026-V1';
+    const AGM_VERSION = 'DH-GYS-2026-V2';
     let _agmTimer = null;
     let _agm = { remain: AGM_SECS, countdownDone: false, scrolledBottom: false, agreedChecked: false, onAgree: null, textHash: '' };
 
@@ -2524,7 +2461,7 @@
         const missing = [];
         if (!_agm.countdownDone) missing.push(`倒计时剩余 ${_agm.remain} 秒`);
         if (!_agm.scrolledBottom) missing.push('请将协议滚动至底部');
-        if (_agm.countdownDone && !_agm.agreedChecked) missing.push('请勾选“我已仔细阅读并同意全部条款”');
+        if (_agm.countdownDone && !_agm.agreedChecked) missing.push('请勾选“我已阅读并同意本协议”');
         hint.textContent = '「同意并继续」暂未解锁：' + missing.join('，');
       }
     }
@@ -2558,7 +2495,7 @@
     function openAgreementModal(onAgree) {
       _agm = { remain: AGM_SECS, countdownDone: false, scrolledBottom: false, agreedChecked: false, onAgree: onAgree || null, textHash: '' };
       // 协议滚动区域底部：同意勾选框（倒计时结束后才显示，见 agmUpdateControls）
-      $('agmBody').innerHTML = `<div class="agreement-text">${buildAgreementHtml()}<label class="agm-check" id="agmCheckLabel"><input type="checkbox" id="agmAgreeChk"><span>我已仔细阅读并同意全部条款</span></label></div>`;
+      $('agmBody').innerHTML = `<div class="agreement-text">${buildAgreementHtml()}<label class="agm-check" id="agmCheckLabel"><input type="checkbox" id="agmAgreeChk"><span>我已阅读并同意本协议</span></label></div>`;
       $('agmAgreeChk').addEventListener('change', (e) => {
         _agm.agreedChecked = e.target.checked;
         agmUpdateControls();
@@ -2570,7 +2507,7 @@
       $('agmSigner').textContent = `乙方签署人：${(_gateProfile && _gateProfile.name) || '—'}（登录手机号 ${(_gateProfile && _gateProfile.phone) || '—'}）`;
       // 法律效力提示：提交模式点击即构成电子签署；查阅模式仅阅读不签署
       $('agmLegal').textContent = onAgree
-        ? '⚖️ 依据《电子签名法》，点击「同意并继续」即视为乙方本人电子签署《供应商入驻合作协议》（DH-GYS-2026-V1），与手写签名/盖章具有同等法律效力，平台将存档签署证据。'
+        ? '⚖️ 依据《电子签名法》，点击「同意并继续」即视为乙方本人电子签署《供应商入驻合作协议》（DH-GYS-2026-V2），与手写签名/盖章具有同等法律效力，平台将存档签署证据。'
         : '📖 当前为协议查阅模式：阅读并同意后仅关闭弹窗，不构成签署；提交资质时的「同意并继续」才构成电子签署。';
       $('agmOverlay').classList.add('show');
       document.body.style.overflow = 'hidden';   // 锁背景滚动
@@ -2656,67 +2593,6 @@
       lb.style.display = 'flex';
     }
 
-    function tierRangeText(t, idx, list) {
-      const min = Number(t.minAmount);
-      const next = list[idx + 1];
-      if (next) {
-        return `¥${min.toLocaleString()} - ¥${Number(next.minAmount).toLocaleString()}`;
-      }
-      return `¥${min.toLocaleString()} 以上`;
-    }
-
-    // 渲染《平台合作规则》公示阶梯：
-    //  unified    → 一张统一全品类阶梯表（整月累计额定档，命中档高亮）
-    //  byCategory → 三张表：低毛利（蔬菜/肉类/冻品/粮油/海鲜等）/ 中毛利（调料/纸品等）/ 高毛利（酒水/饮料等）
-    function renderPlatformLadder(d) {
-      const box = $('platformLadderBox');
-      const titleEl = $('platformRulesTitle');
-      const noteEl = $('platformRulesNote');
-      if (!box) return;
-
-      const ladderTableHtml = (ladder, amount, highlight) => {
-        if (!Array.isArray(ladder) || !ladder.length) return '<p class="no-data">暂无阶梯</p>';
-        // 命中档判定（与后端 calcRebate 一致：minAmount <= amount 的最高一档）
-        let hitIdx = -1;
-        for (let i = 0; i < ladder.length; i++) {
-          if ((Number(amount) || 0) >= Number(ladder[i].minAmount)) hitIdx = i;
-        }
-        const rows = ladder.map((t, i) => {
-          const isCur = highlight && i === hitIdx;
-          const modeTxt = t.mode === 'marginal' ? '超额累进' : '全额累进';
-          return `<tr${isCur ? ' class="tier-cur"' : ''}>
-            <td>${tierRangeText(t, i, ladder)}</td>
-            <td>${(Number(t.rate) * 100).toFixed(1)}%${isCur ? ' ← 当前档' : ''}</td>
-            <td>${modeTxt}</td>
-          </tr>`;
-        }).join('');
-        return `<table class="ladder-table"><thead>
-          <tr><th>月累计采购额</th><th>返点率</th><th>累进方式</th></tr></thead><tbody>${rows}</tbody></table>`;
-      };
-
-      if (d.rebateMode === 'byCategory' && d.categoryLadders) {
-        titleEl.textContent = '📜 平台合作规则 · 分类阶梯返点（按品类毛利三档）';
-        noteEl.textContent = '返点按品类毛利分类阶梯执行：各品类按当月同品类累计采购额分别定档，每月 1 号自动结算。未列入分类的品类按低毛利档保守执行。';
-        const groups = [
-          { key: 'lowMargin', name: '低毛利品类', desc: '蔬菜、肉类、冻品、粮油、海鲜、生鲜、豆制品（净利约 1%-3%）', ladders: d.categoryLadders.lowMargin, cats: (d.categories || []).filter(c => c.marginType === 'lowMargin') },
-          { key: 'midMargin', name: '中毛利品类', desc: '调料、一次性用品、餐厨用品、餐具、纸品、清洁用品（净利约 3%-5%）', ladders: d.categoryLadders.midMargin, cats: (d.categories || []).filter(c => c.marginType === 'midMargin') },
-          { key: 'highMargin', name: '高毛利品类', desc: '酒水、饮料、啤酒、白酒、红酒、特色干货、休闲食品、零食、罐头（净利约 10%-25%）', ladders: d.categoryLadders.highMargin, cats: (d.categories || []).filter(c => c.marginType === 'highMargin') }
-        ];
-        box.innerHTML = groups.map(g => {
-          const amt = g.cats.reduce((s, c) => s + (Number(c.purchaseAmount) || 0), 0);
-          return `<div style="margin-bottom:14px;">
-            <div style="font-size:13px;font-weight:700;color:#7c3aed;margin:6px 0 2px;">${g.name}</div>
-            <div style="font-size:12px;color:#6b7280;margin-bottom:6px;">${g.desc}</div>
-            ${ladderTableHtml(g.ladders, amt, true)}
-          </div>`;
-        }).join('');
-      } else {
-        titleEl.textContent = '📜 平台合作规则 · 统一阶梯返点（全品类）';
-        noteEl.textContent = '返点按平台公示统一阶梯执行（全品类合并月累计额定档），每月 1 号自动结算。无专属返点规则的供应商一律按此阶梯计算。';
-        box.innerHTML = ladderTableHtml(d.defaultLadder, d.totalPurchase, true);
-      }
-    }
-
     // 状态 → 样式类名映射
     function statusClass(s) {
       switch (s) {
@@ -2739,7 +2615,7 @@
       if (tab === 'products') loadProducts();
       if (tab === 'qualify' && _gateProfile) renderQualifyPane(_gateProfile);
       if (tab === 'notify') loadNotifySettings();
-      if (tab === 'settle') loadSettle();
+      if (tab === 'split') loadSplit();
       if (tab === 'sort') loadSortOrders();
       if (tab === 'deliver') loadDeliverOrders();
     }
@@ -2756,8 +2632,8 @@
         go() { switchTab('products'); } },
       { key: 'notify', icon: '🔔', text: '设置新订单提醒', btn: '去设置',
         go() { switchTab('notify'); } },
-      { key: 'settle', icon: '💰', text: '查看合作结算', btn: '去看看',
-        go() { switchTab('settle'); reportSupStep('settle'); } }
+      { key: 'settle', icon: '🧾', text: '查看我的分账', btn: '去看看',
+        go() { switchTab('split'); reportSupStep('settle'); } }
     ];
 
     async function loadSupOnboarding() {
@@ -2905,7 +2781,7 @@
       } else if (o.status === '已发货') {
         act = `<span class="wait-text">已发货，等待商家确认收货</span>`;
       } else if (o.status === '已完成') {
-        // 单笔订单不再展示任何返点数字，返点统一在「合作结算」栏目按月汇总查看
+        // 单笔订单不展示分账明细，分账统一在「我的分账」栏目按月汇总查看
         act = `<span class="rebate-tag">已完成</span>`;
       }
       act += ` <button class="btn btn-ghost" data-act="print" data-id="${esc(String(o._id))}" title="打印小票（80mm）">🖨️ 打印小票</button>`;
@@ -2956,10 +2832,13 @@
       if (res.success && Array.isArray(res.data)) {
         allOrders = res.data;
         renderOrders();
-        // 首次加载时同步轮询基线，避免刚进页面就误报"新订单"
-        if (lastPendingCount === null) {
-          lastPendingCount = allOrders.filter(o => o.status === '待确认').length;
+        // 同步刷新待处理角标（loadOrders 后用户已看到当前订单集合 → 视为已查看）
+        const pendingCount = allOrders.filter(o => o.status === '待确认').length;
+        // 若轮询基线尚未建立，用本次加载结果初始化（避免误报）
+        if (lastPendingIds === null) {
+          lastPendingIds = new Set(allOrders.filter(o => o.status === '待确认').map(o => String(o._id)));
         }
+        updateOrdersBadge(pendingCount);
       } else {
         allOrders = [];
         renderOrders();
@@ -2968,9 +2847,6 @@
         }
       }
     }
-
-    // ============ 新订单实时提醒（30 秒轮询） ============
-    let lastPendingCount = null; // 上次记录的"待确认"数量
 
     // 提示音：Web Audio 合成蜂鸣声（无需外部文件）；失败时 console.log 兜底
     function playBeep() {
@@ -3000,32 +2876,121 @@
       }
     }
 
-    function showNewOrderAlert() {
+    // ============ 新订单实时提醒（15 秒轮询 + 多单累积显示 + 待处理红点角标） ============
+    // lastPendingIds：上次轮询到的"待确认"订单 ID 集合，用于差量识别新单
+    // pendingAlerts：尚未展示或已展示但未点击查看的新订单详情栈
+    let lastPendingIds = null;       // Set<string>，初始化为 null 表示首次轮询
+    let pendingAlerts = [];          // [{_id, orderNo, shopName, totalAmount}]
+    let seenAlertIds = new Set();    // 已加入弹窗栈的订单 ID，避免重复加入
+
+    // 渲染新订单弹窗列表（多个新单累积展示订单号/商家/金额）
+    function renderNewOrderAlert() {
+      const list = pendingAlerts.slice(0, 10);  // 最多展示 10 条避免太长
+      const cnt = pendingAlerts.length;
+      $('newOrderCount').textContent = String(cnt);
+      $('newOrderSub').textContent = cnt > 1 ? '多笔订单已到达，请及时处理' : '请及时处理，避免超时影响商家备货';
+      $('newOrderList').innerHTML = list.map(o => {
+        const noTail = (o.orderNo || String(o._id || '')).slice(-8);
+        const shop = o.shopName || '未命名商家';
+        const amt = Number(o.totalAmount || 0).toFixed(2);
+        return `<div class="al-item">
+          <span class="al-no">单号 …${esc(noTail)}</span>
+          <span class="al-shop">商家：${esc(shop)}</span>
+          <span class="al-amt">¥${amt}</span>
+        </div>`;
+      }).join('');
+      if (cnt > 10) {
+        $('newOrderList').innerHTML += `<div class="al-item" style="text-align:center;color:#9ca3af;background:#f9fafb;border-color:#e5e7eb;">还有 ${cnt - 10} 笔，点"立即查看"看全部</div>`;
+      }
       $('newOrderScrim').classList.add('show');
+    }
+
+    function showNewOrderAlert() {
+      renderNewOrderAlert();
     }
     $('alertViewBtn').onclick = () => {
       $('newOrderScrim').classList.remove('show');
+      pendingAlerts = [];        // 清空栈
+      seenAlertIds = new Set(); // 重置去重集合
+      clearOrdersBadge();       // 同步清零 nav 红点角标
       switchTab('orders');
       loadOrders();
     };
-    $('alertCloseBtn').onclick = () => $('newOrderScrim').classList.remove('show');
+    $('alertCloseBtn').onclick = () => {
+      $('newOrderScrim').classList.remove('show');
+      // 稍后处理：保留 pendingAlerts 与角标，下次切换/查看时再清
+    };
 
-    // 每 30 秒轮询待确认订单数量，发现新增立即提醒
+    // ============ 待处理订单 nav 红点角标 ============
+    // 角标规则：检测到待确认订单 >0 时显示数字；用户点击 nav 进入"待处理订单"页时清零
+    // （订单仍待确认，仅清角标避免持续打扰；下次再有新订单会再次累加）
+    let _ordersBadgeSeen = false;  // 用户已查看过当前待确认集合
+    function updateOrdersBadge(pendingCount) {
+      const badge = $('navOrdersBadge');
+      if (!badge) return;
+      if (pendingCount > 0 && !_ordersBadgeSeen) {
+        badge.textContent = pendingCount > 99 ? '99+' : String(pendingCount);
+        badge.style.display = '';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+    function clearOrdersBadge() {
+      _ordersBadgeSeen = true;
+      const badge = $('navOrdersBadge');
+      if (badge) badge.style.display = 'none';
+    }
+    // 点击"待处理订单" nav：清角标并刷新订单
+    (function () {
+      const nav = $('navOrders');
+      if (nav) {
+        nav.addEventListener('click', () => {
+          _ordersBadgeSeen = true;
+          const badge = $('navOrdersBadge');
+          if (badge) badge.style.display = 'none';
+        });
+      }
+    })();
+
+    // 每 15 秒轮询待确认订单：① 差量识别新单 → 入栈 + 提示音 + 弹窗 ② 更新 nav 角标
     async function pollNewOrders() {
       const res = await api('/api/purchase-orders/supplier?status=' + encodeURIComponent('待确认'));
       if (res.success && Array.isArray(res.data)) {
-        const cnt = res.data.length;
-        if (lastPendingCount !== null && cnt > lastPendingCount) {
+        const list = res.data;
+        const curIds = new Set(list.map(o => String(o._id)));
+        // 首次轮询：仅建基线，不弹窗（避免打开页面瞬间误报）
+        if (lastPendingIds === null) {
+          lastPendingIds = curIds;
+          // 首次进入若已有待确认订单，仍要在 nav 角标显示数字（用户尚未查看）
+          _ordersBadgeSeen = false;
+          updateOrdersBadge(list.length);
+          return;
+        }
+        // 差量：在 curIds 中但不在 lastPendingIds 中的 → 新订单
+        const newOrders = list.filter(o => !lastPendingIds.has(String(o._id)));
+        if (newOrders.length > 0) {
+          // 累积加入 pendingAlerts（去重）
+          newOrders.forEach(o => {
+            if (!seenAlertIds.has(String(o._id))) {
+              seenAlertIds.add(String(o._id));
+              pendingAlerts.push(o);
+            }
+          });
+          // 触发提示音（与现有语音播报兼容，Web Audio 合成）
           playBeep();
-          // 页面弹窗提醒开关打开时才弹遮罩（提示音始终播放）
+          // 弹窗提醒开关打开时才弹遮罩（提示音始终播放）
           const popupOn = !$('setPopup') || $('setPopup').checked;
           if (popupOn) showNewOrderAlert();
-          loadOrders(); // 同步刷新列表
+          // 用户尚未查看新订单 → 角标需要更新（待确认总数）
+          _ordersBadgeSeen = false;
+          // 同步刷新订单列表，让用户在 orders 页也能立即看到
+          loadOrders();
         }
-        lastPendingCount = cnt;
+        lastPendingIds = curIds;
+        updateOrdersBadge(list.length);
       }
     }
-    setInterval(pollNewOrders, 30000);
+    setInterval(pollNewOrders, 15000);
 
     // 处理订单操作（确认 / 发货 / 打印小票），POST 动词
     async function handleOrderAction(act, id, btn) {
@@ -3140,53 +3105,100 @@
     }
     $('printAllBtn').onclick = printAllTodayReceipts;
 
-    // ============ 分拣过秤 + 智能秤接口 ============
-    // 秤配置：localStorage 存 adapter（manual/webserial/webusb/bluetooth），默认 manual 走手输
+    // ============ 分拣过秤 + 电子秤接入 ============
+    // 秤配置：localStorage 存 adapter（manual / webserial），默认 manual 走手输兜底
     const SCALE_CFG_KEY = 'scale_adapter_' + (localStorage.getItem('supplierId') || 'default');
     function getScaleAdapter() {
-      return localStorage.getItem(SCALE_CFG_KEY) || 'manual';
+      return (localStorage.getItem(SCALE_CFG_KEY) === 'webserial') ? 'webserial' : 'manual';
     }
-    const SCALE_LABEL = { manual: '手输', webserial: 'WebSerial', webusb: 'WebUSB', bluetooth: '蓝牙' };
+    const SCALE_LABEL = { manual: '手输', webserial: 'WebSerial' };
 
     // 可配置秤读取入口：按 adapter 分派；manual 返回 null 表示走手输入框
     async function getScaleWeight() {
       const adapter = getScaleAdapter();
+      if (adapter === 'manual') return null;
       try {
-        if (adapter === 'webserial') return await readScaleWebSerial();
-        if (adapter === 'webusb') return await readScaleWebUSB();
-        if (adapter === 'bluetooth') return await readScaleBluetooth();
+        return await readScaleWebSerial();
       } catch (e) {
         toast('秤读取失败：' + e.message + '，请手输入', true);
+        return null;
       }
-      return null;
     }
 
-    // WebSerial 串口电子秤（9600 波特率，ASCII 解析；多数电子秤返回形如 "= 0.123kg"）
+    // WebSerial 串口电子秤：9600 8N1，按 ASCII 帧解析，自动识别 kg/g/t 并统一换算为 kg
     let _serialPort = null;
-    async function readScaleWebSerial() {
-      if (!('serial' in navigator)) throw new Error('当前浏览器不支持 WebSerial（需 Chrome/Edge）');
-      if (!_serialPort) {
-        _serialPort = await navigator.serial.requestPort();
-        await _serialPort.open({ baudRate: 9600 });
+    let _serialBuf = '';
+
+    async function ensureSerialOpen() {
+      if (!('serial' in navigator)) throw new Error('当前浏览器不支持 WebSerial（请使用 Chrome/Edge）');
+      if (_serialPort && _serialPort.readable) return;
+      _serialPort = await navigator.serial.requestPort();
+      try {
+        await _serialPort.open({ baudRate: 9600, dataBits: 8, stopBits: 1, parity: 'none', flowControl: 'none' });
+      } catch (e) {
+        _serialPort = null;
+        throw new Error('串口打开失败（可能已被其他程序占用）');
       }
-      const dec = new TextDecoder();
-      const reader = _serialPort.readable.getReader();
-      let buf = '';
-      const deadline = Date.now() + 1500;
-      let weight = null;
-      while (Date.now() < deadline) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        const m = buf.match(/-?\d+\.?\d*/);
-        if (m) { weight = parseFloat(m[0]); break; }
-      }
-      reader.releaseLock();
-      return weight;
+      _serialBuf = '';
     }
-    // WebUSB / 蓝牙预留接口（按实际电子秤协议开发时填入读取逻辑）
-    async function readScaleWebUSB() { throw new Error('WebUSB 接口为预留，待按设备协议开发'); }
-    async function readScaleBluetooth() { throw new Error('蓝牙接口为预留，待按设备协议开发'); }
+
+    // 从一行电子秤输出中解析重量（kg）。常见格式："ST,GS,+  1.234kg" / "= 0.123kg" / "1.234"
+    function parseScaleWeight(text) {
+      const m = /(-?\d+(?:\.\d+)?)\s*(kg|g|t)?/i.exec(String(text || ''));
+      if (!m) return null;
+      let v = parseFloat(m[1]);
+      if (!isFinite(v)) return null;
+      const unit = (m[2] || 'kg').toLowerCase();
+      if (unit === 'g') v = v / 1000;
+      else if (unit === 't') v = v * 1000;
+      return Math.abs(v);
+    }
+
+    async function readScaleWebSerial() {
+      await ensureSerialOpen();
+      const reader = _serialPort.readable.getReader();
+      const dec = new TextDecoder();
+      const deadline = Date.now() + 3000;
+      try {
+        while (Date.now() < deadline) {
+          let chunk;
+          try {
+            // 单次读取加超时，避免电子秤无输出时永久挂起
+            chunk = await Promise.race([
+              reader.read(),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('__TIMEOUT__')), Math.max(0, deadline - Date.now())))
+            ]);
+          } catch (e) {
+            if (e && e.message === '__TIMEOUT__') break;
+            throw e;
+          }
+          const { value, done } = chunk;
+          if (done) break;
+          if (!value) continue;
+          _serialBuf += dec.decode(value, { stream: true });
+          // 电子秤通常以 \r\n 结束一帧：按行解析，保留最后一段不完整数据
+          const lines = _serialBuf.split(/[\r\n]+/);
+          _serialBuf = lines.pop() || '';
+          for (const line of lines) {
+            const w = parseScaleWeight(line);
+            if (w != null) return w;
+          }
+          // 无换行的连续输出兜底：缓冲中已出现单位字母时直接解析
+          if (/kg|g\b|t\b/i.test(_serialBuf)) {
+            const w = parseScaleWeight(_serialBuf);
+            if (w != null) { _serialBuf = ''; return w; }
+          }
+        }
+        throw new Error('未读取到电子秤数据，请确认秤已开机置零后重试');
+      } finally {
+        try { reader.releaseLock(); } catch (e) { /* 忽略 */ }
+      }
+    }
+
+    // 串口断开（拔线/关机）时重置缓存，下次读取会重新让用户选择串口
+    if ('serial' in navigator) {
+      navigator.serial.addEventListener('disconnect', () => { _serialPort = null; });
+    }
 
     // 秤配置弹窗
     $('scaleCfgBtn').onclick = () => {
@@ -3338,6 +3350,7 @@
 
     // ============ 配送单页 ============
     const RECEIVE_METHOD_TEXT = {
+      supplier_arranged: '按供应商安排',
       door_container: '门口自备保温容器',
       open_door: '开门后配送',
       self_pickup: '到店自提'
@@ -3372,7 +3385,7 @@
           : `<span class="dc-missing">📍 商家未完善地址</span>`;
         const timeHtml = o.expectedReceiveStart
           ? `<span class="dc-time">期望 ${esc(o.expectedReceiveStart)}-${esc(o.expectedReceiveEnd || '')}</span>`
-          : `<span class="dc-missing">未设时段</span>`;
+          : `<span class="dc-time" style="color:#9ca3af;">时段未约定</span>`;
         const deliverBtn = hasPhoto
           ? `<div class="dc-delivered"><img src="${esc(o.deliveryPhotoUrl)}" alt="送达照"><span>✓ 已送达 ${fmtTime(o.deliveredAt)}</span></div>`
           : `<label class="dc-photo-btn">📷 拍照送达<input type="file" accept="image/*" capture="environment" data-id="${esc(String(o._id))}"></label>`;
@@ -3383,7 +3396,7 @@
               <div class="dc-shop">${esc(o.shopName || '未命名商家')}</div>
               <div class="dc-addr">${addrHtml}</div>
               <div class="dc-row">
-                <span class="dc-method-chip">${esc(RECEIVE_METHOD_TEXT[o.receiveMethod] || '门口自备保温容器')}</span>
+                <span class="dc-method-chip">${esc(RECEIVE_METHOD_TEXT[o.receiveMethod] || '按供应商安排')}</span>
                 ${timeHtml}
               </div>
               ${streetHtml}
@@ -3408,11 +3421,12 @@
       if (res.success && Array.isArray(res.data)) {
         const today = new Date(); today.setHours(0, 0, 0, 0);
         let list = res.data.filter(o => o.createdAt && new Date(o.createdAt) >= today);
-        // 按商家期望收货时段升序排（无值排末尾）
+        // 按地址聚类（同商家/同地址订单相邻便于拼车配送），地址内按下单时间升序
         list.sort((a, b) => {
-          const ta = a.expectedReceiveStart || '99:99';
-          const tb = b.expectedReceiveStart || '99:99';
-          return ta.localeCompare(tb);
+          const addrA = (a.shopAddress || a.shopName || '').trim();
+          const addrB = (b.shopAddress || b.shopName || '').trim();
+          if (addrA !== addrB) return addrA.localeCompare(addrB, 'zh-CN');
+          return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
         });
         _deliverOrders = list;
       } else {
@@ -3450,7 +3464,7 @@
       } catch (e) { toast('网络错误', true); }
     }
 
-    // 加载通知设置（GET /api/supplier/settings）
+    // 加载通知设置（GET /api/supplier/settings，含配送时段公告）
     async function loadNotifySettings() {
       try {
         const res = await fetch('/api/supplier/settings', {
@@ -3460,183 +3474,64 @@
           $('setPopup').checked = res.data.popup !== false;
           $('setSms').checked = res.data.sms === true;
           $('setVoice').checked = res.data.voice === true;
+          if ($('setDeliveryNotice')) $('setDeliveryNotice').value = res.data.deliveryNotice || '';
         }
       } catch (e) { /* 使用默认值 */ }
     }
 
-    // ============ 合作结算与月度对账 ============
-    // 数据全部来自 /api/supplier/settle（后端实时计算：RebateRule + 订单数据，不写死）
-    let settleInited = false;
-    function curMonthStr() {
-      const n = new Date();
-      return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0');
-    }
-    function pct(v) { return (Number(v || 0) * 100).toFixed(1) + '%'; }
-    function modeText(m) {
-      return m === 'marginal' ? '超额累进' : (m === 'full' ? '全额累进' : (m === 'default' ? '默认阶梯' : '—'));
-    }
-    async function loadSettle() {
-      const monthInput = $('settleMonth');
-      if (!monthInput.value) monthInput.value = curMonthStr();
-      if (!settleInited) {
-        settleInited = true;
-        $('settleQueryBtn').onclick = loadSettle;
-        monthInput.onchange = loadSettle;
+    // ============ 我的分账（云分账：数据来自 /api/supplier/split） ============
+    let splitInited = false;
+    async function loadSplit() {
+      const monthInput = $('splitMonth');
+      if (!splitInited) {
+        splitInited = true;
+        monthInput.value = curMonthStr();
+        $('splitQueryBtn').onclick = loadSplit;
       }
       const month = monthInput.value || curMonthStr();
-      const curMonth = curMonthStr();
-      // 查询历史月份时，hero 标题随月份切换；服务费文案同步月份
-      const isCur = month === curMonth;
-      $('settleHeroLabel').textContent = isCur ? '本月累计订单金额' : month + ' 累计订单金额';
-      $('settleHeroSub').textContent = isCur ? '本月通过平台达成的生意' : '该月通过平台达成的生意';
+      const isCur = month === curMonthStr();
+      $('splitHeroLabel').textContent = (isCur ? '本月' : month) + '应得分账（供货价部分）';
+      $('splitSupplyAmount').textContent = '0.00';
+      $('splitRetailAmount').textContent = '0.00';
+      $('splitPlatformAmount').textContent = '0.00';
+      $('splitTbody').innerHTML = '<tr><td colspan="7" class="no-data">加载中...</td></tr>';
 
-      // hero / 档位占位
-      $('settleTotalPurchase').textContent = '0.00';
-      $('settleTotalRebate').textContent = '0.00';
-      $('settleTier').textContent = '加载中...';
-      $('tierBarFill').style.width = '0%';
-      $('tierLegend').innerHTML = '';
-      $('settleTierGap').textContent = '';
-      $('settleGrowthLine').style.display = 'none';
-      $('settleCatTbody').innerHTML = '<tr><td colspan="6" class="no-data">加载中...</td></tr>';
-      $('settleHistoryTbody').innerHTML = '<tr><td colspan="5" class="no-data">加载中...</td></tr>';
-
-      const res = await api('/api/supplier/settle?month=' + encodeURIComponent(month));
+      const res = await api('/api/supplier/split?month=' + encodeURIComponent(month));
       if (!res.success || !res.data) {
-        $('settleTier').textContent = '—';
-        $('settleCatTbody').innerHTML = `<tr><td colspan="6" class="no-data">${esc(res.message || '加载失败')}</td></tr>`;
-        $('settleHistoryTbody').innerHTML = `<tr><td colspan="5" class="no-data">${esc(res.message || '加载失败')}</td></tr>`;
+        $('splitTbody').innerHTML = `<tr><td colspan="7" class="no-data">${esc(res.message || '加载失败')}</td></tr>`;
         return;
       }
       const d = res.data;
-      $('settleTotalPurchase').textContent = Number(d.totalPurchase || 0).toFixed(2);
-      $('settleTotalRebate').textContent = Number(d.totalRebate || 0).toFixed(2);
+      const s = d.summary || {};
+      $('splitSupplyAmount').textContent = Number(s.supplierShare || 0).toFixed(2);
+      $('splitRetailAmount').textContent = Number(s.splitAmount || 0).toFixed(2);
+      $('splitPlatformAmount').textContent = Number(s.platformShare || 0).toFixed(2);
 
-      // 《平台合作规则》阶梯表（统一阶梯一张表 / 分类阶梯低中高三张表，命中档高亮）
-      renderPlatformLadder(d);
-
-      // 较上月增长（上月同口径实时数据；上月无采购则不展示）
-      const growthLine = $('settleGrowthLine');
-      const prevMonthKey = (() => {
-        const [y, m] = month.split('-').map(Number);
-        const dt = new Date(y, m - 2, 1);
-        return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0');
-      })();
-      api('/api/supplier/settle?month=' + encodeURIComponent(prevMonthKey)).then(prevRes => {
-        // 用户已切换查询月份时丢弃过期结果
-        if (!prevRes || !prevRes.success || !prevRes.data) return;
-        if (($('settleMonth').value || curMonthStr()) !== month) return;
-        const prevVal = Number(prevRes.data.totalPurchase || 0);
-        const curVal = Number(d.totalPurchase || 0);
-        if (prevVal <= 0) return;
-        const diff = curVal - prevVal;
-        const pctText = (Math.abs(diff) / prevVal * 100).toFixed(1);
-        if (diff >= 0) {
-          growthLine.textContent = `较上月增长 ${pctText}%`;
-          growthLine.className = 'report-growth up';
-        } else {
-          growthLine.textContent = `较上月下降 ${pctText}%`;
-          growthLine.className = 'report-growth down';
-        }
-        growthLine.style.display = '';
-      }).catch(() => {});
-
-      // 当前档位 / 返点率 + 档位进度条（读取平台配置的 RebateRule，实时定档）
-      const t = d.currentTier || {};
-      let tierText;
-      if (d.rebateMode === 'byCategory') {
-        // 分类阶梯：各品类按同品类月累计额分别定档，hero 不显示单一档位
-        tierText = '分类阶梯 · 低/中/高毛利品类分别定档';
-        $('settleTier').textContent = tierText;
-        $('tierBarFill').style.width = '100%';
-        $('tierLegend').innerHTML =
-          '<span class="lg">低毛利 0.5% 起</span><span class="lg">中毛利 1% 起</span><span class="lg">高毛利 2% 起</span>' +
-          '<span class="lg">各品类当月累计额分别定档，详见下方明细表</span>';
-        $('settleTierGap').textContent = '';
-      } else if (t.mode === 'default') {
-        // 默认阶梯：tiers 已填充，命中档展示
-        if (t.tierMinAmount != null) {
-          tierText = `平台默认阶梯 · 满 ¥${Number(t.tierMinAmount).toLocaleString()} 档 · ${pct(t.tierRate)}`;
-        } else {
-          tierText = `平台默认阶梯 · ${pct(t.tierRate)}`;
-        }
-      } else if (t.tierMinAmount != null) {
-        tierText = `满 ¥${Number(t.tierMinAmount).toLocaleString()} 档 · ${pct(t.tierRate)}`;
-      } else {
-        tierText = `未达首档 · 0%`;
+      const rows = d.records || [];
+      if (rows.length === 0) {
+        $('splitTbody').innerHTML = `<tr><td colspan="7" class="no-data">「${esc(month)}」暂无分账记录</td></tr>`;
+        return;
       }
-      $('settleTier').textContent = tierText;
+      $('splitTbody').innerHTML = rows.map(r => {
+        const comp = Number(r.compensateAmount || 0);
+        const badge = { '分账成功': 's-done', '分账失败': 's-pending', '补差中': 's-pending', '已补差': 's-done' }[r.splitStatus] || 's-pending';
+        return `
+        <tr>
+          <td class="mono" data-label="订单号">${esc(r.orderNo || '—')}</td>
+          <td data-label="商家">${esc(r.shopName || '—')}</td>
+          <td data-label="顾客实付">${fmtMoney(r.splitAmount)}</td>
+          <td class="pay" data-label="我实得">${fmtMoney(r.supplierShare)}</td>
+          <td data-label="平台服务费" style="color:#6b7280;">${fmtMoney(r.platformShare)}</td>
+          <td data-label="时间">${fmtTime(r.receiveAt)}</td>
+          <td data-label="状态"><span class="badge ${badge}">${esc(r.splitStatus || '待分账')}</span>${comp ? `<span class="badge" style="margin-left:4px;${comp < 0 ? 'background:#fee2e2;color:#b91c1c;' : 'background:#dcfce7;color:#166534;'}">补差${comp < 0 ? '-' : '+'}${Math.abs(comp).toFixed(2)}</span>` : ''}</td>
+        </tr>`;
+      }).join('');
+    }
 
-      if (d.rebateMode !== 'byCategory') {
-        const tiers = Array.isArray(t.tiers) ? t.tiers : [];
-        if (!tiers.length) {
-          $('tierBarFill').style.width = '100%';
-          $('tierLegend').innerHTML = '<span class="lg">该品类按平台默认兜底比例执行</span>';
-          $('settleTierGap').textContent = '';
-        } else {
-          const maxMin = Number(tiers[tiers.length - 1].minAmount || 0);
-          const curVal = Number(d.totalPurchase || 0);
-          const width = maxMin > 0 ? Math.min(100, curVal / maxMin * 100) : 0;
-          $('tierBarFill').style.width = width.toFixed(1) + '%';
-          const prefix = t.mode === 'default' ? '平台默认阶梯 · ' : '';
-          $('tierLegend').innerHTML = tiers.map(x =>
-            `<span class="lg">${prefix}满 ¥${Number(x.minAmount).toLocaleString()} → ${pct(x.rate)}</span>`).join('');
-          if (t.gapToNext != null && Number(t.gapToNext) > 0) {
-            $('settleTierGap').textContent = `距离下一档（满 ¥${Number(t.nextTierMinAmount).toLocaleString()}）还差 ¥${Number(t.gapToNext).toLocaleString()}`;
-          } else if (curVal >= maxMin && maxMin > 0) {
-            $('settleTierGap').textContent = '已达最高档';
-          } else {
-            $('settleTierGap').textContent = '';
-          }
-        }
-      }
-
-      // 分品类采购金额明细（分类模式按毛利档标注；统一模式为一条「全部」）
-      const MT_LABEL = { lowMargin: '低毛利', midMargin: '中毛利', highMargin: '高毛利' };
-      const cats = d.categories || [];
-      if (!cats.length) {
-        $('settleCatTbody').innerHTML = `<tr><td colspan="6" class="no-data">「${esc(month)}」暂无已完成采购</td></tr>`;
-      } else {
-        $('settleCatTbody').innerHTML = cats.map(c => {
-          const tierCell = c.tierMinAmount != null
-            ? `满 ¥${Number(c.tierMinAmount).toLocaleString()}`
-            : '未达首档';
-          const rateCell = c.tierMinAmount != null ? pct(c.tierRate) : '0%';
-          const mtTag = (d.rebateMode === 'byCategory' && MT_LABEL[c.marginType])
-            ? `<span style="display:inline-block;font-size:11px;padding:1px 6px;border-radius:4px;background:#f5f3ff;color:#6d28d9;margin-right:6px;">${MT_LABEL[c.marginType]}</span>`
-            : '';
-          return `
-            <tr>
-              <td data-label="品类">${mtTag}${esc(c.category || '未分类')}</td>
-              <td data-label="当月采购额">${fmtMoney(c.purchaseAmount)}</td>
-              <td data-label="当前档位">${tierCell}</td>
-              <td data-label="返点率">${rateCell}</td>
-              <td data-label="累进方式">${modeText(c.mode)}</td>
-              <td data-label="应返金额" style="color:#334155;font-weight:600;">${fmtMoney(c.rebateAmount)}</td>
-            </tr>`;
-        }).join('');
-      }
-
-      // 历史月度结算记录
-      const hist = d.history || [];
-      if (!hist.length) {
-        $('settleHistoryTbody').innerHTML = `<tr><td colspan="5" class="no-data">暂无历史结算记录</td></tr>`;
-      } else {
-        $('settleHistoryTbody').innerHTML = hist.map(h => {
-          const st = h.status || '待结算';
-          const overdue = !!h.overdue && st !== '已收款';
-          const stCls = st === '已收款' ? 's-done' : (st === '已确认' ? 's-confirmed' : 's-pending');
-          const stHtml = `<span class="badge ${stCls}">${esc(st)}</span>${overdue ? '<span class="badge" style="background:#fee2e2;color:#b91c1c;margin-left:4px;">逾期</span>' : ''}`;
-          return `
-          <tr>
-            <td data-label="月份"><b>${esc(h.month)}</b></td>
-            <td data-label="采购总额">${fmtMoney(h.totalPurchaseAmount)}</td>
-            <td data-label="服务费金额" style="color:#334155;font-weight:600;">${fmtMoney(h.totalRebateAmount)}</td>
-            <td data-label="结算状态">${stHtml}</td>
-            <td data-label="结算时间">${fmtTime(h.settledAt)}</td>
-          </tr>`;
-        }).join('');
-      }
+    // 当前月份字符串 YYYY-MM（「我的分账」默认查询月份）
+    function curMonthStr() {
+      const n = new Date();
+      return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0');
     }
 
     // 保存通知设置（PATCH /api/supplier/settings）
@@ -3654,6 +3549,24 @@
         if (res.success) {
           toast('保存成功');
           loadSupOnboarding(); // 新手任务：设置新订单提醒
+        } else toast(res.message || '保存失败', true);
+      } catch (e) {
+        toast('网络错误', true);
+      }
+    };
+
+    // 保存配送时段公告（独立按钮，PATCH /api/supplier/settings deliveryNotice 字段）
+    $('saveDeliveryNoticeBtn').onclick = async () => {
+      const text = ($('setDeliveryNotice').value || '').trim();
+      try {
+        const res = await fetch('/api/supplier/settings', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ deliveryNotice: text })
+        }).then(r => r.json());
+        if (res.success) {
+          toast(text ? '公告已保存' : '公告已清空');
+          if ($('setDeliveryNotice')) $('setDeliveryNotice').value = res.data.deliveryNotice || '';
         } else toast(res.message || '保存失败', true);
       } catch (e) {
         toast('网络错误', true);
@@ -3692,7 +3605,7 @@
       const banner = $('pwFreshBanner');
       if (frozenCount > 0) {
         banner.className = 'pw-fresh-banner frozen';
-        banner.innerHTML = `⚠️ 有 <b>${frozenCount}</b> 个商品因超过保鲜期未改价已被冻结（商家端显示"价格更新中"，不可下单）。请尽快改价或沿用昨日价以解冻。`;
+        banner.innerHTML = `⚠️ 有 <b>${frozenCount}</b> 个商品因超过保鲜期未更新供货价已被冻结（商家端显示"价格更新中"，不可下单）。请尽快更新供货价或确认供货价不变以解冻。`;
         banner.style.display = 'flex';
       } else {
         banner.style.display = 'none';
@@ -3735,18 +3648,16 @@
         <div class="pw-group-head">
           <div class="pw-group-title">${esc(group.tab)}（共 ${group.products.length} 个）</div>
           <button class="pw-carryall-btn" id="pwCarryAll" ${allDone ? 'disabled' : ''}>
-            ${allDone ? '本类已全部改价' : '本类一键沿用昨日价'}
+            ${allDone ? '本类已全部更新' : '本类一键确认（供货价不变）'}
           </button>
         </div>
         <table class="pw-table">
           <thead>
             <tr>
               <th>商品</th>
-              <th>昨日售价</th>
-              <th>今日进价</th>
-              <th>建议售价</th>
-              <th>最终售价</th>
-              <th>预估毛利</th>
+              <th>平台卖价</th>
+              <th>今日供货价</th>
+              <th>实时差价</th>
               <th>状态</th>
               <th>操作</th>
             </tr>
@@ -3754,43 +3665,34 @@
           <tbody>
       `;
       for (const p of group.products) {
-        // 草稿态：默认进价=当前 costPrice，最终售价=建议售价（首次）或当前 marketPrice
-        _pwDrafts[p._id] = {
-          cost: p.costPrice,
-          price: p.suggestedPrice,
-          suggested: p.suggestedPrice,
-          categoryMarkupRate: p.categoryMarkupRate
-        };
+        // 草稿态：供应商只维护「供货价」；卖价由平台手动定价（此处只读）
+        _pwDrafts[p._id] = { cost: p.costPrice };
         const gradeTag = p.grade === 'standard'
           ? `<span class="pw-grade-tag standard">实惠</span>`
           : (p.grade === 'premium' ? `<span class="pw-grade-tag premium">精品</span>` : '');
         const statusChip = p.priceFrozen
           ? `<span class="pw-status-chip frozen">价格更新中</span>`
-          : (p.updatedToday ? `<span class="pw-status-chip done">今日已改</span>` : `<span class="pw-status-chip pending">待改价</span>`);
+          : (p.updatedToday ? `<span class="pw-status-chip done">今日已更新</span>` : `<span class="pw-status-chip pending">待更新</span>`);
         const rowClass = p.priceFrozen ? 'frozen-row' : (p.updatedToday ? 'done-row' : '');
+        const diff = Number(p.priceDiff);
         html += `
           <tr id="pwRow-${esc(p._id)}" class="${rowClass}">
             <td data-label="商品">
               <div class="pw-name-cell">
                 <div class="nm">${esc(p.name)}${gradeTag}</div>
-                <div style="font-size:11px;color:#9ca3af;">${esc(p.category)} · 加价率 ${p.markupRate != null ? p.markupRate + '%' : '品类' + p.categoryMarkupRate + '%'}</div>
+                <div style="font-size:11px;color:#9ca3af;">${esc(p.category)} · 平台卖价 ¥${Number(p.salePrice).toFixed(2)}</div>
               </div>
             </td>
-            <td data-label="昨日售价">¥${Number(p.yesterdayPrice).toFixed(2)}</td>
-            <td data-label="今日进价">
+            <td data-label="平台卖价">¥${Number(p.salePrice).toFixed(2)}</td>
+            <td data-label="今日供货价">
               <input type="number" class="pw-price-input" data-pid="${esc(p._id)}" data-field="cost"
                 value="${Number(p.costPrice).toFixed(2)}" min="0" step="0.01">
             </td>
-            <td data-label="建议售价"><span class="pw-suggest" id="pwSuggest-${esc(p._id)}">¥${Number(p.suggestedPrice).toFixed(2)}</span></td>
-            <td data-label="最终售价">
-              <input type="number" class="pw-price-input" data-pid="${esc(p._id)}" data-field="price"
-                value="${Number(p.suggestedPrice).toFixed(2)}" min="0" step="0.01">
-            </td>
-            <td data-label="预估毛利"><span class="pw-profit" id="pwProfit-${esc(p._id)}">¥${(p.suggestedPrice - p.costPrice).toFixed(2)}</span></td>
+            <td data-label="实时差价"><span class="pw-diff${diff < 0 ? ' neg' : ''}" id="pwDiff-${esc(p._id)}">${diff < 0 ? '-¥' : '¥'}${Math.abs(diff).toFixed(2)}</span></td>
             <td data-label="状态">${statusChip}</td>
             <td data-label="操作">
-              <button class="pw-act-btn save" data-act="save" data-pid="${esc(p._id)}">改价</button>
-              <button class="pw-act-btn carry" data-act="carry" data-pid="${esc(p._id)}" ${p.updatedToday ? 'disabled' : ''}>沿用</button>
+              <button class="pw-act-btn save" data-act="save" data-pid="${esc(p._id)}">更新供货价</button>
+              <button class="pw-act-btn carry" data-act="carry" data-pid="${esc(p._id)}" ${p.updatedToday ? 'disabled' : ''}>不变</button>
             </td>
           </tr>
         `;
@@ -3798,43 +3700,19 @@
       html += `</tbody></table>`;
       wrap.innerHTML = html;
 
-      // 绑定输入框实时计算建议售价 / 毛利 / 低于成本线标红
+      // 绑定输入框：供货价变化 → 实时重算差价（卖价由平台维护，供应商不可改）
       wrap.querySelectorAll('.pw-price-input').forEach(inp => {
         inp.oninput = () => {
           const pid = inp.dataset.pid;
-          const field = inp.dataset.field;
           const val = parseFloat(inp.value);
-          if (isNaN(val)) return;
           const d = _pwDrafts[pid];
-          d[field] = val;
-          // 进价变化 → 重算建议售价（按品类/单品加价率），同时若最终售价未手动改过则跟随
-          if (field === 'cost') {
-            const rate = d.categoryMarkupRate || 20; // 兜底20%（实际取自工作台返回值）
-            // 单品 markupRate 优先于品类（这里只影响"建议"展示，单品加价率需后端提供；
-            // 简化：用品类加价率重算建议售价）
-            const newSuggested = Math.round(val * (1 + rate / 100) * 100) / 100;
-            const oldSuggested = d.suggested;
-            d.suggested = newSuggested;
-            const suggestEl = $('pwSuggest-' + pid);
-            if (suggestEl) suggestEl.textContent = '¥' + newSuggested.toFixed(2);
-            // 若最终售价仍等于旧建议（用户未手改），则跟随新建议
-            const priceInput = wrap.querySelector(`.pw-price-input[data-pid="${pid}"][data-field="price"]`);
-            if (priceInput && Math.abs((d.price || 0) - oldSuggested) < 0.001) {
-              d.price = newSuggested;
-              priceInput.value = newSuggested.toFixed(2);
-            }
-          }
-          // 重算毛利 & 低于成本线标红
-          const profit = (d.price || 0) - (d.cost || 0);
-          const profitEl = $('pwProfit-' + pid);
-          if (profitEl) {
-            profitEl.textContent = '¥' + profit.toFixed(2);
-            profitEl.className = 'pw-profit' + (profit < 0 ? ' neg' : '');
-          }
-          // 低于成本线标红整行
-          const row = $('pwRow-' + pid);
-          if (row) {
-            row.classList.toggle('under-cost', profit < 0);
+          if (d && !isNaN(val)) d.cost = val;
+          const prod = group.products.find(x => x._id === pid);
+          const diffEl = $('pwDiff-' + pid);
+          if (diffEl && prod && !isNaN(val)) {
+            const diff = Number(prod.salePrice) - val;
+            diffEl.textContent = (diff < 0 ? '-¥' : '¥') + Math.abs(diff).toFixed(2);
+            diffEl.className = 'pw-diff' + (diff < 0 ? ' neg' : '');
           }
         };
       });
@@ -3847,31 +3725,28 @@
       if (carryAllBtn) carryAllBtn.onclick = () => handlePwCarryAll(group.tab);
     }
 
-    // 单品改价 / 沿用
+    // 单品更新供货价 / 确认不变
     async function handlePwAction(act, pid) {
       const draft = _pwDrafts[pid];
       if (act === 'save') {
-        if (!draft || draft.cost == null || draft.price == null) { toast('请填写进价与售价', true); return; }
-        if (draft.price < draft.cost) {
-          if (!confirm(`最终售价 ¥${draft.price.toFixed(2)} 低于进价 ¥${draft.cost.toFixed(2)}，确认按此亏损价上架？`)) return;
-        }
+        if (!draft || draft.cost == null) { toast('请填写供货价', true); return; }
         const res = await api('/api/supplier/price/product/' + pid + '/update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ costPrice: draft.cost, marketPrice: draft.price })
+          body: JSON.stringify({ costPrice: draft.cost })
         });
-        if (res.success) { toast('改价成功'); loadPriceWorkbench(); }
-        else toast(res.message || '改价失败', true);
+        if (res.success) { toast('供货价已更新'); loadPriceWorkbench(); }
+        else toast(res.message || '更新失败', true);
       } else if (act === 'carry') {
         const res = await api('/api/supplier/price/product/' + pid + '/carry-over', { method: 'POST' });
-        if (res.success) { toast('已沿用昨日价'); loadPriceWorkbench(); }
+        if (res.success) { toast('已确认供货价不变'); loadPriceWorkbench(); }
         else toast(res.message || '操作失败', true);
       }
     }
 
-    // 分类一键沿用
+    // 分类一键确认（供货价不变）
     async function handlePwCarryAll(tab) {
-      if (!confirm(`确认将【${tab}】分类下所有未改价商品沿用昨日价？`)) return;
+      if (!confirm(`确认将【${tab}】分类下所有未更新商品确认为「今日供货价不变」？`)) return;
       const res = await api('/api/supplier/price/category/' + encodeURIComponent(tab) + '/carry-over', { method: 'POST' });
       if (res.success) {
         toast(`已沿用 ${res.data.updated} 个商品`);
@@ -3924,8 +3799,8 @@
           </td>
           <td data-label="品类">${esc(p.category)}</td>
           <td data-label="单位">${esc(p.unit)}</td>
-          <td class="cost" data-label="成本价">${fmtMoney(p.costPrice)}</td>
-          <td class="price" data-label="市场价">${fmtMoney(p.marketPrice)}</td>
+          <td class="cost" data-label="供货价">${fmtMoney(p.costPrice)}</td>
+          <td class="price" data-label="平台卖价">${p.salePrice != null && Number(p.salePrice) > 0 ? fmtMoney(p.salePrice) : '<span style="color:#9ca3af;">平台未定价</span>'}</td>
           <td data-label="库存">${Number(p.stock || 0)}</td>
           <td data-label="状态"><span class="badge ${p.status === '上架' ? 'on' : 'off'}">${esc(p.status)}</span>${p.priceFrozen ? `<span class="pw-status-chip frozen" style="margin-left:4px;">价格更新中</span>` : ''}</td>
           <td class="act">
@@ -3973,8 +3848,6 @@
         sel.value = p.category || '其他';
         $('prodUnit').value = p.unit || '';
         $('prodCostPrice').value = p.costPrice ?? '';
-        $('prodMarketPrice').value = p.marketPrice ?? '';
-        $('prodMarkupRate').value = (p.markupRate != null && p.markupRate !== '') ? p.markupRate : '';
         $('prodGrade').value = p.grade || '';
         $('prodStock').value = p.stock ?? 0;
         $('prodImage').value = p.image || '';
@@ -3987,8 +3860,6 @@
         sel.value = '鲜肉';
         $('prodUnit').value = '';
         $('prodCostPrice').value = '';
-        $('prodMarketPrice').value = '';
-        $('prodMarkupRate').value = '';
         $('prodGrade').value = '';
         $('prodStock').value = '';
         $('prodImage').value = '';
@@ -4012,22 +3883,20 @@
       const category = $('prodCategory').value;
       const unit = $('prodUnit').value.trim();
       const costPrice = parseFloat($('prodCostPrice').value);
-      const marketPrice = parseFloat($('prodMarketPrice').value);
       const stockStr = $('prodStock').value.trim();
       const stock = Number(stockStr);
 
       if (!name) { toast('请输入商品名称', true); $('prodName').focus(); return; }
       if (!category) { toast('请选择品类', true); return; }
       if (!unit) { toast('请输入单位', true); $('prodUnit').focus(); return; }
-      if (isNaN(costPrice) || costPrice <= 0) { toast('成本价必须是大于 0 的数字', true); $('prodCostPrice').focus(); return; }
-      if (isNaN(marketPrice) || marketPrice <= 0) { toast('市场价必须是大于 0 的数字', true); $('prodMarketPrice').focus(); return; }
+      if (isNaN(costPrice) || costPrice <= 0) { toast('供货价必须是大于 0 的数字', true); $('prodCostPrice').focus(); return; }
       if (stockStr === '' || !Number.isInteger(stock) || stock < 0) { toast('库存必须是非负整数', true); $('prodStock').focus(); return; }
 
       const body = {
-        name, category, unit, costPrice, marketPrice, stock,
+        name, category, unit, costPrice, stock,
         image: $('prodImage').value.trim(),
         description: $('prodDesc').value.trim(),
-        markupRate: $('prodMarkupRate').value.trim() === '' ? null : Number($('prodMarkupRate').value.trim()),
+        // 卖价由平台手动定价，供应商端不提交 marketPrice / markupRate
         grade: $('prodGrade').value || null,
         parentProductId: $('prodParentProductId').value || null
       };

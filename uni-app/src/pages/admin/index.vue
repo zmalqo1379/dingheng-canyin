@@ -2,6 +2,8 @@
   <view class="page">
     <!-- 顶部：店铺 + 采购线档位 + 鼎恒币 -->
     <view class="hero">
+      <view class="deco deco-1"></view>
+      <view class="deco deco-2"></view>
       <view class="hero-row">
         <view class="hero-left">
           <view class="hero-name">{{ shopName || '鼎恒餐饮' }}</view>
@@ -21,17 +23,31 @@
     <!-- 快捷入口 -->
     <view class="quick">
       <view class="quick-item" @tap="goTab('/pages/admin/mall')">
-        <text class="quick-ico">🛒</text><text class="quick-txt">采购商城</text>
+        <view class="quick-ico"><text>🛒</text></view>
+        <text class="quick-txt">采购商城</text>
       </view>
       <view class="quick-item" @tap="goTab('/pages/admin/purchase')">
-        <text class="quick-ico">📑</text><text class="quick-txt">采购订单</text>
+        <view class="quick-ico"><text>📑</text></view>
+        <text class="quick-txt">采购订单</text>
       </view>
       <view class="quick-item" @tap="goTab('/pages/admin/member')">
-        <text class="quick-ico">👑</text><text class="quick-txt">会员省钱卡</text>
+        <view class="quick-ico"><text>👑</text></view>
+        <text class="quick-txt">会员省钱卡</text>
       </view>
       <view class="quick-item" @tap="go('/pages/admin/more')">
-        <text class="quick-ico">🍴</text><text class="quick-txt">门店经营</text>
+        <view class="quick-ico"><text>🍴</text></view>
+        <text class="quick-txt">门店经营</text>
       </view>
+    </view>
+
+    <!-- 本月省钱账单（采购价 vs 平台参考价；无数据隐藏，不编造） -->
+    <view class="savings" v-if="savings.hasData" @tap="goTab('/pages/admin/purchase')">
+      <view class="savings-left">
+        <text class="savings-label">本月已为你省钱</text>
+        <view class="savings-num"><text class="rmb">¥</text>{{ savings.monthSaved }}</view>
+        <text class="savings-sub">已对比 {{ savings.coveredItems }} 项采购明细 · 进货更划算</text>
+      </view>
+      <view class="savings-arrow">去采购 ›</view>
     </view>
 
     <!-- 快断货提醒（BOM + 库存反算；无数据隐藏） -->
@@ -116,6 +132,7 @@ const suggestions = ref([]);
 const forecast = ref([]);
 const forecastPreview = ref([]);
 const forecastLocked = ref(false);
+const savings = ref({ hasData: false, monthSaved: '0.00', coveredItems: 0 });
 
 function go(url) {
   uni.navigateTo({ url });
@@ -141,10 +158,11 @@ async function loadStatus() {
 
 async function loadReplenish() {
   try {
-    const [sr, fc, ls] = await Promise.all([
+    const [sr, fc, ls, sv] = await Promise.all([
       get('/admin/smart-replenish/suggestions', {}, { showError: false }),
       get('/admin/smart-replenish/forecast', {}, { showError: false }),
-      get('/admin/low-stock-dishes', {}, { showError: false })
+      get('/admin/low-stock-dishes', {}, { showError: false }),
+      get('/admin/procurement-monitor/savings', {}, { showError: false })
     ]);
     suggestions.value = (sr && sr.suggestions) || [];
     forecastLocked.value = !!(fc && fc.locked);
@@ -152,6 +170,9 @@ async function loadReplenish() {
     forecastPreview.value = (fc && fc.previewSample) || [];
     const items = (ls && ls.items) || [];
     lowStock.value = ls && ls.hasBom ? items.slice(0, 4) : [];
+    if (sv && sv.hasData) {
+      savings.value = { hasData: true, monthSaved: sv.monthSaved || '0.00', coveredItems: sv.coveredItems || 0 };
+    }
   } catch (e) {}
 }
 
@@ -182,87 +203,116 @@ onPullDownRefresh(async () => {
 <style lang="scss" scoped>
 .page {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: $ink-50;
   padding-bottom: 40rpx;
 }
 
+/* ===== hero ===== */
 .hero {
-  background: linear-gradient(135deg, #ff6b35, #ff8a5c);
+  position: relative;
+  background: $brand-grad;
   color: #fff;
-  padding: 40rpx 32rpx 36rpx;
+  padding: 40rpx 32rpx 44rpx;
+  overflow: hidden;
 }
-.hero-row { display: flex; align-items: center; justify-content: space-between; }
-.hero-name { font-size: 42rpx; font-weight: 700; }
-.hero-sub { font-size: 23rpx; opacity: .9; margin-top: 8rpx; }
+.deco { position: absolute; border-radius: 50%; background: rgba(255, 255, 255, .10); }
+.deco-1 { top: -100rpx; right: -80rpx; width: 300rpx; height: 300rpx; }
+.deco-2 { bottom: -120rpx; left: -60rpx; width: 240rpx; height: 240rpx; background: rgba(255, 255, 255, .07); }
+.hero-row { display: flex; align-items: center; justify-content: space-between; position: relative; z-index: 1; }
+.hero-name { font-size: $fs-2xl; font-weight: $fw-bold; }
+.hero-sub { font-size: $fs-sm; opacity: .92; margin-top: 8rpx; }
 .hero-coin {
-  background: rgba(255,255,255,.18);
-  border-radius: 16rpx; padding: 12rpx 20rpx; text-align: center;
+  background: rgba(255, 255, 255, .2);
+  border: 1rpx solid rgba(255, 255, 255, .28);
+  border-radius: $radius; padding: 12rpx 22rpx; text-align: center;
 }
-.hero-coin-num { display: block; font-size: 34rpx; font-weight: 700; }
-.hero-coin-unit { display: block; font-size: 20rpx; opacity: .9; }
-.hero-tags { margin-top: 20rpx; display: flex; gap: 12rpx; }
+.hero-coin-num { display: block; font-size: $fs-xl; font-weight: $fw-bold; }
+.hero-coin-unit { display: block; font-size: $fs-xs; opacity: .92; }
+.hero-tags { margin-top: 24rpx; display: flex; gap: 12rpx; position: relative; z-index: 1; }
 .tag {
-  background: rgba(255,255,255,.2);
-  border-radius: 30rpx; padding: 8rpx 20rpx; font-size: 22rpx;
+  background: rgba(255, 255, 255, .22);
+  border-radius: $radius-full; padding: 8rpx 20rpx; font-size: $fs-sm;
 }
-.tag.ghost { background: rgba(255,255,255,.1); }
+.tag.ghost { background: rgba(255, 255, 255, .12); }
 
+/* ===== 快捷入口 ===== */
 .quick {
-  display: flex; background: #fff; margin: -20rpx 20rpx 0;
-  border-radius: 16rpx; padding: 24rpx 0;
-  box-shadow: 0 4rpx 16rpx rgba(0,0,0,.06);
+  display: flex; background: $surface; margin: -24rpx 20rpx 0;
+  border-radius: $radius-lg; padding: 28rpx 0;
+  box-shadow: $shadow; position: relative; z-index: 2;
 }
-.quick-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8rpx; }
-.quick-ico { font-size: 40rpx; }
-.quick-txt { font-size: 22rpx; color: #555; }
+.quick-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 12rpx; }
+.quick-ico {
+  width: 88rpx; height: 88rpx; border-radius: 28rpx;
+  background: $brand-50; display: flex; align-items: center; justify-content: center;
+}
+.quick-ico text { font-size: 44rpx; line-height: 1; }
+.quick-txt { font-size: $fs-sm; color: $ink-700; font-weight: $fw-medium; }
 
+/* ===== 省钱账单 ===== */
+.savings {
+  display: flex; align-items: center; justify-content: space-between;
+  margin: 24rpx 20rpx 0; padding: 28rpx 32rpx;
+  background: $dark-grad; border-radius: $radius-lg; color: #fff;
+  box-shadow: $shadow-lg;
+}
+.savings-left { display: flex; flex-direction: column; }
+.savings-label { font-size: $fs-sm; color: rgba(255, 255, 255, .75); }
+.savings-num { font-size: $fs-4xl; font-weight: $fw-black; margin-top: 6rpx; color: #FFD6A8; }
+.savings-num .rmb { font-size: $fs-lg; font-weight: $fw-bold; margin-right: 4rpx; }
+.savings-sub { font-size: $fs-sm; color: rgba(255, 255, 255, .6); margin-top: 6rpx; }
+.savings-arrow { font-size: $fs-md; color: rgba(255, 255, 255, .85); }
+
+/* ===== 卡片 ===== */
 .card {
-  background: #fff; margin: 20rpx; border-radius: 16rpx;
-  padding: 24rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,.04);
+  background: $surface; margin: 24rpx 20rpx 0; border-radius: $radius-lg;
+  padding: 24rpx; box-shadow: $shadow-sm;
 }
 .card-head {
   display: flex; align-items: baseline; justify-content: space-between;
-  padding-bottom: 14rpx; border-bottom: 1rpx solid #f5f5f5;
+  padding-bottom: 14rpx; border-bottom: 1rpx solid $ink-100; margin-bottom: 4rpx;
 }
-.card-title { font-size: 28rpx; font-weight: 600; color: #333; }
-.card-sub { font-size: 22rpx; color: #999; }
+.card-title { font-size: $fs-md; font-weight: $fw-semibold; color: $ink-900; }
+.card-sub { font-size: $fs-sm; color: $ink-400; }
 
-.ls-item { display: flex; align-items: center; flex-wrap: wrap; gap: 10rpx; padding: 16rpx 0; border-bottom: 1rpx solid #faf7f4; }
-.ls-name { font-size: 28rpx; color: #333; font-weight: 500; }
-.ls-num { font-size: 26rpx; color: #ff6b35; font-weight: 700; }
-.ls-tip { font-size: 22rpx; color: #aaa; width: 100%; }
+.ls-item { display: flex; align-items: center; flex-wrap: wrap; gap: 10rpx; padding: 16rpx 0; border-bottom: 1rpx solid $ink-50; }
+.ls-name { font-size: $fs-md; color: $ink-900; font-weight: $fw-medium; }
+.ls-num { font-size: $fs-base; color: $brand; font-weight: $fw-bold; }
+.ls-tip { font-size: $fs-sm; color: $ink-400; width: 100%; }
 
 .fc-item, .sr-item {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 18rpx 0; border-bottom: 1rpx solid #faf7f4; gap: 16rpx;
+  padding: 18rpx 0; border-bottom: 1rpx solid $ink-50; gap: 16rpx;
 }
-.fc-name, .sr-name { font-size: 28rpx; color: #333; }
-.fc-qty, .sr-qty { font-size: 26rpx; color: #ff6b35; font-weight: 600; }
+.fc-name, .sr-name { font-size: $fs-md; color: $ink-900; }
+.fc-qty, .sr-qty { font-size: $fs-base; color: $brand; font-weight: $fw-semibold; }
 .sr-main { flex: 1; display: flex; flex-direction: column; }
-.sr-reason { font-size: 22rpx; color: #999; margin-top: 4rpx; }
+.sr-reason { font-size: $fs-sm; color: $ink-400; margin-top: 4rpx; }
 
 .locked { position: relative; }
 .locked-mask {
-  background: #fff7f0; border: 1rpx dashed #ffd4b8; border-radius: 12rpx;
+  background: $brand-50; border: 1rpx dashed $brand-400; border-radius: $radius;
   padding: 20rpx; display: flex; flex-direction: column; gap: 6rpx;
 }
-.locked-title { font-size: 26rpx; color: #333; font-weight: 600; }
-.locked-desc { font-size: 22rpx; color: #999; }
+.locked-title { font-size: $fs-base; color: $ink-900; font-weight: $fw-semibold; }
+.locked-desc { font-size: $fs-sm; color: $ink-400; }
 .locked-preview { filter: blur(3rpx); opacity: .6; pointer-events: none; margin-top: 8rpx; }
 
 .btn {
   margin-top: 20rpx;
-  background: #ff6b35; color: #fff; border-radius: 40rpx;
-  font-size: 28rpx; height: 76rpx; line-height: 76rpx;
+  background: $brand-grad; color: #fff; border-radius: $radius-full;
+  font-size: $fs-md; font-weight: $fw-semibold; height: 76rpx; line-height: 76rpx;
+  box-shadow: $shadow-brand;
 }
-.btn.ghost { background: #fff2ea; color: #ff6b35; }
-.empty { padding: 30rpx 0; text-align: center; font-size: 24rpx; color: #aaa; }
-.foot-tip { text-align: center; font-size: 22rpx; color: #bbb; margin-top: 10rpx; }
+.btn.ghost { background: $brand-50; color: $brand; box-shadow: none; }
+.empty { padding: 30rpx 0; text-align: center; font-size: $fs-base; color: $ink-400; }
+.foot-tip { text-align: center; font-size: $fs-sm; color: $ink-300; margin-top: 10rpx; }
 button::after { border: none; }
 
 @media (prefers-color-scheme: dark) {
   .page { background: #121212; }
   .card, .quick { background: #1e1e1e; box-shadow: none; }
+  .quick-ico { background: #2a2a2a; }
   .card-head, .ls-item, .fc-item, .sr-item { border-color: #2a2a2a; }
   .card-title, .ls-name, .fc-name, .sr-name { color: #e6e6e6; }
   .quick-txt { color: #bbb; }

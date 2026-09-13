@@ -9,7 +9,7 @@
     <view class="card">
       <view class="card-title">门店经营（扫码点餐）</view>
       <view class="nav" v-for="n in navs" :key="n.url" @tap="go(n.url)">
-        <text class="nav-ico">{{ n.ico }}</text>
+        <view class="nav-ico"><text>{{ n.ico }}</text></view>
         <view class="nav-txt">
           <text class="nav-label">{{ n.label }}</text>
           <text class="nav-desc">{{ n.desc }}</text>
@@ -135,59 +135,65 @@ onLoad(() => {
 <style lang="scss" scoped>
 .page {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: $ink-50;
   padding-bottom: 180rpx;
 }
 
 .hero {
-  background: linear-gradient(135deg, #ff6b35, #ff8a5c);
+  background: $brand-grad;
   color: #fff;
   padding: 50rpx 32rpx 60rpx;
 }
-.hero-name { font-size: 44rpx; font-weight: 700; }
-.hero-sub { font-size: 24rpx; opacity: .9; margin-top: 10rpx; }
+.hero-name { font-size: $fs-2xl; font-weight: $fw-bold; }
+.hero-sub { font-size: $fs-sm; opacity: .9; margin-top: 10rpx; }
 
 .card {
-  background: #fff;
+  background: $surface;
   margin: 20rpx;
-  border-radius: 16rpx;
+  border-radius: $radius-lg;
   padding: 8rpx 24rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0,0,0,.04);
+  box-shadow: $shadow-sm;
 }
 .card-title {
-  font-size: 26rpx; color: #ff6b35; font-weight: 600;
-  padding: 20rpx 0 8rpx; border-bottom: 1rpx solid #f5f5f5;
+  font-size: $fs-base; color: $brand; font-weight: $fw-semibold;
+  padding: 20rpx 0 8rpx; border-bottom: 1rpx solid $ink-100;
 }
 
 .nav {
   display: flex; align-items: center; gap: 18rpx;
-  padding: 26rpx 0; border-bottom: 1rpx solid #f5f5f5;
+  padding: 26rpx 0; border-bottom: 1rpx solid $ink-50;
 }
 .nav:last-child { border-bottom: 0; }
-.nav-ico { font-size: 40rpx; }
+.nav-ico {
+  width: 72rpx; height: 72rpx; border-radius: 22rpx;
+  background: $brand-50; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.nav-ico text { font-size: 36rpx; line-height: 1; }
 .nav-txt { flex: 1; display: flex; flex-direction: column; }
-.nav-label { font-size: 30rpx; color: #333; font-weight: 500; }
-.nav-desc { font-size: 22rpx; color: #999; margin-top: 4rpx; }
-.nav-arrow { font-size: 40rpx; color: #ccc; }
+.nav-label { font-size: $fs-lg; color: $ink-900; font-weight: $fw-medium; }
+.nav-desc { font-size: $fs-sm; color: $ink-400; margin-top: 4rpx; }
+.nav-arrow { font-size: 40rpx; color: $ink-200; }
 
 .row {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 24rpx 0; border-bottom: 1rpx solid #f5f5f5; gap: 20rpx;
+  padding: 24rpx 0; border-bottom: 1rpx solid $ink-50; gap: 20rpx;
 }
 .row:last-child { border-bottom: 0; }
 .label-wrap { flex: 1; display: flex; flex-direction: column; }
-.label { font-size: 28rpx; color: #333; }
-.desc { font-size: 22rpx; color: #999; margin-top: 6rpx; }
-.input { flex: 1; text-align: right; font-size: 28rpx; color: #333; max-width: 360rpx; }
+.label { font-size: $fs-md; color: $ink-900; }
+.desc { font-size: $fs-sm; color: $ink-400; margin-top: 6rpx; }
+.input { flex: 1; text-align: right; font-size: $fs-md; color: $ink-900; max-width: 360rpx; }
 
 .footer {
   position: fixed; left: 0; right: 0; bottom: 0;
   padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
-  background: #fff; box-shadow: 0 -2rpx 12rpx rgba(0,0,0,.06);
+  background: $surface; box-shadow: $shadow;
 }
 .save {
-  background: #ff6b35; color: #fff; border-radius: 40rpx;
-  font-size: 30rpx; height: 80rpx; line-height: 80rpx;
+  background: $brand-grad; color: #fff; border-radius: $radius-full;
+  font-size: $fs-lg; font-weight: $fw-semibold; height: 80rpx; line-height: 80rpx;
+  box-shadow: $shadow-brand;
 }
 button::after { border: none; }
 
@@ -197,6 +203,7 @@ button::after { border: none; }
   .card { background: #1e1e1e; box-shadow: none; }
   .row, .nav { border-color: #2a2a2a; }
   .card-title { border-color: #2a2a2a; }
+  .nav-ico { background: #2a2a2a; }
   .label, .nav-label { color: #e6e6e6; }
   .input { color: #e6e6e6; }
   .footer { background: #1e1e1e; }

@@ -1,5 +1,8 @@
 const mongoose = require('mongoose');
 
+// ============ 【已废弃】RebateSettlement 月度返点结算单 ============
+// 返点体系已随「加价分销 + 云分账」改造下线，不再生成/读取，仅保留结构兼容历史数据。
+
 // 月度结算的分品类明细
 const settlementDetailSchema = new mongoose.Schema({
   category: {

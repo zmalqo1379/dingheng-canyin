@@ -1079,12 +1079,17 @@
       </div>
       <!-- 手机号与积分（商家开通顾客积分时显示） -->
       <div class="ck-card" id="ckPointCard" style="display:none;">
-        <div class="ck-card-title">📱 手机号与积分</div>
+        <div class="ck-card-title">📱 手机号（积分 · 储值）</div>
         <input id="ckPhone" class="ck-input" type="tel" inputmode="numeric" maxlength="11" autocomplete="tel" placeholder="填写手机号，消费自动攒积分（选填）">
         <div class="ck-earn-row" id="ckEarnRow" style="display:none;">🎁 本单可得 <b id="ckEarnVal">0</b> 积分</div>
         <label class="ck-use-points" id="ckUsePointsRow" style="display:none;">
           <input type="checkbox" id="ckUsePoints">
           <span>使用 <b id="ckUsePtsVal">0</b> 积分抵 <b id="ckUseAmtVal">¥0</b></span>
+        </label>
+        <div class="ck-earn-row" id="ckSvBalRow" style="display:none;">💰 会员储值余额 <b id="ckSvBalVal">¥0</b></div>
+        <label class="ck-use-points" id="ckUseStoredRow" style="display:none;">
+          <input type="checkbox" id="ckUseStored">
+          <span>使用储值抵扣 <b id="ckSvUseAmt">¥0</b></span>
         </label>
         <div class="ck-hint" id="ckPhoneHint">下次光临填同一手机号，积分自动累积</div>
       </div>

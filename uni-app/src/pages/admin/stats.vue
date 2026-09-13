@@ -103,26 +103,26 @@ onPullDownRefresh(() => {
 <style lang="scss" scoped>
 .page {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: $ink-50;
   padding-bottom: 180rpx;
 }
 
 .hero {
-  background: linear-gradient(135deg, #ff6b35, #ff8a5c);
+  background: $brand-grad;
   color: #fff;
   padding: 50rpx 32rpx 0;
 }
-.hero-title { font-size: 44rpx; font-weight: 700; }
-.hero-sub { font-size: 24rpx; opacity: .9; margin-top: 8rpx; }
+.hero-title { font-size: $fs-2xl; font-weight: $fw-bold; }
+.hero-sub { font-size: $fs-sm; opacity: .9; margin-top: 8rpx; }
 
 .amount {
-  background: linear-gradient(135deg, #ff6b35, #ff8a5c);
+  background: $brand-grad;
   color: #fff;
   padding: 20rpx 32rpx 60rpx;
 }
-.amount-label { font-size: 24rpx; opacity: .9; }
-.amount-val { font-size: 64rpx; font-weight: 700; margin: 10rpx 0; }
-.amount-tip { font-size: 22rpx; opacity: .85; }
+.amount-label { font-size: $fs-sm; opacity: .9; }
+.amount-val { font-size: $fs-4xl; font-weight: $fw-bold; margin: 10rpx 0; }
+.amount-tip { font-size: $fs-sm; opacity: .85; }
 
 .grid {
   display: flex; flex-wrap: wrap; margin: -40rpx 20rpx 0;
@@ -132,37 +132,38 @@ onPullDownRefresh(() => {
   width: 50%; box-sizing: border-box; padding: 10rpx;
 }
 .grid-item .num {
-  background: #fff; border-radius: 16rpx; padding: 30rpx; box-sizing: border-box;
-  font-size: 40rpx; font-weight: 700; color: #ff6b35; text-align: center;
-  box-shadow: 0 2rpx 12rpx rgba(0,0,0,.04);
+  background: $surface; border-radius: $radius-lg; padding: 30rpx; box-sizing: border-box;
+  font-size: $fs-2xl; font-weight: $fw-bold; color: $brand; text-align: center;
+  box-shadow: $shadow-sm;
 }
-.grid-item .num.warn { color: #ff9800; }
-.grid-item .num.ok { color: #4caf50; }
-.grid-item .lbl { text-align: center; font-size: 24rpx; color: #999; margin-top: 12rpx; }
+.grid-item .num.warn { color: $warning; }
+.grid-item .num.ok { color: $success; }
+.grid-item .lbl { text-align: center; font-size: $fs-sm; color: $ink-400; margin-top: 12rpx; }
 
 .card {
-  background: #fff; margin: 20rpx; border-radius: 16rpx; padding: 24rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0,0,0,.04);
+  background: $surface; margin: 20rpx; border-radius: $radius-lg; padding: 24rpx;
+  box-shadow: $shadow-sm;
 }
-.card-title { font-size: 28rpx; font-weight: 600; color: #333; margin-bottom: 24rpx; }
+.card-title { font-size: $fs-md; font-weight: $fw-semibold; color: $ink-900; margin-bottom: 24rpx; }
 
 .bar-wrap { display: flex; justify-content: space-around; align-items: flex-end; height: 280rpx; }
 .bar-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
-.bar { width: 80rpx; border-radius: 12rpx 12rpx 0 0; }
-.bar-warn { background: #ff9800; }
-.bar-ok { background: #4caf50; }
-.bar-lbl { font-size: 22rpx; color: #999; margin-top: 12rpx; }
+.bar { width: 80rpx; border-radius: $radius $radius 0 0; }
+.bar-warn { background: $warning; }
+.bar-ok { background: $success; }
+.bar-lbl { font-size: $fs-sm; color: $ink-400; margin-top: 12rpx; }
 
-.tip { text-align: center; font-size: 22rpx; color: #bbb; padding: 10rpx 0; }
+.tip { text-align: center; font-size: $fs-sm; color: $ink-300; padding: 10rpx 0; }
 
 .footer {
   position: fixed; left: 0; right: 0; bottom: 0;
   padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
-  background: #fff; box-shadow: 0 -2rpx 12rpx rgba(0,0,0,.06);
+  background: $surface; box-shadow: $shadow;
 }
 .refresh {
-  background: #ff6b35; color: #fff; border-radius: 40rpx;
-  font-size: 30rpx; height: 80rpx; line-height: 80rpx;
+  background: $brand-grad; color: #fff; border-radius: $radius-full;
+  font-size: $fs-lg; font-weight: $fw-semibold; height: 80rpx; line-height: 80rpx;
+  box-shadow: $shadow-brand;
 }
 button::after { border: none; }
 

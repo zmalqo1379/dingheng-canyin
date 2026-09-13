@@ -3,10 +3,9 @@ const router = express.Router();
 
 const Supplier = require('../models/Supplier');
 const PurchaseOrder = require('../models/PurchaseOrder');
-const RebateSettlement = require('../models/RebateSettlement');
 const SupplyProduct = require('../models/SupplyProduct');
 const PlatformConfig = require('../models/PlatformConfig');
-const rebate = require('../utils/rebate');
+const split = require('../utils/split');
 const { requireSupplier } = require('../middlewares/auth');
 
 // 所有供应商接口均需供应商身份鉴权
@@ -14,7 +13,7 @@ router.use(requireSupplier);
 
 // 《供应商入驻合作协议》当前版本号（与前端 supplier-dashboard.html AGM_VERSION 保持一致；
 // 协议文本修改时必须同步升版，签署证据按版本存档以便追溯）
-const AGREEMENT_VERSION = 'DH-GYS-2026-V1';
+const AGREEMENT_VERSION = 'DH-GYS-2026-V2';
 
 // 提取签署来源 IP（兼容反向代理 x-forwarded-for）
 function clientIp(req) {
@@ -67,8 +66,9 @@ router.get('/profile', async (req, res) => {
           reviewedAt: qual.reviewedAt || null,
           rejectReason: qual.rejectReason || ''
         },
-        // 甲方（平台）营业执照全称（协议页甲乙双方信息栏用，开发者后台系统设置维护）
-        platformCompanyName: platformCfg.platformCompanyName || ''
+        // 甲方（平台）营业执照全称 + 统一社会信用代码（协议页甲乙双方信息栏用，开发者后台系统设置维护）
+        platformCompanyName: platformCfg.platformCompanyName || '',
+        platformCreditCode: platformCfg.platformCreditCode || ''
       }
     });
   } catch (err) {
@@ -256,13 +256,18 @@ router.get('/stats', async (req, res) => {
 // ============ 通知设置读取 ============
 async function getSettingsHandler(req, res) {
   try {
-    const supplier = await Supplier.findById(req.user.supplierId).select('notificationSettings name');
+    const supplier = await Supplier.findById(req.user.supplierId).select('notificationSettings name deliveryNotice');
     if (!supplier) {
       return res.status(404).json({ success: false, message: '供应商不存在' });
     }
     res.json({
       success: true,
-      data: supplier.notificationSettings || { popup: true, sms: false, voice: false }
+      data: {
+        popup: !!(supplier.notificationSettings && supplier.notificationSettings.popup !== false),
+        sms: !!(supplier.notificationSettings && supplier.notificationSettings.sms),
+        voice: !!(supplier.notificationSettings && supplier.notificationSettings.voice),
+        deliveryNotice: supplier.deliveryNotice || ''
+      }
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -270,15 +275,19 @@ async function getSettingsHandler(req, res) {
 }
 
 // ============ 通知设置保存 ============
-// 仅保存开关状态，暂不接入真实短信/语音
+// 保存提醒开关 + 配送时段公告；暂不接入真实短信/语音
 async function saveSettingsHandler(req, res) {
   try {
     const toBool = (v) => v === true || v === 'true';
-    const { popup, sms, voice } = req.body || {};
+    const { popup, sms, voice, deliveryNotice } = req.body || {};
     const update = {};
     if (popup !== undefined) update['notificationSettings.popup'] = toBool(popup);
     if (sms !== undefined) update['notificationSettings.sms'] = toBool(sms);
     if (voice !== undefined) update['notificationSettings.voice'] = toBool(voice);
+    // 配送时段公告：限长 500 字符，超长截断；空字符串允许（清空公告）
+    if (deliveryNotice !== undefined) {
+      update.deliveryNotice = String(deliveryNotice).slice(0, 500).trim();
+    }
     // 保存过提醒设置即视为完成新手任务"设置新订单提醒"
     update.onboardNotifySet = true;
 
@@ -286,11 +295,19 @@ async function saveSettingsHandler(req, res) {
       req.user.supplierId,
       { $set: update },
       { new: true }
-    ).select('notificationSettings name');
+    ).select('notificationSettings name deliveryNotice');
     if (!supplier) {
       return res.status(404).json({ success: false, message: '供应商不存在' });
     }
-    res.json({ success: true, data: supplier.notificationSettings });
+    res.json({
+      success: true,
+      data: {
+        popup: !!(supplier.notificationSettings && supplier.notificationSettings.popup !== false),
+        sms: !!(supplier.notificationSettings && supplier.notificationSettings.sms),
+        voice: !!(supplier.notificationSettings && supplier.notificationSettings.voice),
+        deliveryNotice: supplier.deliveryNotice || ''
+      }
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -304,76 +321,52 @@ router.get('/settings', getSettingsHandler);
 router.put('/settings', saveSettingsHandler);
 router.patch('/settings', saveSettingsHandler);
 
-// ============ GET /api/supplier/settle 合作结算与月度对账 ============
-// 供应商自有返点中心：本月累计采购额（已完成订单）/ 分品类明细 / 当前档位与返点率
-// （读取平台配置的 RebateRule）/ 本月应付平台返点（按阶梯规则实时计算）/ 历史月度结算记录
-// 全部数字实时计算（RebateRule + 订单数据），不写死任何费率
-router.get('/settle', async (req, res) => {
+// ============ GET /api/supplier/split 我的分账 ============
+// 加价分销（云分账）：供应商得「供货价」，平台得「差价」。返点体系已停用。
+// 金额口径：splitAmount（顾客实付）/ supplierShare（我实得）/ platformShare（平台服务费）/
+//          compensateAmount（过秤补差，正=补收，负=退款）；按确认收货时间归属月份。
+// 到账本质为微信 T+1 结算：下单即发起分账指令，不代表资金实时到账。
+router.get('/split', async (req, res) => {
   try {
     const supplierId = req.user.supplierId;
     const month = (req.query.month && /^\d{4}-\d{2}$/.test(req.query.month))
-      ? req.query.month : rebate.monthKeyOf(new Date());
+      ? req.query.month : split.monthKeyOf(new Date());
+    const { start, end } = split.monthRange(month);
 
-    // 本月分品类返点（实时预估口径：按当月已完成订单分品类累计额定档）
-    const calc = await rebate.calcSupplierMonthRebate(supplierId, month);
+    const orders = await PurchaseOrder.find({
+      supplierId,
+      status: '已完成',
+      receiveAt: { $gte: start, $lt: end }
+    }).sort({ receiveAt: -1 }).lean();
 
-    // 当前所在档位 / 当前返点率：按「全部」通用规则 + 本月采购总额定档
-    const generalRule = await rebate.getEffectiveRule(supplierId, rebate.ALL_CATEGORY);
-    const tierInfo = rebate.calcRebate(generalRule, calc.totalPurchase);
-
-    // 历史月度结算记录
-    const history = await RebateSettlement.find({ supplierId })
-      .sort({ month: -1, settledAt: -1 })
-      .lean();
+    const summary = orders.reduce((acc, o) => {
+      acc.orderCount += 1;
+      acc.splitAmount += Number(o.splitAmount) || 0;
+      acc.supplierShare += Number(o.supplierShare) || 0;
+      acc.platformShare += Number(o.platformShare) || 0;
+      acc.compensateAmount += Number(o.compensateAmount) || 0;
+      return acc;
+    }, { orderCount: 0, splitAmount: 0, supplierShare: 0, platformShare: 0, compensateAmount: 0 });
+    ['splitAmount', 'supplierShare', 'platformShare', 'compensateAmount'].forEach(k => {
+      summary[k] = +summary[k].toFixed(2);
+    });
 
     res.json({
       success: true,
       data: {
         month,
-        supplierId,
-        // 返点模式：unified=统一全品类阶梯 / byCategory=按品类分类阶梯
-        rebateMode: calc.rebateMode || 'unified',
-        totalPurchase: calc.totalPurchase,       // 本月累计订单金额（已完成订单）
-        totalRebate: calc.totalRebate,           // 本月合作服务费（按阶梯规则实时计算）
-        orderCount: calc.orderCount,
-        categories: calc.categories,             // 采购明细（统一模式一条「全部」；分类模式分品类，含 marginType）
-        // 分类模式公示阶梯（低/中/高毛利三档）；统一模式为 null（前端用 defaultLadder）
-        categoryLadders: calc.rebateMode === 'byCategory' ? {
-          lowMargin: rebate.DEFAULT_TIERS_BY_CATEGORY.lowMargin.map(t => ({ minAmount: t.minAmount, rate: t.rate, mode: t.mode })),
-          midMargin: rebate.DEFAULT_TIERS_BY_CATEGORY.midMargin.map(t => ({ minAmount: t.minAmount, rate: t.rate, mode: t.mode })),
-          highMargin: rebate.DEFAULT_TIERS_BY_CATEGORY.highMargin.map(t => ({ minAmount: t.minAmount, rate: t.rate, mode: t.mode }))
-        } : null,
-        currentTier: {                           // 当前所在返点档位、当前返点率
-          hasRule: tierInfo.hasRule,
-          tierMinAmount: tierInfo.tierMinAmount,
-          tierRate: tierInfo.tierRate,
-          mode: tierInfo.mode,
-          rate: tierInfo.rate,                   // 综合费率（返点/采购额）
-          nextTierMinAmount: tierInfo.nextTierMinAmount,
-          gapToNext: tierInfo.gapToNext,
-          gainToNext: tierInfo.gainToNext,
-          tiers: tierInfo.tiers
-        },
-        // 平台公示的默认阶梯返点表（无专属规则时按此执行，《平台合作规则》区块展示用）
-        defaultLadder: rebate.DEFAULT_TIERS.map(t => ({
-          minAmount: t.minAmount,
-          rate: t.rate,
-          mode: t.mode
-        })),
-        // 当前供应商是否走默认阶梯（无专属 RebateRule）
-        usingDefaultLadder: !tierInfo.hasRule,
-        history: history.map(h => ({
-          month: h.month,
-          rebateMode: h.rebateMode === 'byCategory' ? 'byCategory' : 'unified',
-          totalPurchaseAmount: h.totalPurchaseAmount,
-          totalRebateAmount: h.totalRebateAmount,
-          settledAt: h.settledAt,
-          status: rebate.normalizeSettlementStatus(h.status),
-          confirmedAt: h.confirmedAt || null,
-          paidAt: h.paidAt || null,
-          overdue: rebate.isSettlementOverdue(h),
-          // details 含 marginType（unified/lowMargin/midMargin/highMargin），历史数据默认 unified
-          details: (h.details || []).map(d => ({ ...d, marginType: d.marginType || 'unified' }))
+        summary,
+        records: orders.map(o => ({
+          _id: o._id,
+          orderNo: o.orderNo,
+          shopName: o.shopName || '',
+          splitAmount: Number(o.splitAmount) || 0,
+          supplierShare: Number(o.supplierShare) || 0,
+          platformShare: Number(o.platformShare) || 0,
+          compensateAmount: Number(o.compensateAmount) || 0,
+          splitStatus: o.splitStatus || '待分账',
+          splitNo: o.splitNo || '',
+          receiveAt: o.receiveAt
         }))
       }
     });

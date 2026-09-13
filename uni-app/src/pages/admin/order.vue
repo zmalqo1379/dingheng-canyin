@@ -157,34 +157,34 @@ onPullDownRefresh(() => load(true).finally(() => uni.stopPullDownRefresh()));
   display: flex; align-items: center; background: #1f1f1f; padding: 16rpx 20rpx;
   border-bottom: 1rpx solid #2a2a2a; position: sticky; top: 0; z-index: 5; gap: 12rpx;
 }
-.ktab { padding: 10rpx 28rpx; font-size: 26rpx; color: #888; border-radius: 30rpx; background: #2a2a2a; }
-.ktab.on { background: #ff6b35; color: #fff; }
-.voice { margin-left: auto; display: flex; align-items: center; gap: 8rpx; font-size: 22rpx; color: #aaa; }
+.ktab { padding: 10rpx 28rpx; font-size: $fs-base; color: #888; border-radius: $radius-full; background: #2a2a2a; }
+.ktab.on { background: $brand-grad; color: #fff; }
+.voice { margin-left: auto; display: flex; align-items: center; gap: 8rpx; font-size: $fs-sm; color: #aaa; }
 .voice .ic { font-size: 32rpx; }
 
 .olist { flex: 1; padding: 20rpx; }
 .ocard {
-  background: #1e1e1e; border-radius: 16rpx; padding: 24rpx; margin-bottom: 20rpx;
+  background: #1e1e1e; border-radius: $radius-lg; padding: 24rpx; margin-bottom: 20rpx;
   border-left: 8rpx solid #333;
 }
-.ocard.new { border-left-color: #ff6b35; animation: blink 1.5s ease-in-out 3; }
+.ocard.new { border-left-color: $brand; animation: blink 1.5s ease-in-out 3; }
 @keyframes blink { 0%,100%{ box-shadow: 0 0 0 rgba(255,107,53,0);} 50%{ box-shadow: 0 0 24rpx rgba(255,107,53,.5);} }
 
 .ohead { display: flex; justify-content: space-between; align-items: center; }
-.otable { font-size: 32rpx; font-weight: 700; color: #fff; }
-.otime { font-size: 24rpx; color: #888; }
+.otable { font-size: $fs-xl; font-weight: $fw-bold; color: #fff; }
+.otime { font-size: $fs-sm; color: #888; }
 
 .oitems { margin-top: 16rpx; border-top: 1rpx solid #2a2a2a; padding-top: 12rpx; }
 .oitem { display: flex; align-items: center; padding: 10rpx 0; }
-.oiname { flex: 1; font-size: 28rpx; color: #e6e6e6; }
-.oqty { width: 80rpx; text-align: center; color: #ff8a5c; font-size: 26rpx; }
-.oprice { width: 140rpx; text-align: right; color: #999; font-size: 26rpx; }
+.oiname { flex: 1; font-size: $fs-md; color: #e6e6e6; }
+.oqty { width: 80rpx; text-align: center; color: $brand-500; font-size: $fs-base; }
+.oprice { width: 140rpx; text-align: right; color: #999; font-size: $fs-base; }
 
 .ofoot { display: flex; align-items: center; justify-content: space-between; margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx solid #2a2a2a; }
-.ototal { color: #ff6b35; font-size: 30rpx; font-weight: 700; }
-.obtn { background: #ff6b35; color: #fff; font-size: 26rpx; padding: 14rpx 32rpx; border-radius: 30rpx; }
+.ototal { color: $brand; font-size: $fs-lg; font-weight: $fw-bold; }
+.obtn { background: $brand-grad; color: #fff; font-size: $fs-base; padding: 14rpx 32rpx; border-radius: $radius-full; }
 .obtn.done { background: #3a3a3a; color: #888; }
 
 .empty { text-align: center; color: #555; padding: 100rpx 0; }
-.tip { text-align: center; font-size: 22rpx; color: #555; padding: 6rpx 0 20rpx; }
+.tip { text-align: center; font-size: $fs-sm; color: #555; padding: 6rpx 0 20rpx; }
 </style>

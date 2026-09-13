@@ -50,24 +50,30 @@ const supplierSchema = new mongoose.Schema({
     sms: { type: Boolean, default: false },
     voice: { type: Boolean, default: false }
   },
-  // 默认返点比例（0~1），用于采购订单完成时计算返点
+  // ============ 配送时段公告（供应商自定义配送规则说明，展示给商家端） ============
+  // 例："每日上午 7:00-9:30 统一配送，节假日顺延至次日"
+  // 商家在采购商城该供应商店铺页顶部与采购订单确认收货页可见
+  deliveryNotice: {
+    type: String,
+    default: '',
+    maxlength: 500,
+    trim: true
+  },
+  // 【已废弃】默认返点比例（0~1）：返点体系已停用，不再参与任何计算，仅保留字段兼容历史。
   rebateRate: {
     type: Number,
     default: 0,
     min: 0,
     max: 1
   },
-  // 返点模式（供应商全局策略开关，入驻时自选，默认统一阶梯）：
-  //   unified    = 统一全品类阶梯返点（DEFAULT_TIERS_UNIFIED，整单/整月累计额定档）
-  //   byCategory = 按品类分类阶梯返点（低/中/高毛利三档，DEFAULT_TIERS_BY_CATEGORY）
-  // 供应商专属 RebateRule 仍然优先于平台默认阶梯，rebateMode 仅决定无规则时的默认计法
+  // 【已废弃】返点模式：返点体系已停用，不再参与任何计算。
   rebateMode: {
     type: String,
     enum: ['unified', 'byCategory'],
     default: 'unified',
     required: true
   },
-  // 返点模式切换审计日志（开发者在供应商同意后切换时记录：who/when/from/to）
+  // 【已废弃】返点模式切换审计日志：返点体系已停用。
   rebateModeLogs: {
     type: [{
       by: { type: String, default: '' },        // 操作人（开发者账号/标识）
@@ -77,11 +83,18 @@ const supplierSchema = new mongoose.Schema({
     }],
     default: []
   },
-  // 应付给我的返点累计金额
+  // 【已废弃】应付给我的返点累计金额：返点体系已停用，供应商实得改由订单分账字段体现，不再回写此字段。
   balance: {
     type: Number,
     default: 0,
     min: 0
+  },
+  // ============ 微信支付服务商分账 ============
+  // 供应商在微信支付服务商下的特约商户号（分账接收方账号）；为空则无法作为分账接收方
+  wechatSubMchId: {
+    type: String,
+    default: '',
+    trim: true
   },
   // ============ 供应商治理体系字段 ============
   // 入驻审核状态：pending=待审核（默认，新注册）/ active=已通过 / frozen=已冻结 / rejected=已拒绝

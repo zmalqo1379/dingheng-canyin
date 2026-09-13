@@ -1,26 +1,104 @@
-/* uni.scss —— 全局 SCSS 变量，供各页面 @import 使用 */
+/* ============================================================
+   uni.scss —— 鼎恒餐饮小程序统一设计规范（Design Token）
+   说明：本文件由 uni-app 自动注入到每个 <style lang="scss">，
+        页面内可直接引用这些变量（如 color: $brand）。
+   命名约定：颜色用语义化前缀（brand/ink/success/warning/danger），
+        字号 $fs-*、字重 $fw-*、圆角 $radius-*、阴影 $shadow-*、间距 $sp-*。
+   ============================================================ */
 
-/* 主题色 */
-$uni-color-primary: #FF6B35;          // 主色（橙色）
-$uni-color-primary-light: #FF8A5C;   // 主色-浅
-$uni-color-primary-dark: #E0521C;     // 主色-深
-$uni-color-success: #4CAF50;
-$uni-color-warning: #FFB300;
-$uni-color-error: #F44336;
+/* ===== 品牌色（餐饮橙，延续品牌，升级为更克制的梯度） ===== */
+$brand:        #FF6B35;   // 主色
+$brand-600:    #F2541E;   // 主色-深（按压/强调）
+$brand-500:    #FF7A4D;   // 主色-浅（渐变过渡）
+$brand-400:    #FF9A73;   // 主色-更浅
+$brand-100:    #FFF1EA;   // 主色浅底（标签/选中底）
+$brand-50:     #FFF8F4;   // 主色超浅底
+$brand-grad:   linear-gradient(135deg, #FF6B35 0%, #FF7A4D 100%);
 
-/* 文字色 */
-$uni-text-color: #333333;
-$uni-text-color-grey: #888888;
-$uni-text-color-inverse: #ffffff;
+/* ===== 中性色阶（文字 / 背景 / 边框） ===== */
+$ink-900:      #1A1A1A;   // 一级文字
+$ink-700:      #3D3D3D;   // 二级文字
+$ink-500:      #7A7A7A;   // 辅助文字
+$ink-400:      #9B9B9B;   // 占位/弱提示
+$ink-300:      #B5B5B5;   // 禁用
+$ink-200:      #E5E5E5;   // 边框
+$ink-100:      #F0F0F0;   // 分隔线
+$ink-50:       #F7F7F8;   // 页面背景
+$surface:      #FFFFFF;   // 卡片/浮层
 
-/* 背景色 */
-$uni-bg-color: #f5f5f5;
-$uni-bg-color-grey: #f8f8f8;
+/* ===== 深色面（会员卡 / hero 高级感对比） ===== */
+$dark:         #1B1B1F;   // 深色卡面
+$dark-2:       #26262B;   // 深色卡面-浅一档
+$dark-grad:    linear-gradient(135deg, #1B1B1F 0%, #2B2B31 55%, #FF6B35 160%);
 
-/* 边框 */
-$uni-border-color: #eaeaea;
+/* ===== 语义色 ===== */
+$success:      #16A34A;
+$success-bg:   #EAF7EF;
+$warning:      #F59E0B;
+$warning-bg:   #FEF6E7;
+$danger:       #EF4444;
+$danger-bg:    #FDEEEE;
+$info:         #3B82F6;
 
-/* 圆角 */
-$uni-border-radius-sm: 8rpx;
-$uni-border-radius: 12rpx;
-$uni-border-radius-lg: 20rpx;
+/* ===== 字号阶梯 ===== */
+$fs-xs:        20rpx;
+$fs-sm:        22rpx;
+$fs-base:      26rpx;
+$fs-md:        28rpx;
+$fs-lg:        30rpx;
+$fs-xl:        34rpx;
+$fs-2xl:       40rpx;
+$fs-3xl:       48rpx;
+$fs-4xl:       60rpx;
+
+/* ===== 字重 ===== */
+$fw-regular:   400;
+$fw-medium:    500;
+$fw-semibold:  600;
+$fw-bold:      700;
+$fw-black:     800;
+
+/* ===== 圆角 ===== */
+$radius-sm:    8rpx;
+$radius:       16rpx;
+$radius-lg:    24rpx;
+$radius-xl:    32rpx;
+$radius-full:  999rpx;
+
+/* ===== 阴影 ===== */
+$shadow-sm:    0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+$shadow:       0 6rpx 20rpx rgba(0, 0, 0, 0.06);
+$shadow-lg:    0 12rpx 32rpx rgba(0, 0, 0, 0.08);
+$shadow-brand: 0 8rpx 24rpx rgba(255, 107, 53, 0.32);
+
+/* ===== 间距阶梯 ===== */
+$sp-1: 8rpx;
+$sp-2: 12rpx;
+$sp-3: 16rpx;
+$sp-4: 20rpx;
+$sp-5: 24rpx;
+$sp-6: 32rpx;
+$sp-7: 40rpx;
+$sp-8: 48rpx;
+$sp-9: 64rpx;
+
+/* ===== 兼容旧变量（uni-app 默认主题变量，保留引用） ===== */
+$uni-color-primary:         $brand;
+$uni-color-primary-light:   $brand-500;
+$uni-color-primary-dark:    $brand-600;
+$uni-color-success:         $success;
+$uni-color-warning:         $warning;
+$uni-color-error:           $danger;
+
+$uni-text-color:            $ink-900;
+$uni-text-color-grey:       $ink-500;
+$uni-text-color-inverse:    #ffffff;
+
+$uni-bg-color:              $ink-50;
+$uni-bg-color-grey:         $ink-50;
+
+$uni-border-color:          $ink-100;
+
+$uni-border-radius-sm:      $radius-sm;
+$uni-border-radius:         $radius;
+$uni-border-radius-lg:      $radius-lg;

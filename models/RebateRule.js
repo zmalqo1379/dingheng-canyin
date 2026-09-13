@@ -1,5 +1,9 @@
 const mongoose = require('mongoose');
 
+// ============ 【已废弃】RebateRule 返点规则 ============
+// 返点体系已随「加价分销 + 云分账」改造下线，本模型不再参与任何金额计算，仅保留结构兼容历史数据。
+// 平台收入现由采购订单的分账字段（platformShare）体现。
+
 // 返点档位：按月累计采购额确定命中档位
 const rebateTierSchema = new mongoose.Schema({
   // 该档门槛：月累计采购金额达到此值（元，含本数）即命中本档

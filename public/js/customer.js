@@ -16,6 +16,8 @@ let activeMarketing = []; // 当前生效的满减/折扣/充值送活动（/api
 let shopSetting = null;   // 店铺装修设置（含优惠海报 promoPoster / promoPosterSize）
 let pointCfg = { enabled: false, spendPerPoint: 0, deductEnabled: false, deductPoints: 100, maxPercent: 0, exchangeDishes: [] };
 let phonePoints = null; // 结算页手机号查询到的积分余额（null=未查询）
+let svCfg = { enabled: false }; // 该店是否启用顾客储值（存在有余额的储值账户）
+let phoneStoredBalance = null;  // 结算页手机号查询到的储值余额（null=未查询）
 
 const $ = (id) => document.getElementById(id);
 
@@ -182,10 +184,11 @@ async function loadShopInfo() {
 async function loadData() {
   try {
     const qs = `shopId=${encodeURIComponent(SHOP_ID)}`;
-    const [catRes, dishRes, pointRes] = await Promise.all([
+    const [catRes, dishRes, pointRes, svRes] = await Promise.all([
       fetch(`/api/categories?${qs}`).then(r => r.json()),
       fetch(`/api/dishes?${qs}`).then(r => r.json()),
-      fetch(`/api/points/config?${qs}`).then(r => r.json()).catch(() => null)
+      fetch(`/api/points/config?${qs}`).then(r => r.json()).catch(() => null),
+      fetch(`/api/stored-value/public-config?${qs}`).then(r => r.json()).catch(() => null)
     ]);
     categories = (catRes && catRes.data) ? catRes.data : [];
     // 保留全部菜品（含售罄），由前端显示遮罩
@@ -196,6 +199,10 @@ async function loadData() {
     // 前端据此隐藏"可得X积分"小字、积分抵现选项、积分换菜入口等所有积分信息）
     if (pointRes && pointRes.success && pointRes.data) {
       pointCfg = Object.assign(pointCfg, pointRes.data);
+    }
+    // 顾客储值：该店存在有余额的储值账户时，结算页展示手机号/储值区块
+    if (svRes && svRes.success && svRes.data) {
+      svCfg = Object.assign(svCfg, svRes.data);
     }
     if (categories.length > 0 && !categories.some(c => c.name === currentCategory)) {
       currentCategory = categories[0].name;
@@ -716,30 +723,44 @@ function getPointDeduct(finalTotal) {
 // 按手机号查询积分余额（填满 11 位自动查）
 async function queryPhonePoints() {
   const phone = $('ckPhone').value.trim();
-  if (!/^1\d{10}$/.test(phone)) { phonePoints = null; return; }
+  if (!/^1\d{10}$/.test(phone)) { phonePoints = null; phoneStoredBalance = null; return; }
   try {
-    const res = await fetch('/api/points/query', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-shop-id': SHOP_ID },
-      body: JSON.stringify({ phone })
-    }).then(r => r.json());
-    phonePoints = (res.success && res.data) ? res.data.points : 0;
+    const [pRes, sRes] = await Promise.all([
+      fetch('/api/points/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-shop-id': SHOP_ID },
+        body: JSON.stringify({ phone })
+      }).then(r => r.json()),
+      svCfg.enabled
+        ? fetch(`/api/stored-value/account?phone=${encodeURIComponent(phone)}&shopId=${encodeURIComponent(SHOP_ID)}`).then(r => r.json()).catch(() => null)
+        : Promise.resolve(null)
+    ]);
+    phonePoints = (pRes.success && pRes.data) ? pRes.data.points : 0;
+    phoneStoredBalance = (sRes && sRes.success && sRes.data) ? (Number(sRes.data.balance) || 0) : 0;
   } catch (e) {
     phonePoints = null;
+    phoneStoredBalance = null;
   }
   renderPointSection();
 }
 
-// 渲染结算页积分区块（本单可得 / 使用积分抵现）
+// 储值可抵扣金额：不超过余额，也不超过订单剩余应付
+function getStoredDeduct(remaining) {
+  if (!svCfg.enabled || !(phoneStoredBalance > 0) || !(remaining > 0)) return { amount: 0 };
+  return { amount: Math.round(Math.min(phoneStoredBalance, remaining) * 100) / 100 };
+}
+
+// 渲染结算页积分/储值区块（手机号获取的积分与储值余额）
 function renderPointSection() {
   const card = $('ckPointCard');
   if (!card) return;
-  if (!pointCfg.enabled) { card.style.display = 'none'; return; }
+  // 积分或储值任一启用才展示手机号卡片
+  if (!pointCfg.enabled && !svCfg.enabled) { card.style.display = 'none'; return; }
   card.style.display = 'block';
   const calc = getCartCalc();
   // 本单可得积分（按优惠后实付预估）
   const earnRow = $('ckEarnRow');
-  if (pointCfg.spendPerPoint > 0) {
+  if (pointCfg.enabled && pointCfg.spendPerPoint > 0) {
     const earn = Math.floor(calc.finalTotal * pointCfg.spendPerPoint);
     earnRow.style.display = 'flex';
     $('ckEarnVal').textContent = earn;
@@ -748,7 +769,7 @@ function renderPointSection() {
   }
   // 使用积分抵现勾选行
   const useRow = $('ckUsePointsRow');
-  const deduct = getPointDeduct(calc.finalTotal);
+  const deduct = pointCfg.enabled ? getPointDeduct(calc.finalTotal) : { usable: 0, amount: 0 };
   if (deduct.usable > 0) {
     useRow.style.display = 'flex';
     $('ckUsePtsVal').textContent = deduct.usable;
@@ -757,6 +778,28 @@ function renderPointSection() {
     useRow.style.display = 'none';
     $('ckUsePoints').checked = false;
   }
+  // 储值余额与抵扣行
+  const svBalRow = $('ckSvBalRow');
+  const svUseRow = $('ckUseStoredRow');
+  const svBal = Number(phoneStoredBalance) || 0;
+  if (svCfg.enabled && svBal > 0) {
+    svBalRow.style.display = 'flex';
+    $('ckSvBalVal').textContent = '¥' + fmtMoney(svBal);
+    // 积分抵现后的剩余应付
+    const afterPoints = Math.max(0, calc.finalTotal - deduct.amount);
+    const sv = getStoredDeduct(afterPoints);
+    if (sv.amount > 0) {
+      svUseRow.style.display = 'flex';
+      $('ckSvUseAmt').textContent = '¥' + fmtMoney(sv.amount);
+    } else {
+      svUseRow.style.display = 'none';
+      $('ckUseStored').checked = false;
+    }
+  } else {
+    svBalRow.style.display = 'none';
+    svUseRow.style.display = 'none';
+    $('ckUseStored').checked = false;
+  }
   updateCheckoutTotal();
 }
 
@@ -764,13 +807,16 @@ function isValidPhoneInput() {
   return /^1\d{10}$/.test($('ckPhone').value.trim());
 }
 
-// 结算页总额实时更新（含积分抵现）
+// 结算页总额实时更新（含积分抵现 + 储值抵扣）
 function updateCheckoutTotal() {
   const calc = getCartCalc();
   const useDeduct = pointCfg.enabled && $('ckUsePoints').checked;
   const deduct = useDeduct ? getPointDeduct(calc.finalTotal) : { usable: 0, amount: 0 };
-  $('ckTotal').textContent = fmtMoney(Math.max(0, calc.finalTotal - deduct.amount));
-  renderDiscountCard(calc, useDeduct ? deduct : null);
+  const afterPoints = Math.max(0, calc.finalTotal - deduct.amount);
+  const useSv = svCfg.enabled && $('ckUseStored') && $('ckUseStored').checked;
+  const sv = useSv ? getStoredDeduct(afterPoints) : { amount: 0 };
+  $('ckTotal').textContent = fmtMoney(Math.max(0, afterPoints - sv.amount));
+  renderDiscountCard(calc, useDeduct ? deduct : null, sv.amount);
 }
 
 async function renderCheckout() {
@@ -814,18 +860,21 @@ async function renderCheckout() {
   // 手机号与积分区块：本地记忆自动带出
   $('ckPhone').value = localStorage.getItem(PHONE_KEY) || '';
   phonePoints = null;
+  phoneStoredBalance = null;
   $('ckUsePoints').checked = false;
+  $('ckUseStored').checked = false;
   renderPointSection();
   if (isValidPhoneInput()) queryPhonePoints();
 }
 
-function renderDiscountCard(calc, pointDeduct) {
+function renderDiscountCard(calc, pointDeduct, storedUsed) {
   const card = $('ckDiscountCard');
   const body = $('ckDiscountBody');
   if (!card || !body) return;
   const hasMkt = activeMarketing.length && calc.discountAmount > 0;
   const hasPoint = pointDeduct && pointDeduct.amount > 0;
-  if (!hasMkt && !hasPoint) {
+  const hasStored = Number(storedUsed) > 0;
+  if (!hasMkt && !hasPoint && !hasStored) {
     card.style.display = 'none';
     body.innerHTML = '';
     return;
@@ -846,7 +895,10 @@ function renderDiscountCard(calc, pointDeduct) {
   if (hasPoint) {
     rows.push(`<div class="ck-disc-row discount"><span>积分抵现（${pointDeduct.usable} 积分）</span><span class="ck-disc-val">-¥${fmtMoney(pointDeduct.amount)}</span></div>`);
   }
-  const useDeduct = pointDeduct ? pointDeduct.amount : 0;
+  if (hasStored) {
+    rows.push(`<div class="ck-disc-row discount"><span>储值抵扣</span><span class="ck-disc-val">-¥${fmtMoney(storedUsed)}</span></div>`);
+  }
+  const useDeduct = (pointDeduct ? pointDeduct.amount : 0) + (Number(storedUsed) || 0);
   rows.push(`<div class="ck-disc-row total"><span>实付</span><span class="ck-disc-val">¥${fmtMoney(Math.max(0, calc.finalTotal - useDeduct))}</span></div>`);
   body.innerHTML = rows.join('');
 }
@@ -883,6 +935,7 @@ $('ckSubmitBtn').onclick = async () => {
   // 积分参数：手机号有效才携带（选填）；勾选抵现才使用积分
   const phone = isValidPhoneInput() ? $('ckPhone').value.trim() : '';
   const usePoints = phone && pointCfg.enabled && $('ckUsePoints').checked;
+  const useStoredValue = phone && svCfg.enabled && $('ckUseStored').checked;
   const btn = $('ckSubmitBtn');
   btn.disabled = true;
   btn.textContent = '提交中…';
@@ -891,7 +944,7 @@ $('ckSubmitBtn').onclick = async () => {
     const res = await fetch('/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-shop-id': SHOP_ID },
-      body: JSON.stringify({ tableNumber, items, remark, phone, usePoints })
+      body: JSON.stringify({ tableNumber, items, remark, phone, usePoints, useStoredValue })
     }).then(r => r.json());
     if (res.success) {
       const orderData = res.data || {};
@@ -1068,10 +1121,12 @@ $('ckPhone').addEventListener('input', () => {
     queryPhonePoints();
   } else {
     phonePoints = null;
+    phoneStoredBalance = null;
     renderPointSection();
   }
 });
 $('ckUsePoints').addEventListener('change', updateCheckoutTotal);
+$('ckUseStored').addEventListener('change', updateCheckoutTotal);
 
 /* ---------- 事件绑定 ---------- */
 $('checkoutBtn').onclick = openCheckout;

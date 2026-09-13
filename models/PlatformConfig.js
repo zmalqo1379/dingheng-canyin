@@ -19,6 +19,20 @@ const platformConfigSchema = new mongoose.Schema({
   supplierTodoReadAt: {
     type: Date,
     default: null
+  },
+  // ============ 会员购卡 · 微信支付云分账（服务商分账） ============
+  // 默认分账供应商：会员费扣除平台抽佣后（默认 94%）分给该供应商
+  defaultSplitSupplierId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Supplier',
+    default: null
+  },
+  // 平台抽佣比例（百分比，默认 6），决定平台/供应商的分账金额拆分
+  membershipSplitRate: {
+    type: Number,
+    default: 6,
+    min: 0,
+    max: 100
   }
 }, { timestamps: true });
 
@@ -26,7 +40,14 @@ const platformConfigSchema = new mongoose.Schema({
 platformConfigSchema.statics.getSingleton = async function () {
   let doc = await this.findOne({ key: 'platform' }).lean();
   if (!doc) {
-    doc = { key: 'platform', platformCompanyName: '', supplierTodoReadAt: null };
+    doc = {
+      key: 'platform',
+      platformCompanyName: '',
+      platformCreditCode: '',
+      supplierTodoReadAt: null,
+      defaultSplitSupplierId: null,
+      membershipSplitRate: 6
+    };
   }
   return doc;
 };
