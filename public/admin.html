@@ -89,6 +89,14 @@
     }
     .nav-item .icon { font-size: 18px; width: 22px; text-align: center; }
     .nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+    .nav-badge {
+      margin-left: auto;
+      background: #ef4444; color: #fff;
+      font-size: 10.5px; font-weight: 700;
+      padding: 2px 8px; border-radius: 10px; line-height: 1.5;
+      min-width: 18px; text-align: center;
+    }
+    .nav-badge.dot { padding: 0; width: 9px; height: 9px; border-radius: 50%; min-width: 0; }
     .nav-item.active {
       background: rgba(255,107,53,.15);
       color: #fff;
@@ -1353,6 +1361,90 @@
     }
     .exch-btn-ok:disabled { background: #d1d5db; cursor: not-allowed; }
 
+    /* ============ 会员现金购卡 ============ */
+    .cash-modal { max-width: 420px; width: calc(100% - 40px); text-align: left; }
+    .cash-modal h3 { text-align: center; margin: 2px 0 16px; }
+    .cb-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; font-size: 14px; color: #4b5563; }
+    .cb-row .cb-val { font-weight: 700; color: #1f2937; }
+    .cb-months { display: flex; gap: 8px; margin: 6px 0 12px; }
+    .cb-month-chip {
+      flex: 1; text-align: center; padding: 9px 0; border-radius: 10px; cursor: pointer;
+      background: #f3f4f6; color: #4b5563; font-size: 14px; font-weight: 600;
+      border: 2px solid transparent; user-select: none;
+    }
+    .cb-month-chip.active { background: #fff3ea; color: var(--accent); border-color: var(--accent); }
+    .cb-note {
+      width: 100%; box-sizing: border-box; border: 1px solid #e5e7eb; border-radius: 10px;
+      padding: 9px 12px; font-size: 13px; color: #374151; resize: none; height: 60px; outline: none;
+    }
+    .cb-note:focus { border-color: var(--accent); }
+    .cb-total {
+      display: flex; justify-content: space-between; align-items: center;
+      background: linear-gradient(90deg, #fff3ea, #ffe8d6); border: 1px dashed var(--accent);
+      border-radius: 10px; padding: 12px 14px; margin: 12px 0;
+    }
+    .cb-total-num { font-size: 24px; font-weight: 800; color: var(--accent); }
+    .cb-tip { font-size: 12px; color: #9ca3af; line-height: 1.6; margin-bottom: 4px; }
+    .cb-result { text-align: center; }
+    .cb-result-no { font-size: 15px; font-weight: 700; color: #1f2937; margin: 6px 0; }
+    .cb-phone { font-size: 20px; font-weight: 800; color: var(--accent); margin: 10px 0 4px; }
+    .cb-order-list { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+    .cb-order-item { border: 1px solid #eef0f3; border-radius: 12px; padding: 12px 14px; }
+    .cb-order-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .cb-order-no { font-size: 13px; font-weight: 700; color: #1f2937; }
+    .cb-order-meta { display: flex; justify-content: space-between; font-size: 12px; color: #6b7280; margin-top: 3px; }
+    .cb-status { font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; }
+    .cb-status.pending { background: #fff7ed; color: #c2410c; }
+    .cb-status.paid { background: #ecfdf5; color: #059669; }
+    .cb-status.cancelled { background: #f3f4f6; color: #9ca3af; }
+    .cb-order-cancel {
+      margin-top: 8px; border: none; background: #f3f4f6; color: #6b7280;
+      font-size: 12px; padding: 5px 12px; border-radius: 8px; cursor: pointer;
+    }
+    /* 权益对比表 */
+    .bc-modal { max-width: 640px; width: calc(100% - 32px); text-align: left; max-height: 86vh; overflow-y: auto; }
+    .bc-modal h3 { text-align: center; margin: 2px 0 14px; }
+    .bc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .bc-table th, .bc-table td { border-bottom: 1px solid #eef0f3; padding: 9px 6px; text-align: center; }
+    .bc-table th:first-child, .bc-table td:first-child { text-align: left; color: #6b7280; }
+    .bc-table thead th { font-size: 13px; color: #1f2937; background: #fafafa; }
+    .bc-table thead th.hl { color: var(--accent); }
+    .bc-yes { color: #059669; font-weight: 700; }
+    .bc-no { color: #d1d5db; }
+    .bc-val { color: #1f2937; font-weight: 600; }
+
+    /* ============ 经营报表 / 顾客画像 / 损耗分析 ============ */
+    .rpt-toolbar { display: flex; align-items: center; justify-content: space-between; margin: 16px 0 12px; gap: 10px; flex-wrap: wrap; }
+    .rpt-range { display: flex; gap: 8px; }
+    .rpt-chip { padding: 6px 14px; border-radius: 999px; background: #f3f4f6; color: #4b5563; font-size: 13px; font-weight: 600; cursor: pointer; user-select: none; }
+    .rpt-chip.active { background: #fff3ea; color: var(--accent); border: 1px solid var(--accent); }
+    .rpt-card { margin-bottom: 16px; }
+    .rpt-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+    .rpt-kpi { background: #fafafa; border-radius: 10px; padding: 10px 12px; }
+    .rpt-kpi .k { font-size: 12px; color: #9ca3af; }
+    .rpt-kpi .v { font-size: 20px; font-weight: 800; color: #1f2937; margin-top: 2px; }
+    .rpt-bars { display: flex; align-items: flex-end; gap: 3px; height: 110px; padding: 8px 2px 0; overflow-x: auto; }
+    .rpt-bar-col { flex: 1 0 10px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+    .rpt-bar { width: 100%; max-width: 18px; background: linear-gradient(180deg, var(--accent), var(--accent-2)); border-radius: 3px 3px 0 0; min-height: 2px; }
+    .rpt-bar-x { font-size: 9px; color: #c1c5cc; margin-top: 3px; white-space: nowrap; }
+    .rpt-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .rpt-table th, .rpt-table td { padding: 8px 10px; border-bottom: 1px solid #f1f2f4; text-align: left; }
+    .rpt-table th { color: #9ca3af; font-size: 12px; font-weight: 600; }
+    .rpt-empty { color: #9ca3af; font-size: 13px; padding: 18px 0; text-align: center; }
+    .rpt-lock { text-align: center; padding: 16px 0; }
+    .rpt-lock p { color: #9ca3af; font-size: 13px; margin: 6px 0 12px; }
+    .rpt-lock button { border: none; border-radius: 10px; padding: 9px 18px; cursor: pointer; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; font-weight: 700; }
+    .rpt-two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 640px) { .rpt-kpis { grid-template-columns: 1fr 1fr; } .rpt-two { grid-template-columns: 1fr; } }
+
+    /* ============ 顾客储值 ============ */
+    .sv-toolbar { display: flex; gap: 10px; align-items: center; margin: 0 0 12px; flex-wrap: wrap; }
+    .sv-toolbar .form-input { max-width: 220px; }
+    .sv-total { margin-left: auto; font-size: 13px; color: #6b7280; }
+    .sv-total b { color: var(--accent); font-size: 15px; }
+    .sv-empty { text-align: center; color: #9ca3af; padding: 20px 0; }
+    .sv-bonus-tip { background: #fff7ed; border: 1px dashed #fdba74; color: #c2410c; border-radius: 8px; padding: 8px 12px; font-size: 13px; margin: 0 0 12px; }
+
     /* 采购车：每行预估鼎恒币 + 本单合计 + 灰色提示 */
     .cart-item-coin { font-size: 11px; color: #ea580c; font-weight: 600; margin-top: 3px; }
     .cart-coin-total {
@@ -1394,6 +1486,28 @@
       cursor: pointer; white-space: nowrap;
     }
     .mall-coin-banner a:hover { text-shadow: 0 1px 4px rgba(0,0,0,.25); }
+
+    /* 供应商配送时段公告条（采购商城店铺页顶部小字） */
+    .mall-delivery-notice {
+      background: #fff8e6;
+      border: 1px solid #fcd97b;
+      border-radius: 10px;
+      padding: 9px 14px;
+      margin-bottom: 14px;
+      font-size: 12.5px;
+      color: #92660c;
+      line-height: 1.5;
+      display: flex; align-items: flex-start; gap: 6px;
+    }
+    .mall-delivery-notice::before {
+      content: '🚚';
+      flex-shrink: 0;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    .mall-delivery-notice .mdn-label {
+      font-weight: 600; color: #7a5408; margin-right: 4px;
+    }
 
     /* 搜索框 + 品类筛选标签栏 */
     .mall-toolbar {
@@ -1835,6 +1949,16 @@
       .filter-tab { flex-shrink: 0; white-space: nowrap; }
     }
 
+    /* ============ 智能补货 ============ */
+    .smart-replenish-hint { padding: 12px 16px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; color: #9a3412; font-size: 13px; margin-bottom: 16px; }
+    .sr-section-title { font-size: 14px; font-weight: 600; color: #333; margin: 16px 0 12px; }
+    .sr-group { margin-bottom: 24px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+    .sr-group-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #f9fafb; font-size: 14px; }
+    .sr-group-head b { color: #111; }
+    .sr-group-head span { color: var(--orange, #ff6b35); font-size: 13px; }
+    .sr-group-foot { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--line); }
+    .sr-foot-hint { color: #9ca3af; font-size: 12px; }
+
     /* ============ 采购监控（防回扣） ============ */
     .proc-stat-grid { grid-template-columns: repeat(4, 1fr); }
     .proc-mom { margin-top: 8px; font-size: 13px; font-weight: 600; }
@@ -2218,7 +2342,7 @@
   <!-- 移动端顶部栏 -->
   <div class="topbar">
     <button class="hamburger" id="menuToggle">☰</button>
-    <span class="title">⚙️ 管理后台</span>
+    <span class="title">🛒 采购管家</span>
   </div>
 
   <div class="layout">
@@ -2226,19 +2350,25 @@
     <aside class="sidebar" id="sidebar">
       <div class="brand"><span class="dot">鼎</span> 鼎恒餐饮</div>
       <nav class="nav">
-        <div class="nav-item active" data-tab="dishes"><span class="icon">📋</span> 菜单管理</div>
+        <div class="nav-group-title">采购管家</div>
+        <div class="nav-item active" data-tab="smartReplenish"><span class="icon">🤖</span> 智能补货</div>
+        <div class="nav-item" data-tab="mall"><span class="icon">🛒</span> 采购商城</div>
+        <div class="nav-item" data-tab="purchase" id="navPurchase"><span class="icon">📑</span> 采购订单<span class="nav-badge dot" id="navPurchaseBadge" style="display:none;"></span></div>
+        <div class="nav-item" data-tab="procurement"><span class="icon">📈</span> 采购监控</div>
+        <div class="nav-divider"></div>
+        <div class="nav-group-title">门店经营</div>
+        <div class="nav-item" data-tab="dishes"><span class="icon">📋</span> 菜单管理</div>
         <div class="nav-item" data-tab="tables"><span class="icon">🪑</span> 桌台管理</div>
         <div class="nav-item" data-tab="orders"><span class="icon">📦</span> 订单管理</div>
         <div class="nav-item" data-tab="stats"><span class="icon">📊</span> 数据统计</div>
         <div class="nav-item" data-tab="decorate"><span class="icon">🎨</span> 店铺装修</div>
         <div class="nav-item" data-tab="settings"><span class="icon">⚙️</span> 店铺设置</div>
         <div class="nav-divider"></div>
+        <div class="nav-group-title">会员营销</div>
         <div class="nav-item" data-tab="member"><span class="icon">👑</span> 会员中心</div>
         <div class="nav-item" data-tab="coin"><span class="icon">🪙</span> 鼎恒币中心</div>
-        <div class="nav-item" data-tab="mall"><span class="icon">🛒</span> 采购商城</div>
-        <div class="nav-item" data-tab="purchase"><span class="icon">📑</span> 采购订单</div>
-        <div class="nav-item" data-tab="procurement"><span class="icon">📈</span> 采购监控</div>
         <div class="nav-item" data-tab="points"><span class="icon">⭐</span> 顾客积分</div>
+        <div class="nav-item" data-tab="storedvalue"><span class="icon">💰</span> 顾客储值</div>
         <div class="nav-item" data-tab="marketing"><span class="icon">🎯</span> 营销活动</div>
         <div class="nav-divider"></div>
         <div class="nav-group-title">店铺运营</div>
@@ -2255,7 +2385,7 @@
       <!-- 门店资料未完善常驻黄色提醒条（老商家跳过后显示，补全后自动消失） -->
       <div class="store-info-bar" id="storeInfoBar" style="display:none;">
         <span class="sib-icon">⚠️</span>
-        <span class="sib-text">门店资料尚未完善，供货商配送员将看不到您的门头照/定位/收货方式，可能影响准时送达</span>
+        <span class="sib-text">门店资料尚未完善，供货商配送员将看不到您的门头照/定位，可能影响准时送达</span>
         <button class="sib-btn" type="button" id="sibCompleteBtn">去完善</button>
         <button class="sib-close" type="button" id="sibHideBtn" title="本会话隐藏">×</button>
       </div>
@@ -2340,6 +2470,34 @@
             <div class="value">¥<span id="statMonthRevenue">0</span></div>
           </div>
         </div>
+
+        <!-- 报表区间与刷新 -->
+        <div class="rpt-toolbar">
+          <div class="rpt-range" id="rptRange">
+            <span class="rpt-chip active" data-days="7">近 7 天</span>
+            <span class="rpt-chip" data-days="30">近 30 天</span>
+            <span class="rpt-chip" data-days="90">近 90 天</span>
+          </div>
+          <button class="btn-refresh" id="rptRefreshBtn">↻ 刷新报表</button>
+        </div>
+
+        <!-- 经营报表（进阶版+） -->
+        <div class="card rpt-card">
+          <div class="card-head"><h3>📈 经营报表</h3></div>
+          <div id="rptOverviewBody"><div class="rpt-empty">加载中...</div></div>
+        </div>
+
+        <!-- 顾客画像（尊享版） -->
+        <div class="card rpt-card">
+          <div class="card-head"><h3>👥 顾客画像</h3></div>
+          <div id="rptCustomersBody"><div class="rpt-empty">加载中...</div></div>
+        </div>
+
+        <!-- 损耗分析（尊享版） -->
+        <div class="card rpt-card">
+          <div class="card-head"><h3>📉 损耗分析</h3></div>
+          <div id="rptCostBody"><div class="rpt-empty">加载中...</div></div>
+        </div>
       </section>
 
       <!-- 5. 店铺设置 -->
@@ -2394,12 +2552,16 @@
                 <label>打印机密钥（Key）</label>
                 <input type="text" id="setPrinterKey" placeholder="打印机密钥">
               </div>
+              <div class="sub-row">
+                <label>云打印服务地址</label>
+                <input type="text" id="setPrinterApiUrl" placeholder="https://你的打印服务/api/print（收到订单即打印）">
+              </div>
             </div>
 
             <div class="setting-row">
               <div class="meta">
-                <div class="t">💬 微信通知</div>
-                <div class="d">新订单发送到手机</div>
+                <div class="t">📨 通知推送渠道</div>
+                <div class="d">新订单推送到 微信 / Webhook / 短信 / 语音电话（需填写对应服务地址）</div>
               </div>
               <label class="toggle">
                 <input type="checkbox" id="setEnableWechat">
@@ -2409,7 +2571,27 @@
             <div class="setting-sub-fields" id="wechatFields">
               <div class="sub-row">
                 <label>通知手机号</label>
-                <input type="text" id="setNotifyPhone" placeholder="接收通知的手机号">
+                <input type="text" id="setNotifyPhone" placeholder="接收短信/语音通知的手机号">
+              </div>
+              <div class="sub-row">
+                <label>通用 Webhook 地址</label>
+                <input type="text" id="setNotifyWebhookUrl" placeholder="https://你的服务/api/notify（POST JSON 事件）">
+              </div>
+              <div class="sub-row">
+                <label>短信服务地址</label>
+                <input type="text" id="setSmsApiUrl" placeholder="https://你的短信服务/api/send">
+              </div>
+              <div class="sub-row">
+                <label>短信服务密钥</label>
+                <input type="text" id="setSmsApiKey" placeholder="短信服务 Key（如需要）">
+              </div>
+              <div class="sub-row">
+                <label>语音服务地址</label>
+                <input type="text" id="setVoiceApiUrl" placeholder="https://你的语音服务/api/call">
+              </div>
+              <div class="sub-row">
+                <label>语音服务密钥</label>
+                <input type="text" id="setVoiceApiKey" placeholder="语音服务 Key（如需要）">
               </div>
             </div>
 
@@ -2424,12 +2606,19 @@
           <div class="card-head"><h3>🚚 门店定位与收货</h3></div>
           <div class="settings-card">
             <div class="form-group">
-              <label>门店经纬度</label>
-              <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <label>门店定位（地图选点）</label>
+              <!-- 已配置高德 Key 时展示地图选点 -->
+              <div id="mapPickerWrap" style="display:none;">
+                <input type="text" class="form-input" id="mapSearchInput" placeholder="🔍 搜索地址 / 小区 / 门店名，回车定位" style="margin-bottom:8px;">
+                <div id="shopMap" style="width:100%;height:320px;border-radius:10px;border:1px solid var(--line);background:#f3f4f6;"></div>
+                <small id="mapPickTip" style="color:#9ca3af;font-size:12px;margin-top:6px;display:block;">在地图上点击选择门店位置，标记可拖动；选点后自动填写经纬度</small>
+              </div>
+              <!-- 未配置高德 Key 时的手输兜底 -->
+              <div id="lngLatManualWrap" style="display:flex;gap:10px;flex-wrap:wrap;">
                 <input type="number" step="0.000001" class="form-input" id="setShopLng" placeholder="经度 如 117.736" style="max-width:200px;">
                 <input type="number" step="0.000001" class="form-input" id="setShopLat" placeholder="纬度 如 36.961" style="max-width:200px;">
               </div>
-              <small style="color:#9ca3af;font-size:12px;">暂用经纬度输入，后续接入高德/腾讯地图选点（已预留）</small>
+              <small id="mapFallbackHint" style="color:#9ca3af;font-size:12px;">未配置高德地图 Key（.env 的 AMAP_KEY），暂可手输经纬度</small>
             </div>
             <div class="form-group">
               <label>详细地址</label>
@@ -2446,20 +2635,22 @@
               <img id="streetViewPreview" alt="街景照预览" style="max-width:180px;max-height:140px;border-radius:8px;margin-top:8px;display:none;border:1px solid var(--line);">
             </div>
             <div class="form-group">
-              <label>收货方式</label>
+              <label>收货方式（可选）</label>
               <select id="setReceiveMethod" class="form-input" style="max-width:260px;">
+                <option value="supplier_arranged">按供应商安排</option>
                 <option value="door_container">门口自备保温容器</option>
                 <option value="open_door">开门后配送</option>
                 <option value="self_pickup">到店自提</option>
               </select>
+              <small style="color:#9ca3af;font-size:12px;margin-top:4px;display:block;">冬季等特殊情况可与供货商约定收货方式；默认"按供应商安排"由供应商配送规则决定</small>
             </div>
             <div class="form-group">
-              <label>期望收货时段</label>
+              <label>期望收货时段（可选）</label>
               <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                 <input type="time" id="setRecvStart" style="padding:9px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;">
                 <span style="color:#9ca3af;">至</span>
                 <input type="time" id="setRecvEnd" style="padding:9px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;">
-                <small style="color:#9ca3af;font-size:12px;">供应商配送单按此时段排序路线</small>
+                <small style="color:#9ca3af;font-size:12px;">不填则按供应商安排；填写后展示给供应商配送员参考</small>
               </div>
             </div>
           </div>
@@ -2626,8 +2817,8 @@
                 </ul>
               </li>
             </ul>
-            <div class="vplan-footer-note">线上支付即将上线，可联系客服开通</div>
-            <button class="vplan-btn" onclick="openPayTip()">立即开通</button>
+            <div class="vplan-footer-note">现金开通：提交订单后客服确认收款即生效</div>
+            <button class="vplan-btn" onclick="openCashBuy('advanced')">立即开通</button>
           </div>
 
           <!-- 尊享版（旗舰） -->
@@ -2659,8 +2850,8 @@
                 </ul>
               </li>
             </ul>
-            <div class="vplan-footer-note">线上支付即将上线，可联系客服开通</div>
-            <button class="vplan-btn gold" onclick="openPayTip()">立即开通</button>
+            <div class="vplan-footer-note">现金开通：提交订单后客服确认收款即生效</div>
+            <button class="vplan-btn gold" onclick="openCashBuy('premium')">立即开通</button>
           </div>
         </div>
 
@@ -2764,6 +2955,8 @@
 
         <!-- 五、底部：会员兑换记录 -->
         <div class="member-footer-link">
+          <a href="javascript:void(0)" onclick="openBenefitCompare()">📊 三档权益对比</a>
+          <a href="javascript:void(0)" onclick="openCashOrders()">📋 我的购卡订单</a>
           <a href="javascript:void(0)" onclick="goCoinHistory()">📄 会员兑换记录</a>
         </div>
       </section>
@@ -2836,6 +3029,22 @@
         </div>
       </section>
 
+      <!-- 6.5 智能补货（采购核心：基于采购历史频率的补货建议） -->
+      <section class="pane" id="pane-smartReplenish">
+        <div class="pane-title"><span>🤖 智能补货</span></div>
+
+        <div class="card">
+          <div class="card-head">
+            <h3>补货建议</h3>
+            <button class="btn-add" id="smartReplenishRefresh" type="button">↻ 刷新</button>
+          </div>
+          <div class="smart-replenish-hint" id="smartReplenishHint">
+            根据你近 60 天的采购记录，自动分析哪些食材该补货、补多少，勾选后一键转采购单。
+          </div>
+          <div id="smartReplenishList"></div>
+        </div>
+      </section>
+
       <!-- 7. 采购商城 -->
       <section class="pane" id="pane-mall">
         <div class="pane-title"><span>🛒 采购商城</span></div>
@@ -2877,6 +3086,9 @@
             <span class="sep">›</span>
             <span class="cur" id="mallStoreName">店铺</span>
           </div>
+
+          <!-- 供应商配送时段公告（供应商在通知设置维护，留空不显示） -->
+          <div class="mall-delivery-notice" id="mallDeliveryNotice" style="display:none;"></div>
 
           <div class="mall-store-layout">
             <!-- 左：分类导航 -->
@@ -3210,6 +3422,75 @@
         </div>
       </section>
 
+      <!-- ============ 顾客储值（线下充值记账 + 点餐储值抵扣） ============ -->
+      <section class="pane" id="pane-storedvalue">
+        <div class="pane-title"><span>💰 顾客储值</span></div>
+
+        <div class="card">
+          <div class="card-head"><h3>登记充值</h3></div>
+          <div class="settings-card">
+            <div class="setting-row">
+              <div class="meta">
+                <div class="t">手机号</div>
+                <div class="d">顾客手机号，作为储值账户标识（同店同号唯一）</div>
+              </div>
+              <div class="inline-input">
+                <input type="tel" class="form-input" id="svPhone" maxlength="11" placeholder="11 位手机号">
+              </div>
+            </div>
+            <div class="setting-row">
+              <div class="meta">
+                <div class="t">顾客姓名</div>
+                <div class="d">选填，便于识别</div>
+              </div>
+              <div class="inline-input">
+                <input type="text" class="form-input" id="svName" maxlength="30" placeholder="选填">
+              </div>
+            </div>
+            <div class="setting-row">
+              <div class="meta">
+                <div class="t">充值金额（元）</div>
+                <div class="d">顾客实际支付的金额；若命中「充值送」活动，赠送金额自动入账</div>
+              </div>
+              <div class="inline-input">
+                <input type="number" class="form-input" id="svAmount" min="0" step="0.01" placeholder="如 200">
+              </div>
+            </div>
+            <div class="sv-bonus-tip" id="svBonusTip" style="display:none;"></div>
+            <div class="settings-save-bar">
+              <button class="btn-add" id="svRechargeBtn">确认充值入账</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>储值账户</h3></div>
+          <div class="sv-toolbar">
+            <input type="text" class="form-input" id="svSearch" placeholder="按手机号 / 姓名搜索">
+            <button class="btn-add" id="svSearchBtn">搜索</button>
+            <span class="sv-total" id="svTotalBalance"></span>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>手机号</th>
+                  <th>姓名</th>
+                  <th>当前余额</th>
+                  <th>累计实充</th>
+                  <th>累计赠送</th>
+                  <th>最近变动</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="svTbody">
+                <tr><td colspan="7" class="sv-empty">加载中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <!-- ============ 营销活动（满减 / 折扣 / 充值送） ============ -->
       <section class="pane" id="pane-marketing">
         <div class="pane-title"><span>🎯 营销活动</span></div>
@@ -3433,14 +3714,121 @@
   </div>
 </div>
 
-<!-- 现金支付未接入提示弹窗 -->
-<div class="pay-modal-mask" id="payTipModal" onclick="if(event.target===this)closePayTip()">
-  <div class="pay-modal">
-    <div class="pm-icon">💳</div>
-    <h3>线上支付即将上线</h3>
-    <p>现金开通功能暂未接入，可联系客服开通会员</p>
-    <div class="pm-phone" id="payTipPhone">400-888-6666</div>
-    <button class="pm-close" onclick="closePayTip()">我知道了</button>
+<!-- 菜品食材配方（BOM）弹窗：配置菜品消耗哪些食材，点餐后自动扣库存 -->
+<div class="mask" id="bomModal">
+  <div class="modal" style="max-width: 560px;">
+    <div class="modal-head">
+      <h3>🍲 食材配方</h3>
+      <button class="x" id="bomCloseBtn">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="bomDishName">
+      <div class="form-group" style="margin-bottom:10px;">
+        <label style="color:#666;font-size:13px;">配置「<b id="bomDishLabel"></b>」消耗的食材（点餐后自动扣减库存，未配置则不影响库存）</label>
+      </div>
+      <div id="bomItemsList"></div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <select class="form-select" id="bomProductSelect" style="flex:1;"></select>
+        <input type="number" class="form-input" id="bomProductQty" placeholder="用量" min="0" step="0.01" style="width:110px;">
+        <button class="btn btn-blue" id="bomAddItemBtn" type="button" style="flex:0 0 auto;">添加</button>
+      </div>
+      <div style="color:#999;font-size:12px;margin-top:6px;">用量单位与采购商品单位一致（如 500g、个、斤）</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-gray" id="bomCancelBtn">取消</button>
+      <button class="btn btn-orange" id="bomSaveBtn">保存配方</button>
+    </div>
+  </div>
+</div>
+
+<!-- 会员现金购卡：下单弹窗（提交后进入待支付，客服确认收款后开通） -->
+<div class="pay-modal-mask" id="cashBuyModal" onclick="if(event.target===this)closeCashBuy()">
+  <div class="pay-modal cash-modal">
+    <div id="cashBuyForm">
+      <h3>💳 现金开通会员</h3>
+      <div class="cb-row"><span>开通等级</span><span class="cb-val" id="cbLevel">进阶版</span></div>
+      <div class="cb-row"><span>每月价格</span><span class="cb-val" id="cbUnitPrice">¥99/月</span></div>
+      <div class="cb-row" style="margin-top:6px;"><span>购买月数</span><span></span></div>
+      <div class="cb-months" id="cbMonths">
+        <div class="cb-month-chip active" data-m="1">1 个月</div>
+        <div class="cb-month-chip" data-m="3">3 个月</div>
+        <div class="cb-month-chip" data-m="6">6 个月</div>
+        <div class="cb-month-chip" data-m="12">12 个月</div>
+      </div>
+      <div style="margin-bottom:6px;font-size:14px;color:#4b5563;">备注（选填）</div>
+      <textarea class="cb-note" id="cbNote" maxlength="200" placeholder="如需开票，可填写开票信息或付款流水号"></textarea>
+      <div style="margin:8px 0 6px;font-size:14px;color:#4b5563;">支付方式</div>
+      <div class="cb-months" id="cbPayMethods">
+        <div class="cb-month-chip" data-pay="wechat" id="cbPayWechat" style="display:none;">微信扫码支付</div>
+        <div class="cb-month-chip active" data-pay="cash">线下转账</div>
+      </div>
+      <div class="cb-total"><span>应付金额</span><span class="cb-total-num" id="cbTotal">¥99.00</span></div>
+      <div class="cb-tip" id="cbSubmitTip">提交后订单进入待支付状态，请按客服指引完成付款；客服确认收款后会员立即生效。</div>
+      <div class="exch-actions">
+        <button class="exch-btn-cancel" onclick="closeCashBuy()">取消</button>
+        <button class="exch-btn-ok" id="cbSubmitBtn">提交订单</button>
+      </div>
+    </div>
+    <div id="cashBuyResult" class="cb-result" style="display:none;">
+      <div style="font-size:40px;">✅</div>
+      <h3 style="margin:8px 0 4px;">订单已提交，待支付</h3>
+      <p style="font-size:13px;color:#6b7280;margin:0;">订单号</p>
+      <div class="cb-result-no" id="cbResultNo">-</div>
+      <p style="font-size:13px;color:#6b7280;margin:12px 0 0;">请联系客服确认付款</p>
+      <div class="cb-phone" id="cbResultPhone">400-888-6666</div>
+      <div class="exch-actions">
+        <button class="exch-btn-cancel" onclick="closeCashBuy()">关闭</button>
+        <button class="exch-btn-ok" onclick="openCashOrders()">查看我的订单</button>
+      </div>
+    </div>
+    <div id="cashBuyWechat" class="cb-result" style="display:none;">
+      <h3 style="margin:4px 0 4px;">微信扫码支付</h3>
+      <div style="margin:10px 0;">
+        <img id="cbQrImg" alt="微信支付二维码" style="width:200px;height:200px;border:1px solid #eef0f3;border-radius:10px;">
+      </div>
+      <p style="font-size:13px;color:#6b7280;margin:0;">请使用微信「扫一扫」完成支付</p>
+      <div class="cb-total"><span>应付金额</span><span class="cb-total-num" id="cbQrTotal">¥0.00</span></div>
+      <div class="cb-tip" id="cbQrStatus">等待支付…</div>
+      <div class="exch-actions">
+        <button class="exch-btn-cancel" onclick="closeWechatPay()">关闭</button>
+        <button class="exch-btn-ok" onclick="openCashOrders()">查看我的订单</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 会员现金购卡：我的购卡订单 -->
+<div class="pay-modal-mask" id="cashOrdersModal" onclick="if(event.target===this)closeCashOrders()">
+  <div class="pay-modal cash-modal">
+    <h3>📋 我的现金购卡订单</h3>
+    <div class="cb-order-list" id="cashOrderList">
+      <div class="cb-tip" style="text-align:center;">加载中...</div>
+    </div>
+    <div class="exch-actions">
+      <button class="exch-btn-ok" onclick="closeCashOrders()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 会员三档权益对比 -->
+<div class="pay-modal-mask" id="benefitCompareModal" onclick="if(event.target===this)closeBenefitCompare()">
+  <div class="pay-modal bc-modal">
+    <h3>📊 三档权益对比</h3>
+    <div id="benefitCompareBody"></div>
+    <div class="exch-actions">
+      <button class="exch-btn-ok" onclick="closeBenefitCompare()">我知道了</button>
+    </div>
+  </div>
+</div>
+
+<!-- 顾客储值流水 -->
+<div class="pay-modal-mask" id="svHistoryModal" onclick="if(event.target===this)closeSvHistory()">
+  <div class="pay-modal cash-modal">
+    <h3>💰 储值流水</h3>
+    <div class="cb-order-list" id="svHistoryBody"></div>
+    <div class="exch-actions">
+      <button class="exch-btn-ok" onclick="closeSvHistory()">关闭</button>
+    </div>
   </div>
 </div>
 
@@ -3537,23 +3925,9 @@
           <img id="siStreetViewPreview" alt="街景照预览" class="si-photo-preview" style="display:none;">
         </div>
       </div>
-      <div class="si-field">
-        <label>收货方式 <span class="si-req">*</span></label>
-        <select id="siReceiveMethod" class="si-input">
-          <option value="door_container">门口自备保温容器</option>
-          <option value="open_door">开门后配送</option>
-          <option value="self_pickup">到店自提</option>
-        </select>
-      </div>
-      <div class="si-field">
-        <label>期望收货时段 <span class="si-req">*</span></label>
-        <div class="si-time-row">
-          <input type="time" id="siRecvStart" class="si-time">
-          <span class="si-time-sep">至</span>
-          <input type="time" id="siRecvEnd" class="si-time">
-        </div>
-        <small class="si-hint">供应商配送单按此时段排序路线</small>
-      </div>
+      <small class="si-hint" style="margin-top:6px;display:block;color:#9ca3af;">
+        收货方式与期望时段已移至「店铺设置」，可随时调整；冬季等特殊情况可与供货商约定收货方式
+      </small>
     </div>
     <div class="store-info-foot">
       <button type="button" class="si-btn si-skip" id="siSkipBtn" style="display:none;">稍后填写</button>

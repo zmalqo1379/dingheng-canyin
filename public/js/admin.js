@@ -73,7 +73,7 @@ if (MERCHANT_TOKEN) {
   document.getElementById('adminPage').classList.add('show');
   // 响应 URL hash：从预览返回时自动定位到装修栏目
   const h = location.hash.replace('#', '');
-  const initTab = (h && ['dishes','tables','orders','stats','decorate','settings','member','coin','mall','purchase','procurement','points','marketing'].includes(h)) ? h : 'dishes';
+  const initTab = (h && ['smartReplenish','mall','purchase','procurement','dishes','tables','orders','stats','decorate','settings','member','coin','points','storedvalue','marketing'].includes(h)) ? h : 'smartReplenish';
   try { switchTab(initTab); } catch (e) { console.error('初始化失败', e); }
   // 新手开张四步曲任务卡（首页顶部，状态实时检测）
   try { loadOnboarding(); } catch (e) { console.error('新手任务加载失败', e); }
@@ -93,10 +93,12 @@ function switchTab(tab) {
     if (tab === 'settings') loadSettings();
     if (tab === 'member') loadMemberCenter();
     if (tab === 'coin') loadCoinCenter();
+    if (tab === 'smartReplenish') loadSmartReplenish();
     if (tab === 'mall') { loadMall(); reportOnboardStep('mall'); }
     if (tab === 'purchase') loadPurchaseOrders();
     if (tab === 'procurement') loadProcurement();
     if (tab === 'points') loadPoints();
+    if (tab === 'storedvalue') loadStoredValue();
     if (tab === 'marketing') loadMarketing();
   } catch (e) { console.error('tab load error', tab, e); }
 }
@@ -391,8 +393,8 @@ $('obCelebrateOk').onclick = closeObCelebrate;
 
 /* ===================== 门店资料完善引导弹窗 =====================
    新商家首次登录强制弹窗（不可跳过）；老商家跳过后顶部常驻黄色提醒条。
-   弹窗内：地址输入 + 一键定位(navigator.geolocation) + 门头照上传 + 街景照上传
-           + 收货方式选择 + 期望收货时段。
+   弹窗内：地址输入 + 一键定位(navigator.geolocation) + 门头照上传 + 街景照上传。
+   （收货方式/期望时段已移至「店铺设置」可选项，默认"按供应商安排"）
    保存走 PUT /api/settings，成功后 POST /api/admin/store-info/complete 标记完成。
    老商家"稍后填写"走 POST /api/admin/store-info/skip 仅标记 firstPrompted。 */
 let _siExistingStoreFront = '';
@@ -433,9 +435,6 @@ async function openStoreInfoModal(opts) {
     const res = await api('/api/settings');
     const s = res.data || {};
     $('siAddress').value = s.shopAddress || '';
-    $('siReceiveMethod').value = s.receiveMethod || 'door_container';
-    $('siRecvStart').value = s.expectedReceiveStart || '06:00';
-    $('siRecvEnd').value = s.expectedReceiveEnd || '09:00';
     _siExistingStoreFront = s.storeFrontPhoto || '';
     _siExistingStreetView = s.streetViewPhoto || '';
     if (_siExistingStoreFront) {
@@ -522,9 +521,6 @@ $('siStreetView').onchange = function () {
 // 保存并完成
 $('siSaveBtn').onclick = async function () {
   const address = $('siAddress').value.trim();
-  const recvMethod = $('siReceiveMethod').value;
-  const recvStart = $('siRecvStart').value || '06:00';
-  const recvEnd = $('siRecvEnd').value || '09:00';
   const lng = parseFloat($('siAddress').dataset.lng);
   const lat = parseFloat($('siAddress').dataset.lat);
 
@@ -565,8 +561,7 @@ $('siSaveBtn').onclick = async function () {
 
     // 保存到 Setting（经纬度选填：手动输入未定位时为 null）
     const body = {
-      shopAddress: address, storeFrontPhoto: storeFrontUrl, streetViewPhoto: streetViewUrl,
-      receiveMethod: recvMethod, expectedReceiveStart: recvStart, expectedReceiveEnd: recvEnd
+      shopAddress: address, storeFrontPhoto: storeFrontUrl, streetViewPhoto: streetViewUrl
     };
     if (lng && lat) { body.shopLongitude = lng; body.shopLatitude = lat; }
     const res = await api('/api/settings', {
@@ -652,6 +647,7 @@ async function loadDishes() {
         <td><span class="badge ${d.isAvailable ? 'b-green' : 'b-gray'}">${d.isAvailable ? '上架' : '下架'}</span></td>
         <td>
           <div class="row-actions">
+            <button class="btn btn-green" data-act="bom" data-dish="${esc(d.name)}">配方</button>
             <button class="btn btn-blue" data-act="edit" data-id="${esc(d._id)}">编辑</button>
             <button class="btn ${d.isAvailable ? 'btn-gray' : 'btn-orange'}" data-act="toggle" data-id="${esc(d._id)}" data-avail="${d.isAvailable ? 0 : 1}">${d.isAvailable ? '下架' : '上架'}</button>
             <button class="btn btn-red" data-act="del" data-id="${esc(d._id)}">删除</button>
@@ -665,6 +661,7 @@ async function loadDishes() {
         if (act === 'edit') openDishModal(id);
         else if (act === 'del') deleteDish(id);
         else if (act === 'toggle') toggleDish(id, btn.dataset.avail === '1');
+        else if (act === 'bom') openBomModal(btn.dataset.dish);
       };
     });
   }
@@ -685,6 +682,7 @@ async function loadDishes() {
           </div>
         </div>
         <div class="dcm-actions">
+          <button class="btn btn-green" data-act="bom" data-dish="${esc(d.name)}">配方</button>
           <button class="btn btn-blue" data-act="edit" data-id="${esc(d._id)}">编辑</button>
           <button class="btn ${d.isAvailable ? 'btn-gray' : 'btn-orange'}" data-act="toggle" data-id="${esc(d._id)}" data-avail="${d.isAvailable ? 0 : 1}">${d.isAvailable ? '下架' : '上架'}</button>
           <button class="btn btn-red" data-act="del" data-id="${esc(d._id)}">删除</button>
@@ -697,6 +695,7 @@ async function loadDishes() {
         if (act === 'edit') openDishModal(id);
         else if (act === 'del') deleteDish(id);
         else if (act === 'toggle') toggleDish(id, btn.dataset.avail === '1');
+        else if (act === 'bom') openBomModal(btn.dataset.dish);
       };
     });
   }
@@ -743,6 +742,117 @@ $('dishCloseBtn').onclick = closeDishModal;
 $('dishCancelBtn').onclick = closeDishModal;
 function closeDishModal() { $('dishModal').classList.remove('show'); }
 $('dishModal').addEventListener('click', (e) => { if (e.target.id === 'dishModal') closeDishModal(); });
+
+/* ---------- 菜品食材配方（BOM）管理 ---------- */
+let _bomDishName = '';
+let _bomItems = [];
+let _bomAllProducts = [];
+
+async function openBomModal(dishName) {
+  if (!dishName) { toast('菜品名缺失', true); return; }
+  _bomDishName = dishName;
+  _bomItems = [];
+  $('bomDishName').value = dishName;
+  $('bomDishLabel').textContent = dishName;
+  $('bomProductQty').value = '';
+
+  // 加载供应商品列表（供选择食材）
+  try {
+    const res = await api('/api/supply-products?status=上架');
+    _bomAllProducts = (res.data || []).filter(p => p && p.name);
+  } catch (e) {
+    _bomAllProducts = [];
+  }
+  renderBomProductSelect();
+
+  // 加载该菜品已有配方
+  try {
+    const res = await api('/api/admin/bom');
+    const list = res.data || [];
+    const existing = list.find(b => b.dishName === dishName);
+    if (existing && existing.items) {
+      _bomItems = existing.items.map(it => ({
+        productId: it.productId && it.productId._id ? it.productId._id : it.productId,
+        quantity: it.quantity,
+        name: it.productId && it.productId.name ? it.productId.name : '食材',
+        unit: it.productId && it.productId.unit ? it.productId.unit : ''
+      }));
+    }
+  } catch (e) {
+    _bomItems = [];
+  }
+  renderBomItems();
+  $('bomModal').classList.add('show');
+}
+
+function renderBomProductSelect() {
+  const sel = $('bomProductSelect');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">选择食材…</option>' +
+    _bomAllProducts.map(p => `<option value="${esc(p._id)}" data-name="${esc(p.name)}" data-unit="${esc(p.unit || '-')}">${esc(p.name)}（${esc(p.unit || '-')}）</option>`).join('');
+}
+
+function renderBomItems() {
+  const box = $('bomItemsList');
+  if (!box) return;
+  if (!_bomItems.length) {
+    box.innerHTML = '<div style="color:#999;font-size:13px;padding:8px 0;">暂无食材，请在下方选择食材并添加</div>';
+    return;
+  }
+  box.innerHTML = _bomItems.map((it, i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed #eee;">
+      <span style="flex:1;font-size:13px;">${esc(it.name || '食材')}</span>
+      <input type="number" class="form-input" style="width:100px;" value="${it.quantity}" min="0" step="0.01" data-bom-idx="${i}">
+      <button class="btn btn-red" type="button" data-bom-del="${i}" style="flex:0 0 auto;">删</button>
+    </div>`).join('');
+  box.querySelectorAll('input[data-bom-idx]').forEach(inp => {
+    inp.oninput = () => { _bomItems[Number(inp.dataset.bomIdx)].quantity = Number(inp.value) || 0; };
+  });
+  box.querySelectorAll('button[data-bom-del]').forEach(btn => {
+    btn.onclick = () => { _bomItems.splice(Number(btn.dataset.bomDel), 1); renderBomItems(); };
+  });
+}
+
+function bomAddItem() {
+  const sel = $('bomProductSelect');
+  const qtyEl = $('bomProductQty');
+  const productId = sel.value;
+  const qty = Number(qtyEl.value);
+  if (!productId) { toast('请选择食材', true); return; }
+  if (!(qty > 0)) { toast('请填写用量', true); return; }
+  const opt = sel.options[sel.selectedIndex];
+  const name = opt.dataset.name || '食材';
+  const unit = opt.dataset.unit || '';
+  _bomItems.push({ productId, quantity: qty, name, unit });
+  qtyEl.value = '';
+  sel.value = '';
+  renderBomItems();
+}
+
+async function saveBom() {
+  if (!_bomDishName) return;
+  if (!_bomItems.length) { toast('请至少添加一个食材', true); return; }
+  const items = _bomItems.map(it => ({ productId: it.productId, quantity: it.quantity }));
+  const res = await api('/api/admin/bom', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dishName: _bomDishName, items })
+  });
+  if (res.success) {
+    toast('配方已保存');
+    closeBomModal();
+  } else {
+    toast(res.message || '保存失败', true);
+  }
+}
+
+function closeBomModal() { $('bomModal').classList.remove('show'); }
+
+$('bomCloseBtn').onclick = closeBomModal;
+$('bomCancelBtn').onclick = closeBomModal;
+$('bomSaveBtn').onclick = saveBom;
+$('bomAddItemBtn').onclick = bomAddItem;
+$('bomModal').addEventListener('click', (e) => { if (e.target.id === 'bomModal') closeBomModal(); });
 
 /* ---------- 菜品图片上传（前端压缩到 2MB 内后上传） ---------- */
 function updateDishImgPreview() {
@@ -958,7 +1068,237 @@ async function loadStats() {
   $('statTodayCount').innerHTML = `${todayCount}<small> 单</small>`;
   $('statTodayRevenue').textContent = todayRevenue.toFixed(2);
   $('statMonthRevenue').textContent = monthRevenue.toFixed(2);
+
+  // 经营报表 / 顾客画像 / 损耗分析（按会员等级逐块鉴权）
+  loadReports();
 }
+
+/* ===================== 经营报表 / 顾客画像 / 损耗分析 ===================== */
+let _rptDays = 7;
+
+// 权限不足时渲染锁定卡（引导升级）
+function renderReportLock(container, res) {
+  const levels = Array.isArray(res.needLevel) && res.needLevel.length ? res.needLevel : ['advanced'];
+  const needText = levels.map(l => LEVEL_NAME[l] || l).join(' / ');
+  container.innerHTML = `<div class="rpt-lock">
+    <div style="font-size:32px;">🔒</div>
+    <p>${esc(res.message || '升级会员解锁此功能')}（需 ${esc(needText)}）</p>
+    <button onclick="goUpgrade('${esc(levels[0])}')">去升级解锁</button>
+  </div>`;
+}
+
+async function loadReports() {
+  await Promise.all([
+    loadReportOverview(_rptDays),
+    loadReportCustomers(_rptDays),
+    loadReportCost(_rptDays)
+  ]);
+}
+
+async function loadReportOverview(days) {
+  const box = $('rptOverviewBody');
+  box.innerHTML = '<div class="rpt-empty">加载中...</div>';
+  const res = await api(`/api/admin/reports/overview?days=${days}`);
+  if (!res.success) { renderReportLock(box, res); return; }
+  const d = res.data || {};
+  const list = d.byDay || [];
+  const maxRev = Math.max(1, ...list.map(x => x.revenue));
+  const bars = list.map(x => {
+    const h = Math.round(x.revenue / maxRev * 96);
+    return `<div class="rpt-bar-col" title="${esc(x.date)} ¥${Number(x.revenue).toFixed(2)} · ${x.count} 单">
+      <div class="rpt-bar" style="height:${Math.max(h, 2)}px;"></div>
+      <div class="rpt-bar-x">${esc(String(x.date).slice(5))}</div>
+    </div>`;
+  }).join('');
+  const dishRows = (d.topDishes || []).length
+    ? d.topDishes.map((x, i) => `<tr><td>${i + 1}</td><td>${esc(x.name)}</td><td>${x.qty}</td><td>¥${Number(x.revenue).toFixed(2)}</td></tr>`).join('')
+    : '<tr><td colspan="4" class="rpt-empty">暂无数据</td></tr>';
+  const catRows = (d.categoryMix || []).length
+    ? d.categoryMix.map(x => `<tr><td>${esc(x.category)}</td><td>${x.qty}</td><td>¥${Number(x.revenue).toFixed(2)}</td></tr>`).join('')
+    : '<tr><td colspan="3" class="rpt-empty">暂无数据</td></tr>';
+  box.innerHTML = `
+    <div class="rpt-kpis">
+      <div class="rpt-kpi"><div class="k">营业额</div><div class="v">¥${Number(d.revenueTotal || 0).toFixed(2)}</div></div>
+      <div class="rpt-kpi"><div class="k">订单数</div><div class="v">${d.orderCount || 0}</div></div>
+      <div class="rpt-kpi"><div class="k">客单价</div><div class="v">¥${Number(d.avgTicket || 0).toFixed(2)}</div></div>
+    </div>
+    <div style="font-size:12px;color:#9ca3af;margin:4px 0 2px;">每日营业额趋势</div>
+    <div class="rpt-bars">${bars}</div>
+    <div class="rpt-two" style="margin-top:16px;">
+      <div>
+        <div style="font-size:12px;color:#9ca3af;margin-bottom:6px;">热销菜品 TOP10</div>
+        <table class="rpt-table"><thead><tr><th>#</th><th>菜品</th><th>销量</th><th>金额</th></tr></thead><tbody>${dishRows}</tbody></table>
+      </div>
+      <div>
+        <div style="font-size:12px;color:#9ca3af;margin-bottom:6px;">分类销售占比</div>
+        <table class="rpt-table"><thead><tr><th>分类</th><th>销量</th><th>金额</th></tr></thead><tbody>${catRows}</tbody></table>
+      </div>
+    </div>`;
+}
+
+async function loadReportCustomers(days) {
+  const box = $('rptCustomersBody');
+  box.innerHTML = '<div class="rpt-empty">加载中...</div>';
+  const res = await api(`/api/admin/reports/customers?days=${days}`);
+  if (!res.success) { renderReportLock(box, res); return; }
+  const d = res.data || {};
+  if (!d.totalCustomers) {
+    box.innerHTML = '<div class="rpt-empty">该区间暂无带手机号的订单数据</div>';
+    return;
+  }
+  const rows = (d.top || []).map(c => `<tr>
+    <td>${esc(c.masked)}</td><td>${c.count}</td><td>¥${Number(c.amount).toFixed(2)}</td>
+    <td>¥${Number(c.avg).toFixed(2)}</td><td>${c.lastAt ? fmtTime(c.lastAt).slice(0, 10) : '—'}</td>
+  </tr>`).join('');
+  box.innerHTML = `
+    <div class="rpt-kpis">
+      <div class="rpt-kpi"><div class="k">消费顾客数</div><div class="v">${d.totalCustomers}</div></div>
+      <div class="rpt-kpi"><div class="k">回头客（≥2 次）</div><div class="v">${d.repeatCustomers}</div></div>
+      <div class="rpt-kpi"><div class="k">回头率</div><div class="v">${d.repeatRate}%</div></div>
+    </div>
+    <div style="font-size:12px;color:#9ca3af;margin-bottom:6px;">消费 TOP20 顾客（手机号脱敏）</div>
+    <table class="rpt-table"><thead><tr><th>手机号</th><th>消费次数</th><th>累计金额</th><th>客单价</th><th>最近消费</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+async function loadReportCost(days) {
+  const box = $('rptCostBody');
+  box.innerHTML = '<div class="rpt-empty">加载中...</div>';
+  const res = await api(`/api/admin/reports/cost?days=${days}`);
+  if (!res.success) { renderReportLock(box, res); return; }
+  const d = res.data || {};
+  const rows = (d.purchaseByCategory || []).length
+    ? d.purchaseByCategory.map(x => `<tr><td>${esc(x.category)}</td><td>¥${Number(x.amount).toFixed(2)}</td></tr>`).join('')
+    : '<tr><td colspan="2" class="rpt-empty">暂无采购数据</td></tr>';
+  box.innerHTML = `
+    <div class="rpt-kpis">
+      <div class="rpt-kpi"><div class="k">采购投入</div><div class="v">¥${Number(d.purchaseAmount || 0).toFixed(2)}</div></div>
+      <div class="rpt-kpi"><div class="k">点餐营收</div><div class="v">¥${Number(d.salesRevenue || 0).toFixed(2)}</div></div>
+      <div class="rpt-kpi"><div class="k">成本占比</div><div class="v">${d.costRatio == null ? '—' : d.costRatio + '%'}</div></div>
+    </div>
+    <div style="font-size:12px;color:#9ca3af;margin-bottom:6px;">采购品类结构</div>
+    <table class="rpt-table"><thead><tr><th>品类</th><th>采购金额</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// 区间切换与刷新
+document.querySelectorAll('#rptRange .rpt-chip').forEach(chip => {
+  chip.onclick = () => {
+    _rptDays = parseInt(chip.dataset.days, 10) || 7;
+    document.querySelectorAll('#rptRange .rpt-chip').forEach(c => c.classList.toggle('active', c === chip));
+    loadReports();
+  };
+});
+$('rptRefreshBtn').onclick = loadReports;
+
+/* ===================== 顾客储值 ===================== */
+let _svAccounts = [];
+
+// 顶部提示：当前生效的「充值送」活动
+async function loadSvBonusTip() {
+  try {
+    const res = await api('/api/marketing');
+    const now = Date.now();
+    const active = (res.data || []).filter(m =>
+      m.type === 'rechargeBonus' && m.enabled &&
+      (!m.startTime || new Date(m.startTime) <= now) &&
+      (!m.endTime || new Date(m.endTime) >= now)
+    );
+    const tip = $('svBonusTip');
+    if (active.length) {
+      tip.style.display = 'block';
+      tip.textContent = '当前充值送：' + active.map(m => `充 ¥${m.recharge} 送 ¥${m.bonus}`).join('；') + '（充值命中时自动入账）';
+    } else {
+      tip.style.display = 'none';
+    }
+  } catch (e) { /* 忽略 */ }
+}
+
+async function loadStoredValue() {
+  const tbody = $('svTbody');
+  tbody.innerHTML = '<tr><td colspan="7" class="sv-empty">加载中...</td></tr>';
+  loadSvBonusTip();
+  const kw = $('svSearch').value.trim();
+  const res = await api('/api/stored-value/accounts' + (kw ? '?keyword=' + encodeURIComponent(kw) : ''));
+  if (!res.success) {
+    tbody.innerHTML = `<tr><td colspan="7" class="sv-empty">加载失败：${esc(res.message || '未知错误')}</td></tr>`;
+    return;
+  }
+  _svAccounts = res.data || [];
+  $('svTotalBalance').innerHTML = `账户合计余额 <b>¥${Number(res.totalBalance || 0).toFixed(2)}</b>`;
+  if (!_svAccounts.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="sv-empty">暂无储值账户，先在上方登记充值</td></tr>';
+    return;
+  }
+  tbody.innerHTML = _svAccounts.map(a => `<tr>
+    <td>${esc(a.phone)}</td>
+    <td>${esc(a.customerName || '—')}</td>
+    <td style="font-weight:700;color:#059669;">¥${Number(a.balance || 0).toFixed(2)}</td>
+    <td>¥${Number(a.totalRecharged || 0).toFixed(2)}</td>
+    <td>¥${Number(a.totalBonus || 0).toFixed(2)}</td>
+    <td>${fmtTime(a.updatedAt)}</td>
+    <td><button class="btn-ghost" data-phone="${esc(a.phone)}">查看流水</button></td>
+  </tr>`).join('');
+  tbody.querySelectorAll('button[data-phone]').forEach(b => {
+    b.onclick = () => showStoredValueHistory(b.dataset.phone);
+  });
+}
+
+async function submitStoredValueRecharge() {
+  const phone = $('svPhone').value.trim();
+  const amount = parseFloat($('svAmount').value);
+  const customerName = $('svName').value.trim();
+  if (!/^1\d{10}$/.test(phone)) { toast('请输入正确的 11 位手机号', true); $('svPhone').focus(); return; }
+  if (!(amount > 0)) { toast('请输入大于 0 的充值金额', true); $('svAmount').focus(); return; }
+
+  const btn = $('svRechargeBtn');
+  btn.disabled = true;
+  btn.textContent = '入账中...';
+  const res = await api('/api/stored-value/recharge', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone, amount, customerName })
+  });
+  btn.disabled = false;
+  btn.textContent = '确认充值入账';
+  if (res.success) {
+    toast(res.message || '充值成功');
+    $('svPhone').value = '';
+    $('svName').value = '';
+    $('svAmount').value = '';
+    loadStoredValue();
+  } else {
+    toast(res.message || '充值失败', true);
+  }
+}
+
+async function showStoredValueHistory(phone) {
+  $('svHistoryModal').classList.add('show');
+  const box = $('svHistoryBody');
+  box.innerHTML = '<div class="cb-tip" style="text-align:center;">加载中...</div>';
+  const res = await api('/api/stored-value/accounts/' + encodeURIComponent(phone) + '/history');
+  if (!res.success) {
+    box.innerHTML = `<div class="cb-tip" style="text-align:center;">加载失败：${esc(res.message || '未知错误')}</div>`;
+    return;
+  }
+  const d = res.data || {};
+  const TYPE = { recharge: '充值', bonus: '赠送', consume: '消费' };
+  const rows = (d.history || []).map(h => `<div class="cb-order-item">
+    <div class="cb-order-head">
+      <span class="cb-order-no">${TYPE[h.type] || esc(h.type)}</span>
+      <span style="font-weight:700;color:${Number(h.amount) >= 0 ? '#059669' : '#dc2626'};">${Number(h.amount) >= 0 ? '+' : ''}${Number(h.amount).toFixed(2)}</span>
+    </div>
+    <div class="cb-order-meta"><span>${esc(h.note || '')}</span><span>余额 ¥${Number(h.balance).toFixed(2)}</span></div>
+    <div class="cb-order-meta"><span>${fmtTime(h.time)}</span></div>
+  </div>`).join('');
+  box.innerHTML = `<div style="font-size:13px;color:#6b7280;margin-bottom:8px;">${esc(d.phone)}${d.customerName ? ' · ' + esc(d.customerName) : ''} · 当前余额 <b style="color:var(--accent);">¥${Number(d.balance).toFixed(2)}</b></div>`
+    + (rows || '<div class="cb-tip" style="text-align:center;">暂无流水</div>');
+}
+
+function closeSvHistory() { $('svHistoryModal').classList.remove('show'); }
+
+$('svRechargeBtn').onclick = submitStoredValueRecharge;
+$('svSearchBtn').onclick = loadStoredValue;
+$('svSearch').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadStoredValue(); });
+window.closeSvHistory = closeSvHistory;
 
 /* ===================== 店铺设置 ===================== */
 // 控制"打印机"和"微信通知"子字段显示/隐藏
@@ -983,21 +1323,164 @@ async function loadSettings() {
   $('setPrinterSN').value = s.printerSN || '';
   $('setPrinterKey').value = s.printerKey || '';
   $('setNotifyPhone').value = s.notifyPhone || '';
+  $('setPrinterApiUrl').value = s.printerApiUrl || '';
+  $('setNotifyWebhookUrl').value = s.notifyWebhookUrl || '';
+  $('setSmsApiUrl').value = s.smsApiUrl || '';
+  $('setSmsApiKey').value = s.smsApiKey || '';
+  $('setVoiceApiUrl').value = s.voiceApiUrl || '';
+  $('setVoiceApiKey').value = s.voiceApiKey || '';
+  $('setWechatApiUrl').value = s.wechatApiUrl || '';
+  $('setWechatApiKey').value = s.wechatApiKey || '';
+  $('setWechatTemplateId').value = s.wechatTemplateId || '';
+  $('setWechatToUser').value = s.wechatToUser || '';
   $('printerFields').classList.toggle('show', !!s.enablePrinter);
   $('wechatFields').classList.toggle('show', !!s.enableWechat);
   // 门店定位与收货
   $('setShopLng').value = s.shopLongitude ?? '';
   $('setShopLat').value = s.shopLatitude ?? '';
   $('setShopAddr').value = s.shopAddress || '';
-  $('setReceiveMethod').value = s.receiveMethod || 'door_container';
-  $('setRecvStart').value = s.expectedReceiveStart || '06:00';
-  $('setRecvEnd').value = s.expectedReceiveEnd || '09:00';
+  $('setReceiveMethod').value = s.receiveMethod || 'supplier_arranged';
+  $('setRecvStart').value = s.expectedReceiveStart || '';
+  $('setRecvEnd').value = s.expectedReceiveEnd || '';
   if (s.storeFrontPhoto) { $('storeFrontPreview').src = s.storeFrontPhoto; $('storeFrontPreview').style.display = 'block'; }
   else { $('storeFrontPreview').style.display = 'none'; }
   if (s.streetViewPhoto) { $('streetViewPreview').src = s.streetViewPhoto; $('streetViewPreview').style.display = 'block'; }
   else { $('streetViewPreview').style.display = 'none'; }
   _existingStoreFront = s.storeFrontPhoto || '';
   _existingStreetView = s.streetViewPhoto || '';
+  initShopMap();
+}
+
+/* ===================== 门店地图选点（高德地图 JS API） ===================== */
+let _amapPromise = null;
+let _mapConfigCache = null;
+let _shopMap = null;
+let _shopMarker = null;
+let _amapGeocoder = null;
+let _amapPlaceSearch = null;
+
+// 动态加载高德地图脚本（只加载一次）
+function loadAMapScript(key, securityCode) {
+  if (window.AMap) return Promise.resolve(true);
+  if (_amapPromise) return _amapPromise;
+  _amapPromise = new Promise((resolve, reject) => {
+    if (securityCode) window._AMapSecurityConfig = { securityJsCode: securityCode };
+    const s = document.createElement('script');
+    s.src = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(key)}&plugin=AMap.PlaceSearch,AMap.Geocoder,AMap.AutoComplete`;
+    s.onload = () => resolve(true);
+    s.onerror = () => { _amapPromise = null; reject(new Error('高德地图脚本加载失败')); };
+    document.head.appendChild(s);
+  });
+  return _amapPromise;
+}
+
+// 读取后端下发的地图配置（含浏览器端公开 Key）
+async function getMapConfig() {
+  if (_mapConfigCache) return _mapConfigCache;
+  const res = await api('/api/config/map');
+  _mapConfigCache = (res && res.data) || { amapKey: '', amapSecurityCode: '' };
+  return _mapConfigCache;
+}
+
+// 写入经纬度（沿用门店保存逻辑读取的输入框）
+function setShopLngLat(lng, lat) {
+  $('setShopLng').value = Number(lng).toFixed(6);
+  $('setShopLat').value = Number(lat).toFixed(6);
+}
+
+// 逆地理编码回填详细地址（仅在地址为空时回填，避免覆盖商家手填内容）
+function reverseFillAddress(lng, lat) {
+  const addrInput = $('setShopAddr');
+  if (!addrInput || addrInput.value.trim() || !_amapGeocoder) return;
+  _amapGeocoder.getAddress([lng, lat], (status, result) => {
+    if (status === 'complete' && result && result.regeocode) {
+      addrInput.value = result.regeocode.formattedAddress || '';
+    }
+  });
+}
+
+// 初始化地图选点：有 Key 用地图，无 Key / 加载失败退化为经纬度手输
+async function initShopMap() {
+  const mapWrap = $('mapPickerWrap');
+  const manualWrap = $('lngLatManualWrap');
+  if (!mapWrap || !manualWrap) return;
+  let cfg;
+  try { cfg = await getMapConfig(); } catch (e) { cfg = { amapKey: '' }; }
+  if (!cfg.amapKey) {
+    mapWrap.style.display = 'none';
+    manualWrap.style.display = 'flex';
+    return;
+  }
+  try {
+    await loadAMapScript(cfg.amapKey, cfg.amapSecurityCode);
+  } catch (e) {
+    mapWrap.style.display = 'none';
+    manualWrap.style.display = 'flex';
+    if ($('mapFallbackHint')) $('mapFallbackHint').textContent = '高德地图加载失败，暂可手输经纬度';
+    return;
+  }
+  mapWrap.style.display = 'block';
+  manualWrap.style.display = 'none';
+  // 隐藏「未配置 Key」的兜底提示（Key 已生效，地图已加载）
+  if ($('mapFallbackHint')) $('mapFallbackHint').style.display = 'none';
+
+  const lng = parseFloat($('setShopLng').value);
+  const lat = parseFloat($('setShopLat').value);
+  const hasPos = isFinite(lng) && isFinite(lat) && Math.abs(lng) <= 180 && Math.abs(lat) <= 90;
+  const center = hasPos ? [lng, lat] : [116.397428, 39.90923]; // 未设置时默认北京
+
+  if (_shopMap) {
+    _shopMap.setZoomAndCenter(hasPos ? 16 : 11, center);
+    _shopMarker.setPosition(center);
+    return;
+  }
+
+  _shopMap = new AMap.Map('shopMap', { zoom: hasPos ? 16 : 11, center, resizeEnable: true });
+  _shopMarker = new AMap.Marker({ position: center, draggable: true, cursor: 'move' });
+  _shopMarker.setMap(_shopMap);
+  _amapGeocoder = new AMap.Geocoder();
+  _amapPlaceSearch = new AMap.PlaceSearch({ map: _shopMap, autoFitView: true });
+
+  // 标记拖动 / 地图点击 → 更新经纬度并回填地址
+  _shopMarker.on('dragend', () => {
+    const p = _shopMarker.getPosition();
+    setShopLngLat(p.getLng(), p.getLat());
+    reverseFillAddress(p.getLng(), p.getLat());
+  });
+  _shopMap.on('click', (e) => {
+    _shopMarker.setPosition(e.lnglat);
+    setShopLngLat(e.lnglat.getLng(), e.lnglat.getLat());
+    reverseFillAddress(e.lnglat.getLng(), e.lnglat.getLat());
+  });
+
+  // 搜索框：输入联想选择 + 回车检索
+  if (AMap.AutoComplete) {
+    const ac = new AMap.AutoComplete({ input: 'mapSearchInput' });
+    ac.on('select', (e) => {
+      if (e && e.poi && e.poi.location) {
+        const p = e.poi.location;
+        _shopMap.setZoomAndCenter(16, p);
+        _shopMarker.setPosition(p);
+        setShopLngLat(p.getLng(), p.getLat());
+      }
+    });
+  }
+  $('mapSearchInput').addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Enter') return;
+    ev.preventDefault();
+    const kw = $('mapSearchInput').value.trim();
+    if (!kw) return;
+    _amapPlaceSearch.search(kw, (status, result) => {
+      if (status === 'complete' && result && result.poiList && result.poiList.pois.length) {
+        const p = result.poiList.pois[0].location;
+        _shopMap.setZoomAndCenter(16, p);
+        _shopMarker.setPosition(p);
+        setShopLngLat(p.getLng(), p.getLat());
+      } else {
+        toast('未找到该地址，请在地图上手动选点', true);
+      }
+    });
+  });
 }
 
 /* ===================== 店铺装修（独立栏目） ===================== */
@@ -1049,11 +1532,24 @@ $('saveSettingsBtn').onclick = async () => {
     enableWechat: $('setEnableWechat').checked,
     printerSN: $('setPrinterSN').value.trim(),
     printerKey: $('setPrinterKey').value.trim(),
-    notifyPhone: $('setNotifyPhone').value.trim()
+    notifyPhone: $('setNotifyPhone').value.trim(),
+    printerApiUrl: $('setPrinterApiUrl').value.trim(),
+    notifyWebhookUrl: $('setNotifyWebhookUrl').value.trim(),
+    smsApiUrl: $('setSmsApiUrl').value.trim(),
+    smsApiKey: $('setSmsApiKey').value.trim(),
+    voiceApiUrl: $('setVoiceApiUrl').value.trim(),
+    voiceApiKey: $('setVoiceApiKey').value.trim(),
+    wechatApiUrl: $('setWechatApiUrl').value.trim(),
+    wechatApiKey: $('setWechatApiKey').value.trim(),
+    wechatTemplateId: $('setWechatTemplateId').value.trim(),
+    wechatToUser: $('setWechatToUser').value.trim()
   };
   if (!body.shopName) { toast('请输入店铺名称', true); return; }
   if (body.enablePrinter && !body.printerSN) { toast('请填写打印机编号', true); return; }
-  if (body.enableWechat && !body.notifyPhone) { toast('请填写通知手机号', true); return; }
+  if (body.enableWechat && !body.notifyPhone && !body.notifyWebhookUrl && !body.smsApiUrl && !body.voiceApiUrl && !body.wechatApiUrl) {
+    toast('请至少填写一种通知渠道（微信 / 手机号 / Webhook / 短信 / 语音）', true);
+    return;
+  }
 
   // 上传门头照（如有新选文件），无则保留原 URL
   let storeFrontUrl = _existingStoreFront;
@@ -1089,8 +1585,8 @@ $('saveSettingsBtn').onclick = async () => {
   body.storeFrontPhoto = storeFrontUrl;
   body.streetViewPhoto = streetViewUrl;
   body.receiveMethod = $('setReceiveMethod').value;
-  body.expectedReceiveStart = $('setRecvStart').value || '06:00';
-  body.expectedReceiveEnd = $('setRecvEnd').value || '09:00';
+  body.expectedReceiveStart = $('setRecvStart').value || '';
+  body.expectedReceiveEnd = $('setRecvEnd').value || '';
 
   const res = await api('/api/settings', {
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
@@ -1839,15 +2335,280 @@ async function loadMemberCenter() {
   }
 }
 
-// 现金支付暂未接入：弹窗提示联系客服
-function openPayTip() {
-  $('payTipModal').classList.add('show');
+/* ===================== 会员现金购卡（线下收款 + 客服确认开通） ===================== */
+// 服务电话：与后端 routes/membership.js SERVICE_PHONE 保持一致
+const MEMBER_SERVICE_PHONE = '400-888-6666';
+let _cashBuyLevel = 'advanced';
+let _cashBuyMonths = 1;
+let _cashPayMethod = 'cash';        // cash 线下转账 / wechat 微信扫码
+let _wechatPayEnabled = null;       // 后端是否已配置微信支付（null=未查询）
+let _payPollTimer = null;
+let _payPollOrderId = null;
+
+// 查询微信支付是否可用（未配置则隐藏微信入口）
+async function fetchWechatPayEnabled() {
+  if (_wechatPayEnabled !== null) return _wechatPayEnabled;
+  try {
+    const r = await api('/api/membership/pay-config');
+    _wechatPayEnabled = !!(r && r.data && r.data.wechatPayEnabled);
+  } catch (e) { _wechatPayEnabled = false; }
+  return _wechatPayEnabled;
 }
-function closePayTip() {
-  $('payTipModal').classList.remove('show');
+
+function renderCashTotal() {
+  const price = (PLAN_CFG[_cashBuyLevel] || {}).price || 0;
+  $('cbTotal').textContent = '¥' + (price * _cashBuyMonths).toFixed(2);
 }
-window.openPayTip = openPayTip;
-window.closePayTip = closePayTip;
+
+// 切换支付方式（影响按钮文案与提示）
+function setCashPayMethod(m) {
+  _cashPayMethod = (m === 'wechat') ? 'wechat' : 'cash';
+  document.querySelectorAll('#cbPayMethods .cb-month-chip').forEach(c => c.classList.toggle('active', c.dataset.pay === _cashPayMethod));
+  if ($('cbSubmitTip')) {
+    $('cbSubmitTip').textContent = (_cashPayMethod === 'wechat')
+      ? '提交后生成微信支付二维码，扫码支付成功后会员立即生效。'
+      : '提交后订单进入待支付状态，请按客服指引完成付款；客服确认收款后会员立即生效。';
+  }
+  const btn = $('cbSubmitBtn');
+  if (btn) btn.textContent = (_cashPayMethod === 'wechat') ? '生成支付二维码' : '提交订单';
+}
+
+// 打开购卡弹窗（level: advanced / premium）
+async function openCashBuy(level) {
+  const cfg = PLAN_CFG[level];
+  if (!cfg) { toast('会员等级无效', true); return; }
+  _cashBuyLevel = level;
+  _cashBuyMonths = 1;
+  $('cbLevel').textContent = LEVEL_NAME[level];
+  $('cbUnitPrice').textContent = `¥${cfg.price}/月`;
+  $('cbNote').value = '';
+  document.querySelectorAll('#cbMonths .cb-month-chip').forEach(c => c.classList.toggle('active', c.dataset.m === '1'));
+  renderCashTotal();
+  // 微信支付可用时展示入口（默认选中微信），否则仅线下转账
+  const wechatOn = await fetchWechatPayEnabled();
+  $('cbPayWechat').style.display = wechatOn ? '' : 'none';
+  setCashPayMethod(wechatOn ? 'wechat' : 'cash');
+  $('cashBuyForm').style.display = '';
+  $('cashBuyResult').style.display = 'none';
+  $('cashBuyWechat').style.display = 'none';
+  $('cbSubmitBtn').disabled = false;
+  $('cashBuyModal').classList.add('show');
+}
+
+function closeCashBuy() { stopWechatPoll(); $('cashBuyModal').classList.remove('show'); }
+function closeWechatPay() { stopWechatPoll(); $('cashBuyModal').classList.remove('show'); }
+
+// 月数选择
+document.querySelectorAll('#cbMonths .cb-month-chip').forEach(chip => {
+  chip.onclick = () => {
+    _cashBuyMonths = parseInt(chip.dataset.m, 10) || 1;
+    document.querySelectorAll('#cbMonths .cb-month-chip').forEach(c => c.classList.toggle('active', c === chip));
+    renderCashTotal();
+  };
+});
+
+// 支付方式选择
+document.querySelectorAll('#cbPayMethods .cb-month-chip').forEach(chip => {
+  chip.onclick = () => setCashPayMethod(chip.dataset.pay);
+});
+
+// 提交购卡：微信扫码 或 线下转账
+async function submitCashOrder() {
+  const btn = $('cbSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = '提交中...';
+
+  if (_cashPayMethod === 'wechat') {
+    const res = await api('/api/membership/wechat-orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        level: _cashBuyLevel,
+        months: _cashBuyMonths,
+        buyerNote: $('cbNote').value.trim()
+      })
+    });
+    if (res.success && res.codeUrl) {
+      showWechatQr(res.data, res.codeUrl);
+    } else {
+      toast(res.message || '微信下单失败', true);
+      btn.disabled = false;
+      setCashPayMethod('wechat');
+    }
+    return;
+  }
+
+  // 线下转账（原流程）
+  const res = await api('/api/membership/cash-orders', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      level: _cashBuyLevel,
+      months: _cashBuyMonths,
+      buyerNote: $('cbNote').value.trim()
+    })
+  });
+  if (res.success && res.data) {
+    $('cbResultNo').textContent = res.data.orderNo || '-';
+    $('cbResultPhone').textContent = res.servicePhone || MEMBER_SERVICE_PHONE;
+    $('cashBuyForm').style.display = 'none';
+    $('cashBuyResult').style.display = '';
+  } else {
+    toast(res.message || '提交失败', true);
+    btn.disabled = false;
+    btn.textContent = '提交订单';
+  }
+}
+$('cbSubmitBtn').onclick = submitCashOrder;
+
+// 展示微信支付二维码并轮询支付结果
+function showWechatQr(order, codeUrl) {
+  $('cashBuyForm').style.display = 'none';
+  $('cashBuyResult').style.display = 'none';
+  $('cashBuyWechat').style.display = '';
+  $('cbQrTotal').textContent = '¥' + Number((order && order.amountRmb) || 0).toFixed(2);
+  $('cbQrImg').src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(codeUrl);
+  $('cbQrStatus').textContent = '等待支付…';
+  startWechatPoll(order._id);
+}
+
+function startWechatPoll(orderId) {
+  stopWechatPoll();
+  _payPollOrderId = orderId;
+  const tick = async () => {
+    if (_payPollOrderId !== orderId) return;
+    const r = await api('/api/membership/wechat-orders/' + orderId + '/status');
+    if (_payPollOrderId !== orderId) return;
+    if (r && r.success && r.data) {
+      if (r.data.payStatus === 'paid') {
+        stopWechatPoll();
+        $('cbQrStatus').textContent = '✅ 支付成功，会员已开通';
+        toast('支付成功，会员已开通');
+        try { loadCoinCenter(); } catch (e) {}
+        try { loadMemberCenter(); } catch (e) {}
+        return;
+      }
+      if (r.data.payStatus === 'closed' || r.data.status === 'cancelled') {
+        stopWechatPoll();
+        $('cbQrStatus').textContent = '订单已关闭，请重新下单';
+        return;
+      }
+    }
+    _payPollTimer = setTimeout(tick, 3000);
+  };
+  _payPollTimer = setTimeout(tick, 3000);
+}
+
+function stopWechatPoll() {
+  if (_payPollTimer) { clearTimeout(_payPollTimer); _payPollTimer = null; }
+  _payPollOrderId = null;
+}
+
+// 我的购卡订单
+function openCashOrders() {
+  closeCashBuy();
+  $('cashOrdersModal').classList.add('show');
+  loadCashOrders();
+}
+function closeCashOrders() { $('cashOrdersModal').classList.remove('show'); }
+
+async function loadCashOrders() {
+  const box = $('cashOrderList');
+  box.innerHTML = '<div class="cb-tip" style="text-align:center;">加载中...</div>';
+  const res = await api('/api/membership/cash-orders');
+  if (!res.success) {
+    box.innerHTML = `<div class="cb-tip" style="text-align:center;">加载失败：${esc(res.message || '未知错误')}</div>`;
+    return;
+  }
+  const list = res.data || [];
+  if (!list.length) {
+    box.innerHTML = '<div class="cb-tip" style="text-align:center;">暂无购卡订单</div>';
+    return;
+  }
+  const STATUS = { pending: '待支付', paid: '已开通', cancelled: '已取消' };
+  const CHANNEL = { cash: '线下转账', wechat: '微信支付' };
+  box.innerHTML = list.map(o => {
+    const refunded = o.refundStatus === 'refunded' || o.payStatus === 'refunded';
+    const statusText = refunded ? '已退款' : (STATUS[o.status] || esc(o.status));
+    const canCancel = o.status === 'pending';
+    const canRefund = o.payChannel === 'wechat' && o.payStatus === 'paid' && !refunded;
+    return `
+    <div class="cb-order-item">
+      <div class="cb-order-head">
+        <span class="cb-order-no">${esc(o.orderNo)}</span>
+        <span class="cb-status ${refunded ? 'cancelled' : esc(o.status)}">${statusText}</span>
+      </div>
+      <div class="cb-order-meta"><span>${CHANNEL[o.payChannel] || '线下转账'} · ${esc(LEVEL_NAME[o.level] || o.level)} · ${o.months} 个月</span><span>¥${Number(o.amountRmb || 0).toFixed(2)}</span></div>
+      <div class="cb-order-meta"><span>下单 ${fmtTime(o.createdAt)}</span>${o.paidAt ? `<span>开通 ${fmtTime(o.paidAt)}</span>` : ''}</div>
+      ${o.payChannel === 'wechat' && o.splitStatus === 'done' ? '<div class="cb-order-meta"><span>已云分账（平台抽佣 + 供应商）</span></div>' : ''}
+      ${o.buyerNote ? `<div class="cb-order-meta"><span>备注：${esc(o.buyerNote)}</span></div>` : ''}
+      ${canCancel ? `<button class="cb-order-cancel" data-id="${esc(String(o._id))}">取消订单</button>` : ''}
+      ${canRefund ? `<button class="cb-order-cancel" data-refund="${esc(String(o._id))}">申请退款</button>` : ''}
+    </div>`;
+  }).join('');
+  box.querySelectorAll('[data-id]').forEach(b => { b.onclick = () => cancelCashOrder(b.dataset.id); });
+  box.querySelectorAll('[data-refund]').forEach(b => { b.onclick = () => refundWechatOrder(b.dataset.refund); });
+}
+
+async function cancelCashOrder(id) {
+  if (!confirm('确定取消该待支付订单？')) return;
+  const res = await api('/api/membership/cash-orders/' + id + '/cancel', { method: 'POST' });
+  if (res.success) {
+    toast('订单已取消');
+    loadCashOrders();
+  } else {
+    toast(res.message || '取消失败', true);
+  }
+}
+
+// 微信支付订单退款（已分账会先回退分账再原路退款）
+async function refundWechatOrder(id) {
+  if (!confirm('确定申请退款？如已云分账，将先回退分账再原路退款。')) return;
+  const res = await api('/api/membership/wechat-orders/' + id + '/refund', { method: 'POST' });
+  if (res.success) {
+    toast('退款已发起');
+    loadCashOrders();
+  } else {
+    toast(res.message || '退款失败', true);
+  }
+}
+
+/* ===================== 会员三档权益对比 ===================== */
+// 与 utils/dhConfig.js 的 membership / features 配置保持一致
+const BENEFIT_ROWS = [
+  { label: '月费', vals: ['¥59/月', '¥99/月', '¥199/月'] },
+  { label: '鼎恒币兑换', vals: ['2000 币', '3000 币', '5000 币'] },
+  { label: '采购返币', vals: ['2 元=1 币', '1 元=1 币', '1 元=1 币'] },
+  { label: '可兑采购券面额', vals: ['10-30 元', '10-100 元', '10-200 元'] },
+  { label: '扫码点餐 / 菜单 / 桌台 / 订单', vals: [true, true, true] },
+  { label: '后厨语音看单 / 大屏展示', vals: [true, true, true] },
+  { label: '采购商城', vals: [true, true, true] },
+  { label: '顾客积分系统', vals: [true, true, true] },
+  { label: '满减活动', vals: [false, true, true] },
+  { label: '经营报表', vals: [false, true, true] },
+  { label: '分类折扣', vals: [false, false, true] },
+  { label: '充值送', vals: [false, false, true] },
+  { label: '顾客画像 / 损耗分析', vals: [false, false, true] },
+  { label: '高级营销工具', vals: [false, false, true] }
+];
+
+function openBenefitCompare() {
+  const cell = (v) => v === true
+    ? '<span class="bc-yes">✓</span>'
+    : (v === false ? '<span class="bc-no">—</span>' : `<span class="bc-val">${esc(v)}</span>`);
+  const head = '<tr><th>权益</th><th>基础版</th><th class="hl">进阶版</th><th class="hl">尊享版</th></tr>';
+  const body = BENEFIT_ROWS.map(r => `<tr><td>${esc(r.label)}</td>${r.vals.map(cell).join('')}</tr>`).join('');
+  $('benefitCompareBody').innerHTML = `<table class="bc-table"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+  $('benefitCompareModal').classList.add('show');
+}
+function closeBenefitCompare() { $('benefitCompareModal').classList.remove('show'); }
+
+window.openCashBuy = openCashBuy;
+window.closeCashBuy = closeCashBuy;
+window.openCashOrders = openCashOrders;
+window.closeCashOrders = closeCashOrders;
+window.openBenefitCompare = openBenefitCompare;
+window.closeBenefitCompare = closeBenefitCompare;
 
 // 底部"会员兑换记录"→ 跳到鼎恒币中心流水
 function goCoinHistory() {
@@ -2147,7 +2908,7 @@ function mallSearchProductCardHtml(p) {
           <a class="product-store-name" onclick="enterStore('${esc(String(supplierId))}');event.stopPropagation();">${esc(supplierName)} ›</a>
         </div>
         <div class="product-tags">${catBadge}${coinBadge}</div>
-        <div class="product-price">¥${Number(p.costPrice).toFixed(2)}<small> 批发价 / ${esc(unit)}</small></div>
+        <div class="product-price">¥${Number(p.salePrice != null ? p.salePrice : p.unitPrice).toFixed(2)}<small> 售价 / ${esc(unit)}</small></div>
         <div class="product-actions">
           <div class="qty-ctrl">
             <button onclick="adjustQty('${p._id}', -1)">−</button>
@@ -2182,6 +2943,18 @@ async function enterStore(supplierId) {
   $('mallProductsTitle').textContent = s.name + ' · 店铺商品';
   $('cartStoreName').textContent = s.name;
   if ($('mCartStoreName')) $('mCartStoreName').textContent = s.name;
+  // 渲染供应商配送时段公告（留空则隐藏）
+  const noticeBox = $('mallDeliveryNotice');
+  if (noticeBox) {
+    const text = (s.deliveryNotice || '').trim();
+    if (text) {
+      noticeBox.innerHTML = `<span class="mdn-label">配送说明：</span>${esc(text)}`;
+      noticeBox.style.display = 'flex';
+    } else {
+      noticeBox.innerHTML = '';
+      noticeBox.style.display = 'none';
+    }
+  }
   renderMallCatNav();
   try {
     const res = await api(`/api/supply-products?status=上架&supplierId=${encodeURIComponent(supplierId)}`);
@@ -2201,6 +2974,8 @@ function backToStoreList() {
   _mallPendingQty = {};
   _mallSelectedCouponId = '';
   _mallProducts = [];
+  const noticeBox = $('mallDeliveryNotice');
+  if (noticeBox) { noticeBox.innerHTML = ''; noticeBox.style.display = 'none'; }
   closeMallCartDrawer();
   updateMallFloatBar(0, 0, 0, false);
   showStoreListView();
@@ -2272,7 +3047,7 @@ function renderStoreProducts() {
           <div class="product-name">${esc(p.name)}${gradeTag}</div>
           <div class="product-category">规格：${esc(unit)}${p.category ? ' · ' + esc(p.category) : ''}</div>
           ${coinBadge}
-          <div class="product-price">¥${Number(p.costPrice).toFixed(2)}<small> 批发价</small></div>
+          <div class="product-price">¥${Number(p.salePrice != null ? p.salePrice : p.unitPrice).toFixed(2)}<small> 售价</small></div>
           ${desc}
           <div class="product-actions">
             <div class="qty-ctrl">
@@ -2326,7 +3101,8 @@ function addToCart(productId) {
       name: p.name,
       unit: p.unit || '个',
       quantity: n,
-      unitPrice: p.costPrice,
+      // 商家按平台卖价计价（卖价由平台手动定价；未定价时后端按供货价处理）
+      unitPrice: p.salePrice != null ? p.salePrice : p.unitPrice,
       category: p.category || '',
       coinMultiplier
     });
@@ -2590,6 +3366,7 @@ async function submitMallOrder() {
   const items = _mallCart.map(c => ({
     productId: c.productId,
     quantity: c.quantity,
+    // 金额由后端按商品「供货价 / 平台卖价」权威计算，前端单价仅作参考展示
     unitPrice: c.unitPrice
   }));
   const couponId = _mallSelectedCouponId || '';
@@ -2667,6 +3444,12 @@ async function loadPurchaseOrders() {
   const body = $('purchaseOrdersBody');
   const cardList = $('purchaseCardList');
   const orders = res.data || [];
+  // 商家主动查看订单 = 已知悉当前状态，更新红点轮询基线并清零角标
+  if (typeof _recordPurchaseSnapshot === 'function' && orders.length) {
+    _lastPurchaseSnapshot = _recordPurchaseSnapshot(orders);
+  }
+  _purchaseBadgeSeen = true;
+  updatePurchaseBadge(false);
   if (!orders.length) {
     body.innerHTML = `<tr><td colspan="7" class="empty">暂无采购订单</td></tr>`;
     if (cardList) cardList.innerHTML = `<div class="empty">暂无采购订单</div>`;
@@ -2687,6 +3470,11 @@ async function loadPurchaseOrders() {
   body.innerHTML = orders.map(o => {
     const sup = o.supplierId;
     const supplierName = (sup && typeof sup === 'object' && sup.name) ? sup.name : (typeof sup === 'string' ? sup : '未知供应商');
+    // 供应商配送公告（如有则在供应商名下小字展示）
+    const deliveryNotice = (sup && typeof sup === 'object' && sup.deliveryNotice) ? sup.deliveryNotice.trim() : '';
+    const noticeHtml = deliveryNotice
+      ? `<div style="font-size:11px;color:#92660c;background:#fff8e6;border:1px solid #fcd97b;border-radius:6px;padding:3px 6px;margin-top:3px;line-height:1.4;max-width:220px;"><b>🚚 配送说明：</b>${esc(deliveryNotice)}</div>`
+      : '';
     const itemsText = (o.items || []).slice(0, 2).map(itemLine).join('，') + (o.items?.length > 2 ? '…' : '');
     const bc = badgeCls[o.status] || 'b-gray';
     const sortTag = o.sorted ? '<span class="badge b-green" style="margin-left:4px;font-size:11px;">已分拣</span>' : '';
@@ -2697,7 +3485,7 @@ async function loadPurchaseOrders() {
     return `
       <tr>
         <td><b>${esc(o.orderNo || o._id)}</b><br><small style="color:#9ca3af;">${fmtTime(o.createdAt)}</small></td>
-        <td>${esc(supplierName)}</td>
+        <td>${esc(supplierName)}${noticeHtml}</td>
         <td title="${esc((o.items || []).map(i => `${i.name}×${i.quantity}${i.actualWeight ? '（实称' + i.actualWeight + 'kg）' : ''}`).join('，'))}">${itemsText}</td>
         <td>¥${Number(o.totalAmount).toFixed(2)}</td>
         <td><span class="badge ${bc}">${o.status}</span>${sortTag}</td>
@@ -2712,6 +3500,11 @@ async function loadPurchaseOrders() {
     cardList.innerHTML = orders.map(o => {
       const sup = o.supplierId;
       const supplierName = (sup && typeof sup === 'object' && sup.name) ? sup.name : (typeof sup === 'string' ? sup : '未知供应商');
+      // 供应商配送公告（如有则展示在供应商名行下小字）
+      const deliveryNotice = (sup && typeof sup === 'object' && sup.deliveryNotice) ? sup.deliveryNotice.trim() : '';
+      const noticeHtml = deliveryNotice
+        ? `<div class="pcard-amount" style="font-size:11px;color:#92660c;background:#fff8e6;border:1px solid #fcd97b;border-radius:6px;padding:4px 6px;margin-top:3px;line-height:1.4;"><b>🚚 配送说明：</b>${esc(deliveryNotice)}</div>`
+        : '';
       const itemsCount = (o.items || []).length;
       const itemsSummary = (o.items || []).slice(0, 3).map(itemLine).join('，') + (itemsCount > 3 ? ` 等 ${itemsCount} 项` : '');
       const bc = badgeCls[o.status] || 'b-gray';
@@ -2736,6 +3529,7 @@ async function loadPurchaseOrders() {
             <span class="pcard-status badge ${bc}">${o.status}</span>
           </div>
           <div class="pcard-supplier">供应商：<b>${esc(supplierName)}</b></div>
+          ${noticeHtml}
           <div class="pcard-items">${itemsSummary || '无商品'}</div>
           <div class="pcard-amounts">
             <span class="pcard-amount">总额 <b>¥${totalAmt.toFixed(2)}</b></span>
@@ -2779,6 +3573,227 @@ document.querySelectorAll('.filter-tab').forEach(tab => {
     loadPurchaseOrders();
   };
 });
+
+/* ===================== 采购订单状态变化红点提醒 =====================
+   商家后台每 15 秒轮询采购订单，检测供应商发起的状态变化（已确认/已发货/已送达）。
+   发货 = status 切换到"已发货"；送达 = deliveryPhotoUrl 写入（status 仍"已发货"）。
+   任一变化即在「采购订单」导航加红点；用户点击进入栏目后清零。 */
+let _lastPurchaseSnapshot = null;  // Map<orderId, status + '|' + (deliveredAt ? '1' : '0')>
+let _purchaseBadgeSeen = true;     // 是否已查看（true=不显示红点）
+
+function updatePurchaseBadge(shouldShow) {
+  const badge = document.getElementById('navPurchaseBadge');
+  if (!badge) return;
+  if (shouldShow && !_purchaseBadgeSeen) {
+    badge.style.display = '';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// 首次加载订单时建立快照基线，避免误报
+function _recordPurchaseSnapshot(orders) {
+  const map = {};
+  orders.forEach(o => {
+    map[String(o._id)] = (o.status || '') + '|' + (o.deliveredAt ? '1' : '0');
+  });
+  return map;
+}
+
+async function pollPurchaseStatusChanges() {
+  try {
+    const res = await api('/api/purchase-orders');
+    if (!res.success || !Array.isArray(res.data)) return;
+    const cur = _recordPurchaseSnapshot(res.data);
+    if (_lastPurchaseSnapshot === null) {
+      _lastPurchaseSnapshot = cur;
+      return;
+    }
+    let changed = false;
+    for (const id in cur) {
+      const prev = _lastPurchaseSnapshot[id];
+      if (prev === undefined) {
+        // 新订单（首次出现）也算变化
+        if (res.data.find(o => String(o._id) === id)) {
+          // 新订单：只有当状态不是"待确认"时才提醒（待确认是商家自己刚下的）
+          const o = res.data.find(o => String(o._id) === id);
+          if (o && o.status !== '待确认') changed = true;
+        }
+      } else if (prev !== cur[id]) {
+        // 状态变化或送达照片写入
+        const newStatus = cur[id].split('|')[0];
+        // 商家自己确认收货（已收货/已完成）不算提醒
+        if (newStatus !== '已收货' && newStatus !== '已完成') changed = true;
+      }
+    }
+    if (changed) {
+      _purchaseBadgeSeen = false;
+      updatePurchaseBadge(true);
+      // 同步刷新订单列表，让用户立即看到新状态（即便未点击）
+      loadPurchaseOrders();
+    }
+    _lastPurchaseSnapshot = cur;
+  } catch (e) {
+    // 网络错误静默，下次再试
+  }
+}
+setInterval(pollPurchaseStatusChanges, 15000);
+
+// 点击「采购订单」导航：清红点（用户主动查看）
+(function () {
+  const navPurchase = document.getElementById('navPurchase');
+  if (navPurchase) {
+    navPurchase.addEventListener('click', () => {
+      _purchaseBadgeSeen = true;
+      updatePurchaseBadge(false);
+    });
+  }
+})();
+
+/* ===================== 智能补货（采购核心：预测 + 提醒） ===================== */
+
+let _smartReplenishData = [];   // 补货提醒（采购频率 + 库存预警）
+let _smartForecastData = [];    // 预测补货（点餐销量预测）
+
+async function loadSmartReplenish() {
+  const listEl = $('smartReplenishList');
+  if (!listEl) return;
+  listEl.innerHTML = '<div class="empty">正在分析采购与销量数据…</div>';
+  try {
+    const [srRes, fcRes] = await Promise.all([
+      api('/api/admin/smart-replenish/suggestions'),
+      api('/api/admin/smart-replenish/forecast')
+    ]);
+    _smartReplenishData = (srRes && srRes.success && srRes.data && srRes.data.suggestions) || [];
+    _smartForecastData = (fcRes && fcRes.success && fcRes.data && fcRes.data.forecastItems) || [];
+    renderSmartReplenish();
+  } catch (e) {
+    console.error('智能补货加载失败', e);
+    toast('智能补货加载失败', true);
+    listEl.innerHTML = '<div class="empty">加载失败，请重试</div>';
+  }
+}
+
+function groupBySupplier(items) {
+  const groups = new Map();
+  items.forEach((s) => {
+    const key = String(s.supplierId || 'unknown');
+    if (!groups.has(key)) {
+      groups.set(key, { supplierId: s.supplierId, supplierName: s.supplierName || '未知供应商', items: [] });
+    }
+    groups.get(key).items.push(s);
+  });
+  return [...groups.values()];
+}
+
+function renderSrTable(g, type) {
+  let html = `<div class="sr-group">`;
+  html += `<div class="sr-group-head"><b>${esc(g.supplierName)}</b><span>${g.items.length} 项</span></div>`;
+  if (type === 'forecast') {
+    html += `<div class="table-wrap"><table class="data"><thead><tr><th>食材</th><th>品类</th><th>预测需求</th><th>当前库存</th><th>建议采购</th></tr></thead><tbody>`;
+    g.items.forEach((s) => {
+      html += `<tr>
+        <td>${esc(s.name)}</td>
+        <td>${esc(s.category)}</td>
+        <td>${s.predictedDemand} ${esc(s.unit)}</td>
+        <td>${s.currentInventory} ${esc(s.unit)}</td>
+        <td><b>${s.suggestedQuantity}</b> ${esc(s.unit)}</td>
+      </tr>`;
+    });
+    html += `</tbody></table></div>`;
+  } else {
+    html += `<div class="table-wrap"><table class="data"><thead><tr><th>食材</th><th>品类</th><th>补货原因</th><th>建议量</th><th>参考价</th></tr></thead><tbody>`;
+    g.items.forEach((s) => {
+      html += `<tr>
+        <td>${esc(s.name)}</td>
+        <td>${esc(s.category)}</td>
+        <td>${esc(s.reason || '')}</td>
+        <td><b>${s.suggestedQuantity}</b> ${esc(s.unit)}</td>
+        <td>¥${Number(s.latestPrice).toFixed(2)}</td>
+      </tr>`;
+    });
+    html += `</tbody></table></div>`;
+  }
+  html += `<div class="sr-group-foot"><button class="btn-add" type="button" data-sr-order="${esc(g.supplierId)}" data-sr-type="${type}">一键转采购单</button><span class="sr-foot-hint">按建议量生成该供应商的采购订单</span></div>`;
+  html += `</div>`;
+  return html;
+}
+
+function renderSmartReplenish() {
+  const listEl = $('smartReplenishList');
+  if (!listEl) return;
+
+  const forecast = _smartForecastData;
+  const suggestions = _smartReplenishData;
+
+  let html = '';
+  html += `<div class="sr-section-title">📈 预测补货（未来 7 天销量预测）</div>`;
+  if (forecast.length) {
+    groupBySupplier(forecast).forEach((g) => { html += renderSrTable(g, 'forecast'); });
+  } else {
+    html += `<div class="empty" style="margin-bottom:24px;">暂无销量数据或未配置菜品配方，无法预测</div>`;
+  }
+
+  html += `<div class="sr-section-title">🔔 补货提醒（采购频率 + 库存预警）</div>`;
+  if (suggestions.length) {
+    groupBySupplier(suggestions).forEach((g) => { html += renderSrTable(g, 'suggestions'); });
+  } else {
+    html += `<div class="empty">暂无需要补货的食材 🎉</div>`;
+  }
+
+  listEl.innerHTML = html;
+  listEl.querySelectorAll('[data-sr-order]').forEach((btn) => {
+    btn.onclick = () => submitSmartReplenish(btn.dataset.srOrder, btn.dataset.srType);
+  });
+}
+
+async function submitSmartReplenish(supplierId, type) {
+  const source = type === 'forecast' ? _smartForecastData : _smartReplenishData;
+  const items = source
+    .filter((s) => String(s.supplierId) === String(supplierId))
+    .map((s) => ({ productId: s.productId, quantity: s.suggestedQuantity }));
+  if (!items.length) { toast('该供应商无可下单商品', true); return; }
+
+  const body = { supplierId, items };
+  const res = await api('/api/purchase-orders', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res.success && res.code === 'STOCKPILE_WARNING') {
+    const w = res.data || {};
+    const stockpile = w.stockpileWarnings || [];
+    const drops = w.priceDropWarnings || [];
+    let msg = '';
+    if (stockpile.length) msg += '⚠️ 量异常：\n' + stockpile.map(x => `「${x.name}」本次 ${x.quantity} 超过近7日总量 ${x.history7DayTotal}`).join('\n') + '\n\n';
+    if (drops.length) msg += '📉 跌价预警：\n' + drops.map(x => `「${x.name}」售价低于近7日均价`).join('\n');
+    msg += '\n点击"确定"坚持下单，"取消"返回修改。';
+    if (confirm(msg)) {
+      const forceRes = await api('/api/purchase-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supplierId, items, force: true })
+      });
+      if (!forceRes.success) { toast(forceRes.message || '下单失败', true); return; }
+      toast('采购订单已提交（已标注异常提醒供应商）');
+    } else {
+      toast('已取消，请修改后重新提交', true);
+      return;
+    }
+  } else if (!res.success) {
+    toast(res.message || '下单失败', true);
+    return;
+  } else {
+    toast('采购订单已提交！');
+  }
+  loadSmartReplenish();
+}
+
+// 刷新按钮绑定
+(function () {
+  const btn = $('smartReplenishRefresh');
+  if (btn) btn.onclick = loadSmartReplenish;
+})();
 
 /* ===================== 采购监控（防回扣） ===================== */
 // 数据全部来自 /api/admin/procurement-monitor/*（shopId 由 JWT 隔离）；
