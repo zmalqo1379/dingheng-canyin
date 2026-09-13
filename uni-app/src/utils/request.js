@@ -1,22 +1,29 @@
 /**
  * utils/request.js
  * 统一封装 uni.request：
- *  - baseURL = http://localhost:3000/api
+ *  - baseURL = 环境变量 VITE_API_BASE_URL，未配置时回退 http://localhost:3000/api
  *  - 统一返回 { success, data } 的 data 部分
+ *  - 自动携带 Authorization（商家 JWT）与 x-shop-id（顾客/商家 shopId）
  *  - 401 自动跳转登录页
  *  - 网络异常 / 业务错误统一 toast
  *
  * 注意：
- *  1) 微信小程序真机调试时 localhost 不可达，请改为内网/公网 HTTPS 域名，
- *     并在 mp 微信后台 request 合法域名中配置；开发期在微信开发者工具
- *     「详情 → 本地设置 → 不校验合法域名」勾选即可使用 http://localhost。
- *  2) 后端响应统一格式为 { success: true/false, data/message }。
+ *  1) 上线时请在 uni-app/.env 中配置 VITE_API_BASE_URL 为正式 https 域名，
+ *     并在微信小程序后台「服务器域名」中登记该 request 合法域名。
+ *  2) 开发期：H5 走 vite 代理（见 vite.config.js）；小程序真机调试需把
+ *     VITE_API_BASE_URL 指向局域网 IP，或在开发者工具勾选「不校验合法域名」。
+ *  3) 后端响应统一格式为 { success: true/false, data/message }。
  */
 
-const BASE_URL = 'http://localhost:3000/api';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
-function getToken() {
+export function getToken() {
   return uni.getStorageSync('token') || '';
+}
+
+// shopId：顾客扫码 / 商家登录后写入 storage，请求统一以 x-shop-id 头带上
+export function getShopId() {
+  return uni.getStorageSync('shopId') || '';
 }
 
 export function request(options) {
@@ -36,6 +43,8 @@ export function request(options) {
     );
     const token = getToken();
     if (token) finalHeader['Authorization'] = 'Bearer ' + token;
+    const shopId = getShopId();
+    if (shopId) finalHeader['x-shop-id'] = shopId;
 
     uni.request({
       url: BASE_URL + url,
@@ -49,7 +58,7 @@ export function request(options) {
           uni.removeStorageSync('token');
           uni.showToast({ title: '登录已过期，请重新登录', icon: 'none' });
           setTimeout(() => {
-            uni.reLaunch({ url: '/pages/customer/index' });
+            uni.reLaunch({ url: '/pages/login/index' });
           }, 800);
           return reject(new Error('未授权'));
         }
@@ -96,4 +105,4 @@ export const put = (url, data, options = {}) =>
 export const del = (url, data, options = {}) =>
   request({ url, method: 'DELETE', data, ...options });
 
-export default { request, get, post, put, del, BASE_URL };
+export default { request, get, post, put, del, getToken, getShopId, BASE_URL };

@@ -78,7 +78,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { onLoad, onPullDownRefresh } from '@dcloudio/uni-app';
-import { get, post, put, del } from '@/utils/request.js';
+import { get, post, put, del, getToken } from '@/utils/request.js';
 
 const dishes = ref([]);
 const categories = ref([]);
@@ -165,7 +165,13 @@ function remove(d) {
   });
 }
 
-onLoad(() => load());
+onLoad(() => {
+  if (!getToken()) {
+    uni.reLaunch({ url: '/pages/login/index' });
+    return;
+  }
+  load();
+});
 onPullDownRefresh(() => load().finally(() => uni.stopPullDownRefresh()));
 </script>
 

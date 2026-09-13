@@ -54,7 +54,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { onLoad, onPullDownRefresh } from '@dcloudio/uni-app';
-import { get } from '@/utils/request.js';
+import { get, getToken } from '@/utils/request.js';
 
 const stats = ref({
   orderCount: 0,
@@ -78,7 +78,7 @@ function barH(val) {
 async function load() {
   loading.value = true;
   try {
-    const d = await get('/admin/stats');
+    const d = await get('/admin/merchant-stats');
     if (d) Object.assign(stats.value, d);
   } catch (e) {} finally {
     loading.value = false;
@@ -86,6 +86,10 @@ async function load() {
 }
 
 onLoad(() => {
+  if (!getToken()) {
+    uni.reLaunch({ url: '/pages/login/index' });
+    return;
+  }
   load();
   // 每 60s 自动刷新一次
   setInterval(load, 60000);

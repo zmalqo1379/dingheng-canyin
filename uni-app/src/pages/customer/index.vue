@@ -174,6 +174,8 @@ async function loadData() {
 onLoad((options = {}) => {
   tableId.value = options.tableId || '';
   shopId.value = options.shopId || '';
+  // 持久化 shopId，供 request.js 统一以 x-shop-id 头带上（后端 requirePublicShopId 需要）
+  if (shopId.value) uni.setStorageSync('shopId', shopId.value);
   if (!tableId.value) {
     uni.showToast({ title: '未识别桌号，请在桌牌扫码进入', icon: 'none', duration: 2500 });
   }

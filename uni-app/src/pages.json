@@ -4,9 +4,18 @@
   },
   "pages": [
     {
-      "path": "pages/customer/index",
+      "path": "pages/login/index",
       "style": {
-        "navigationBarTitleText": "扫码点餐",
+        "navigationBarTitleText": "鼎恒餐饮",
+        "navigationBarBackgroundColor": "#FF6B35",
+        "navigationBarTextStyle": "white",
+        "backgroundColor": "#f5f5f5"
+      }
+    },
+    {
+      "path": "pages/admin/index",
+      "style": {
+        "navigationBarTitleText": "采购管家",
         "navigationBarBackgroundColor": "#FF6B35",
         "navigationBarTextStyle": "white",
         "enablePullDownRefresh": true,
@@ -14,12 +23,40 @@
       }
     },
     {
-      "path": "pages/admin/index",
+      "path": "pages/admin/mall",
       "style": {
-        "navigationBarTitleText": "店铺",
+        "navigationBarTitleText": "采购商城",
         "navigationBarBackgroundColor": "#FF6B35",
         "navigationBarTextStyle": "white",
-        "enablePullDownRefresh": false,
+        "enablePullDownRefresh": true,
+        "backgroundColor": "#f5f5f5"
+      }
+    },
+    {
+      "path": "pages/admin/purchase",
+      "style": {
+        "navigationBarTitleText": "采购订单",
+        "navigationBarBackgroundColor": "#FF6B35",
+        "navigationBarTextStyle": "white",
+        "enablePullDownRefresh": true,
+        "backgroundColor": "#f5f5f5"
+      }
+    },
+    {
+      "path": "pages/admin/member",
+      "style": {
+        "navigationBarTitleText": "会员中心",
+        "navigationBarBackgroundColor": "#FF6B35",
+        "navigationBarTextStyle": "white",
+        "backgroundColor": "#f5f5f5"
+      }
+    },
+    {
+      "path": "pages/admin/more",
+      "style": {
+        "navigationBarTitleText": "门店经营",
+        "navigationBarBackgroundColor": "#FF6B35",
+        "navigationBarTextStyle": "white",
         "backgroundColor": "#f5f5f5"
       }
     },
@@ -52,6 +89,16 @@
         "enablePullDownRefresh": false,
         "backgroundColor": "#f5f5f5"
       }
+    },
+    {
+      "path": "pages/customer/index",
+      "style": {
+        "navigationBarTitleText": "扫码点餐",
+        "navigationBarBackgroundColor": "#FF6B35",
+        "navigationBarTextStyle": "white",
+        "enablePullDownRefresh": true,
+        "backgroundColor": "#f5f5f5"
+      }
     }
   ],
   "globalStyle": {
@@ -69,27 +116,27 @@
     "list": [
       {
         "pagePath": "pages/admin/index",
-        "text": "店铺",
-        "iconPath": "static/tabbar/shop.png",
-        "selectedIconPath": "static/tabbar/shop-active.png"
+        "text": "采购",
+        "iconPath": "static/tabbar/purchase.png",
+        "selectedIconPath": "static/tabbar/purchase-active.png"
       },
       {
-        "pagePath": "pages/admin/menu",
-        "text": "菜单",
-        "iconPath": "static/tabbar/menu.png",
-        "selectedIconPath": "static/tabbar/menu-active.png"
+        "pagePath": "pages/admin/mall",
+        "text": "商城",
+        "iconPath": "static/tabbar/mall.png",
+        "selectedIconPath": "static/tabbar/mall-active.png"
       },
       {
-        "pagePath": "pages/admin/order",
-        "text": "订单",
+        "pagePath": "pages/admin/purchase",
+        "text": "采购单",
         "iconPath": "static/tabbar/order.png",
         "selectedIconPath": "static/tabbar/order-active.png"
       },
       {
-        "pagePath": "pages/admin/stats",
-        "text": "数据统计",
-        "iconPath": "static/tabbar/stats.png",
-        "selectedIconPath": "static/tabbar/stats-active.png"
+        "pagePath": "pages/admin/member",
+        "text": "我的",
+        "iconPath": "static/tabbar/mine.png",
+        "selectedIconPath": "static/tabbar/mine-active.png"
       }
     ]
   },

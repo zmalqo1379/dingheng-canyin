@@ -39,7 +39,7 @@
 <script setup>
 import { ref, computed, onUnmounted } from 'vue';
 import { onLoad, onUnload, onPullDownRefresh, onHide, onShow } from '@dcloudio/uni-app';
-import { get, put } from '@/utils/request.js';
+import { get, put, getToken } from '@/utils/request.js';
 import { playNewOrder, destroyAudio } from '@/utils/audio.js';
 
 const POLL_SEC = 5;
@@ -64,7 +64,7 @@ function switchTab(t) {
 
 async function load(silent = false) {
   try {
-    const list = await get('/orders', { status: tab.value });
+    const list = await get('/admin/orders', { status: tab.value });
     const arr = Array.isArray(list) ? list : [];
     if (tab.value === 'pending') {
       // 识别新订单：仅当之前已有数据且非静默刷新时才播报+高亮
@@ -79,7 +79,7 @@ async function load(silent = false) {
     } else {
       // 已完成 tab：补取一次待处理数量做角标
       try {
-        const p = await get('/orders', { status: 'pending' });
+        const p = await get('/admin/orders', { status: 'pending' });
         pending.value = Array.isArray(p) ? p : [];
       } catch (e) {}
     }
@@ -130,6 +130,10 @@ function stopPolling() {
 }
 
 onLoad(() => {
+  if (!getToken()) {
+    uni.reLaunch({ url: '/pages/login/index' });
+    return;
+  }
   load().then(() => startPolling());
 });
 onShow(() => startPolling());
