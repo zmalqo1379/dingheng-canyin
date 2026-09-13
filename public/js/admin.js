@@ -104,19 +104,21 @@ function switchTab(tab) {
 }
 document.querySelectorAll('.nav-item').forEach(t => t.onclick = () => switchTab(t.dataset.tab));
 
-/* ---------- 升级引导统一入口 ----------
-   所有"去升级/升级会员/升级尊享版"按钮统一跳会员中心并定位目标人民币卡片：
-   advanced → 进阶版 ¥99/月卡片（vplanAdvanced）；premium → 尊享版 ¥199/月卡片（vplanPremium）。
+/* ---------- 升级引导统一入口（双产品线） ----------
+   所有"去升级/升级会员/升级尊享版"按钮统一跳会员中心并定位目标卡片：
+   采购线 plus → vplanPlus（¥99/月）；pro → vplanPro（¥199/月）
+   点餐线 advanced → vplanAdvanced（¥39/月）；premium → vplanPremium（¥79/月）
    落地后目标卡片 2 秒呼吸高亮。
-   若该商家鼎恒币余额达标（advanced≥3000 / premium≥5000）且本次访问未弹过，
-   弹出精致小对话框引导前往鼎恒币兑换专区免费兑换（同一次访问最多弹一次）。 */
+   若该商家鼎恒币余额达标且本次访问未弹过，弹出引导前往鼎恒币兑换专区免费兑换（同一次访问最多一次）。 */
 function goUpgrade(target) {
   switchTab('member');
   requestAnimationFrame(() => {
-    // 1. 定位到对应人民币卡片（vplanBasic / vplanAdvanced / vplanPremium）并 2 秒呼吸高亮
-    const planCardId = target === 'premium' ? 'vplanPremium'
-      : (target === 'basic' ? 'vplanBasic' : 'vplanAdvanced');
-    const planEl = $(planCardId);
+    const cardMap = {
+      plus: 'vplanPlus', pro: 'vplanPro',
+      advanced: 'vplanAdvanced', premium: 'vplanPremium',
+      basic: 'vplanAdvanced', free: 'vplanPlus'
+    };
+    const planEl = $(cardMap[target] || 'vplanPlus');
     if (planEl) {
       planEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       planEl.classList.remove('upgrade-glow');
@@ -191,11 +193,11 @@ window.closeUpsellModal = closeUpsellModal;
 function goUpsellExchange(target) {
   closeUpsellModal();
   requestAnimationFrame(() => {
-    // premium 用 ezPremiumCard；advanced/basic 卡片用各自按钮锚点
+    // 各目标对应兑换卡片：采购线 pro→ezProCard、plus→ezBtnPlus；点餐线 premium→ezPremiumCard、advanced→ezBtnAdvanced
+    const anchorBtn = { plus: 'ezBtnPlus', pro: 'ezBtnPro', advanced: 'ezBtnAdvanced', premium: 'ezBtnPremium' }[target];
     let el = target === 'premium' ? $('ezPremiumCard')
-      : (target === 'basic'
-        ? ($('ezBtnBasic') && $('ezBtnBasic').closest('.ez-card'))
-        : ($('ezBtnAdvanced') && $('ezBtnAdvanced').closest('.ez-card')));
+      : (target === 'pro' ? $('ezProCard')
+        : (anchorBtn && $(anchorBtn) ? $(anchorBtn).closest('.ez-card') : null));
     if (!el && $('exchangeZone')) el = $('exchangeZone'); // 兜底回退到兑换专区容器
     if (!el) return;
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1988,12 +1990,46 @@ function renderLayoutGrid(currentId) {
   });
 }
 
-/* ===================== 鼎恒币中心 ===================== */
-const LEVEL_NAME = { basic: '基础版', advanced: '进阶版', premium: '尊享版' };
-const LEVEL_RANK = { basic: 0, advanced: 1, premium: 2 };
+/* ===================== 鼎恒币中心（双产品线） ===================== */
+// 点餐线：basic/advanced/premium；采购线：free/plus/pro。两条线各自独立、互不比较。
+const LEVEL_NAME = {
+  basic: '点餐免费版', advanced: '点餐进阶版', premium: '点餐尊享版',
+  free: '采购免费版', plus: '采购省钱卡', pro: '采购省钱卡Pro'
+};
+const LEVEL_RANK = { basic: 0, advanced: 1, premium: 2 };      // 点餐线秩
+const PURCHASE_RANK = { free: 0, plus: 1, pro: 2 };             // 采购线秩
 const LEVEL_COUPON_MAX = { basic: 'purchase_30', advanced: 'purchase_100', premium: 'purchase_200' };
-// 会员采购返币率（币/元）：与后端 utils/dhConfig.js coinRate 保持一致
-const COIN_RATE = { basic: 0.5, advanced: 1, premium: 1 };
+// 采购返币率（币/元）：与后端 dhConfig.PURCHASE_COIN_RATE 一致
+const COIN_RATE = { free: 0.5, plus: 1, pro: 1 };
+// 券所需采购等级：后端 coupons.needLevel(basic/advanced/premium) → 采购线(free/plus/pro)
+const COUPON_NEED_PURCHASE = { basic: 'free', advanced: 'plus', premium: 'pro' };
+
+// 兑换/续费按钮状态统一计算（双产品线）
+// 高等级不可降兑 → 禁用并提示；币不足 → 禁用并显示差额；否则可续费/升级
+function updateRenewBtn(btnId, targetLevel, productLine, coinNow, curLevel, curActive) {
+  const btn = $(btnId);
+  if (!btn) return;
+  const ranks = productLine === 'purchase' ? PURCHASE_RANK : LEVEL_RANK;
+  const cost = (PLAN_CFG[targetLevel] || {}).coinCost || 0;
+  const curRank = ranks[curLevel] ?? 0;
+  const tgtRank = ranks[targetLevel] ?? 0;
+  const label = LEVEL_NAME[targetLevel] || targetLevel;
+  if (tgtRank < curRank) {
+    btn.disabled = true;
+    btn.textContent = '当前已是更高等级';
+    btn.title = '高等级无法降兑为低等级';
+  } else if (coinNow < cost) {
+    btn.disabled = true;
+    btn.textContent = `鼎恒币不足（差 ${cost - coinNow} 币）`;
+    btn.title = '';
+  } else {
+    btn.disabled = false;
+    btn.textContent = (targetLevel === curLevel && curActive)
+      ? `续费${label}`
+      : (tgtRank > curRank ? `升级到${label}` : `兑换${label}`);
+    btn.title = '';
+  }
+}
 
 // 鼎恒币中心页面加载
 let _coinCenterData = null; // 缓存，方便兑换后刷新
@@ -2004,50 +2040,34 @@ async function loadCoinCenter() {
       api(`/api/coin/history/${SHOP_ID}`)
     ]);
 
-    // 顶部余额与会员
+    // 顶部余额与两条产品线状态
     _coinCenterData = status.data || {};
     const d = _coinCenterData;
-    const currentLevel = d.memberLevel || 'basic';
+    const currentLevel = d.memberLevel || 'basic';          // 点餐线
+    const purLevel = d.purchaseLevel || 'free';             // 采购线
+    const posExpire = d.memberExpire ? new Date(d.memberExpire) : null;
+    const purExpire = d.purchaseExpire ? new Date(d.purchaseExpire) : null;
+    const posActive = d.membershipActive !== false;
+    const purActive = d.purchaseActive !== false;
     $('coinBalance').textContent = d.dinghengCoin ?? 0;
     $('coinTotalEarned').textContent = d.totalEarnedCoin ?? 0;
-    $('coinMemberLevel').textContent = LEVEL_NAME[currentLevel] || '基础版';
-    if (d.memberExpire) {
-      $('coinMemberExpire').textContent = '到期 ' + fmtTime(d.memberExpire).slice(0, 10);
-    } else {
-      $('coinMemberExpire').textContent = '永久有效';
+    // 顶部会员位以"采购线"为主展示（采购为核心），点餐线状态挂在 title 提示
+    $('coinMemberLevel').textContent = `🛒 ${LEVEL_NAME[purLevel] || '采购免费版'}`;
+    $('coinMemberExpire').textContent = (purActive && purExpire)
+      ? '采购线到期 ' + fmtTime(d.purchaseExpire).slice(0, 10)
+      : (purActive ? '采购线长期有效' : '采购线已过期');
+    const coinMemberBox = $('coinMemberLevel');
+    if (coinMemberBox) {
+      coinMemberBox.title = `点餐线：${LEVEL_NAME[currentLevel] || ''}` +
+        ((posActive && posExpire) ? `（到期 ${fmtTime(d.memberExpire).slice(0, 10)}）` : '（长期有效）');
     }
 
-    // 会员续费卡片按钮状态更新
-    const renewAdvBtn = $('coinRenewAdvanced');
-    const renewPreBtn = $('coinRenewPremium');
+    // 四条兑换按钮状态（采购线 plus/pro + 点餐线 advanced/premium）
     const coinNow = d.dinghengCoin ?? 0;
-    const ADV_COST = PLAN_CFG.advanced.coinCost;   // 3000
-    const PRE_COST = PLAN_CFG.premium.coinCost;    // 5000
-    if (renewAdvBtn) {
-      if (currentLevel === 'premium') {
-        renewAdvBtn.disabled = true;
-        renewAdvBtn.textContent = '当前已是更高等级';
-        renewAdvBtn.title = '尊享版无法降兑为进阶版';
-      } else if (coinNow < ADV_COST) {
-        renewAdvBtn.disabled = true;
-        renewAdvBtn.textContent = `鼎恒币不足（差 ${ADV_COST - coinNow} 币）`;
-        renewAdvBtn.title = '';
-      } else {
-        renewAdvBtn.disabled = false;
-        renewAdvBtn.textContent = currentLevel === 'advanced' ? '续费进阶版月卡' : '兑换进阶版月卡';
-        renewAdvBtn.title = '';
-      }
-    }
-    if (renewPreBtn) {
-      if (coinNow < PRE_COST) {
-        renewPreBtn.disabled = true;
-        renewPreBtn.textContent = `鼎恒币不足（差 ${PRE_COST - coinNow} 币）`;
-      } else {
-        renewPreBtn.disabled = false;
-        renewPreBtn.textContent = currentLevel === 'premium' ? '续费尊享版月卡'
-          : (currentLevel === 'advanced' ? '升级到尊享版' : '兑换尊享版月卡');
-      }
-    }
+    updateRenewBtn('coinRenewPlus', 'plus', 'purchase', coinNow, purLevel, purActive);
+    updateRenewBtn('coinRenewPro', 'pro', 'purchase', coinNow, purLevel, purActive);
+    updateRenewBtn('coinRenewAdvanced', 'advanced', 'pos', coinNow, currentLevel, posActive);
+    updateRenewBtn('coinRenewPremium', 'premium', 'pos', coinNow, currentLevel, posActive);
 
     const coupons = d.coupons || [];
 
@@ -2067,16 +2087,18 @@ async function loadCoinCenter() {
       { faceValue: 500, coinCost: 24000, minOrder: 10000 }
     ];
     const normalHtml = couponConfigs.map(c => {
-      const locked = LEVEL_RANK[currentLevel] < LEVEL_RANK[c.needLevel];
+      // 券属采购线权益：按采购线等级判定（后端 coupons.needLevel 为 basic/advanced/premium）
+      const needPurchase = COUPON_NEED_PURCHASE[c.needLevel] || 'free';
+      const locked = (PURCHASE_RANK[purLevel] ?? 0) < (PURCHASE_RANK[needPurchase] ?? 0);
       const notEnough = (d.dinghengCoin ?? 0) < c.coinCost;
       const canExchange = !locked && !notEnough;
       return `
         <div class="coupon-item ${locked ? 'locked' : ''}">
           <div class="coupon-face">¥${c.faceValue}<small> 抵</small></div>
           <div class="coupon-cost">需 <span>${c.coinCost} DH</span></div>
-          <div class="coupon-condition">满 ¥${c.minOrder} 可用 · ${LEVEL_NAME[c.needLevel]}可兑</div>
+          <div class="coupon-condition">满 ¥${c.minOrder} 可用 · ${LEVEL_NAME[needPurchase]}可兑</div>
           ${locked
-            ? `<div class="coupon-locked-tip">${LEVEL_NAME[c.needLevel]}可兑换</div><button class="btn-add" onclick="goUpgrade('${c.needLevel}')">升级解锁</button>`
+            ? `<div class="coupon-locked-tip">${LEVEL_NAME[needPurchase]}可兑换</div><button class="btn-add" onclick="goUpgrade('${needPurchase}')">升级解锁</button>`
             : `<button class="btn-add" ${canExchange ? '' : 'disabled'} onclick="exchangeCoupon('${c.type}')">${canExchange ? '立即兑换' : '鼎恒币不足'}</button>`}
         </div>
       `;
@@ -2170,44 +2192,45 @@ async function exchangeCoupon(couponType) {
   }
 }
 
-// 兑换会员：先弹明细确认框，数字实时按后端同口径计算（不预先写死差价）
-// 升级折算规则与后端 routes/coin.js 一致：剩余天数 × 当前等级每日返币额 抵扣差价
-// basic 67 币/天（2000/30）、advanced 100 币/天（3000/30）、premium 167 币/天（5000/30）
-const EXCH_DAILY_COIN = { basic: 67, advanced: 100, premium: 167 };
-async function exchangeMembership(targetLevel) {
+// 兑换会员（双产品线）：先弹明细确认框，数字实时按后端同口径计算（不预先写死差价）
+// 升级折算规则与后端 routes/coin.js 一致：剩余天数 × 当前档每日返币额 抵扣差价
+// 采购线：plus 100 币/天（3000/30）、pro 167 币/天（5000/30）
+// 点餐线：advanced 50 币/天（1500/30）、premium 80 币/天（2400/30）
+const EXCH_DAILY_COIN = { free: 0, plus: 100, pro: 167, basic: 0, advanced: 50, premium: 80 };
+async function exchangeMembership(targetLevel, productLine) {
   try {
+    const line = productLine === 'purchase' ? 'purchase' : 'pos';
     const res = await api(`/api/coin/status/${SHOP_ID}`);
     const d = res.data || {};
-    const curLevel = d.memberLevel || 'basic';
-    // 降级一律拒绝（尊享→进阶、进阶→基础等）
-    if (LEVEL_RANK[targetLevel] < LEVEL_RANK[curLevel]) {
-      toast('当前已是更高等级会员，无法降兑', true);
+    const ranks = line === 'purchase' ? PURCHASE_RANK : LEVEL_RANK;
+    const curLevel = line === 'purchase' ? (d.purchaseLevel || 'free') : (d.memberLevel || 'basic');
+    const expireRaw = line === 'purchase' ? d.purchaseExpire : d.memberExpire;
+    // 降级一律拒绝（同一产品线内高等级不可降兑）
+    if ((ranks[targetLevel] ?? 0) < (ranks[curLevel] ?? 0)) {
+      toast('当前已是更高等级，无法降兑', true);
       return;
     }
     const coin = Number(d.dinghengCoin) || 0;
-    const expire = d.memberExpire ? new Date(d.memberExpire) : null;
+    const expire = expireRaw ? new Date(expireRaw) : null;
     const isActive = expire && expire > new Date();
     const daysLeft = isActive ? Math.max(0, Math.ceil((expire - new Date()) / 86400000)) : 0;
 
     const cfg = PLAN_CFG[targetLevel];
-    const price = cfg.coinCost; // 基础 2000 / 进阶 3000 / 尊享 5000
+    const price = cfg.coinCost;
     let offset = 0;
     let payCoin = price;
-    // 升级（basic→advanced / basic→premium / advanced→premium）且会员在有效期内：
-    // 剩余天数 × 当前等级每日返币额 抵扣差价；同等级续费 / 未开通或已过期均按全价
-    const isUpgrade = LEVEL_RANK[targetLevel] > LEVEL_RANK[curLevel];
+    // 升级（同线内低档→高档）且当前有效期内：剩余天数 × 当前档每日返币额 抵扣差价
+    const isUpgrade = (ranks[targetLevel] ?? 0) > (ranks[curLevel] ?? 0);
     if (isUpgrade && isActive) {
       offset = daysLeft * (EXCH_DAILY_COIN[curLevel] || 0);
       payCoin = Math.max(0, price - offset);
     }
     const after = coin - payCoin;
-
-    // 兑换场景判定：同等级续费 / 升级折算 / 新开通
     const isRenewal = (curLevel === targetLevel && isActive);
+    const lineName = line === 'purchase' ? '采购线' : '点餐线';
 
     // 填充明细字段
-    $('exchCurLevel').textContent = LEVEL_NAME[curLevel] || '基础版';
-    // 剩余天数：续费场景用对比式展示「当前剩余 X 天 → 兑换后 (X+30) 天（+30 天）」，+30 天橙色加粗
+    $('exchCurLevel').textContent = `[${lineName}] ${LEVEL_NAME[curLevel] || ''}`;
     if (isRenewal) {
       const afterDays = daysLeft + 30;
       $('exchDaysLeft').innerHTML =
@@ -2216,8 +2239,7 @@ async function exchangeMembership(targetLevel) {
     } else {
       $('exchDaysLeft').textContent = isActive ? (daysLeft + ' 天') : '未生效/已过期';
     }
-    $('exchTargetLevel').textContent = LEVEL_NAME[targetLevel];
-    // 兑换方式：续费 / 升级折算 / 新开通
+    $('exchTargetLevel').textContent = `[${lineName}] ${LEVEL_NAME[targetLevel] || ''}`;
     $('exchMethod').textContent = isRenewal
       ? '续费（在现有有效期上延长 30 天）'
       : (isUpgrade ? '升级（剩余价值折算抵扣差价）' : '新开通（有效期 30 天）');
@@ -2234,7 +2256,7 @@ async function exchangeMembership(targetLevel) {
     const confirmBtn = $('exchConfirmBtn');
     confirmBtn.disabled = after < 0;
     confirmBtn.textContent = after < 0 ? '鼎恒币不足' : '确认兑换';
-    confirmBtn.onclick = () => doExchangeMembership(targetLevel);
+    confirmBtn.onclick = () => doExchangeMembership(targetLevel, line);
 
     $('exchangeConfirmModal').classList.add('show');
   } catch (e) {
@@ -2246,7 +2268,7 @@ function closeExchangeConfirm() {
   $('exchangeConfirmModal').classList.remove('show');
 }
 // 实际提交兑换（明细确认后调用）
-async function doExchangeMembership(targetLevel) {
+async function doExchangeMembership(targetLevel, productLine) {
   const confirmBtn = $('exchConfirmBtn');
   confirmBtn.disabled = true;
   confirmBtn.textContent = '兑换中...';
@@ -2254,7 +2276,11 @@ async function doExchangeMembership(targetLevel) {
     const res = await api('/api/coin/exchange-membership', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ shopId: SHOP_ID, targetLevel })
+      body: JSON.stringify({
+        shopId: SHOP_ID,
+        targetLevel,
+        productLine: productLine === 'purchase' ? 'purchase' : 'pos'
+      })
     });
     if (res.success) {
       closeExchangeConfirm();
@@ -2277,58 +2303,55 @@ window.closeExchangeConfirm = closeExchangeConfirm;
 window.exchangeCoupon = exchangeCoupon;
 
 /* ===================== 会员中心 ===================== */
-// 会员销售页：状态卡片 + 鼎恒币兑换专区 + 三档权益对比
-// 月卡价格/币成本与 utils/dhConfig.js 的 membership 配置保持一致
+// 会员销售页：两线状态卡片 + 鼎恒币兑换专区 + 两条产品线卡片
+// 价格/币成本与后端 utils/dhConfig.js 的 POS_PRICING / PURCHASE_PRICING 保持一致
 const PLAN_CFG = {
-  basic: { price: 59, coinCost: 2000 },
-  advanced: { price: 99, coinCost: 3000 },
-  premium: { price: 199, coinCost: 5000 }
+  // 采购线
+  plus: { price: 99, coinCost: 3000, productLine: 'purchase' },
+  pro: { price: 199, coinCost: 5000, productLine: 'purchase' },
+  // 点餐线
+  advanced: { price: 39, coinCost: 1500, productLine: 'pos' },
+  premium: { price: 79, coinCost: 2400, productLine: 'pos' },
+  // 免费档（不可兑换，仅兼容引用）
+  basic: { price: 0, coinCost: 0, productLine: 'pos' },
+  free: { price: 0, coinCost: 0, productLine: 'purchase' }
 };
 
 async function loadMemberCenter() {
   try {
     const res = await api(`/api/coin/status/${SHOP_ID}`);
     const d = res.data || {};
-    const level = d.memberLevel || 'basic';
-    const expire = d.memberExpire ? new Date(d.memberExpire) : null;
-    const daysLeft = expire ? Math.max(0, Math.ceil((expire - new Date()) / 86400000)) : null;
+    const level = d.memberLevel || 'basic';                 // 点餐线
+    const purLevel = d.purchaseLevel || 'free';             // 采购线
+    const posActive = d.membershipActive !== false;
+    const purActive = d.purchaseActive !== false;
+    const posExpire = d.memberExpire ? new Date(d.memberExpire) : null;
+    const purExpire = d.purchaseExpire ? new Date(d.purchaseExpire) : null;
+    const purDaysLeft = purExpire ? Math.max(0, Math.ceil((purExpire - new Date()) / 86400000)) : null;
 
-    // 顶部状态卡片：等级 / 到期时间 / 剩余天数
-    $('msLevel').textContent = LEVEL_NAME[level] || '基础版';
-    $('msExpire').textContent = expire ? fmtTime(d.memberExpire).slice(0, 10) : '永久有效';
-    $('msDaysLeft').textContent = expire ? daysLeft + ' 天' : '长期有效';
+    // 顶部状态卡片：以采购线为主（采购为核心），点餐线状态挂在 title 提示
+    $('msLevel').textContent = `🛒 ${LEVEL_NAME[purLevel] || '采购免费版'}`;
+    $('msExpire').textContent = (purActive && purExpire) ? fmtTime(d.purchaseExpire).slice(0, 10) : '长期有效';
+    $('msDaysLeft').textContent = (purActive && purExpire) ? purDaysLeft + ' 天' : '长期有效';
+    const msLevelEl = $('msLevel');
+    if (msLevelEl) {
+      msLevelEl.title = `点餐线：${LEVEL_NAME[level] || ''}` +
+        ((posActive && posExpire) ? `（到期 ${fmtTime(d.memberExpire).slice(0, 10)}）` : '（长期有效）');
+    }
 
-    // 体验期倒计时胶囊（注册赠送的 30 天基础版体验期显示，挂在顶部状态条右侧）
-    const isTrial = d.memberIsTrial === true && !!expire;
+    // 体验期倒计时胶囊（新商家赠送 30 天进阶 + 省钱卡体验）
+    const isTrial = (d.memberIsTrial === true || d.purchaseIsTrial === true) && !!purExpire;
     $('msTrialPill').style.display = isTrial ? 'flex' : 'none';
-    if (isTrial) $('msTrialDays').textContent = daysLeft;
+    if (isTrial) $('msTrialDays').textContent = purDaysLeft;
 
-    // 兑换专区：余额 + 按钮状态（不足时禁用并提示差额；高等级时低等级按钮置灰）
+    // 兑换专区：余额 + 四条兑换按钮状态（采购线优先）
     const coin = d.dinghengCoin ?? 0;
     $('ezCoinBalance').textContent = coin;
     $('ezCoinBalance').dataset.loaded = '1'; // 标记已加载，供 waitForCoinLoaded 检测
-    const btnIdMap = { basic: 'ezBtnBasic', advanced: 'ezBtnAdvanced', premium: 'ezBtnPremium' };
-    for (const key of ['basic', 'advanced', 'premium']) {
-      const btn = $(btnIdMap[key]);
-      if (!btn) continue;
-      const cost = PLAN_CFG[key].coinCost;
-      // 已是更高等级时，低等级兑换按钮置灰不可点（不支持降兑）
-      if (LEVEL_RANK[key] < LEVEL_RANK[level]) {
-        btn.disabled = true;
-        btn.textContent = '当前已是更高等级会员';
-        btn.title = '高等级会员无法降兑为低等级';
-      } else if (coin < cost) {
-        btn.disabled = true;
-        btn.textContent = `鼎恒币不足（还差 ${cost - coin} 币）`;
-        btn.title = '';
-      } else {
-        btn.disabled = false;
-        btn.textContent = key === level && expire
-          ? `续费${LEVEL_NAME[key]}`
-          : (LEVEL_RANK[key] > LEVEL_RANK[level] ? `升级${LEVEL_NAME[key]}` : `兑换${LEVEL_NAME[key]}月卡`);
-        btn.title = '';
-      }
-    }
+    updateRenewBtn('ezBtnPlus', 'plus', 'purchase', coin, purLevel, purActive);
+    updateRenewBtn('ezBtnPro', 'pro', 'purchase', coin, purLevel, purActive);
+    updateRenewBtn('ezBtnAdvanced', 'advanced', 'pos', coin, level, posActive);
+    updateRenewBtn('ezBtnPremium', 'premium', 'pos', coin, level, posActive);
   } catch (e) {
     console.error(e);
     toast('加载会员数据失败', true);
@@ -2424,6 +2447,7 @@ async function submitCashOrder() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         level: _cashBuyLevel,
+        productLine: (PLAN_CFG[_cashBuyLevel] || {}).productLine || 'pos',
         months: _cashBuyMonths,
         buyerNote: $('cbNote').value.trim()
       })
@@ -2444,6 +2468,7 @@ async function submitCashOrder() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       level: _cashBuyLevel,
+      productLine: (PLAN_CFG[_cashBuyLevel] || {}).productLine || 'pos',
       months: _cashBuyMonths,
       buyerNote: $('cbNote').value.trim()
     })
@@ -2573,21 +2598,34 @@ async function refundWechatOrder(id) {
   }
 }
 
-/* ===================== 会员三档权益对比 ===================== */
-// 与 utils/dhConfig.js 的 membership / features 配置保持一致
-const BENEFIT_ROWS = [
-  { label: '月费', vals: ['¥59/月', '¥99/月', '¥199/月'] },
-  { label: '鼎恒币兑换', vals: ['2000 币', '3000 币', '5000 币'] },
+/* ===================== 权益对比（双产品线，与后端 dhConfig 保持一致） ===================== */
+// 采购线：free / plus / pro
+const PURCHASE_BENEFIT_ROWS = [
+  { label: '月费', vals: ['免费', '¥99/月', '¥199/月'] },
+  { label: '鼎恒币兑换', vals: ['—', '3000 币', '5000 币'] },
   { label: '采购返币', vals: ['2 元=1 币', '1 元=1 币', '1 元=1 币'] },
   { label: '可兑采购券面额', vals: ['10-30 元', '10-100 元', '10-200 元'] },
+  { label: '采购商城 / 下单收货', vals: [true, true, true] },
+  { label: '基础补货建议', vals: [true, true, true] },
+  { label: '30 天智能补货预测', vals: [false, true, true] },
+  { label: '采购价监控', vals: [false, true, true] },
+  { label: '比价 / 降价提醒', vals: [false, false, true] },
+  { label: '优先配送', vals: [false, false, true] }
+];
+// 点餐线：basic / advanced / premium
+const POS_BENEFIT_ROWS = [
+  { label: '月费', vals: ['免费', '¥39/月', '¥79/月'] },
+  { label: '鼎恒币兑换', vals: ['—', '1500 币', '2400 币'] },
   { label: '扫码点餐 / 菜单 / 桌台 / 订单', vals: [true, true, true] },
   { label: '后厨语音看单 / 大屏展示', vals: [true, true, true] },
-  { label: '采购商城', vals: [true, true, true] },
+  { label: '基础装修', vals: [true, true, true] },
   { label: '顾客积分系统', vals: [true, true, true] },
+  { label: '基础营业统计', vals: [true, true, true] },
   { label: '满减活动', vals: [false, true, true] },
   { label: '经营报表', vals: [false, true, true] },
-  { label: '分类折扣', vals: [false, false, true] },
-  { label: '充值送', vals: [false, false, true] },
+  { label: '高级装修（主题 / 头图 LOGO）', vals: [false, true, true] },
+  { label: '顾客储值', vals: [false, true, true] },
+  { label: '分类折扣 / 充值送', vals: [false, false, true] },
   { label: '顾客画像 / 损耗分析', vals: [false, false, true] },
   { label: '高级营销工具', vals: [false, false, true] }
 ];
@@ -2596,9 +2634,16 @@ function openBenefitCompare() {
   const cell = (v) => v === true
     ? '<span class="bc-yes">✓</span>'
     : (v === false ? '<span class="bc-no">—</span>' : `<span class="bc-val">${esc(v)}</span>`);
-  const head = '<tr><th>权益</th><th>基础版</th><th class="hl">进阶版</th><th class="hl">尊享版</th></tr>';
-  const body = BENEFIT_ROWS.map(r => `<tr><td>${esc(r.label)}</td>${r.vals.map(cell).join('')}</tr>`).join('');
-  $('benefitCompareBody').innerHTML = `<table class="bc-table"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+  const renderTable = (rows, heads) => {
+    const head = `<tr><th>权益</th><th>${heads[0]}</th><th class="hl">${heads[1]}</th><th class="hl">${heads[2]}</th></tr>`;
+    const body = rows.map(r => `<tr><td>${esc(r.label)}</td>${r.vals.map(cell).join('')}</tr>`).join('');
+    return `<table class="bc-table"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+  };
+  const purchaseTable = '<div class="bc-section-title">🛒 采购省钱卡（采购为核心）</div>' +
+    renderTable(PURCHASE_BENEFIT_ROWS, ['采购免费版', '采购省钱卡', '采购省钱卡Pro']);
+  const posTable = '<div class="bc-section-title" style="margin-top:18px;">🍴 扫码点餐（独立产品线）</div>' +
+    renderTable(POS_BENEFIT_ROWS, ['点餐免费版', '点餐进阶版', '点餐尊享版']);
+  $('benefitCompareBody').innerHTML = purchaseTable + posTable;
   $('benefitCompareModal').classList.add('show');
 }
 function closeBenefitCompare() { $('benefitCompareModal').classList.remove('show'); }
@@ -2706,7 +2751,7 @@ async function renderMallProgressGuide() {
     if (box) {
       box.style.display = 'block';
       $('mpEarned').textContent = d.monthEarned || 0;
-      // 动态展示当前会员等级的实际得币率（基础版 0.5 / 进阶·尊享 1.0）
+      // 动态展示当前采购线档位的实际得币率（免费版 0.5 / 省钱卡·Pro 1.0）
       const rateEl = $('mpRate');
       if (rateEl) {
         const rate = COIN_RATE[_mallMemberLevel] ?? 0.5;

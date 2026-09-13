@@ -2749,12 +2749,12 @@
         <!-- 一、顶部：当前会员状态条（含体验期倒计时） -->
         <div class="ms-status-bar">
           <div class="msb-item">
-            <div class="msb-label">当前会员等级</div>
-            <div class="msb-level" id="msLevel">基础版</div>
+            <div class="msb-label">采购线等级</div>
+            <div class="msb-level" id="msLevel">采购免费版</div>
           </div>
           <div class="msb-divider"></div>
           <div class="msb-item">
-            <div class="msb-label">到期时间</div>
+            <div class="msb-label">采购线到期</div>
             <div class="msb-value" id="msExpire">—</div>
           </div>
           <div class="msb-divider"></div>
@@ -2768,89 +2768,137 @@
           </div>
         </div>
 
-        <!-- 二、第一屏主角：三版本功能展示 -->
+        <!-- 二、第一屏主角：两条独立产品线（采购为核心，点餐独立，互不捆绑） -->
+        <div class="vplans-line-title" style="margin:24px 0 12px;font-size:17px;font-weight:800;color:#1f2937;display:flex;align-items:center;gap:8px;">
+          🛒 采购省钱卡 <span style="font-size:12px;font-weight:400;color:#9ca3af;">进货省钱，才是真省钱</span>
+        </div>
         <div class="vplans">
-          <!-- 基础版 -->
-          <div class="vplan-card basic" id="vplanBasic">
-            <div class="vplan-name">基础版</div>
-            <div class="vplan-price">¥59<small>/月</small></div>
-            <div class="vplan-tagline">注册即送 30 天体验，到期后仍保留扫码点餐至采购商城功能可供终身免费使用</div>
+          <!-- 采购免费版 -->
+          <div class="vplan-card basic">
+            <div class="vplan-name">采购免费版</div>
+            <div class="vplan-price">永久免费</div>
+            <div class="vplan-tagline">只要用采购，这些一直免费</div>
             <ul class="vplan-features">
-              <li>扫码点餐</li>
-              <li>菜单管理</li>
-              <li>桌台管理</li>
-              <li>订单管理</li>
-              <li>后厨语音看单</li>
-              <li>大屏展示</li>
-              <li>采购商城</li>
-              <li>顾客积分系统</li>
+              <li>采购商城 · 下单收货</li>
+              <li>基础补货建议</li>
               <li>鼎恒币（采购 2元=1币）</li>
               <li>可兑 10-30 元 采购抵用券</li>
             </ul>
-            <div class="vplan-footer-note">新注册商家赠送 30 天基础版体验 · 到期后 ¥59/月 或 2000 鼎恒币/月</div>
-            <button class="vplan-btn ghost" onclick="exchangeMembership('basic')">2000 币兑换/续费</button>
+            <div class="vplan-footer-note">永久免费，无需开通</div>
           </div>
 
-          <!-- 进阶版（热销） -->
-          <div class="vplan-card pro" id="vplanAdvanced">
-            <div class="vplan-badge hot">🔥 热销</div>
-            <div class="vplan-name">进阶版</div>
+          <!-- 采购省钱卡（推荐） -->
+          <div class="vplan-card pro" id="vplanPlus">
+            <div class="vplan-badge hot">🔥 推荐</div>
+            <div class="vplan-name">采购省钱卡</div>
             <div class="vplan-price">¥99<small>/月</small></div>
-            <div class="vplan-tagline">基础版全部功能，再加四项升级</div>
+            <div class="vplan-tagline">返币翻倍 + 智能补货预测，进货更省</div>
             <ul class="vplan-features">
               <li class="vplan-feature-highlight">返币翻倍！1元=1币</li>
-              <li class="vplan-feature-highlight">新增 50/100 元大额券</li>
-              <li>经营报表</li>
+              <li class="vplan-feature-highlight">新增 100 元大额券</li>
+              <li class="vplan-feature-highlight">30 天智能补货预测</li>
+              <li>采购价监控</li>
               <li class="vplan-inherit-item">
-                <button type="button" class="vplan-inherit-toggle" onclick="toggleInherit(this)">基础版全部功能<span class="vi-arrow">▾</span></button>
+                <button type="button" class="vplan-inherit-toggle" onclick="toggleInherit(this)">采购免费版全部功能<span class="vi-arrow">▾</span></button>
                 <ul class="vplan-inherit-list">
-                  <li>扫码点餐</li>
-                  <li>菜单管理</li>
-                  <li>桌台管理</li>
-                  <li>订单管理</li>
-                  <li>后厨语音看单</li>
-                  <li>大屏展示</li>
-                  <li>采购商城</li>
-                  <li>顾客积分系统</li>
+                  <li>采购商城 · 下单收货</li>
+                  <li>基础补货建议</li>
                   <li>鼎恒币（采购 1元=1币）</li>
                   <li>可兑 10-100 元采购抵用券</li>
                 </ul>
               </li>
             </ul>
-            <div class="vplan-footer-note">现金开通：提交订单后客服确认收款即生效</div>
-            <button class="vplan-btn" onclick="openCashBuy('advanced')">立即开通</button>
+            <div class="vplan-footer-note">现金开通：提交订单后客服确认收款即生效 · 也可 3000 鼎恒币兑换</div>
+            <button class="vplan-btn" onclick="openCashBuy('plus')">立即开通</button>
           </div>
 
-          <!-- 尊享版（旗舰） -->
-          <div class="vplan-card premium" id="vplanPremium">
+          <!-- 采购省钱卡Pro（旗舰） -->
+          <div class="vplan-card premium" id="vplanPro">
             <div class="vplan-badge gold">👑 旗舰</div>
-            <div class="vplan-name">尊享版</div>
+            <div class="vplan-name">采购省钱卡Pro</div>
             <div class="vplan-price">¥199<small>/月</small></div>
-            <div class="vplan-tagline">进阶版全部功能，再加四项旗舰能力</div>
+            <div class="vplan-tagline">大额券 + 比价 + 优先配送，进货最省</div>
             <ul class="vplan-features">
               <li class="vplan-feature-highlight">新增 200 元超大额券</li>
-              <li>顾客画像</li>
-              <li>损耗分析</li>
-              <li>高级营销工具</li>
+              <li class="vplan-feature-highlight">比价 / 降价提醒</li>
+              <li>优先配送</li>
               <li class="vplan-inherit-item">
-                <button type="button" class="vplan-inherit-toggle" onclick="toggleInherit(this)">进阶版全部功能<span class="vi-arrow">▾</span></button>
+                <button type="button" class="vplan-inherit-toggle" onclick="toggleInherit(this)">采购省钱卡全部功能<span class="vi-arrow">▾</span></button>
                 <ul class="vplan-inherit-list">
-                  <li>扫码点餐</li>
-                  <li>菜单管理</li>
-                  <li>桌台管理</li>
-                  <li>订单管理</li>
-                  <li>后厨语音看单</li>
-                  <li>大屏展示</li>
-                  <li>采购商城</li>
-                  <li>鼎恒币（采购 1元=1币）</li>
+                  <li>返币翻倍（1元=1币）</li>
+                  <li>30 天智能补货预测</li>
+                  <li>采购价监控</li>
                   <li>可兑 10-200 元采购抵用券</li>
-                  <li>顾客积分系统</li>
-                  <li>满减活动</li>
-                  <li>经营报表</li>
                 </ul>
               </li>
             </ul>
-            <div class="vplan-footer-note">现金开通：提交订单后客服确认收款即生效</div>
+            <div class="vplan-footer-note">现金开通：提交订单后客服确认收款即生效 · 也可 5000 鼎恒币兑换</div>
+            <button class="vplan-btn gold" onclick="openCashBuy('pro')">立即开通</button>
+          </div>
+        </div>
+
+        <!-- 产品线二：扫码点餐（独立开通，与采购互不捆绑） -->
+        <div class="vplans-line-title" style="margin:26px 0 12px;font-size:17px;font-weight:800;color:#1f2937;display:flex;align-items:center;gap:8px;">
+          🍴 扫码点餐 <span style="font-size:12px;font-weight:400;color:#9ca3af;">门店经营工具，独立开通</span>
+        </div>
+        <div class="vplans">
+          <!-- 点餐免费版 -->
+          <div class="vplan-card basic">
+            <div class="vplan-name">点餐免费版</div>
+            <div class="vplan-price">永久免费</div>
+            <div class="vplan-tagline">免费版强过市面同行，永久免费</div>
+            <ul class="vplan-features">
+              <li>扫码点餐 · 菜单管理 · 桌台管理</li>
+              <li>订单管理 · 后厨语音看单 · 大屏展示</li>
+              <li>基础装修 · 顾客积分系统</li>
+              <li>基础营业统计</li>
+            </ul>
+            <div class="vplan-footer-note">永久免费，无需开通</div>
+          </div>
+
+          <!-- 点餐进阶版（热销） -->
+          <div class="vplan-card pro" id="vplanAdvanced">
+            <div class="vplan-badge hot">🔥 热销</div>
+            <div class="vplan-name">点餐进阶版</div>
+            <div class="vplan-price">¥39<small>/月</small></div>
+            <div class="vplan-tagline">免费版全部功能，再加营销与报表</div>
+            <ul class="vplan-features">
+              <li class="vplan-feature-highlight">满减活动</li>
+              <li class="vplan-feature-highlight">经营报表</li>
+              <li>高级装修（高级主题 / 专属头图 LOGO）</li>
+              <li>顾客储值</li>
+              <li class="vplan-inherit-item">
+                <button type="button" class="vplan-inherit-toggle" onclick="toggleInherit(this)">点餐免费版全部功能<span class="vi-arrow">▾</span></button>
+                <ul class="vplan-inherit-list">
+                  <li>扫码点餐 · 菜单管理 · 桌台管理</li>
+                  <li>订单管理 · 后厨语音看单 · 大屏展示</li>
+                  <li>基础装修 · 顾客积分系统 · 基础营业统计</li>
+                </ul>
+              </li>
+            </ul>
+            <div class="vplan-footer-note">现金开通：提交订单后客服确认收款即生效 · 也可 1500 鼎恒币兑换</div>
+            <button class="vplan-btn" onclick="openCashBuy('advanced')">立即开通</button>
+          </div>
+
+          <!-- 点餐尊享版（旗舰） -->
+          <div class="vplan-card premium" id="vplanPremium">
+            <div class="vplan-badge gold">👑 旗舰</div>
+            <div class="vplan-name">点餐尊享版</div>
+            <div class="vplan-price">¥79<small>/月</small></div>
+            <div class="vplan-tagline">进阶版全部功能，再加旗舰分析能力</div>
+            <ul class="vplan-features">
+              <li class="vplan-feature-highlight">分类折扣 · 充值送</li>
+              <li>顾客画像 · 损耗分析</li>
+              <li>高级营销工具</li>
+              <li class="vplan-inherit-item">
+                <button type="button" class="vplan-inherit-toggle" onclick="toggleInherit(this)">点餐进阶版全部功能<span class="vi-arrow">▾</span></button>
+                <ul class="vplan-inherit-list">
+                  <li>满减活动 · 经营报表</li>
+                  <li>高级装修 · 顾客储值</li>
+                </ul>
+              </li>
+            </ul>
+            <div class="vplan-footer-note">现金开通：提交订单后客服确认收款即生效 · 也可 2400 鼎恒币兑换</div>
             <button class="vplan-btn gold" onclick="openCashBuy('premium')">立即开通</button>
           </div>
         </div>
@@ -2888,64 +2936,83 @@
             <div class="ez-balance">当前余额 <b id="ezCoinBalance">0</b> DH</div>
           </div>
           <div class="ez-cards">
+            <div style="grid-column:1/-1;font-weight:800;color:#1f2937;margin:8px 0 2px;">🛒 采购省钱卡（采购线）</div>
             <div class="ez-card">
-              <div class="ez-badge">🌱 入门首选</div>
-              <div class="ez-name">基础版月卡</div>
-              <div class="ez-price"><del>原价 ¥59/月</del></div>
-              <div class="ez-coin">鼎恒币兑换仅需</div>
-              <div class="ez-coin-num">2000<small> 币</small></div>
-              <div class="ez-tip">💡 注册即送 30 天基础版体验；到期后可用鼎恒币续费，采购 2元=1币，正常进货即可攒够</div>
-              <button class="ez-btn" id="ezBtnBasic" onclick="exchangeMembership('basic')">兑换基础版月卡</button>
-              <button type="button" class="ez-benefit-toggle" onclick="toggleEzBenefit(this)">权益详情<span class="ezb-arrow">▾</span></button>
-              <div class="ez-benefit-panel">
-                <ul class="ez-benefit-list">
-                  <li class="ezb-hot">顾客积分系统（积分抵现、积分换菜）</li>
-                  <li>扫码点餐、菜单管理、桌台管理、订单管理</li>
-                  <li>后厨语音看单、大屏展示、采购商城</li>
-                  <li>鼎恒币（采购 2元=1币）</li>
-                  <li>可兑 10/20/30 元采购抵用券</li>
-                </ul>
-                <div class="ez-benefit-gold">鼎恒币兑换与现金购买权益完全一致，一分不花，同等尊贵</div>
-              </div>
-            </div>
-            <div class="ez-card">
-              <div class="ez-badge">🔥 热门推荐</div>
-              <div class="ez-name">进阶版月卡</div>
+              <div class="ez-badge">🔥 推荐</div>
+              <div class="ez-name">采购省钱卡月卡</div>
               <div class="ez-price"><del>原价 ¥99/月</del></div>
               <div class="ez-coin">鼎恒币兑换仅需</div>
               <div class="ez-coin-num">3000<small> 币</small></div>
-              <div class="ez-tip">💡 本月采购满 3000 元即可免费攒够（会员 1元=1币），相当于：正常进货，会员白送！</div>
-              <button class="ez-btn" id="ezBtnAdvanced" onclick="exchangeMembership('advanced')">立即兑换进阶版</button>
+              <div class="ez-tip">💡 省钱卡 1元=1币，本月采购满 3000 元即可攒够：正常进货，省钱卡白送！</div>
+              <button class="ez-btn" id="ezBtnPlus" onclick="exchangeMembership('plus','purchase')">兑换采购省钱卡</button>
               <button type="button" class="ez-benefit-toggle" onclick="toggleEzBenefit(this)">权益详情<span class="ezb-arrow">▾</span></button>
               <div class="ez-benefit-panel">
                 <ul class="ez-benefit-list">
                   <li class="ezb-hot">返币翻倍！1元=1币</li>
-                  <li class="ezb-hot">新增 50/100 元大额券</li>
-                  <li>经营报表</li>
-                  <li>基础版全部功能：扫码点餐、菜单管理、桌台管理、订单管理、后厨语音看单、大屏展示、采购商城、顾客积分系统、鼎恒币（采购 1元=1币）、可兑 10-100 元采购抵用券</li>
+                  <li class="ezb-hot">新增 100 元大额券</li>
+                  <li class="ezb-hot">30 天智能补货预测</li>
+                  <li>采购价监控</li>
+                  <li>采购免费版全部功能：采购商城、下单收货、基础补货建议、可兑 10-100 元采购抵用券</li>
+                </ul>
+                <div class="ez-benefit-gold">鼎恒币兑换与现金购买权益完全一致，一分不花，同等尊贵</div>
+              </div>
+            </div>
+            <div class="ez-card premium" id="ezProCard">
+              <div class="ez-badge gold">👑 旗舰</div>
+              <div class="ez-name">采购省钱卡Pro月卡</div>
+              <div class="ez-price"><del>原价 ¥199/月</del></div>
+              <div class="ez-coin">鼎恒币兑换仅需</div>
+              <div class="ez-coin-num">5000<small> 币</small></div>
+              <div class="ez-tip">💡 本月采购满 5000 元即可攒够（1元=1币）：进货越多，省得越多！</div>
+              <button class="ez-btn gold" id="ezBtnPro" onclick="exchangeMembership('pro','purchase')">兑换省钱卡Pro</button>
+              <button type="button" class="ez-benefit-toggle" onclick="toggleEzBenefit(this)">权益详情<span class="ezb-arrow">▾</span></button>
+              <div class="ez-benefit-panel">
+                <ul class="ez-benefit-list">
+                  <li class="ezb-hot">新增 200 元超大额券</li>
+                  <li class="ezb-hot">比价 / 降价提醒</li>
+                  <li>优先配送</li>
+                  <li>采购省钱卡全部功能：返币翻倍、30 天智能预测、采购价监控、可兑 10-200 元采购抵用券</li>
+                </ul>
+                <div class="ez-benefit-gold">鼎恒币兑换与现金购买权益完全一致，一分不花，同等尊贵</div>
+              </div>
+            </div>
+
+            <div style="grid-column:1/-1;font-weight:800;color:#1f2937;margin:14px 0 2px;">🍴 扫码点餐（点餐线）</div>
+            <div class="ez-card">
+              <div class="ez-badge">🌱 入门首选</div>
+              <div class="ez-name">点餐进阶版月卡</div>
+              <div class="ez-price"><del>原价 ¥39/月</del></div>
+              <div class="ez-coin">鼎恒币兑换仅需</div>
+              <div class="ez-coin-num">1500<small> 币</small></div>
+              <div class="ez-tip">💡 点餐免费版永久免费；进阶版解锁满减、报表与高级装修</div>
+              <button class="ez-btn" id="ezBtnAdvanced" onclick="exchangeMembership('advanced','pos')">兑换点餐进阶版</button>
+              <button type="button" class="ez-benefit-toggle" onclick="toggleEzBenefit(this)">权益详情<span class="ezb-arrow">▾</span></button>
+              <div class="ez-benefit-panel">
+                <ul class="ez-benefit-list">
+                  <li class="ezb-hot">满减活动</li>
+                  <li class="ezb-hot">经营报表</li>
+                  <li>高级装修（高级主题 / 专属头图 LOGO）</li>
+                  <li>顾客储值</li>
+                  <li>点餐免费版全部功能：扫码点餐、菜单管理、桌台管理、订单管理、后厨语音看单、大屏展示、基础装修、顾客积分系统、基础营业统计</li>
                 </ul>
                 <div class="ez-benefit-gold">鼎恒币兑换与现金购买权益完全一致，一分不花，同等尊贵</div>
               </div>
             </div>
             <div class="ez-card premium" id="ezPremiumCard">
               <div class="ez-badge gold">👑 超值尊享</div>
-              <div class="ez-name">尊享版月卡</div>
-              <div class="ez-price"><del>原价 ¥199/月</del></div>
+              <div class="ez-name">点餐尊享版月卡</div>
+              <div class="ez-price"><del>原价 ¥79/月</del></div>
               <div class="ez-coin">鼎恒币兑换仅需</div>
-              <div class="ez-coin-num">5000<small> 币</small></div>
-              <div class="ez-tip">💡 本月采购满 5000 元即可免费攒够（会员 1元=1币），相当于：正常进货，会员白送！</div>
-              <button class="ez-btn gold" id="ezBtnPremium" onclick="exchangeMembership('premium')">立即兑换尊享版</button>
+              <div class="ez-coin-num">2400<small> 币</small></div>
+              <div class="ez-tip">💡 解锁分类折扣、充值送、顾客画像与损耗分析</div>
+              <button class="ez-btn gold" id="ezBtnPremium" onclick="exchangeMembership('premium','pos')">兑换点餐尊享版</button>
               <button type="button" class="ez-benefit-toggle" onclick="toggleEzBenefit(this)">权益详情<span class="ezb-arrow">▾</span></button>
               <div class="ez-benefit-panel">
                 <ul class="ez-benefit-list">
-                  <li class="ezb-hot">新增 200 元超大额券</li>
-                  <li>顾客画像</li>
-                  <li>损耗分析</li>
+                  <li class="ezb-hot">分类折扣 · 充值送</li>
+                  <li>顾客画像 · 损耗分析</li>
                   <li>高级营销工具</li>
-                  <li>顾客积分系统</li>
-                  <li>满减活动</li>
-                  <li>经营报表</li>
-                  <li>进阶版全部功能：扫码点餐、菜单管理、桌台管理、订单管理、后厨语音看单、大屏展示、采购商城、鼎恒币（采购 1元=1币）、可兑 10-200 元采购抵用券</li>
+                  <li>点餐进阶版全部功能：满减活动、经营报表、高级装修、顾客储值</li>
                 </ul>
                 <div class="ez-benefit-gold">鼎恒币兑换与现金购买权益完全一致，一分不花，同等尊贵</div>
               </div>
@@ -2996,21 +3063,39 @@
           </div>
         </div>
 
-        <!-- 会员续费 -->
+        <!-- 会员续费（两条产品线独立兑换） -->
         <div class="card" style="margin-top:16px;">
-          <div class="card-head"><h3>👑 会员续费</h3></div>
+          <div class="card-head"><h3>🛒 采购省钱卡兑换</h3></div>
           <div class="membership-grid">
             <div class="membership-card">
-              <div class="ms-title">进阶版月卡</div>
-              <div class="ms-desc">解锁顾客积分、经营报表等功能</div>
+              <div class="ms-title">采购省钱卡月卡</div>
+              <div class="ms-desc">返币翻倍 1元=1币、100 元大额券、30 天智能补货预测</div>
               <div class="ms-cost">3000 DH</div>
-              <button class="btn-add" id="coinRenewAdvanced" onclick="exchangeMembership('advanced')">兑换进阶版月卡</button>
+              <button class="btn-add" id="coinRenewPlus" onclick="exchangeMembership('plus','purchase')">兑换采购省钱卡</button>
             </div>
             <div class="membership-card premium">
-              <div class="ms-title">尊享版月卡</div>
-              <div class="ms-desc">解锁全部高级营销与分析功能</div>
+              <div class="ms-title">采购省钱卡Pro月卡</div>
+              <div class="ms-desc">200 元超大额券、比价降价提醒、优先配送</div>
               <div class="ms-cost">5000 DH</div>
-              <button class="btn-add" id="coinRenewPremium" onclick="exchangeMembership('premium')">兑换尊享版月卡</button>
+              <button class="btn-add" id="coinRenewPro" onclick="exchangeMembership('pro','purchase')">兑换省钱卡Pro</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px;">
+          <div class="card-head"><h3>🍴 点餐版兑换</h3></div>
+          <div class="membership-grid">
+            <div class="membership-card">
+              <div class="ms-title">点餐进阶版月卡</div>
+              <div class="ms-desc">满减活动、经营报表、高级装修、顾客储值</div>
+              <div class="ms-cost">1500 DH</div>
+              <button class="btn-add" id="coinRenewAdvanced" onclick="exchangeMembership('advanced','pos')">兑换点餐进阶版</button>
+            </div>
+            <div class="membership-card premium">
+              <div class="ms-title">点餐尊享版月卡</div>
+              <div class="ms-desc">分类折扣、充值送、顾客画像、损耗分析</div>
+              <div class="ms-cost">2400 DH</div>
+              <button class="btn-add" id="coinRenewPremium" onclick="exchangeMembership('premium','pos')">兑换点餐尊享版</button>
             </div>
           </div>
         </div>
@@ -3813,7 +3898,7 @@
 <!-- 会员三档权益对比 -->
 <div class="pay-modal-mask" id="benefitCompareModal" onclick="if(event.target===this)closeBenefitCompare()">
   <div class="pay-modal bc-modal">
-    <h3>📊 三档权益对比</h3>
+    <h3>📊 权益对比</h3>
     <div id="benefitCompareBody"></div>
     <div class="exch-actions">
       <button class="exch-btn-ok" onclick="closeBenefitCompare()">我知道了</button>
