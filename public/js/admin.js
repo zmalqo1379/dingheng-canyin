@@ -411,7 +411,8 @@ window.toggleEzBenefit = toggleEzBenefit;
 /* 移动端侧边栏开关 */
 function openSidebar() { $('sidebar').classList.add('open'); $('scrim').classList.add('show'); }
 function closeSidebar() { $('sidebar').classList.remove('open'); $('scrim').classList.remove('show'); }
-$('menuToggle').onclick = openSidebar;
+// 汉堡按钮开合切换：菜单开着时再点即收起
+$('menuToggle').onclick = () => ($('sidebar').classList.contains('open') ? closeSidebar() : openSidebar());
 $('scrim').onclick = closeSidebar;
 
 /* ===================== 新手开张引导（开张四步曲） =====================
