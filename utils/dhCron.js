@@ -138,29 +138,9 @@ async function cancelExpiredMembershipOrders() {
   return { wechatClosed, cashClosed: cashRes.modifiedCount || 0 };
 }
 
-// ============ 5) 会员购卡分账自动重试 ============
-// 支付成功但分账未完成的订单（failed/pending）在配置就绪时重试；
-// 单订单最多重试 SPLIT_RETRY_MAX 次，超过后不再自动重试（留人工介入）。
-async function retryMembershipSplits() {
-  if (!wechatPay.isSplitConfigured()) return { retried: 0, done: 0 };
-  const orders = await MembershipOrder.find({
-    payChannel: 'wechat',
-    payStatus: 'paid',
-    splitStatus: { $in: ['pending', 'failed'] },
-    splitSupplierId: { $ne: null },
-    transactionId: { $ne: '' },
-    $or: [{ splitRetryCount: { $exists: false } }, { splitRetryCount: { $lt: SPLIT_RETRY_MAX } }]
-  }).limit(50);
-  let done = 0;
-  for (const o of orders) {
-    try {
-      if (await initiateSplit(o)) done++;
-    } catch (e) {
-      console.error('[DH Cron] 分账重试异常', o.orderNo, e.message);
-    }
-  }
-  return { retried: orders.length, done };
-}
+// ============ 5) 会员购卡分账重试 —— 已停用 ============
+// 口径调整：会员费（点餐会员卡/采购省钱卡）全额归平台，不再发起微信云分账，
+// 故无「分账失败」需要重试。云分账仅用于采购货款（见 retryPurchaseSplits）。
 
 // ============ 6) 月度返点结算 —— 已停用 ============
 // 返点体系已随「加价分销 + 云分账」改造下线；平台收入改由订单分账字段直接统计，
@@ -192,7 +172,7 @@ function startDhCron() {
       console.error('[DH Cron] 清理任务出错:', err.message);
     }
   });
-  // 每 10 分钟：会员购卡待支付订单超时自动取消 + 分账失败自动重试
+  // 每 10 分钟：会员购卡待支付订单超时自动取消（会员费不分账，无分账重试）
   cron.schedule('*/10 * * * *', async () => {
     try {
       const r = await cancelExpiredMembershipOrders();
@@ -201,14 +181,6 @@ function startDhCron() {
       }
     } catch (err) {
       console.error('[DH Cron] 会员购卡超时取消出错:', err.message);
-    }
-    try {
-      const s = await retryMembershipSplits();
-      if (s.retried) {
-        console.log(`[DH Cron] 会员购卡分账重试：处理=${s.retried}，成功=${s.done}`);
-      }
-    } catch (err) {
-      console.error('[DH Cron] 会员购卡分账重试出错:', err.message);
     }
   });
   // 每 10 分钟：采购订单分账失败自动重试（带重试次数上限，超过留人工介入）
@@ -222,7 +194,7 @@ function startDhCron() {
       console.error('[DH Cron] 采购分账重试出错:', err.message);
     }
   });
-  console.log('[DH Cron] 已注册每日 02:00 清理任务、每 10 分钟会员购卡超时取消/分账重试、采购分账失败重试');
+  console.log('[DH Cron] 已注册每日 02:00 清理任务、每 10 分钟会员购卡超时取消、采购分账失败重试');
 }
 
 // ============ 7) 采购订单分账失败自动重试 ============
@@ -255,6 +227,5 @@ module.exports = {
   runDailyJob,
   retryPurchaseSplits,
   cancelExpiredMembershipOrders,
-  retryMembershipSplits,
   runFreshnessCheck: () => freshnessCheck.runFreshnessCheck()
 };

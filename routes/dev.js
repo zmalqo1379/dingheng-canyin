@@ -636,22 +636,16 @@ router.post('/todos/read', async (req, res) => {
 
 // ============ 平台全局配置（系统设置）============
 // GET /api/dev/config 读取平台配置
+// 说明：会员费分账配置（默认分账供应商/抽佣比例）已下线——会员费全额归平台，
+// 云分账仅用于顾客采购货款；PlatformConfig 中的历史字段不再读取、不再下发。
 router.get('/config', async (req, res) => {
   try {
     const cfg = await PlatformConfig.getSingleton();
-    let defaultSplitSupplierName = '';
-    if (cfg.defaultSplitSupplierId) {
-      const s = await Supplier.findById(cfg.defaultSplitSupplierId).select('name').lean();
-      defaultSplitSupplierName = s ? s.name : '';
-    }
     res.json({
       success: true,
       data: {
         platformCompanyName: cfg.platformCompanyName || '',
-        platformCreditCode: cfg.platformCreditCode || '',
-        defaultSplitSupplierId: cfg.defaultSplitSupplierId ? String(cfg.defaultSplitSupplierId) : '',
-        defaultSplitSupplierName,
-        membershipSplitRate: cfg.membershipSplitRate != null ? cfg.membershipSplitRate : 6
+        platformCreditCode: cfg.platformCreditCode || ''
       }
     });
   } catch (err) {
@@ -659,55 +653,24 @@ router.get('/config', async (req, res) => {
   }
 });
 
-// PUT /api/dev/config 更新平台配置（甲方营业执照 + 会员购卡分账配置）
+// PUT /api/dev/config 更新平台配置（甲方营业执照信息）
 router.put('/config', async (req, res) => {
   try {
     const body = req.body || {};
     const platformCompanyName = String(body.platformCompanyName || '').trim().slice(0, 100);
     const platformCreditCode = String(body.platformCreditCode || '').trim().slice(0, 50);
 
-    const $set = { platformCompanyName, platformCreditCode };
-
-    // 平台抽佣比例（0-100）
-    if (body.membershipSplitRate !== undefined) {
-      const rate = Number(body.membershipSplitRate);
-      $set.membershipSplitRate = (isFinite(rate) && rate >= 0 && rate <= 100) ? rate : 6;
-    }
-    // 默认分账供应商（空字符串表示清除）
-    if (body.defaultSplitSupplierId !== undefined) {
-      const sid = String(body.defaultSplitSupplierId || '').trim();
-      if (!sid) {
-        $set.defaultSplitSupplierId = null;
-      } else if (!/^[0-9a-fA-F]{24}$/.test(sid)) {
-        return res.status(400).json({ success: false, message: '分账供应商 ID 格式不正确' });
-      } else {
-        const supplier = await Supplier.findById(sid).select('_id').lean();
-        if (!supplier) {
-          return res.status(400).json({ success: false, message: '指定的分账供应商不存在' });
-        }
-        $set.defaultSplitSupplierId = supplier._id;
-      }
-    }
-
     const cfg = await PlatformConfig.findOneAndUpdate(
       { key: 'platform' },
-      { $set },
+      { $set: { platformCompanyName, platformCreditCode } },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
-    let defaultSplitSupplierName = '';
-    if (cfg.defaultSplitSupplierId) {
-      const s = await Supplier.findById(cfg.defaultSplitSupplierId).select('name').lean();
-      defaultSplitSupplierName = s ? s.name : '';
-    }
     res.json({
       success: true,
       message: '平台配置已保存',
       data: {
         platformCompanyName: cfg.platformCompanyName || '',
-        platformCreditCode: cfg.platformCreditCode || '',
-        defaultSplitSupplierId: cfg.defaultSplitSupplierId ? String(cfg.defaultSplitSupplierId) : '',
-        defaultSplitSupplierName,
-        membershipSplitRate: cfg.membershipSplitRate != null ? cfg.membershipSplitRate : 6
+        platformCreditCode: cfg.platformCreditCode || ''
       }
     });
   } catch (err) {

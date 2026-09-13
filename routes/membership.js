@@ -4,12 +4,15 @@ const router = express.Router();
 const MembershipOrder = require('../models/MembershipOrder');
 const ShopAccount = require('../models/ShopAccount');
 const Member = require('../models/Member');
-const Supplier = require('../models/Supplier');
-const PlatformConfig = require('../models/PlatformConfig');
+const Supplier = require('../models/Supplier'); // 仅历史已分账订单退款回退时使用
 const dhConfig = require('../utils/dhConfig');
 const wechatPay = require('../utils/wechatPay');
-const { computeSplitAmounts, initiateSplit } = require('../utils/membershipSplit');
 const { requireMerchant } = require('../middlewares/auth');
+
+// 资金口径（重要）：
+//   会员费（点餐会员卡 / 采购省钱卡）属软件收入，全额归平台，绝不发起云分账；
+//   云分账只用于顾客采购货款（供货价 → 供应商、差价 → 平台，见 utils/split.js）。
+//   微信下单不带 profit_sharing 标记，资金直接结算至平台商户号。
 
 // 客服电话（现金购卡引导商家线下付款/联系确认）
 const SERVICE_PHONE = '400-888-6666';
@@ -91,31 +94,16 @@ async function activateMembership(order, source) {
   return base;
 }
 
-// 取默认分账供应商（平台配置）+ 抽佣比例
-async function resolveSplitContext() {
-  const cfg = await PlatformConfig.getSingleton();
-  const rate = Number.isFinite(Number(cfg.membershipSplitRate)) ? Number(cfg.membershipSplitRate) : 6;
-  let supplier = null;
-  if (cfg.defaultSplitSupplierId) {
-    supplier = await Supplier.findById(cfg.defaultSplitSupplierId).lean();
-  }
-  return { rate, supplier };
-}
-
 // ============ 确认微信支付成功（幂等 + 并发安全） ============
 // 原子抢占：仅第一个把 payStatus 由非 paid 置为 paid 的调用者负责「开通会员」，
-// 其余（微信重复回调 / 前端轮询并发）只补发起分账，避免会员被重复开通、多送月数。
+// 其余（微信重复回调 / 前端轮询并发）直接返回，避免会员被重复开通、多送月数。
+// 会员费全额归平台，支付成功即完结，不发起任何云分账。
 async function confirmWechatPaid(outTradeNo, payload) {
   const order = await MembershipOrder.findOne({ outTradeNo });
   if (!order) return null;
 
-  // 已支付：仅补发起分账（幂等）
-  if (order.payStatus === 'paid') {
-    if (order.splitStatus !== 'done' && order.splitStatus !== 'returned') {
-      try { await initiateSplit(order); } catch (e) { /* 已记录 */ }
-    }
-    return order;
-  }
+  // 已支付：幂等返回
+  if (order.payStatus === 'paid') return order;
 
   const claimed = await MembershipOrder.findOneAndUpdate(
     { _id: order._id, payStatus: { $ne: 'paid' } },
@@ -131,13 +119,9 @@ async function confirmWechatPaid(outTradeNo, payload) {
     },
     { new: true }
   );
-  // 未抢到：已被并发处理，补一次分账后返回
+  // 未抢到：已被并发处理，直接返回
   if (!claimed) {
-    const fresh = await MembershipOrder.findById(order._id);
-    if (fresh && fresh.splitStatus !== 'done' && fresh.splitStatus !== 'returned') {
-      try { await initiateSplit(fresh); } catch (e) { /* 已记录 */ }
-    }
-    return fresh;
+    return MembershipOrder.findById(order._id);
   }
 
   // 抢占成功者：开通会员（失败仅记录，不阻断回调确认）
@@ -148,12 +132,6 @@ async function confirmWechatPaid(outTradeNo, payload) {
     console.error('[Membership] 开通会员失败', claimed.orderNo, e.message);
   }
   await claimed.save();
-
-  try {
-    await initiateSplit(claimed);
-  } catch (e) {
-    console.error('[Membership] 发起分账异常', claimed.orderNo, e.message);
-  }
   return claimed;
 }
 
@@ -300,16 +278,14 @@ router.post('/wechat-orders', requireMerchant, async (req, res) => {
     const amountRmb = +(plan.price * m).toFixed(2);
     const amountFen = Math.round(amountRmb * 100);
 
-    // 分账拆分（平台抽佣 + 供应商）
-    const { rate, supplier } = await resolveSplitContext();
-    const { platformAmount, supplyAmount } = computeSplitAmounts(amountRmb, rate);
-
+    // 会员费全额归平台：不发起云分账、不设分账供应商（云分账只用于采购货款）
     const payExpireAt = new Date(Date.now() + PAY_EXPIRE_MINUTES * 60 * 1000);
     const order = await MembershipOrder.create({
       orderNo: genOrderNo(),
       outTradeNo: genOutTradeNo(),
       shopId,
       shopName: account ? (account.shopName || '') : '',
+      productLine,
       level,
       months: m,
       amountRmb,
@@ -317,10 +293,10 @@ router.post('/wechat-orders', requireMerchant, async (req, res) => {
       payChannel: 'wechat',
       payStatus: 'unpaid',
       payExpireAt,
-      splitSupplierId: supplier ? supplier._id : null,
-      splitSupplierName: supplier ? (supplier.name || '') : '',
-      platformAmount,
-      supplyAmount,
+      splitSupplierId: null,
+      splitSupplierName: '',
+      platformAmount: amountRmb,
+      supplyAmount: 0,
       splitStatus: 'none'
     });
 
@@ -354,7 +330,7 @@ router.post('/wechat-orders', requireMerchant, async (req, res) => {
 });
 
 // ============ POST /api/membership/wechat/notify ============
-// 微信支付结果回调：验签解密 → 幂等确认 → 开通会员 → 发起分账
+// 微信支付结果回调：验签解密 → 幂等确认 → 开通会员（会员费全额归平台，不分账）
 router.post('/wechat/notify', async (req, res) => {
   try {
     const payload = await wechatPay.verifyAndDecryptNotify(req.headers, req.rawBody);
@@ -366,7 +342,7 @@ router.post('/wechat/notify', async (req, res) => {
       return res.json({ code: 'SUCCESS', message: '忽略非成功交易' });
     }
 
-    // 确认支付（幂等 + 并发安全）：开通会员 + 发起分账；未知订单也回 200 避免重复推送
+    // 确认支付（幂等 + 并发安全）：开通会员；未知订单也回 200 避免重复推送
     await confirmWechatPaid(payload.out_trade_no, payload);
     return res.json({ code: 'SUCCESS', message: '成功' });
   } catch (err) {
@@ -396,7 +372,6 @@ router.get('/wechat-orders/:id/status', requireMerchant, async (req, res) => {
           order.paidAt = new Date();
           try { order.memberExpireAfter = await activateMembership(order, 'wechat'); } catch (e) { /* 记录 */ }
           await order.save();
-          try { await initiateSplit(order); } catch (e) { /* 已记录 */ }
         }
       } catch (e) { /* 查单失败不阻断 */ }
     }
@@ -420,7 +395,8 @@ router.get('/wechat-orders/:id/status', requireMerchant, async (req, res) => {
 });
 
 // ============ POST /api/membership/wechat-orders/:id/refund ============
-// 退款（先退款后退分账：已分账则先回退分账，再原路退款）
+// 退款原路退回。会员费早已全额归平台（新单 splitStatus='none'），直接退款即可；
+// 仅对历史遗留的 splitStatus='done' 老订单，先回退分账再退款。
 router.post('/wechat-orders/:id/refund', requireMerchant, async (req, res) => {
   try {
     const order = await MembershipOrder.findById(req.params.id);
@@ -439,7 +415,7 @@ router.post('/wechat-orders/:id/refund', requireMerchant, async (req, res) => {
 
     const totalFen = Math.round(order.amountRmb * 100);
 
-    // 已分账 → 先回退分账，回收供应商分得的资金
+    // 历史遗留已分账单 → 先回退分账，回收供应商分得的资金（新单不进入此分支）
     if (order.splitStatus === 'done') {
       let wxOrderId = order.wxSplitOrderId;
       if (!wxOrderId && order.splitOrderNo) {

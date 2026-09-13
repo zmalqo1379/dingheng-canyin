@@ -121,8 +121,12 @@ const membershipOrderSchema = new mongoose.Schema({
     default: ''
   },
 
-  // ============ 云分账（微信支付服务商分账） ============
-  // 分账供应商（会员费的 94% 分给该供应商；由平台配置默认值）
+  // ============ 云分账（历史字段：会员费分账已下线，全额归平台） ============
+  // 现行口径：会员费（点餐会员卡/采购省钱卡）属软件收入，支付成功即全额归平台，
+  //   新单 splitStatus 恒为 'none'、splitSupplierId 为 null、supplyAmount=0、platformAmount=订单全额。
+  //   云分账只用于顾客采购货款（见 PurchaseOrder + utils/split.js）。
+  // 以下字段仅为兼容历史已分账订单（退款时仍需回退分账）而保留，不再有新数据写入拆账值。
+  // 历史单的分账供应商（旧逻辑：会员费按比例分给平台配置的默认供应商，已废止）
   splitSupplierId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Supplier',
@@ -132,19 +136,19 @@ const membershipOrderSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
-  // 平台抽佣金额（元，= amountRmb × 抽佣比例）
+  // 平台留存金额（元）；新单 = amountRmb 全额（会员费不分账）
   platformAmount: {
     type: Number,
     default: 0,
     min: 0
   },
-  // 供应商应分账金额（元，= amountRmb - platformAmount）
+  // 供应商分账金额（元）；新单恒为 0（会员费不分给任何供应商）
   supplyAmount: {
     type: Number,
     default: 0,
     min: 0
   },
-  // 分账状态：none 无需分账 / pending 分账中 / done 已分账 / failed 分账失败 / returned 已回退
+  // 分账状态：新单恒为 none（全额归平台）；pending/done/failed/returned 仅历史单可能出现
   splitStatus: {
     type: String,
     enum: ['none', 'pending', 'done', 'failed', 'returned'],
