@@ -19,6 +19,9 @@ const Member = require('./models/Member');
 const CoinHistory = require('./models/CoinHistory');
 const Coupon = require('./models/Coupon');
 const CustomerPoint = require('./models/CustomerPoint');
+const StoredValue = require('./models/StoredValue');
+const DishBom = require('./models/DishBom');
+const ShopInventory = require('./models/ShopInventory');
 
 const purchaseOrdersRouter = require('./routes/purchaseOrders');
 const coinRouter = require('./routes/coin');
@@ -27,15 +30,22 @@ const devRouter = require('./routes/dev');
 const supplierRouter = require('./routes/supplier');
 const supplyProductsRouter = require('./routes/supplyProducts');
 const marketingRouter = require('./routes/marketing');
+const membershipRouter = require('./routes/membership');
+const reportsRouter = require('./routes/reports');
+const storedValueRouter = require('./routes/storedValue');
 const customerPointsRouter = require('./routes/customerPoints');
 const procurementMonitorRouter = require('./routes/procurementMonitor');
 const supplierPriceRouter = require('./routes/supplierPrice');
+const smartReplenishRouter = require('./routes/smartReplenish');
+const bomRouter = require('./routes/bom');
 const { getPointConfig, settlePointsForOrder, isValidPhone } = customerPointsRouter;
 const Admin = require('./models/Admin');
 const { startDhCron } = require('./utils/dhCron');
 const priceRule = require('./utils/priceRule');
+const notify = require('./utils/notify');
 const Marketing = require('./models/Marketing');
 const { computeDiscount } = require('./utils/marketingCalc');
+const entitlements = require('./utils/entitlements');
 const {
   extractPublicShopId,
   requirePublicShopId,
@@ -47,7 +57,13 @@ const app = express();
 
 // 中间件
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+// 保留原始请求体字符串：微信支付回调验签需要原始 body（express.json 解析后无法还原）
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, res, buf) => {
+    if (buf && buf.length) req.rawBody = buf.toString('utf8');
+  }
+}));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -154,7 +170,7 @@ app.get('/api/tables', requirePublicShopId, async (req, res) => {
 // 创建订单（顾客端）：shopId 取自公开标识，下单时写入订单
 app.post('/api/orders', requirePublicShopId, async (req, res) => {
   try {
-    const { tableNumber, items, remark, phone, usePoints } = req.body;
+    const { tableNumber, items, remark, phone, usePoints, useStoredValue } = req.body;
     if (!tableNumber || !items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ success: false, message: '桌号和菜品不能为空' });
     }
@@ -193,6 +209,9 @@ app.post('/api/orders', requirePublicShopId, async (req, res) => {
       }
     }
 
+    // ============ 储值抵扣（线下充值余额，后端权威计算） ============
+    // 抵扣金额在订单创建后由「原子条件扣减」确定并回填，此处不再预读余额（防并发超扣）
+
     const order = await Order.create({
       tableNumber,
       items,
@@ -203,6 +222,7 @@ app.post('/api/orders', requirePublicShopId, async (req, res) => {
         itemDiscount: calc.itemDiscountAmount,
         fullReduction: calc.fullReductionAmount,
         pointsDiscount,
+        storedValueUsed: 0,
         finalTotal,
         appliedRules: activeRules.map(r => ({
           type: r.type,
@@ -217,6 +237,8 @@ app.post('/api/orders', requirePublicShopId, async (req, res) => {
       customerPhone: validPhone ? phoneStr : '',
       pointsUsed,
       pointsDiscount,
+      storedValueUsed: 0,
+      storedValuePhone: '',
       status: 'pending',
       shopId
     });
@@ -226,6 +248,73 @@ app.post('/api/orders', requirePublicShopId, async (req, res) => {
       { status: 'occupied' },
       { upsert: true }
     );
+
+    // ============ 按 BOM 扣减商家库存（未配 BOM 的菜品跳过；库存可扣到负数表示欠料） ============
+    try {
+      for (const dishItem of items) {
+        const bom = await DishBom.findOne({ shopId, dishName: dishItem.dishName }).lean();
+        if (!bom || !bom.items || !bom.items.length) continue;
+        for (const bomItem of bom.items) {
+          const consume = Number(bomItem.quantity) * Number(dishItem.quantity);
+          if (consume > 0) {
+            await ShopInventory.findOneAndUpdate(
+              { shopId, productId: bomItem.productId },
+              { $inc: { quantity: -consume } },
+              { upsert: true, new: true, setDefaultsOnInsert: true }
+            );
+          }
+        }
+      }
+    } catch (e) {
+      console.error('按 BOM 扣减库存失败（不影响下单）', e);
+    }
+
+    // ============ 原子扣减储值余额（$inc + 条件更新）：并发下余额不足即扣 0，绝不超扣 ============
+    // 不再使用「先下单后回退」的补偿逻辑：先按当前余额算出可扣金额，再用
+    // { balance: { $gte: amount } } 条件原子扣减，未命中（并发已变动）则重取余额重试一次。
+    let storedValueUsed = 0;
+    if (validPhone && useStoredValue && finalTotal > 0) {
+      const orderIdStr = String(order._id);
+      for (let attempt = 0; attempt < 2 && storedValueUsed === 0; attempt++) {
+        const sv = await StoredValue.findOne({ shopId, phone: phoneStr }).select('balance').lean();
+        if (!sv || !(sv.balance > 0)) break;
+        const amount = +Math.min(sv.balance, finalTotal).toFixed(2);
+        if (amount <= 0) break;
+        const updated = await StoredValue.findOneAndUpdate(
+          { shopId, phone: phoneStr, balance: { $gte: amount } },
+          { $inc: { balance: -amount } },
+          { new: true }
+        );
+        if (updated) {
+          storedValueUsed = amount;
+          // 追加消费流水（仅追加，不影响余额）
+          await StoredValue.updateOne(
+            { _id: updated._id },
+            {
+              $push: {
+                history: {
+                  type: 'consume',
+                  amount: -amount,
+                  balance: updated.balance,
+                  orderId: orderIdStr,
+                  note: '点餐储值抵扣'
+                }
+              }
+            }
+          );
+        }
+      }
+      if (storedValueUsed > 0) {
+        // 回填订单实际抵扣金额（原子扣减结果为准）
+        await Order.updateOne(
+          { _id: order._id },
+          { $set: { storedValueUsed, storedValuePhone: phoneStr, 'discountDetail.storedValueUsed': storedValueUsed } }
+        );
+        order.storedValueUsed = storedValueUsed;
+        order.storedValuePhone = phoneStr;
+        if (order.discountDetail) order.discountDetail.storedValueUsed = storedValueUsed;
+      }
+    }
 
     // ============ 顾客积分结算：扣抵现积分 + 按实付累计积分 ============
     let pointsEarned = 0;
@@ -254,28 +343,7 @@ app.post('/api/orders', requirePublicShopId, async (req, res) => {
     let setting = await Setting.findOne({ shopId });
     if (!setting) setting = await Setting.create({ shopId, shopName: (ShopAccount.findOne ? '' : '') });
 
-    const notifyTriggered = [];
-    if (setting.enableVoice) notifyTriggered.push('voice');
-    if (setting.enableBigscreen) notifyTriggered.push('bigscreen');
-    if (setting.enablePrinter) {
-      notifyTriggered.push('printer');
-      console.log('调用打印机', {
-        sn: setting.printerSN,
-        key: setting.printerKey,
-        orderId: order._id,
-        tableNumber: order.tableNumber,
-        totalPrice: order.totalPrice
-      });
-    }
-    if (setting.enableWechat) {
-      notifyTriggered.push('wechat');
-      console.log('发送微信通知', {
-        phone: setting.notifyPhone,
-        orderId: order._id,
-        tableNumber: order.tableNumber,
-        totalPrice: order.totalPrice
-      });
-    }
+    const notifyTriggered = await notify.notifyOrderCreated({ shopId, setting, order });
 
     const orderObj = order.toObject();
     orderObj.notifyTriggered = notifyTriggered;
@@ -358,6 +426,19 @@ app.get('/api/admin/stats', requirePublicShopId, async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
+});
+
+// ============ 前端地图选点配置（高德 JS API Key，浏览器端公开） ============
+// 仅下发公开的浏览器端 Key；未配置时前端退化为经纬度手输
+app.get('/api/config/map', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      // 优先 AMAP_JS_KEY（Web端 JS API Key），未配置时回退旧变量名 AMAP_KEY
+      amapKey: process.env.AMAP_JS_KEY || process.env.AMAP_KEY || '',
+      amapSecurityCode: process.env.AMAP_SECURITY_CODE || ''
+    }
+  });
 });
 
 // ============ 商家后台 API（requireMerchant：校验 JWT + shopId 一致） ============
@@ -792,15 +873,15 @@ app.post('/api/admin/store-info/skip', requireMerchant, async (req, res) => {
 
 // --- 商家后台修改设置（按 JWT shopId 匹配，绝不窜改他人店铺）---
 
-// 店铺装修权限：主题按会员等级锁定，自定义图片为进阶版及以上可用
+// 店铺装修权限（双产品线：装修属点餐线权益）
+// 主题：高级主题属点餐线 premiumTheme（进阶版+）；自定义头图/LOGO 同权益
 const PREMIUM_THEMES = ['dark', 'green', 'redgold']; // 进阶版及以上可用
-const IMAGE_NEED_LEVEL = 'advanced';                 // 自定义横幅图/LOGO 需进阶版及以上
 
-// 读取当前商家会员等级（Member 不存在时自动创建，注册赠送进阶版体验期）
-async function getMemberLevel(shopId) {
+// 读取当前商家会员档案（Member 不存在时自动创建，新商家注册赠送 30 天进阶+省钱卡体验）
+async function getPosMember(shopId) {
   let member = await Member.findOne({ shopId });
   if (!member) member = await Member.create({ shopId });
-  return member.memberLevel;
+  return member;
 }
 
 app.put('/api/settings', requireMerchant, async (req, res) => {
@@ -820,8 +901,8 @@ app.put('/api/settings', requireMerchant, async (req, res) => {
       if (!['classic', 'minimal', ...PREMIUM_THEMES].includes(update.theme)) {
         delete update.theme;
       } else if (PREMIUM_THEMES.includes(update.theme)) {
-        const level = await getMemberLevel(shopId);
-        if (!['advanced', 'premium'].includes(level)) {
+        const member = await getPosMember(shopId);
+        if (!entitlements.hasPosFeature('premiumTheme', member)) {
           return res.status(403).json({
             success: false,
             message: '升级会员解锁全部店铺风格 →',
@@ -841,20 +922,7 @@ app.put('/api/settings', requireMerchant, async (req, res) => {
       delete update.layout;
     }
 
-    // ---- 顾客积分配置（进阶版权益）：字段清洗 + 等级校验 ----
-    const POINT_FIELDS = ['pointEnabled', 'pointSpendPerPoint', 'pointDeductEnabled', 'pointDeductPoints',
-      'pointDeductMaxPercent', 'pointExchangeDishes'];
-    const touchesPoints = POINT_FIELDS.some(k => update[k] !== undefined);
-    if (touchesPoints) {
-      const level = await getMemberLevel(shopId);
-      if (!['advanced', 'premium'].includes(level)) {
-        return res.status(403).json({
-          success: false,
-          message: '顾客积分为进阶版权益，请先升级会员',
-          needUpgrade: true
-        });
-      }
-    }
+    // ---- 顾客积分配置：点餐线免费权益（basic 起永久开放），不再按等级拦截，仅做字段清洗 ----
     ['pointSpendPerPoint', 'pointDeductPoints', 'pointDeductMaxPercent'].forEach((k) => {
       if (update[k] !== undefined) {
         const n = Number(update[k]);
@@ -879,13 +947,13 @@ app.put('/api/settings', requireMerchant, async (req, res) => {
       }
     }
 
-    // ---- 店铺装修：自定义图片进阶版及以上（置空/恢复默认不限等级）----
+    // ---- 店铺装修：自定义图片属点餐线 premiumTheme 权益（置空/恢复默认不限等级）----
     const wantsImage = (update.bannerImage && update.bannerImage !== '') ||
                        (update.logoImage && update.logoImage !== '') ||
                        (update.promoPoster && update.promoPoster !== '');
     if (wantsImage) {
-      const level = await getMemberLevel(shopId);
-      if (!['advanced', 'premium'].includes(level)) {
+      const member = await getPosMember(shopId);
+      if (!entitlements.hasPosFeature('premiumTheme', member)) {
         return res.status(403).json({
           success: false,
           message: '开通会员，上传你店的专属头图与 logo，让顾客记住你的店',
@@ -908,12 +976,18 @@ app.put('/api/settings', requireMerchant, async (req, res) => {
       }
     });
     if (update.receiveMethod !== undefined &&
-        !['door_container', 'open_door', 'self_pickup'].includes(update.receiveMethod)) {
+        !['supplier_arranged', 'door_container', 'open_door', 'self_pickup'].includes(update.receiveMethod)) {
       delete update.receiveMethod;
     }
     ['shopAddress', 'storeFrontPhoto', 'streetViewPhoto',
       'expectedReceiveStart', 'expectedReceiveEnd'].forEach((k) => {
       if (update[k] !== undefined) update[k] = String(update[k]).slice(0, 500);
+    });
+
+    // ---- 通知渠道真实对接配置：URL/密钥字符串清洗（未配置则该渠道发送时记 skipped）----
+    ['notifyWebhookUrl', 'printerApiUrl', 'smsApiUrl', 'smsApiKey', 'voiceApiUrl', 'voiceApiKey',
+      'wechatApiUrl', 'wechatApiKey', 'wechatTemplateId', 'wechatToUser'].forEach((k) => {
+      if (update[k] !== undefined) update[k] = String(update[k]).trim().slice(0, 500);
     });
 
     const setting = await Setting.findOneAndUpdate(
@@ -922,6 +996,65 @@ app.put('/api/settings', requireMerchant, async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true }
     );
     res.json({ success: true, data: setting });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ GET /api/admin/low-stock-dishes 低库存菜品（菜单页「一键补货」触点） ============
+// 基于 DishBom 配方 + ShopInventory 当前库存，反算每道菜还能做多少份（木桶短板效应），
+// 返回最紧张的 N 道菜及其瓶颈原料，供菜单页展示角标并跳采购商城预填购物车。
+// 无配方数据时 hasBom=false（前端隐藏，不打扰）。
+app.get('/api/admin/low-stock-dishes', requireMerchant, async (req, res) => {
+  try {
+    const shopId = req.shopId;
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 5, 1), 20);
+
+    const boms = await DishBom.find({ shopId }).lean();
+    if (!boms.length) {
+      return res.json({ success: true, data: { hasBom: false, items: [] } });
+    }
+
+    const productIds = new Set();
+    for (const b of boms) {
+      for (const it of (b.items || [])) {
+        const pid = String(it.productId || '');
+        if (pid) productIds.add(pid);
+      }
+    }
+    const pids = [...productIds];
+    const [invs, prods] = await Promise.all([
+      pids.length ? ShopInventory.find({ shopId, productId: { $in: pids } }).lean() : [],
+      pids.length ? SupplyProduct.find({ _id: { $in: pids } }).select('name unit').lean() : []
+    ]);
+    const invMap = new Map(invs.map(i => [String(i.productId), Number(i.quantity) || 0]));
+    const prodMap = new Map(prods.map(p => [String(p._id), p]));
+
+    const items = [];
+    for (const b of boms) {
+      let portions = Infinity;
+      let bottleneck = null;
+      for (const it of (b.items || [])) {
+        const pid = String(it.productId || '');
+        const per = Number(it.quantity) || 0;
+        if (!pid || per <= 0) continue;
+        const have = invMap.get(pid) || 0;
+        const canMake = have / per;
+        if (canMake < portions) {
+          portions = canMake;
+          const p = prodMap.get(pid);
+          bottleneck = { productId: pid, name: p ? p.name : '食材', unit: p ? p.unit : '', perPortion: per, have };
+        }
+      }
+      if (!bottleneck || !isFinite(portions)) continue;
+      items.push({
+        dishName: b.dishName,
+        portionsLeft: Math.max(0, Math.floor(portions)),
+        bottleneck
+      });
+    }
+    items.sort((a, b) => a.portionsLeft - b.portionsLeft);
+    res.json({ success: true, data: { hasBom: true, items: items.slice(0, limit) } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -936,10 +1069,20 @@ app.use('/api/supplier', supplierRouter);
 app.use('/api', coinRouter);
 app.use('/api/supply-products', supplyProductsRouter);
 app.use('/api/marketing', marketingRouter);
+// 会员现金购卡（线下收款 + 平台确认开通）：商家身份鉴权
+app.use('/api/membership', membershipRouter);
 app.use('/api/points', customerPointsRouter);
 // 采购监控（防回扣）：商家身份 + shopId 隔离，全部只读接口
 app.use('/api/admin/procurement-monitor', procurementMonitorRouter);
-// 供应商智能定价系统（改价工作台 / 品类规则 / 保鲜期提醒）：供应商身份鉴权
+// 智能补货（阶段1 MVP）：基于采购历史频率，商家身份 + shopId 隔离，只读建议接口
+app.use('/api/admin/smart-replenish', smartReplenishRouter);
+// 菜品→食材配方（BOM）管理：商家身份 + shopId 隔离
+app.use('/api/admin/bom', bomRouter);
+// 经营报表 / 顾客画像 / 损耗分析：商家身份 + 会员等级鉴权（reportBasic / reportAdvanced）
+app.use('/api/admin/reports', reportsRouter);
+// 顾客储值（线下充值记账 + 点餐储值抵扣）
+app.use('/api/stored-value', storedValueRouter);
+// 供应商改价工作台（更新供货价 / 保鲜期提醒）：供应商身份鉴权；平台定价在开发者控制台「定价工作台」
 app.use('/api/supplier/price', supplierPriceRouter);
 
 // 供应商列表（公开浏览 + 管理端展示，不涉及多商家隔离）
@@ -952,7 +1095,7 @@ app.get('/api/suppliers', async (req, res) => {
       agreementSigned: true,
       orderEnabled: true
     })
-      .select('name contact phone categories minOrderAmount createdAt')
+      .select('name contact phone categories minOrderAmount createdAt deliveryNotice')
       .sort({ createdAt: -1 })
       .lean();
     res.json({ success: true, data: suppliers });
@@ -1026,10 +1169,10 @@ mongoose
       console.error('创建默认开发者账号失败：', e.message);
     }
     startDhCron();
-    // 预置平台品类保鲜期 / 加价率规则（幂等，仅 supplierId=null 的全局预置）
+    // 预置平台品类保鲜期规则（幂等，仅 supplierId=null 的全局预置；加价率已停用，仅保鲜期）
     try {
       await priceRule.seedGlobalPresets();
-      console.log('[PriceRule] 平台预置品类规则已就绪');
+      console.log('[PriceRule] 平台预置品类保鲜期规则已就绪');
     } catch (e) {
       console.error('[PriceRule] 预置规则入库失败:', e.message);
     }

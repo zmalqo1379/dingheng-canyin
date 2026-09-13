@@ -52,17 +52,47 @@ const memberSchema = new mongoose.Schema({
     type: String,
     enum: ['coin', 'cash'],
     default: 'coin'
+  },
+
+  // ============ 采购线（2026-09 双产品线重构） ============
+  // 采购线独立于点餐线：free 永久免费；plus/pro 付费。
+  // 两线互不锁定：只买点餐或只买采购，系统均完整可用。
+  purchaseLevel: {
+    type: String,
+    enum: ['free', 'plus', 'pro'],
+    default: 'free'
+  },
+  // 采购线到期日：付费档有效期内为到期日；free / 已过期均为 null
+  purchaseExpire: {
+    type: Date,
+    default: null
+  },
+  // 采购线首月体验标记（赠 30 天 plus 体验时 true）
+  purchaseIsTrial: {
+    type: Boolean,
+    default: false
+  },
+  // 采购线开通/续费支付方式：coin / cash / wechat
+  purchaseSource: {
+    type: String,
+    default: 'coin'
   }
 }, { timestamps: true });
 
-// 首月策略：商家注册（Member 创建）时自动开通基础版，赠送 30 天免费体验
-//   memberLevel='basic' + memberIsTrial=true + memberExpire=30天后
-//   基础版起即开放顾客积分（customerPointsEnabled=true）；币余额从 0 起，采购返币
+// 首月策略（双产品线版）：商家注册（Member 创建）时同时赠送 30 天体验
+//   点餐线：memberLevel='advanced' + memberExpire=30天后 + memberIsTrial=true
+//   采购线：purchaseLevel='plus'   + purchaseExpire=30天后 + purchaseIsTrial=true
+//   到期后由定时任务回落：点餐→basic（永久免费）、采购→free（永久免费）
+//   顾客积分自基础版起开放（customerPointsEnabled=true）；币余额从 0 起，靠采购返币
 memberSchema.pre('save', function (next) {
   if (this.isNew) {
-    this.memberLevel = 'basic';
+    const expire = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    this.memberLevel = 'advanced';
     this.memberIsTrial = true;
-    this.memberExpire = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    this.memberExpire = expire;
+    this.purchaseLevel = 'plus';
+    this.purchaseIsTrial = true;
+    this.purchaseExpire = expire;
     this.customerPointsEnabled = true;
     this.totalEarnedCoin = 0;
     this.dinghengCoin = 0;

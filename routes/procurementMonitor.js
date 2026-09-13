@@ -3,6 +3,7 @@ const router = express.Router();
 
 const PurchaseOrder = require('../models/PurchaseOrder');
 const SupplyProduct = require('../models/SupplyProduct');
+const PriceCheck = require('../models/PriceCheck');
 const { requireMerchant } = require('../middlewares/auth');
 
 // ============ 采购监控 · 防回扣价格异常检测 ============
@@ -319,6 +320,80 @@ router.get('/supplier-breakdown', requireMerchant, async (req, res) => {
       }))
       .sort((a, b) => b.amount - a.amount);
     res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ 7) GET /savings 省钱账单（采购价 vs 平台参考价） ============
+// 口径：本月「已确认收货」的商品明细，按「平台参考价 − 你的实际采购价」× 数量 累计；
+// 仅统计存在参考价（PriceCheck）的商品；实际采购价高于参考价不计入（不虚报）。
+// 无任何参考价数据时 hasData=false，前端隐藏该卡片（宁可不显示，不编造）。
+router.get('/savings', requireMerchant, async (req, res) => {
+  try {
+    const shopId = req.shopId;
+    const orders = await loadCompletedOrders(shopId);
+    const r = monthRange(0);
+    const curOrders = orders.filter(o => {
+      const d = o.receiveAt ? new Date(o.receiveAt) : new Date(o.createdAt);
+      return d >= r.start && d < r.end;
+    });
+
+    const pidSet = new Set();
+    for (const o of curOrders) {
+      for (const it of (o.items || [])) {
+        const pid = it.productId ? String(it.productId) : '';
+        if (pid) pidSet.add(pid);
+      }
+    }
+    const pids = [...pidSet];
+    if (!pids.length) {
+      return res.json({ success: true, data: { hasData: false, monthSaved: 0, note: '本月暂无采购记录' } });
+    }
+
+    const checks = await PriceCheck.find({ productId: { $in: pids } }).select('productId refPrice source').lean();
+    const refMap = new Map(checks.map(c => [String(c.productId), { refPrice: Number(c.refPrice) || 0, source: c.source || '' }]));
+
+    let monthSaved = 0;
+    let comparedItems = 0;
+    let coveredItems = 0;
+    const details = [];
+    for (const o of curOrders) {
+      for (const it of (o.items || [])) {
+        const pid = it.productId ? String(it.productId) : '';
+        if (!pid) continue;
+        comparedItems++;
+        const ref = refMap.get(pid);
+        if (!ref || ref.refPrice <= 0) continue;
+        coveredItems++;
+        const price = Number(it.unitPrice) || 0;
+        const qty = Number(it.quantity) || 0;
+        const saved = (ref.refPrice - price) * qty;
+        if (saved > 0) {
+          monthSaved += saved;
+          details.push({
+            name: String(it.name || '商品'),
+            paidPrice: r2(price),
+            refPrice: r2(ref.refPrice),
+            quantity: qty,
+            saved: r2(saved)
+          });
+        }
+      }
+    }
+    details.sort((a, b) => b.saved - a.saved);
+
+    res.json({
+      success: true,
+      data: {
+        hasData: coveredItems > 0,
+        monthSaved: r2(monthSaved),
+        comparedItems,   // 本月明细条数
+        coveredItems,    // 其中存在参考价的条数
+        topSaved: details.slice(0, 10),
+        note: '口径：本月已确认收货商品，按「平台参考价 − 你的实际采购价」× 数量累计；仅统计有参考价的商品，仅供参考'
+      }
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

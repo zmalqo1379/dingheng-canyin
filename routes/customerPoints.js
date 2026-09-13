@@ -7,6 +7,7 @@ const Dish = require('../models/Dish');
 const Order = require('../models/Order');
 const Member = require('../models/Member');
 const dhConfig = require('../utils/dhConfig');
+const entitlements = require('../utils/entitlements');
 const { requirePublicShopId } = require('../middlewares/auth');
 
 // 手机号格式（大陆 11 位，1 开头）
@@ -15,17 +16,14 @@ function isValidPhone(phone) {
 }
 
 // 读取商家积分配置（Setting 存储）+ 按会员状态判定功能开关
-// 顾客积分为基础版起权益：basic/advanced/premium 在会员有效期内均可用；
-// 无有效会员（未开通/体验过期/月卡过期）一律关闭（顾客端隐藏、不累计）
+// 顾客积分为点餐线免费权益（basic 起永久开放）；会员状态统一走 entitlements 判定。
 // 总开关 pointEnabled=false 时整体关闭（顾客端隐藏、不累计）
 async function getPointConfig(shopId) {
   const s = await Setting.findOne({ shopId }).lean();
   const member = await Member.findOne({ shopId }).lean();
-  const level = member ? member.memberLevel : 'basic';
-  const memberActive = dhConfig.isMembershipActive(member);
+  const memberActive = entitlements.posState(member).active;
   const enabled = (s ? s.pointEnabled !== false : true) &&
-    dhConfig.features.customerPoints.includes(level) &&
-    memberActive &&
+    entitlements.hasPosFeature('customerPoints', member) &&
     Number(s ? s.pointSpendPerPoint : 1) > 0;
   return {
     enabled,

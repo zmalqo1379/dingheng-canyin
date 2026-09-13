@@ -110,6 +110,66 @@ const features = {
   reportAdvanced: ['premium']                          // 顾客画像、损耗分析
 };
 
+// ============ 双产品线（2026-09 采购为核心重构） ============
+// 产品线 A：扫码点餐（POS）——basic 永久免费；advanced/premium 付费
+// 产品线 B：采购管家（PURCHASE）——free 永久免费；plus/pro 付费
+// 两条线独立开通、独立到期；鼎恒币为两线之间唯一兑换桥梁（诱导，不捆绑）。
+// 说明：本区块为纯增量，下方「派生视图」保留历史字段名，老代码零改动可继续消费。
+
+// 等级秩（两线各自独立，互不比较）
+const POS_LEVELS = { basic: 0, advanced: 1, premium: 2 };
+const PURCHASE_LEVELS = { free: 0, plus: 1, pro: 2 };
+const POS_LEVEL_NAMES = { basic: '点餐基础版', advanced: '点餐进阶版', premium: '点餐尊享版' };
+const PURCHASE_LEVEL_NAMES = { free: '采购免费版', plus: '采购省钱卡', pro: '采购省钱卡Pro' };
+
+// 点餐线付费档定价（basic 永久免费，不可购买）
+const POS_PRICING = {
+  advanced: { name: '点餐进阶版', monthlyRmb: 39, monthlyCoin: 1500 },
+  premium:  { name: '点餐尊享版', monthlyRmb: 79, monthlyCoin: 2400 }
+};
+
+// 采购线付费档定价（free 永久免费，不可购买）
+const PURCHASE_PRICING = {
+  plus: { name: '采购省钱卡',   monthlyRmb: 99,  monthlyCoin: 3000 },
+  pro:  { name: '采购省钱卡Pro', monthlyRmb: 199, monthlyCoin: 5000 }
+};
+
+// 采购线返币率（币/元）：free 2元=1币；plus/pro 1元=1币
+const PURCHASE_COIN_RATE = { free: 0.5, plus: 1.0, pro: 1.0 };
+
+// 会员价值基准（币/天，升级折算剩余天数用）：月卡币价 / 30
+const DAILY_COIN_POS = { basic: 0, advanced: 50, premium: 80 };
+const DAILY_COIN_PURCHASE = { free: 0, plus: 100, pro: 167 };
+
+// 点餐线功能权限（按点餐等级 + 有效期开放）
+const posFeatures = {
+  customerPoints: ['basic', 'advanced', 'premium'],         // 顾客积分：免费起开放（粘性工具）
+  marketingDiscount: ['advanced', 'premium'],                // 满减
+  marketingCategoryDiscount: ['premium'],                    // 分类折扣
+  marketingRecharge: ['premium'],                            // 充值送
+  reportBasic: ['advanced', 'premium'],                      // 经营报表
+  reportAdvanced: ['premium'],                               // 顾客画像/损耗分析
+  premiumTheme: ['advanced', 'premium'],                     // 高级主题/自定义头图/LOGO
+  storedValue: ['advanced', 'premium']                       // 顾客储值
+};
+
+// 采购线功能权限（按采购等级开放；free 永久可用基础能力）
+const purchaseFeatures = {
+  basicReplenish: ['free', 'plus', 'pro'],                   // 基础补货建议：免费
+  smartForecast: ['plus', 'pro'],                            // 30 天销量预测
+  priceMonitor: ['plus', 'pro'],                             // 采购价监控
+  largeCoupon: ['plus', 'pro'],                              // 大额券档（100 元）
+  priceCompare: ['pro'],                                     // 比价 / 降价提醒
+  priorityDelivery: ['pro']                                  // 优先配送标识
+};
+
+// 券所需采购等级映射：原券 needLevel(basic/advanced/premium) → 采购线(free/plus/pro)
+const COUPON_NEED_PURCHASE_LEVEL = { basic: 'free', advanced: 'plus', premium: 'pro' };
+
+// Addon 零成本币兑小产品（阶段3启用；先占位，避免前端 undefined）
+// 结构：{ key, name, coinPrice, days, feature, desc }
+const ADDONS = [];
+
 // ============ 派生视图（兼容历史字段名，老代码零改动可继续消费） ============
 // 会员定价：{ name, price(人民币月价), coinCost(币月价) }
 const membership = Object.keys(MEMBER_PRICING).reduce((acc, lv) => {
@@ -120,6 +180,11 @@ const membership = Object.keys(MEMBER_PRICING).reduce((acc, lv) => {
   };
   return acc;
 }, {});
+
+// ============ 平台加价率（采购分账层） ============
+// 采购订单零售价 = 供货价 × (1 + 加价率/100)，差价归平台；
+// 可按供应商/品类在 SplitRule 集合覆盖，未配置时兜底此默认值
+const DEFAULT_PLATFORM_RATE = 6;
 
 // 采购返币率
 const coinRate = COIN_RATE;
@@ -167,6 +232,7 @@ module.exports = {
   MEMBER_PRICING,
   DEFAULT_TIERS_UNIFIED,
   DEFAULT_TIERS_BY_CATEGORY,
+  DEFAULT_PLATFORM_RATE,
   CATEGORY_CLASSIFICATION,
   DAILY_COIN,
   features,
@@ -174,6 +240,20 @@ module.exports = {
   couponExpireDays,
   classifyMarginCategory,
   isMembershipActive,
+  // 双产品线（2026-09 采购为核心重构）
+  POS_LEVELS,
+  PURCHASE_LEVELS,
+  POS_LEVEL_NAMES,
+  PURCHASE_LEVEL_NAMES,
+  POS_PRICING,
+  PURCHASE_PRICING,
+  PURCHASE_COIN_RATE,
+  DAILY_COIN_POS,
+  DAILY_COIN_PURCHASE,
+  posFeatures,
+  purchaseFeatures,
+  COUPON_NEED_PURCHASE_LEVEL,
+  ADDONS,
   // 兼容历史字段名派生视图
   membership,
   coinRate,

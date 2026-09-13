@@ -6,12 +6,18 @@ const PurchaseOrder = require('../models/PurchaseOrder');
 const Supplier = require('../models/Supplier');
 const SupplyProduct = require('../models/SupplyProduct');
 const ShopAccount = require('../models/ShopAccount');
+const Setting = require('../models/Setting');
 const Member = require('../models/Member');
 const CoinHistory = require('../models/CoinHistory');
 const Coupon = require('../models/Coupon');
+const ShopInventory = require('../models/ShopInventory');
 const dhConfig = require('../utils/dhConfig');
-const rebate = require('../utils/rebate');
+const entitlements = require('../utils/entitlements');
 const coinRule = require('../utils/coinRule');
+const stockpileCheck = require('../utils/stockpileCheck');
+const notify = require('../utils/notify');
+const split = require('../utils/split');
+const paymentProvider = require('../utils/paymentProvider');
 const { verifyToken, requireMerchant, requireSupplier } = require('../middlewares/auth');
 
 // ============ 工具函数 ============
@@ -26,13 +32,69 @@ function generateOrderNo() {
   return `CG${y}${m}${d}${rand}`;
 }
 
-// 通知发送函数（预留）：当前用 console.log 模拟，后续可对接供应商 webhook
+// 供应商通知：若配置了 webhookUrl 则真实 POST 推送（带 5s 超时），并落库通知日志
+//   - 成功返回 true；未配置 webhookUrl 记 skipped 并返回 false（不影响主流程）
 async function sendNotification(supplier, event, payload) {
-  if (!supplier) return;
-  console.log('[通知] 供应商:', supplier.name, '| 事件:', event, '| 接收方:', supplier.phone || supplier.webhookUrl || '未知');
-  console.log('[通知] 内容:', JSON.stringify(payload, null, 2));
-  // TODO: 若 supplier.webhookUrl 存在，可在此 POST 到供应商接口
-  return true;
+  if (!supplier) return false;
+  if (!supplier.webhookUrl) {
+    await notify.writeLog({
+      channel: 'webhook',
+      event,
+      target: '',
+      title: '供应商通知',
+      content: `供应商 ${supplier.name}`,
+      status: 'skipped',
+      error: '供应商未配置 webhookUrl'
+    });
+    return false;
+  }
+  return notify.pushWebhook(
+    supplier.webhookUrl,
+    event,
+    Object.assign({ supplierId: String(supplier._id), supplierName: supplier.name }, payload || {}),
+    { title: '供应商通知', content: `${supplier.name} · ${event}` }
+  );
+}
+
+// ============ 云分账：发起分账指令（下单付款即发起；失败落库并支持重试）============
+// 两笔拆账：供货价 → 供应商，差价 → 平台。金额按订单当前 items（下单数量 Q1）计算。
+// 状态机：待分账 →（本次调用）已发起分账 → 分账成功 / 分账失败（splitRetryCount++，记 splitError）
+// mock provider 同步返回结果；真实渠道为异步回调，届时由 /:id/split/callback 落定最终状态。
+async function initiateOrderSplit(order, supplier) {
+  const r = split.calcOrderSplit(order);
+  order.splitAmount = r.splitAmount;
+  order.supplierShare = r.supplierShare;
+  order.platformShare = r.platformShare;
+  order.splitStatus = split.SPLIT_STATUS.INITIATED;
+  split.appendSplitLog(order, { action: 'initiate', status: '已发起分账', message: `供应商 ${r.supplierShare} / 平台 ${r.platformShare}` });
+
+  let res;
+  try {
+    res = await paymentProvider.applyProfitSharing(order, {
+      supplierShareFen: Math.round(r.supplierShare * 100),
+      platformShareFen: Math.round(r.platformShare * 100),
+      supplierMchId: supplier ? supplier.wechatSubMchId : '',
+      platformMchId: ''
+    });
+  } catch (e) {
+    res = { status: 'failed', error: String((e && e.message) || '分账异常').slice(0, 300), splitNo: order.splitNo };
+  }
+
+  if (res && res.status === 'success') {
+    order.splitStatus = split.SPLIT_STATUS.SUCCESS;
+    order.splitNo = res.splitNo || order.splitNo;
+    order.channelSplitOrderId = res.channelSplitOrderId || '';
+    order.splitAt = new Date();
+    order.splitError = '';
+    split.appendSplitLog(order, { action: 'result', status: '分账成功', message: `流水号 ${order.splitNo}` });
+  } else {
+    order.splitStatus = split.SPLIT_STATUS.FAILED;
+    order.splitNo = (res && res.splitNo) || order.splitNo;
+    order.splitRetryCount = Number(order.splitRetryCount || 0) + 1;
+    order.splitError = (res && res.error) || '分账失败';
+    split.appendSplitLog(order, { action: 'result', status: '分账失败', message: order.splitError });
+  }
+  return order;
 }
 
 // ============ GET /api/purchase-orders 查询采购订单列表 ============
@@ -56,7 +118,7 @@ async function listOrdersHandler(req, res) {
     if (status) filter.status = status;
 
     const orders = await PurchaseOrder.find(filter)
-      .populate('supplierId', 'name contact phone')
+      .populate('supplierId', 'name contact phone deliveryNotice')
       .populate('appliedCouponId', 'type faceValue minOrder name')
       .sort({ createdAt: -1 })
       .lean();
@@ -76,6 +138,26 @@ async function listOrdersHandler(req, res) {
           if (!o.shopName && a.shopName) o.shopName = a.shopName;
           o.shopContact = a.contactName || '';
           o.shopPhone = a.phone || '';
+        }
+      });
+      // 配送三件套：批量补全门店定位/门头照/收货方式/期望时段（读 Setting）
+      // 供供应商打印小票（商家地址）、配送单页（门头照/导航/收货方式/时段排序）
+      const settings = await Setting.find({ shopId: { $in: shopIds } })
+        .select('shopId shopLongitude shopLatitude shopAddress storeFrontPhoto streetViewPhoto receiveMethod expectedReceiveStart expectedReceiveEnd -_id')
+        .lean();
+      const sMap = {};
+      settings.forEach(s => { sMap[s.shopId] = s; });
+      orders.forEach(o => {
+        const s = sMap[o.shopId];
+        if (s) {
+          o.shopLongitude = s.shopLongitude;
+          o.shopLatitude = s.shopLatitude;
+          o.shopAddress = s.shopAddress || '';
+          o.storeFrontPhoto = s.storeFrontPhoto || '';
+          o.streetViewPhoto = s.streetViewPhoto || '';
+          o.receiveMethod = s.receiveMethod || 'supplier_arranged';
+          o.expectedReceiveStart = s.expectedReceiveStart || '';
+          o.expectedReceiveEnd = s.expectedReceiveEnd || '';
         }
       });
     }
@@ -100,7 +182,7 @@ router.get('/supplier', requireSupplier, listOrdersHandler);
 router.post('/', requireMerchant, async (req, res) => {
   const session = await mongoose.startSession();
   try {
-    const { supplierId, items, couponId } = req.body;
+    const { supplierId, items, couponId, force } = req.body;
     // 商家身份从 JWT 取，忽略请求体里的 shopId/shopName
     const shopId = req.user.shopId;
     const shopName = req.user.shopName || '';
@@ -108,6 +190,42 @@ router.post('/', requireMerchant, async (req, res) => {
     if (!shopId || !supplierId || !items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ success: false, message: 'supplierId、items 不能为空' });
     }
+
+    // ============ 囤货保护预检（非 force 时拦截） ============
+    // 商家下单提交时检测本次数量是否超过近 7 日采购总量；force=true 表示商家已在弹窗中坚持下单
+    if (!force) {
+      const { stockpileWarnings, priceDropWarnings } = await stockpileCheck.preCheckOrder(shopId, items);
+      const hasWarning = stockpileWarnings.length > 0 || priceDropWarnings.length > 0;
+      if (hasWarning) {
+        // 返回预警详情（前端弹窗提醒，由商家选择"修改"或"坚持下单"）
+        return res.status(409).json({
+          success: false,
+          code: 'STOCKPILE_WARNING',
+          message: '本单存在异常，请确认',
+          data: { stockpileWarnings, priceDropWarnings }
+        });
+      }
+    }
+    // force=true 跳过预检；同时记录异常标记（用于供应商后台标红）
+    // 预检一次（无论是否 force），以拿到 anomalyItems / priceDropItems 用于订单标记
+    const checkResult = await stockpileCheck.preCheckOrder(shopId, items);
+    const anomalyItems = checkResult.stockpileWarnings.map(w => ({
+      productId: w.productId,
+      name: w.name,
+      quantity: w.quantity,
+      history7DayTotal: w.history7DayTotal,
+      baseline: w.baseline,
+      ratio: w.ratio
+    }));
+    const priceDropItems = checkResult.priceDropWarnings.map(w => ({
+      productId: w.productId,
+      name: w.name,
+      unitPrice: w.unitPrice,
+      avg7Day: w.avg7Day,
+      dropRatio: w.dropRatio
+    }));
+    const anomalyFlag = anomalyItems.length > 0;
+    const priceDropWarning = priceDropItems.length > 0;
 
     // 校验供应商存在
     const supplier = await Supplier.findById(supplierId);
@@ -132,7 +250,11 @@ router.post('/', requireMerchant, async (req, res) => {
     const minOrderAmount = Number(supplier.minOrderAmount) > 0 ? Number(supplier.minOrderAmount) : 300;
 
     // 校验商品并计算明细；同时根据商品写入对应 supplierId（防绕过）
+    // 加价分销口径：供货价 = SupplyProduct.costPrice（供应商维护，商家不可覆盖）；
+    //              卖价   = SupplyProduct.salePrice（平台手动填，未填则等于供货价）
+    // 顾客按卖价付款；供应商分账供货价，平台分账差价。金额全程按分整数计算（utils/split）。
     let totalAmount = 0;
+    let supplyAmount = 0;
     const itemDocs = [];
     for (const it of items) {
       if (!it.productId || !it.quantity) {
@@ -146,21 +268,36 @@ router.post('/', requireMerchant, async (req, res) => {
       if (String(product.supplierId) !== String(supplierId)) {
         return res.status(400).json({ success: false, message: `商品「${product.name}」不属于该供应商` });
       }
-      // 优先使用请求中的 unitPrice（可改价），否则取商品供货价
-      const unitPrice = it.unitPrice != null ? Number(it.unitPrice) : product.costPrice;
+      // 保鲜期冻结拦截：价格冻结中的商品不可下单（商家端显示"价格更新中"）
+      if (product.priceFrozen) {
+        return res.status(400).json({ success: false, message: `商品「${product.name}」价格更新中，暂不可下单，请稍后再试` });
+      }
       const quantity = Number(it.quantity);
-      const totalPrice = +(unitPrice * quantity).toFixed(2);
+      // 供货价取自商品（供应商维护），卖价取自平台手动定价（未填默认=供货价）
+      const supplyPrice = +(Number(product.costPrice) || 0).toFixed(2);
+      const salePrice = +split.resolveSalePrice(product.salePrice, product.costPrice).toFixed(2);
+      const totalPrice = +(salePrice * quantity).toFixed(2);        // 卖价小计（顾客应付）
+      const supplyLineTotal = +(supplyPrice * quantity).toFixed(2); // 供货价小计（供应商实收）
       totalAmount += totalPrice;
+      supplyAmount += supplyLineTotal;
       itemDocs.push({
         productId: product._id,
         name: product.name,
         category: product.category || '',
         quantity,
-        unitPrice,
-        totalPrice
+        unitPrice: salePrice,        // 兼容字段：商家视角单价 = 卖价
+        totalPrice,
+        supplyPrice,
+        salePrice,
+        retailPrice: salePrice,      // 兼容字段（旧名）
+        supplyLineTotal,
+        saleLineTotal: totalPrice,
+        platformRate: 0              // 已废弃：手动定价不计算加价率
       });
     }
     totalAmount = +totalAmount.toFixed(2);
+    supplyAmount = +supplyAmount.toFixed(2);
+    const platformAmount = +(Math.max(0, totalAmount - supplyAmount)).toFixed(2);
 
     // 起送价校验：订单合计必须 >= 供应商起送价
     if (totalAmount < minOrderAmount) {
@@ -195,6 +332,7 @@ router.post('/', requireMerchant, async (req, res) => {
     let orderDoc;
     await session.withTransaction(async () => {
       // 1) 创建订单（券信息一并写入，actualPayAmount = totalAmount - 抵扣）
+      // 囤货保护：写入 anomalyFlag / anomalyItems / priceDropWarning / priceDropItems 供供应商后台标红
       const created = await PurchaseOrder.create([{
         orderNo,
         shopId,
@@ -202,13 +340,22 @@ router.post('/', requireMerchant, async (req, res) => {
         supplierId,
         items: itemDocs,
         totalAmount,
+        supplyAmount,
+        platformAmount,
+        platformRate: 0, // 已废弃：手动定价不计算加价率
         appliedCouponId: coupon ? coupon._id : null,
         discountAmount,
         actualPayAmount,
         status: '待确认',
-        rebateAmount: 0,
+        // 云分账：下单即置「待分账」，随后发起分账指令
+        splitStatus: '待分账',
         pointsGenerated: 0,
-        rewardCoin: 0
+        rewardCoin: 0,
+        payStatus: 'unpaid',
+        anomalyFlag,
+        anomalyItems,
+        priceDropWarning,
+        priceDropItems
       }], { session });
       orderDoc = created[0];
 
@@ -222,6 +369,17 @@ router.post('/', requireMerchant, async (req, res) => {
       }
     });
 
+    // ============ 支付 + 云分账（下单付款即发起分账指令）============
+    // 走统一支付抽象层：mock 阶段下单即视为支付成功并发起分账；
+    // 接入真实微信支付后，改为由支付回调置 payStatus=paid 并触发 initiateOrderSplit。
+    const pay = await paymentProvider.createPayment(orderDoc);
+    orderDoc.payNo = pay.payNo;
+    orderDoc.payStatus = 'paid';
+    orderDoc.paidAt = new Date();
+    orderDoc.transactionId = `MOCKTX${pay.payNo}`;
+    await initiateOrderSplit(orderDoc, supplier);
+    await orderDoc.save();
+
     // 返回时 populate 供应商名与券信息，避免前端 undefined
     const populated = await PurchaseOrder.findById(orderDoc._id)
       .populate('supplierId', 'name contact phone')
@@ -229,11 +387,10 @@ router.post('/', requireMerchant, async (req, res) => {
 
     // 自动化：订单创建（待确认）→ 通知供应商
     await sendNotification(supplier, 'order_created', {
-      orderNo,
-      shopId,
-      shopName,
-      totalAmount,
-      actualPayAmount,
+      orderNo, shopId, shopName, totalAmount, actualPayAmount,
+      splitAmount: orderDoc.splitAmount,
+      supplierShare: orderDoc.supplierShare,
+      platformShare: orderDoc.platformShare,
       items: itemDocs
     });
 
@@ -323,15 +480,185 @@ router.put('/:id/deliver', requireSupplier, supplierShipHandler);
 router.post('/:id/deliver', requireSupplier, supplierShipHandler);
 router.post('/:id/ship', requireSupplier, supplierShipHandler);
 
-// ============ 商家确认收货（自动结算：预估返点 + 积分 + 鼎恒币发币）============
-// 该接口合并了原 /receive 的全部结算逻辑，并新增鼎恒币发放：
+// ============ GET /api/purchase-orders/:id 单笔订单详情 ============
+// 三端鉴权：商家只能看自家订单、供应商只能看自己供应的、dev 全部
+// 补全商家联系人/电话（ShopAccount 手动补全，同 listOrdersHandler）
+// 补全门店定位/门头照/收货方式/期望时段（读 Setting，供供应商配送单页与商家详情使用）
+
+async function getOrderDetailHandler(req, res) {
+  try {
+    const order = await PurchaseOrder.findById(req.params.id)
+      .populate('supplierId', 'name contact phone')
+      .populate('appliedCouponId', 'type faceValue minOrder name')
+      .lean();
+    if (!order) {
+      return res.status(404).json({ success: false, message: '采购订单不存在' });
+    }
+    // 权限校验：按 role 双向校验归属
+    if (req.user.role === 'merchant' && String(order.shopId) !== String(req.user.shopId)) {
+      return res.status(403).json({ success: false, message: '无权查看该订单' });
+    }
+    if (req.user.role === 'supplier' && String(order.supplierId._id) !== String(req.user.supplierId)) {
+      return res.status(403).json({ success: false, message: '无权查看该订单' });
+    }
+    // 补全商家联系人/电话
+    const acc = await ShopAccount.findOne({ shopId: order.shopId })
+      .select('shopName contactName phone -_id').lean();
+    if (acc) {
+      if (!order.shopName && acc.shopName) order.shopName = acc.shopName;
+      order.shopContact = acc.contactName || '';
+      order.shopPhone = acc.phone || '';
+    }
+    // 补全门店定位与收货设置（供供应商配送单页使用）
+    const st = await Setting.findOne({ shopId: order.shopId }).lean();
+    if (st) {
+      order.shopLongitude = st.shopLongitude;
+      order.shopLatitude = st.shopLatitude;
+      order.shopAddress = st.shopAddress || '';
+      order.storeFrontPhoto = st.storeFrontPhoto || '';
+      order.streetViewPhoto = st.streetViewPhoto || '';
+      order.receiveMethod = st.receiveMethod || 'supplier_arranged';
+      order.expectedReceiveStart = st.expectedReceiveStart || '';
+      order.expectedReceiveEnd = st.expectedReceiveEnd || '';
+    }
+    res.json({ success: true, data: order });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+router.get('/:id', verifyToken, getOrderDetailHandler);
+
+// ============ 供应商分拣过秤 POST /api/purchase-orders/:id/weigh ============
+// 逐行写入实称重量，按实称重算行金额与订单总额（实付按实称结算）
+// 全部行 weighed=true 时自动标记 sorted=true + sortedAt（不影响 status，仍处"已确认"待发货）
+
+router.post('/:id/weigh', requireSupplier, async (req, res) => {
+  try {
+    const { items } = req.body; // [{ productId, actualWeight }]
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, message: 'items 不能为空' });
+    }
+    const order = await PurchaseOrder.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: '采购订单不存在' });
+    }
+    if (String(order.supplierId) !== String(req.user.supplierId)) {
+      return res.status(403).json({ success: false, message: '无权操作该订单（非本供应商订单）' });
+    }
+    if (order.status !== '已确认') {
+      return res.status(400).json({ success: false, message: `当前状态为「${order.status}」，不可分拣过秤` });
+    }
+
+    // 逐行重算实称金额：actualLineTotal（卖价）=actualWeight×salePrice；actualSupplyLineTotal（供货）=actualWeight×supplyPrice
+    // 未过秤的行沿用原 quantity×单价 金额，避免丢金额
+    for (const upd of items) {
+      const row = order.items.find(x => String(x.productId) === String(upd.productId));
+      if (!row) continue;
+      const w = Number(upd.actualWeight);
+      row.actualWeight = (isFinite(w) && w >= 0) ? w : 0;
+      row.weighed = true;
+      // 单价：卖价优先取 salePrice（老订单回退 retailPrice/unitPrice）；供货价取 supplyPrice（老订单回退 unitPrice）
+      const saleUnit = Number(row.salePrice != null ? row.salePrice : (row.retailPrice != null ? row.retailPrice : row.unitPrice)) || 0;
+      const supplyUnit = Number(row.supplyPrice != null ? row.supplyPrice : row.unitPrice) || 0;
+      row.actualLineTotal = row.actualWeight > 0
+        ? +(row.actualWeight * saleUnit).toFixed(2)
+        : row.totalPrice;
+      row.actualSupplyLineTotal = row.actualWeight > 0
+        ? +(row.actualWeight * supplyUnit).toFixed(2)
+        : (row.supplyLineTotal || +(supplyUnit * (row.quantity || 0)).toFixed(2));
+    }
+
+    // 订单总额 = Σ各行 actualLineTotal（已称行按实称，未称行保留原值）；供货价总额同理
+    let newTotal = 0;
+    let newSupply = 0;
+    order.items.forEach(it => {
+      newTotal += it.actualLineTotal || it.totalPrice || 0;
+      const supplyUnit = Number(it.supplyPrice != null ? it.supplyPrice : it.unitPrice) || 0;
+      newSupply += it.actualSupplyLineTotal || it.supplyLineTotal || (supplyUnit * (it.quantity || 0));
+    });
+    newTotal = +newTotal.toFixed(2);
+    newSupply = +newSupply.toFixed(2);
+    order.totalAmount = newTotal;
+    // 分账快照：供货价总额（供应商应得）与平台差价（= 卖价总额 - 供货价总额）
+    order.supplyAmount = newSupply;
+    order.platformAmount = +(Math.max(0, newTotal - newSupply)).toFixed(2);
+    // 券面值不重算，只抵总价：actualPayAmount = max(0, totalAmount - discountAmount)
+    const discount = Number(order.discountAmount || 0);
+    order.actualPayAmount = +(Math.max(0, newTotal - discount)).toFixed(2);
+
+    // 全部行 weighed 即视为已分拣
+    if (order.items.every(x => x.weighed)) {
+      order.sorted = true;
+      order.sortedAt = new Date();
+      // 过秤后差额：D = Σ 卖价×(Q2−Q1)（可正可负）。D ≠ 0 → 进入「补差中」，待确认收货时执行补差。
+      const comp = split.calcCompensation(order);
+      order.compensateAmount = comp.compensateAmount;
+      order.compensateSupplierShare = comp.compensateSupplierShare;
+      order.compensatePlatformShare = comp.compensatePlatformShare;
+      // 仅在尚未分账成功/已补差时推进状态，避免覆盖已完成的补差
+      if (order.splitStatus !== split.SPLIT_STATUS.COMPENSATED) {
+        if (Math.abs(comp.compensateAmount) > 0.0001) {
+          order.splitStatus = split.SPLIT_STATUS.COMPENSATING;
+          split.appendSplitLog(order, { action: 'weigh', status: '补差中', message: `过秤差额 ${comp.compensateAmount}（供应商 ${comp.compensateSupplierShare} / 平台 ${comp.compensatePlatformShare}）` });
+        }
+      }
+    }
+    await order.save();
+    res.json({ success: true, data: order });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ 供应商拍照送达 POST /api/purchase-orders/:id/deliver-photo ============
+// 仅订单归属供应商可操作；校验 status === '已发货' → 写入 deliveryPhotoUrl + deliveredAt
+// 自动推送通知商家"您的货已送达，附照片"（复用 sendNotification，当前 console.log 占位）
+
+router.post('/:id/deliver-photo', requireSupplier, async (req, res) => {
+  try {
+    const { deliveryPhotoUrl } = req.body;
+    if (!deliveryPhotoUrl) {
+      return res.status(400).json({ success: false, message: '缺少送达照片 URL' });
+    }
+    const order = await PurchaseOrder.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: '采购订单不存在' });
+    }
+    if (String(order.supplierId) !== String(req.user.supplierId)) {
+      return res.status(403).json({ success: false, message: '无权操作该订单（非本供应商订单）' });
+    }
+    if (order.status !== '已发货') {
+      return res.status(400).json({ success: false, message: `当前状态为「${order.status}」，不可送达` });
+    }
+    order.deliveryPhotoUrl = String(deliveryPhotoUrl).slice(0, 500);
+    order.deliveredAt = new Date();
+    await order.save();
+
+    const supplier = await Supplier.findById(order.supplierId);
+    await sendNotification(supplier, 'order_delivered_photo', {
+      orderNo: order.orderNo,
+      shopId: order.shopId,
+      deliveryPhotoUrl: order.deliveryPhotoUrl,
+      deliveredAt: order.deliveredAt
+    });
+
+    res.json({ success: true, data: order });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ 商家确认收货（分账补差 + 积分 + 鼎恒币发币）============
+// 该接口处理收货结算：
 //   - status: 已发货 → 已完成，记录 receiveAt
-//   - 预估返点：按当月该供应商分品类累计额实时定档（RebateRule 规则，无规则走默认兜底率），
-//     写入 preRebate；实际返点由开发者月度结算（RebateSettlement）后回写并计入供应商余额
+//   - 云分账补差：若过秤后差额 compensateAmount ≠ 0，通过支付抽象层执行补差
+//     （D>0 补收：顾客补付 D，其中供货价差补分账给供应商；D<0 退款：按比例追回供应商/平台），
+//     执行成功后 splitStatus → 已补差。返点体系已停用，不再计算 preRebate/actualRebateAmount。
 //   - 商家账户积分：pointsGenerated = totalAmount（ShopAccount.pointsBalance）
 //   - 鼎恒币发币：按订单明细逐行计算——每行 = 商品金额(totalPrice) × 会员返币率(coinRate)
 //     × 该商品所属品类得币倍率（CoinRule 配置，未配置按 1 倍），逐行汇总后向下取整
-// 以上结算在同一事务内完成，保证原子性。
+// 以上结算在同一事务内完成，保证原子性（分账补差为渠道调用，在事务外执行）。
 async function confirmReceiveHandler(req, res) {
   const session = await mongoose.startSession();
   try {
@@ -355,7 +682,8 @@ async function confirmReceiveHandler(req, res) {
     // 预读会员等级以决定返币率（事务外读取；不存在则创建并触发首月赠送）
     let member = await Member.findOne({ shopId: order.shopId });
     if (!member) member = await Member.create({ shopId: order.shopId, shopName: order.shopName });
-    const rate = dhConfig.coinRate[member.memberLevel] ?? 0;
+    // 返币率按采购线生效档位（free 2元=1币；plus/pro 1元=1币）
+    const rate = entitlements.coinRateOf(member);
 
     // 发币：券不返币——严格按实付金额计算。若本单用了抵用券，券抵扣额按各行金额占比
     // 分摊到各行（actualPayAmount/totalAmount），每行实付金额 × 会员返币率 × 品类得币倍率，
@@ -372,42 +700,61 @@ async function confirmReceiveHandler(req, res) {
     const pointsGenerated = +(order.totalAmount).toFixed(2);
     const receiveAt = new Date();
 
-    // 预估返点：按供应商返点模式（unified 统一阶梯 / byCategory 分类毛利阶梯），
-    // 以当月累计额（含本单）实时定档计算；专属 RebateRule 优先，无规则走平台默认阶梯
-    const rebateEstimate = await rebate.estimateOrderRebate({
-      _id: order._id,
-      supplierId: order.supplierId,
-      receiveAt,
-      items: order.items
-    }, supplier);
-    const preRebate = rebateEstimate.preRebate;
-    const preRebateRate = rebateEstimate.preRebateRate;
-    const rebateMonth = rebateEstimate.month;
-    // rebateAmount 为兼容字段，新流程下等于预估返点；实际返点月度结算后回写 actualRebateAmount
-    const rebateAmount = preRebate;
+    // ============ 云分账：过秤补差执行（差额 = 卖价×(Q2−Q1)）============
+    // D ≠ 0 时通过支付抽象层补差：含「补分账给供应商 + 补分账给平台」两笔（退款则为追回）。
+    const comp = split.calcCompensation(order);
+    const hasCompensation = Math.abs(comp.compensateAmount) > 0.0001;
+    let compensateResult = null;
+    if (hasCompensation) {
+      order.compensateAmount = comp.compensateAmount;
+      order.compensateSupplierShare = comp.compensateSupplierShare;
+      order.compensatePlatformShare = comp.compensatePlatformShare;
+      order.splitStatus = split.SPLIT_STATUS.COMPENSATING;
+      split.appendSplitLog(order, { action: 'compensate:init', status: '补差中', message: `差额 ${comp.compensateAmount}` });
+      try {
+        compensateResult = await paymentProvider.compensate(order, comp.compensateFen);
+      } catch (e) {
+        compensateResult = { status: 'failed', error: String((e && e.message) || '补差异常').slice(0, 300) };
+      }
+      if (compensateResult && compensateResult.status === 'success') {
+        order.splitStatus = split.SPLIT_STATUS.COMPENSATED;
+        order.compensateNo = compensateResult.compensateNo || order.compensateNo;
+        order.compensateAt = new Date();
+        split.appendSplitLog(order, { action: 'compensate:done', status: '已补差', message: `流水号 ${order.compensateNo}` });
+      } else {
+        order.splitStatus = split.SPLIT_STATUS.FAILED;
+        order.splitError = (compensateResult && compensateResult.error) || '补差失败';
+        split.appendSplitLog(order, { action: 'compensate:fail', status: '分账失败', message: order.splitError });
+      }
+    }
 
     const result = await session.withTransaction(async () => {
-      // 1) 更新订单：完成 + 发币/积分字段 + 预估返点字段
+      // 1) 更新订单：完成 + 发币/积分字段 + 云分账结果（分账指令在下单时已发起）
       const updatedOrder = await PurchaseOrder.findByIdAndUpdate(
         order._id,
         {
           status: '已完成',
           receiveAt,
-          rebateAmount,
-          preRebate,
-          preRebateRate,
-          rebateMonth,
-          actualRebateAmount: null,
-          rebateSettled: false,
           pointsGenerated,
-          rewardCoin
+          rewardCoin,
+          splitStatus: order.splitStatus,
+          splitAmount: order.splitAmount,
+          supplierShare: order.supplierShare,
+          platformShare: order.platformShare,
+          splitNo: order.splitNo,
+          channelSplitOrderId: order.channelSplitOrderId,
+          splitAt: order.splitAt,
+          splitRetryCount: order.splitRetryCount,
+          splitError: order.splitError,
+          splitLogs: order.splitLogs,
+          compensateAmount: order.compensateAmount,
+          compensateSupplierShare: order.compensateSupplierShare,
+          compensatePlatformShare: order.compensatePlatformShare,
+          compensateNo: order.compensateNo,
+          compensateAt: order.compensateAt
         },
         { new: true, session }
       );
-
-      // 2) 返点入账时机调整：完成时仅记录「预估返点」，不计入供应商余额；
-      //    月度结算生成 RebateSettlement 后，实际返点才计入 Supplier.balance
-      const supplierBalance = supplier ? Number(supplier.balance || 0) : 0;
 
       // 3) 商家账户积分累加（无则创建）
       const account = await ShopAccount.findOneAndUpdate(
@@ -443,16 +790,44 @@ async function confirmReceiveHandler(req, res) {
         }], { session });
       }
 
-      return { updatedOrder, supplierBalance, shopPointsBalance: account.pointsBalance, rewardCoin, currentBalance };
+      // 5) 商家库存入账：确认收货后，按实到数量增加库存
+      //    实到量 = 已过秤且实称量>0 ? actualWeight : quantity（单位与商品采购单位一致）
+      for (const it of order.items) {
+        const inQty = (it.weighed && Number(it.actualWeight) > 0)
+          ? Number(it.actualWeight)
+          : Number(it.quantity);
+        if (inQty > 0) {
+          await ShopInventory.findOneAndUpdate(
+            { shopId: order.shopId, productId: it.productId },
+            { $inc: { quantity: inQty } },
+            { upsert: true, new: true, setDefaultsOnInsert: true, session }
+          );
+        }
+      }
+
+      return {
+        updatedOrder,
+        shopPointsBalance: account.pointsBalance,
+        rewardCoin,
+        currentBalance,
+        split: {
+          splitStatus: order.splitStatus,
+          splitAmount: order.splitAmount,
+          supplierShare: order.supplierShare,
+          platformShare: order.platformShare,
+          compensateAmount: order.compensateAmount,
+          compensateSupplierShare: order.compensateSupplierShare,
+          compensatePlatformShare: order.compensatePlatformShare
+        }
+      };
     });
 
     await sendNotification(supplier, 'order_received', {
       orderNo: order.orderNo,
       status: '已完成',
       rewardCoin,
-      rebateAmount,
       pointsGenerated,
-      supplierBalance: result.supplierBalance,
+      split: result.split,
       shopPointsBalance: result.shopPointsBalance,
       currentBalance: result.currentBalance
     });
@@ -463,9 +838,8 @@ async function confirmReceiveHandler(req, res) {
       rewardCoin: result.rewardCoin,
       currentBalance: result.currentBalance,
       extra: {
-        rebateAmount,
         pointsGenerated,
-        supplierBalance: result.supplierBalance,
+        split: result.split,
         shopPointsBalance: result.shopPointsBalance
       }
     });
@@ -556,4 +930,108 @@ router.post('/:id/apply-coupon', requireMerchant, async (req, res) => {
   }
 });
 
+// ============ GET /api/purchase-orders/:id/split 查询分账结果 ============
+// 三端鉴权：商家看自家订单、供应商看自己供应的、dev 全部
+router.get('/:id/split', verifyToken, async (req, res) => {
+  try {
+    const order = await PurchaseOrder.findById(req.params.id)
+      .select('orderNo shopId supplierId payStatus payNo transactionId splitStatus splitAmount supplierShare platformShare splitNo channelSplitOrderId splitAt splitRetryCount splitError splitLogs compensateAmount compensateSupplierShare compensatePlatformShare compensateNo compensateAt')
+      .lean();
+    if (!order) {
+      return res.status(404).json({ success: false, message: '采购订单不存在' });
+    }
+    if (req.user.role === 'merchant' && String(order.shopId) !== String(req.user.shopId)) {
+      return res.status(403).json({ success: false, message: '无权查看该分账' });
+    }
+    if (req.user.role === 'supplier' && String(order.supplierId) !== String(req.user.supplierId)) {
+      return res.status(403).json({ success: false, message: '无权查看该分账' });
+    }
+    res.json({
+      success: true,
+      data: {
+        orderNo: order.orderNo,
+        payStatus: order.payStatus,
+        payNo: order.payNo,
+        transactionId: order.transactionId,
+        splitStatus: order.splitStatus,
+        splitAmount: order.splitAmount,
+        supplierShare: order.supplierShare,
+        platformShare: order.platformShare,
+        splitNo: order.splitNo,
+        channelSplitOrderId: order.channelSplitOrderId,
+        splitAt: order.splitAt,
+        splitRetryCount: order.splitRetryCount,
+        splitError: order.splitError,
+        splitLogs: order.splitLogs || [],
+        compensateAmount: order.compensateAmount,
+        compensateSupplierShare: order.compensateSupplierShare,
+        compensatePlatformShare: order.compensatePlatformShare,
+        compensateNo: order.compensateNo,
+        compensateAt: order.compensateAt
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ POST /api/purchase-orders/:id/split/retry 分账失败重试 ============
+// 仅「待分账 / 已发起分账 / 分账失败」可重试；成功后 splitStatus → 分账成功
+router.post('/:id/split/retry', verifyToken, async (req, res) => {
+  try {
+    const order = await PurchaseOrder.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: '采购订单不存在' });
+    }
+    if (req.user.role === 'merchant' && String(order.shopId) !== String(req.user.shopId)) {
+      return res.status(403).json({ success: false, message: '无权操作该订单' });
+    }
+    if (req.user.role === 'supplier' && String(order.supplierId) !== String(req.user.supplierId)) {
+      return res.status(403).json({ success: false, message: '无权操作该订单' });
+    }
+    const retryable = [split.SPLIT_STATUS.PENDING, split.SPLIT_STATUS.INITIATED, split.SPLIT_STATUS.FAILED];
+    if (!retryable.includes(order.splitStatus)) {
+      return res.status(400).json({ success: false, message: `当前分账状态为「${order.splitStatus}」，无需重试` });
+    }
+    const supplier = await Supplier.findById(order.supplierId);
+    await initiateOrderSplit(order, supplier);
+    await order.save();
+    res.json({ success: true, data: { splitStatus: order.splitStatus, splitRetryCount: order.splitRetryCount, splitError: order.splitError } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ POST /api/purchase-orders/:id/split/callback 支付/分账渠道回调 ============
+// 由支付渠道调用（无 JWT）：校验签名 → 置支付成功 → 触发起始分账（下单付款即分账）
+router.post('/:id/split/callback', async (req, res) => {
+  try {
+    const cb = await paymentProvider.handleCallback(req.body);
+    const order = await PurchaseOrder.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: '采购订单不存在' });
+    }
+    if (cb.status === 'paid') {
+      order.payStatus = 'paid';
+      order.paidAt = order.paidAt || new Date();
+      order.transactionId = cb.transactionId || order.transactionId;
+      if (order.splitStatus === split.SPLIT_STATUS.PENDING || order.splitStatus === split.SPLIT_STATUS.FAILED) {
+        const supplier = await Supplier.findById(order.supplierId);
+        await initiateOrderSplit(order, supplier);
+      }
+    }
+    split.appendSplitLog(order, { action: 'callback', status: order.splitStatus, message: `支付回调 ${cb.transactionId || ''}` });
+    await order.save();
+    res.json({ success: true, data: { payStatus: order.payStatus, splitStatus: order.splitStatus } });
+  } catch (err) {
+    const code = err && err.code;
+    if (code === 'PAY_NOTIFY_VERIFY_FAILED') {
+      return res.status(400).json({ success: false, message: err.message });
+    }
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;
+// 供开发者后台「分账失败重试」复用
+module.exports.initiateOrderSplit = initiateOrderSplit;

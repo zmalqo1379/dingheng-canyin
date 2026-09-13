@@ -1,9 +1,12 @@
 const Member = require('../models/Member');
 const dhConfig = require('../utils/dhConfig');
+const entitlements = require('../utils/entitlements');
 
-// 功能权限中间件工厂：checkFeature('customerPoints') 等
-// 读取当前商家 Member.memberLevel，比对 dhConfig.features[featureName] 允许的等级
-// shopId 来源：req.shopId（鉴权后注入）或 body/query/params/header 兜底
+// 功能权限中间件工厂：checkFeature('reportBasic') 等
+// 2026-09 双产品线重构：统一走 utils/entitlements 判定，不再自行比较 memberLevel。
+//   - 若 featureName 命中 posFeatures → 按点餐线判定
+//   - 若命中 purchaseFeatures → 按采购线判定
+//   - 生效的 addon 授权（币兑小产品）可临时解锁对应 feature
 function checkFeature(featureName) {
   return async (req, res, next) => {
     try {
@@ -11,24 +14,29 @@ function checkFeature(featureName) {
       if (!shopId) {
         return res.status(401).json({ success: false, message: '缺少 shopId，无法校验权限' });
       }
-      const allowedLevels = dhConfig.features[featureName];
-      if (!allowedLevels) {
+      const isPos = Object.prototype.hasOwnProperty.call(dhConfig.posFeatures, featureName);
+      const isPurchase = Object.prototype.hasOwnProperty.call(dhConfig.purchaseFeatures, featureName);
+      if (!isPos && !isPurchase) {
         return res.status(400).json({ success: false, message: `未知功能: ${featureName}` });
       }
 
       let member = await Member.findOne({ shopId });
       if (!member) member = await Member.create({ shopId });
 
-      // 会员必须在有效期内（未开通/体验过期/月卡过期均视为无有效会员，不可用会员功能）
-      const membershipActive = dhConfig.isMembershipActive(member);
-      if (!allowedLevels.includes(member.memberLevel) || !membershipActive) {
+      const addonFeatures = await entitlements.getActiveAddonFeatures(shopId);
+      const ok = isPos
+        ? entitlements.hasPosFeature(featureName, member, addonFeatures)
+        : entitlements.hasPurchaseFeature(featureName, member, addonFeatures);
+
+      if (!ok) {
+        const st = isPos ? entitlements.posState(member) : entitlements.purchaseState(member);
         return res.status(403).json({
           success: false,
-          message: membershipActive ? '升级会员解锁此功能' : '会员已过期，开通/续费会员后即可使用',
+          message: st.active ? '升级会员解锁此功能' : '会员已过期，开通/续费会员后即可使用',
           feature: featureName,
-          currentLevel: member.memberLevel,
-          membershipActive,
-          needLevel: allowedLevels
+          productLine: isPos ? 'pos' : 'purchase',
+          currentLevel: st.paidLevel,
+          active: st.active
         });
       }
 

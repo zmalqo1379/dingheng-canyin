@@ -4,22 +4,27 @@ const router = express.Router();
 const ShopAccount = require('../models/ShopAccount');
 const Supplier = require('../models/Supplier');
 const SupplyProduct = require('../models/SupplyProduct');
+const PriceCheck = require('../models/PriceCheck');
 const PurchaseOrder = require('../models/PurchaseOrder');
 const Member = require('../models/Member');
-const RebateRule = require('../models/RebateRule');
-const RebateSettlement = require('../models/RebateSettlement');
 const CoinRule = require('../models/CoinRule');
 const Marketing = require('../models/Marketing');
+const MembershipOrder = require('../models/MembershipOrder');
+const NotificationLog = require('../models/NotificationLog');
 const PlatformConfig = require('../models/PlatformConfig');
 const Dish = require('../models/Dish');
 const Category = require('../models/Category');
 const Table = require('../models/Table');
-const rebate = require('../utils/rebate');
+// 复用采购订单的分账发起逻辑（平台侧分账失败重试入口）
+const purchaseOrdersRouter = require('./purchaseOrders');
 const coinRule = require('../utils/coinRule');
+const split = require('../utils/split');
+const dhConfig = require('../utils/dhConfig');
 const { requireDev } = require('../middlewares/auth');
 
-// 返点率唯一权威来源为 RebateRule 集合（开发者在控制台配置）；
-// 供应商/品类均无规则时，由 rebate 服务按默认兜底率处理，本文件不写死任何费率。
+// 说明：返点体系（RebateRule/RebateSettlement）与平台自动加价率（SplitRule）已随「加价分销 + 云分账」改造停用。
+// 平台收入/分账口径改为直接聚合 PurchaseOrder 上的分账字段（splitAmount/supplierShare/platformShare）。
+// 定价改为「定价工作台」：平台在商品列表手动填写卖价 salePrice，不做任何自动加价。
 
 // 所有开发者接口均需开发者身份鉴权
 router.use(requireDev);
@@ -274,17 +279,17 @@ router.get('/suppliers/:id/detail', async (req, res) => {
     }
     const sid = String(supplier._id);
 
-    // 商品列表与定价
+    // 商品列表与定价（供货价 + 平台卖价）
     const products = await SupplyProduct.find({ supplierId: sid })
-      .select('name category unit costPrice marketPrice stock status createdAt')
+      .select('name category unit costPrice salePrice stock status createdAt')
       .sort({ createdAt: -1 })
       .lean();
 
-    // 本月经营数据：订单数（本月创建）+ 流水（本月已完成实付合计）+ 应付返点（实时预估/已结算取实际）
+    // 本月经营数据：订单数 + 流水 + 分账（供应商实得合计）
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthKey = rebate.monthKeyOf(now);
-    const [monthOrderCount, monthTurnoverAgg, monthSettlement, settlements] = await Promise.all([
+    const monthKey = split.monthKeyOf(now);
+    const [monthOrderCount, monthTurnoverAgg, monthShareAgg] = await Promise.all([
       PurchaseOrder.countDocuments({ supplierId: sid, createdAt: { $gte: monthStart } }),
       PurchaseOrder.aggregate([
         { $match: { supplierId: supplier._id, createdAt: { $gte: monthStart }, status: '已完成' } },
@@ -303,26 +308,15 @@ router.get('/suppliers/:id/detail', async (req, res) => {
           }
         }
       ]),
-      RebateSettlement.findOne({ month: monthKey, supplierId: sid }).lean(),
-      RebateSettlement.find({ supplierId: sid }).sort({ month: -1, settledAt: -1 }).limit(12).lean()
+      PurchaseOrder.aggregate([
+        { $match: { supplierId: supplier._id, createdAt: { $gte: monthStart }, status: '已完成' } },
+        { $group: { _id: null, supplierShare: { $sum: { $ifNull: ['$supplierShare', 0] } }, platformShare: { $sum: { $ifNull: ['$platformShare', 0] } } } }
+      ])
     ]);
 
     const monthTurnover = (monthTurnoverAgg[0] && monthTurnoverAgg[0].total) || 0;
-    let monthRebate;
-    let settleStatus = '未结算';
-    let overdue = false;
-    if (monthSettlement) {
-      monthRebate = +Number(monthSettlement.totalRebateAmount || 0).toFixed(2);
-      settleStatus = rebate.normalizeSettlementStatus(monthSettlement.status);
-      overdue = rebate.isSettlementOverdue(monthSettlement);
-    } else {
-      try {
-        const calc = await rebate.calcSupplierMonthRebate(sid, monthKey);
-        monthRebate = calc.totalRebate;
-      } catch (e) {
-        monthRebate = 0;
-      }
-    }
+    const monthSupplierShare = (monthShareAgg[0] && monthShareAgg[0].supplierShare) || 0;
+    const monthPlatformShare = (monthShareAgg[0] && monthShareAgg[0].platformShare) || 0;
 
     const qual = supplier.qualification || {};
     res.json({
@@ -336,9 +330,6 @@ router.get('/suppliers/:id/detail', async (req, res) => {
           phone: supplier.phone || '—',
           categories: Array.isArray(supplier.categories) ? supplier.categories : [],
           minOrderAmount: Number(supplier.minOrderAmount) > 0 ? Number(supplier.minOrderAmount) : 300,
-          // 返点模式：unified=统一全品类阶梯 / byCategory=按品类分类阶梯（默认 unified）
-          rebateMode: supplier.rebateMode === 'byCategory' ? 'byCategory' : 'unified',
-          rebateModeLogs: Array.isArray(supplier.rebateModeLogs) ? supplier.rebateModeLogs : [],
           createdAt: supplier.createdAt,
           status: supplier.status || 'pending',
           rejectReason: supplier.rejectReason || '',
@@ -346,6 +337,8 @@ router.get('/suppliers/:id/detail', async (req, res) => {
           approvedAt: supplier.approvedAt || null,
           agreementSigned: !!supplier.agreementSigned,
           agreementSignedAt: supplier.agreementSignedAt || null,
+          // 协议签署记录（供应商、时间、来源 IP、设备、版本、文本哈希），供开发者后台查阅
+          agreementEvidence: supplier.agreementEvidence || null,
           orderEnabled: !!supplier.orderEnabled,
           orderEnabledAt: supplier.orderEnabledAt || null,
           qualification: {
@@ -359,29 +352,22 @@ router.get('/suppliers/:id/detail', async (req, res) => {
             rejectReason: qual.rejectReason || ''
           }
         },
-        products: products.map(p => ({
-          _id: p._id, name: p.name, category: p.category || '未分类', unit: p.unit || '个',
-          costPrice: Number(p.costPrice) || 0, marketPrice: Number(p.marketPrice) || 0,
-          stock: Number(p.stock) || 0, status: p.status || '上架'
-        })),
+        products: products.map(p => {
+          const costPrice = Number(p.costPrice) || 0;
+          const salePrice = split.resolveSalePrice(p.salePrice, p.costPrice);
+          return {
+            _id: p._id, name: p.name, category: p.category || '未分类', unit: p.unit || '个',
+            costPrice, salePrice, priceDiff: +(salePrice - costPrice).toFixed(2),
+            stock: Number(p.stock) || 0, status: p.status || '上架'
+          };
+        }),
         monthStats: {
           month: monthKey,
           orderCount: monthOrderCount,
           turnover: +Number(monthTurnover).toFixed(2),
-          rebate: +Number(monthRebate).toFixed(2),
-          settleStatus,
-          overdue
-        },
-        settlements: settlements.map(h => ({
-          month: h.month,
-          totalPurchaseAmount: h.totalPurchaseAmount,
-          totalRebateAmount: h.totalRebateAmount,
-          settledAt: h.settledAt,
-          status: rebate.normalizeSettlementStatus(h.status),
-          confirmedAt: h.confirmedAt || null,
-          paidAt: h.paidAt || null,
-          overdue: rebate.isSettlementOverdue(h)
-        }))
+          supplierShare: +Number(monthSupplierShare).toFixed(2),
+          platformShare: +Number(monthPlatformShare).toFixed(2)
+        }
       }
     });
   } catch (err) {
@@ -502,45 +488,20 @@ router.put('/suppliers/:id/order-enable', async (req, res) => {
   }
 });
 
-// PUT /api/dev/suppliers/:id/rebate-mode  切换供应商返点模式（开发者在供应商同意后切换）
-// body: { mode: 'unified' | 'byCategory' }
-//   unified    = 统一全品类阶梯返点（默认，整单/整月累计额定档）
-//   byCategory = 按品类分类阶梯返点（低/中/高毛利三档分别定档）
-// 审计：切换记录写入 Supplier.rebateModeLogs（who/when/from/to）并输出服务端日志
-router.put('/suppliers/:id/rebate-mode', async (req, res) => {
+// PUT /api/dev/suppliers/:id/wechat-sub-mchid  设置供应商微信支付特约商户号（服务商分账接收方）
+// body: { wechatSubMchId: '1900000109' }；留空表示清除
+router.put('/suppliers/:id/wechat-sub-mchid', async (req, res) => {
   try {
-    const mode = String((req.body && req.body.mode) || '').trim();
-    if (mode !== 'unified' && mode !== 'byCategory') {
-      return res.status(400).json({ success: false, message: 'mode 只能为 unified（统一阶梯）或 byCategory（分类阶梯）' });
+    const wechatSubMchId = String((req.body && req.body.wechatSubMchId) || '').trim().slice(0, 32);
+    const supplier = await Supplier.findByIdAndUpdate(
+      req.params.id,
+      { $set: { wechatSubMchId } },
+      { new: true, runValidators: true }
+    ).select('name wechatSubMchId');
+    if (!supplier) {
+      return res.status(404).json({ success: false, message: '供应商不存在' });
     }
-    const supplier = await Supplier.findById(req.params.id);
-    if (!supplier) return res.status(404).json({ success: false, message: '供应商不存在' });
-
-    const from = supplier.rebateMode === 'byCategory' ? 'byCategory' : 'unified';
-    if (from === mode) {
-      return res.json({ success: true, message: '该供应商已是此返点模式，无需切换', data: { rebateMode: mode } });
-    }
-
-    // 操作人（开发者账号名）
-    let operator = 'dev';
-    try {
-      const Admin = require('../models/Admin');
-      const admin = await Admin.findById(req.user && req.user.userId).select('username name').lean();
-      if (admin) operator = `${admin.name || '开发者'}(${admin.username})`;
-    } catch (e) { /* 身份查询失败不阻断切换，操作人记 dev */ }
-
-    supplier.rebateMode = mode;
-    supplier.rebateModeLogs = Array.isArray(supplier.rebateModeLogs) ? supplier.rebateModeLogs : [];
-    supplier.rebateModeLogs.push({ by: operator, at: new Date(), from, to: mode });
-    await supplier.save();
-
-    const modeText = mode === 'byCategory' ? '按品类分类阶梯返点（低/中/高毛利三档）' : '统一全品类阶梯返点';
-    console.log(`[DEV] 供应商「${supplier.name}」返点模式切换：${from} → ${mode}；操作人：${operator}；时间：${new Date().toISOString()}`);
-    res.json({
-      success: true,
-      message: `已切换为「${modeText}」，次月结算起按新模式执行`,
-      data: { rebateMode: mode, from, to: mode, switchedAt: new Date(), by: operator }
-    });
+    res.json({ success: true, message: '已保存', data: { wechatSubMchId: supplier.wechatSubMchId } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -678,28 +639,163 @@ router.post('/todos/read', async (req, res) => {
 router.get('/config', async (req, res) => {
   try {
     const cfg = await PlatformConfig.getSingleton();
+    let defaultSplitSupplierName = '';
+    if (cfg.defaultSplitSupplierId) {
+      const s = await Supplier.findById(cfg.defaultSplitSupplierId).select('name').lean();
+      defaultSplitSupplierName = s ? s.name : '';
+    }
     res.json({
       success: true,
-      data: { platformCompanyName: cfg.platformCompanyName || '' }
+      data: {
+        platformCompanyName: cfg.platformCompanyName || '',
+        platformCreditCode: cfg.platformCreditCode || '',
+        defaultSplitSupplierId: cfg.defaultSplitSupplierId ? String(cfg.defaultSplitSupplierId) : '',
+        defaultSplitSupplierName,
+        membershipSplitRate: cfg.membershipSplitRate != null ? cfg.membershipSplitRate : 6
+      }
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// PUT /api/dev/config 更新平台配置（目前仅甲方营业执照全称）
+// PUT /api/dev/config 更新平台配置（甲方营业执照 + 会员购卡分账配置）
 router.put('/config', async (req, res) => {
   try {
-    const platformCompanyName = String((req.body && req.body.platformCompanyName) || '').trim().slice(0, 100);
+    const body = req.body || {};
+    const platformCompanyName = String(body.platformCompanyName || '').trim().slice(0, 100);
+    const platformCreditCode = String(body.platformCreditCode || '').trim().slice(0, 50);
+
+    const $set = { platformCompanyName, platformCreditCode };
+
+    // 平台抽佣比例（0-100）
+    if (body.membershipSplitRate !== undefined) {
+      const rate = Number(body.membershipSplitRate);
+      $set.membershipSplitRate = (isFinite(rate) && rate >= 0 && rate <= 100) ? rate : 6;
+    }
+    // 默认分账供应商（空字符串表示清除）
+    if (body.defaultSplitSupplierId !== undefined) {
+      const sid = String(body.defaultSplitSupplierId || '').trim();
+      if (!sid) {
+        $set.defaultSplitSupplierId = null;
+      } else if (!/^[0-9a-fA-F]{24}$/.test(sid)) {
+        return res.status(400).json({ success: false, message: '分账供应商 ID 格式不正确' });
+      } else {
+        const supplier = await Supplier.findById(sid).select('_id').lean();
+        if (!supplier) {
+          return res.status(400).json({ success: false, message: '指定的分账供应商不存在' });
+        }
+        $set.defaultSplitSupplierId = supplier._id;
+      }
+    }
+
     const cfg = await PlatformConfig.findOneAndUpdate(
       { key: 'platform' },
-      { $set: { platformCompanyName } },
+      { $set },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    let defaultSplitSupplierName = '';
+    if (cfg.defaultSplitSupplierId) {
+      const s = await Supplier.findById(cfg.defaultSplitSupplierId).select('name').lean();
+      defaultSplitSupplierName = s ? s.name : '';
+    }
+    res.json({
+      success: true,
+      message: '平台配置已保存',
+      data: {
+        platformCompanyName: cfg.platformCompanyName || '',
+        platformCreditCode: cfg.platformCreditCode || '',
+        defaultSplitSupplierId: cfg.defaultSplitSupplierId ? String(cfg.defaultSplitSupplierId) : '',
+        defaultSplitSupplierName,
+        membershipSplitRate: cfg.membershipSplitRate != null ? cfg.membershipSplitRate : 6
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ 比价工作台 ============
+// GET /api/dev/price-check  列表：所有在售商品（status=上架）+ 最新外部参考价，自动比对平台售价
+//   over=null 未录参考价 / true 超标（售价>参考价）/ false 正常（售价≤参考价）
+//   可选 query: onlyOver=1 仅返回超标商品（用于导出清单）
+router.get('/price-check', async (req, res) => {
+  try {
+    const onlyOver = String(req.query.onlyOver || '') === '1';
+    const products = await SupplyProduct.find({ status: '上架' })
+      .select('name category grade unit costPrice salePrice supplierId supplierName')
+      .sort({ supplierName: 1, category: 1, name: 1 })
+      .lean();
+    const ids = products.map(p => p._id);
+    const checks = await PriceCheck.find({ productId: { $in: ids } }).lean();
+    const checkMap = {};
+    for (const c of checks) checkMap[String(c.productId)] = c;
+
+    const all = products.map(p => {
+      const c = checkMap[String(p._id)];
+      const refPrice = c && c.refPrice != null ? Number(c.refPrice) : null;
+      // 在售售价 = 平台卖价（未定价时等于供货价）
+      const price = split.resolveSalePrice(p.salePrice, p.costPrice);
+      const over = refPrice == null ? null : price > refPrice;
+      return {
+        productId: String(p._id),
+        name: p.name,
+        category: p.category || '',
+        grade: p.grade || null,
+        unit: p.unit || '',
+        price,
+        supplierId: p.supplierId ? String(p.supplierId) : '',
+        supplierName: p.supplierName || '',
+        refPrice,
+        source: c ? (c.source || '') : '',
+        checkDate: c ? (c.checkDate || null) : null,
+        over
+      };
+    });
+    const overCount = all.filter(x => x.over === true).length;
+    const checkedCount = all.filter(x => x.over !== null).length;
+    const list = onlyOver ? all.filter(x => x.over === true) : all;
+    res.json({
+      success: true,
+      data: {
+        list,
+        summary: { total: all.length, checked: checkedCount, over: overCount }
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PUT /api/dev/price-check/:productId  录入/更新某在售商品的外部参考价与来源、日期
+router.put('/price-check/:productId', async (req, res) => {
+  try {
+    const product = await SupplyProduct.findById(req.params.productId).select('_id name').lean();
+    if (!product) return res.status(404).json({ success: false, message: '商品不存在' });
+    const body = req.body || {};
+    const refPrice = Number(body.refPrice);
+    if (!isFinite(refPrice) || refPrice < 0) {
+      return res.status(400).json({ success: false, message: '参考价须为非负数字' });
+    }
+    const source = String(body.source || '').trim().slice(0, 100);
+    const checkDate = body.checkDate ? new Date(body.checkDate) : new Date();
+    if (isNaN(checkDate.getTime())) {
+      return res.status(400).json({ success: false, message: '参考日期不合法' });
+    }
+    const doc = await PriceCheck.findOneAndUpdate(
+      { productId: product._id },
+      { $set: { refPrice, source, checkDate } },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
     res.json({
       success: true,
-      message: '平台配置已保存',
-      data: { platformCompanyName: cfg.platformCompanyName || '' }
+      message: '参考价已保存',
+      data: {
+        productId: String(doc.productId),
+        refPrice: doc.refPrice,
+        source: doc.source || '',
+        checkDate: doc.checkDate
+      }
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -723,282 +819,83 @@ router.delete('/suppliers/:id', async (req, res) => {
   }
 });
 
-// ============ GET /api/dev/reconciliation 对账中心 ============
-// 查询参数：
-//   month      格式 "2026-09"，缺省为当月
-//   supplierId 供应商 ObjectId，缺省查全部
-// 条件：status = '已完成' 且 createdAt 在指定月份内
-// 返回每条含：订单号/商家名/供应商名/下单日期/订单总额/券抵扣/实付金额
-//            平台返点收入(totalAmount×8%)/抵用券成本/平台净利（后端计算，前端不算）
-// 另返回 summary 汇总：订单数/订单总额/返点收入合计/券成本合计/净利合计
-router.get('/reconciliation', async (req, res) => {
+// ============ 定价工作台（加价分销：平台手动填写卖价）============
+// 供应商每日更新「供货价」，平台在此手动填写「卖价」；系统不设任何自动加价公式/比例/上下限。
+// 加价额 = 卖价 − 供货价，完全由平台手动决定；卖价留空/清空 = 未定价（下单时默认等于供货价）。
+
+// GET /api/dev/pricing 定价工作台商品列表
+// 查询参数：supplierId、category、keyword（可选）
+// 返回每个商品：供货价 costPrice / 平台卖价 salePrice / 实时差价 priceDiff / 改价时间 / 供应商名
+router.get('/pricing', async (req, res) => {
   try {
-    // 解析月份
-    let month = String(req.query.month || '');
-    let y, m;
-    if (/^\d{4}-\d{2}$/.test(month)) {
-      y = parseInt(month.slice(0, 4), 10);
-      m = parseInt(month.slice(5, 7), 10);
-    } else {
-      const now = new Date();
-      y = now.getFullYear();
-      m = now.getMonth() + 1;
-      month = `${y}-${String(m).padStart(2, '0')}`;
-    }
-    const monthStart = new Date(y, m - 1, 1);
-    const monthEnd = new Date(y, m, 1); // 下月 1 号 0 点（开区间上界）
-
-    const filter = { status: '已完成', createdAt: { $gte: monthStart, $lt: monthEnd } };
-    if (req.query.supplierId && req.query.supplierId !== 'all') {
-      filter.supplierId = req.query.supplierId;
-    }
-
-    const orders = await PurchaseOrder.find(filter)
-      .populate('supplierId', 'name')
-      .sort({ createdAt: 1 })
+    const filter = {};
+    if (req.query.supplierId && req.query.supplierId !== 'all') filter.supplierId = req.query.supplierId;
+    if (req.query.category && req.query.category !== 'all') filter.category = req.query.category;
+    const products = await SupplyProduct.find(filter)
+      .populate('supplierId', 'name status')
+      .sort({ supplierId: 1, category: 1, name: 1 })
       .lean();
-
-    // shopId 为字符串字段无法 populate，手动批量补全商家名（订单上未存 shopName 时兜底）
-    const shopIds = [...new Set(orders.map(o => o.shopId).filter(Boolean))];
-    const accounts = shopIds.length
-      ? await ShopAccount.find({ shopId: { $in: shopIds } }).select('shopId shopName -_id').lean()
-      : [];
-    const shopNameMap = {};
-    accounts.forEach(a => { shopNameMap[a.shopId] = a.shopName; });
-
-    // 返点口径准备：已结算月份取结算记录的分品类综合费率；未结算月份按规则实时计算分品类边际费率
-    const supplierIds = [...new Set(orders.map(o => String(o.supplierId && o.supplierId._id ? o.supplierId._id : o.supplierId)).filter(Boolean))];
-    const settleDocs = await RebateSettlement.find({ month, supplierId: { $in: supplierIds } }).lean();
-    const settleMap = new Map(settleDocs.map(s => [String(s.supplierId), s]));
-    const rateMapCache = new Map();
-    // 返回 { map: 品类→费率, allRate: 统一模式整单费率（null=非统一模式） }
-    async function getCategoryRateMap(sid) {
-      if (rateMapCache.has(sid)) return rateMapCache.get(sid);
-      const map = new Map();
-      let allRate = null;
-      const applyDetails = (details) => {
-        (details || []).forEach(d => {
-          const rate = Number(d.rate != null ? d.rate : d.tierRate) || 0;
-          map.set(d.category, rate);
-          // 统一模式明细为一条「全部」，其费率适用于所有品类行
-          if (d.category === rebate.ALL_CATEGORY || d.marginType === 'unified') allRate = rate;
-        });
-      };
-      const settled = settleMap.get(sid);
-      if (settled) {
-        applyDetails(settled.details);
-        if (settled.rebateMode === 'unified') {
-          // 历史结算单无 rebateMode 字段但明细只有一条「全部」时，applyDetails 已捕获 allRate
-        }
-      } else {
-        const calc = await rebate.calcSupplierMonthRebate(sid, month);
-        applyDetails(calc.categories);
-        if (calc.rebateMode === 'unified') allRate = Number(calc.categories[0] && calc.categories[0].tierRate) || allRate;
-      }
-      const result = { map, allRate };
-      rateMapCache.set(sid, result);
-      return result;
-    }
-
-    // 逐单计算对账字段（后端计算，前端只渲染）
-    // 返点收入优先级：已结算实际返点 actualRebateAmount → 完成时预估返点 preRebate
-    //                → 老订单兜底：订单分品类金额 × 当月该供应商分品类费率（无规则走默认兜底率）
-    const data = [];
-    for (const o of orders) {
-      const totalAmount = +Number(o.totalAmount || 0).toFixed(2);
-      const couponCost = +Number(o.discountAmount || 0).toFixed(2);
-
-      let rebateIncome;
-      let rebateKind = 'estimate';
-      if (o.actualRebateAmount != null && Number(o.actualRebateAmount) >= 0) {
-        rebateIncome = +Number(o.actualRebateAmount).toFixed(2);
-        rebateKind = 'actual';
-      } else if (Number(o.preRebate) > 0) {
-        rebateIncome = +Number(o.preRebate).toFixed(2);
-        rebateKind = 'estimate';
-      } else {
-        const sid = String(o.supplierId && o.supplierId._id ? o.supplierId._id : o.supplierId);
-        const { map: rateMap, allRate } = await getCategoryRateMap(sid);
-        let sum = 0;
-        (o.items || []).forEach(it => {
-          const cat = it.category || '未分类';
-          // 统一模式（整单费率）优先；分类模式按品类费率；都取不到走兜底费率
-          let rate;
-          if (rateMap.has(cat)) rate = rateMap.get(cat);
-          else if (allRate != null) rate = allRate;
-          else rate = rebate.DEFAULT_REBATE_RATE;
-          sum += (Number(it.totalPrice) || 0) * rate;
-        });
-        rebateIncome = +sum.toFixed(2);
-        rebateKind = settleMap.has(sid) ? 'actual' : 'fallback';
-      }
-      const profit = +(rebateIncome - couponCost).toFixed(2);
-
-      data.push({
-        _id: o._id,
-        orderNo: o.orderNo || '—',
-        shopName: o.shopName || shopNameMap[o.shopId] || '未知商家',
-        supplierName: (o.supplierId && o.supplierId.name) || '平台直供',
-        createdAt: o.createdAt,
-        totalAmount,
-        couponCost,
-        actualPayAmount: +Number(o.actualPayAmount != null ? o.actualPayAmount : o.totalAmount || 0).toFixed(2),
-        rebateIncome,
-        rebateKind,
-        rebateSettled: !!o.rebateSettled,
-        profit,
-        status: o.status
+    const keyword = String(req.query.keyword || '').trim();
+    const data = products
+      .filter(p => !keyword || String(p.name || '').includes(keyword))
+      .map(p => {
+        const costPrice = Number(p.costPrice) || 0;
+        const hasSalePrice = p.salePrice != null && Number(p.salePrice) > 0;
+        const salePrice = split.resolveSalePrice(p.salePrice, p.costPrice);
+        return {
+          _id: String(p._id),
+          name: p.name,
+          category: p.category || '未分类',
+          unit: p.unit || '个',
+          supplierId: p.supplierId ? String(p.supplierId._id || p.supplierId) : '',
+          supplierName: (p.supplierId && p.supplierId.name) || '—',
+          costPrice,                    // 供货价（供应商维护）
+          salePrice,                    // 平台卖价（未定价时 = 供货价）
+          priced: hasSalePrice,         // 是否已由平台定价
+          priceDiff: +(salePrice - costPrice).toFixed(2), // 实时差价
+          priceUpdatedAt: p.priceUpdatedAt,
+          priceFrozen: !!p.priceFrozen,
+          status: p.status
+        };
       });
-    }
-
-    const summary = {
-      orderCount: data.length,
-      totalAmount: +data.reduce((s, o) => s + o.totalAmount, 0).toFixed(2),
-      rebateIncome: +data.reduce((s, o) => s + o.rebateIncome, 0).toFixed(2),
-      couponCost: +data.reduce((s, o) => s + o.couponCost, 0).toFixed(2),
-      profit: +data.reduce((s, o) => s + o.profit, 0).toFixed(2)
-    };
-
-    res.json({ success: true, month, data, summary });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// ============ 返点规则管理 ============
-// 费率单位统一为小数（0.05 = 5%），前端展示时 ×100 格式化；规则是返点率的唯一权威数据源
-
-// GET /api/dev/rebate/rules  全量返点规则（含供应商名）
-router.get('/rebate/rules', async (req, res) => {
-  try {
-    const rules = await RebateRule.find()
-      .populate('supplierId', 'name')
-      .sort({ createdAt: -1 })
-      .lean();
-    const data = rules.map(r => ({
-      ...r,
-      tiers: rebate.normalizeTiers(r.tiers),
-      supplierName: (r.supplierId && r.supplierId.name) || '—'
-    }));
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// POST /api/dev/rebate/rules  新建/覆盖规则（supplierId + category 唯一，重复即覆盖）
-router.post('/rebate/rules', async (req, res) => {
+// PUT /api/dev/pricing/product/:id  平台手动设置某商品卖价
+// body: { salePrice }（留空 null/'' 表示取消定价，下单时默认等于供货价）
+router.put('/pricing/product/:id', async (req, res) => {
   try {
-    const { supplierId, category, tiers, effectiveDate, remark, enabled } = req.body || {};
-    if (!supplierId) {
-      return res.status(400).json({ success: false, message: 'supplierId 不能为空' });
+    const product = await SupplyProduct.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ success: false, message: '商品不存在' });
     }
-    const supplier = await Supplier.findById(supplierId).select('name').lean();
-    if (!supplier) {
-      return res.status(404).json({ success: false, message: '供应商不存在' });
-    }
-    const validateError = rebate.validateTiers(tiers);
-    if (validateError) {
-      return res.status(400).json({ success: false, message: validateError });
-    }
-    const cat = String(category || '').trim() || rebate.ALL_CATEGORY;
-    const normalizedTiers = rebate.normalizeTiers(tiers);
-
-    const rule = await RebateRule.findOneAndUpdate(
-      { supplierId, category: cat },
-      {
-        $set: {
-          tiers: normalizedTiers,
-          enabled: enabled !== false,
-          effectiveDate: effectiveDate ? new Date(effectiveDate) : new Date(),
-          remark: remark || ''
-        }
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-
-    res.status(201).json({ success: true, data: rule, message: '返点规则已保存' });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// PUT /api/dev/rebate/rules/:id  编辑规则
-router.put('/rebate/rules/:id', async (req, res) => {
-  try {
-    const rule = await RebateRule.findById(req.params.id);
-    if (!rule) {
-      return res.status(404).json({ success: false, message: '返点规则不存在' });
-    }
-    const { category, tiers, effectiveDate, remark, enabled } = req.body || {};
-
-    if (tiers !== undefined) {
-      const validateError = rebate.validateTiers(tiers);
-      if (validateError) {
-        return res.status(400).json({ success: false, message: validateError });
+    const raw = req.body ? req.body.salePrice : undefined;
+    let salePrice = null;
+    if (raw !== undefined && raw !== null && raw !== '') {
+      const n = Number(raw);
+      if (!isFinite(n) || n < 0) {
+        return res.status(400).json({ success: false, message: '卖价须为非负数字' });
       }
-      rule.tiers = rebate.normalizeTiers(tiers);
+      // 平台可自由定价，系统不设上下限（仅做非负校验）
+      salePrice = +n.toFixed(2);
     }
-    if (category !== undefined) {
-      rule.category = String(category).trim() || rebate.ALL_CATEGORY;
-    }
-    if (enabled !== undefined) rule.enabled = !!enabled;
-    if (effectiveDate !== undefined) rule.effectiveDate = new Date(effectiveDate);
-    if (remark !== undefined) rule.remark = remark;
-
-    try {
-      await rule.save();
-    } catch (e) {
-      if (e && e.code === 11000) {
-        return res.status(409).json({ success: false, message: '该供应商已存在同品类规则，请勿重复' });
-      }
-      throw e;
-    }
-    res.json({ success: true, data: rule, message: '返点规则已更新' });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// DELETE /api/dev/rebate/rules/:id  删除规则（删除后该供应商该品类回退为默认兜底率）
-router.delete('/rebate/rules/:id', async (req, res) => {
-  try {
-    const rule = await RebateRule.findByIdAndDelete(req.params.id);
-    if (!rule) {
-      return res.status(404).json({ success: false, message: '返点规则不存在' });
-    }
-    res.json({ success: true, message: '返点规则已删除（该品类将回退为默认兜底返点率）' });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// ============ 返点概览（对账中心） ============
-// GET /api/dev/rebate/overview?month=YYYY-MM
-// 返回每个供应商：本月采购总额、分品类明细、当前档位、预估/实际返点、距下一档差额、结算状态
-router.get('/rebate/overview', async (req, res) => {
-  try {
-    let month = String(req.query.month || '');
-    if (!/^\d{4}-\d{2}$/.test(month)) month = rebate.monthKeyOf(new Date());
-    const data = await rebate.getMonthOverview(month);
-    res.json({ success: true, month, data });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// ============ 月度返点结算 ============
-// POST /api/dev/rebate/settle  body: { month: 'YYYY-MM' }（缺省结算当月）
-// 生成 RebateSettlement 记录、回写订单 actualRebateAmount、实际返点计入供应商余额；幂等（已结算供应商跳过）
-router.post('/rebate/settle', async (req, res) => {
-  try {
-    let month = String((req.body && req.body.month) || '');
-    if (!/^\d{4}-\d{2}$/.test(month)) month = rebate.monthKeyOf(new Date());
-    const result = await rebate.settleMonth(month);
+    product.salePrice = salePrice;
+    await product.save();
+    const costPrice = Number(product.costPrice) || 0;
+    const effective = split.resolveSalePrice(product.salePrice, product.costPrice);
     res.json({
       success: true,
-      data: result,
-      message: `结算完成：新结算 ${result.settled.length} 家，跳过已结算 ${result.skipped.length} 家`
+      message: salePrice == null ? '已取消定价（下单默认按供货价）' : '卖价已保存',
+      data: {
+        _id: String(product._id),
+        costPrice,
+        salePrice: effective,
+        priced: salePrice != null,
+        priceDiff: +(effective - costPrice).toFixed(2)
+      }
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -1047,71 +944,135 @@ router.post('/coin-rules', async (req, res) => {
   }
 });
 
-// ============ 历史结算记录 ============
-// GET /api/dev/rebate/settlements?month=YYYY-MM&supplierId=xxx
-// 附 status（规范为 待结算/已确认/已收款）、overdue（超 15 天未收款）、confirmedAt、paidAt
-router.get('/rebate/settlements', async (req, res) => {
+// ============ 平台收入（云分账 · 平台实得口径）============
+// 加价分销：平台收入 = Σ platformShare（= 顾客实付 − 供应商实得）。仅统计已完成订单。
+// 数据源：PurchaseOrder 上的分账字段（splitAmount/supplierShare/platformShare/compensate*）。
+// GET /api/dev/platform-income?month=YYYY-MM
+// 返回：本月总览 + 各供应商贡献 + 近 12 个月收入汇总 + 分账明细（含分账状态/流水号/补差）
+router.get('/platform-income', async (req, res) => {
   try {
-    const filter = {};
-    if (req.query.month) filter.month = req.query.month;
-    if (req.query.supplierId && req.query.supplierId !== 'all') filter.supplierId = req.query.supplierId;
-    const list = await RebateSettlement.find(filter)
-      .sort({ month: -1, settledAt: -1 })
+    const month = (req.query.month && /^\d{4}-\d{2}$/.test(req.query.month))
+      ? req.query.month : split.monthKeyOf(new Date());
+    const { start, end } = split.monthRange(month);
+
+    const orders = await PurchaseOrder.find({ status: '已完成', receiveAt: { $gte: start, $lt: end } })
+      .populate('supplierId', 'name')
+      .sort({ receiveAt: -1 })
       .lean();
-    const data = list.map(s => ({
-      _id: s._id,
-      month: s.month,
-      supplierId: s.supplierId,
-      supplierName: s.supplierName,
-      // 返点模式与明细毛利档（历史数据无字段时兜底 unified）
-      rebateMode: s.rebateMode === 'byCategory' ? 'byCategory' : 'unified',
-      totalPurchaseAmount: s.totalPurchaseAmount,
-      totalRebateAmount: s.totalRebateAmount,
-      details: (s.details || []).map(detail => ({ ...detail, marginType: detail.marginType || 'unified' })),
-      status: rebate.normalizeSettlementStatus(s.status),
-      settledAt: s.settledAt,
-      confirmedAt: s.confirmedAt || null,
-      paidAt: s.paidAt || null,
-      overdue: rebate.isSettlementOverdue(s),
-      remark: s.remark || ''
+
+    const sumKeys = ['splitAmount', 'supplierShare', 'platformShare', 'compensateAmount'];
+    const summary = { orderCount: 0, splitAmount: 0, supplierShare: 0, platformShare: 0, compensateAmount: 0 };
+    const supMap = new Map();
+    for (const o of orders) {
+      summary.orderCount += 1;
+      sumKeys.forEach(k => { summary[k] += Number(o[k]) || 0; });
+      const sid = String((o.supplierId && o.supplierId._id) || o.supplierId);
+      if (!supMap.has(sid)) {
+        supMap.set(sid, {
+          supplierId: sid,
+          supplierName: (o.supplierId && o.supplierId.name) || '',
+          orderCount: 0, splitAmount: 0, supplierShare: 0, platformShare: 0, compensateAmount: 0
+        });
+      }
+      const it = supMap.get(sid);
+      it.orderCount += 1;
+      sumKeys.forEach(k => { it[k] += Number(o[k]) || 0; });
+    }
+    sumKeys.forEach(k => { summary[k] = +summary[k].toFixed(2); });
+    const suppliers = [...supMap.values()].map(s => {
+      sumKeys.forEach(k => { s[k] = +s[k].toFixed(2); });
+      s.share = summary.platformShare > 0 ? +((s.platformShare / summary.platformShare) * 100).toFixed(2) : 0;
+      return s;
+    }).sort((a, b) => b.platformShare - a.platformShare);
+
+    // 按月份汇总（最近 12 个月，按 receiveAt 归属）
+    const monthlyAgg = await PurchaseOrder.aggregate([
+      { $match: { status: '已完成', receiveAt: { $ne: null } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m', date: '$receiveAt' } },
+          orderCount: { $sum: 1 },
+          splitAmount: { $sum: { $ifNull: ['$splitAmount', 0] } },
+          supplierShare: { $sum: { $ifNull: ['$supplierShare', 0] } },
+          platformShare: { $sum: { $ifNull: ['$platformShare', 0] } }
+        }
+      },
+      { $sort: { _id: -1 } },
+      { $limit: 12 }
+    ]);
+    const months = monthlyAgg.map(m => ({
+      month: m._id,
+      orderCount: m.orderCount,
+      splitAmount: +(+m.splitAmount || 0).toFixed(2),
+      supplierShare: +(+m.supplierShare || 0).toFixed(2),
+      platformShare: +(+m.platformShare || 0).toFixed(2)
     }));
-    res.json({ success: true, data });
+
+    res.json({
+      success: true,
+      data: {
+        month,
+        summary,
+        suppliers,
+        months,
+        records: orders.slice(0, 200).map(o => ({
+          _id: o._id,
+          orderNo: o.orderNo,
+          supplierName: (o.supplierId && o.supplierId.name) || '',
+          shopName: o.shopName || '',
+          splitAmount: Number(o.splitAmount) || 0,
+          supplierShare: Number(o.supplierShare) || 0,
+          platformShare: Number(o.platformShare) || 0,
+          compensateAmount: Number(o.compensateAmount) || 0,
+          splitStatus: o.splitStatus || '待分账',
+          splitNo: o.splitNo || '',
+          receiveAt: o.receiveAt
+        }))
+      }
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// ============ 结算单状态流转 ============
-// PUT /api/dev/rebate/settlements/:id/confirm  待结算 → 已确认
-router.put('/rebate/settlements/:id/confirm', async (req, res) => {
+// ============ 分账失败列表与重试入口 ============
+// GET /api/dev/split-failures  分账失败订单（含重试次数 / 错误日志），供平台人工重试
+router.get('/split-failures', async (req, res) => {
   try {
-    const doc = await RebateSettlement.findById(req.params.id);
-    if (!doc) return res.status(404).json({ success: false, message: '结算单不存在' });
-    const cur = rebate.normalizeSettlementStatus(doc.status);
-    if (cur === '已收款') return res.status(400).json({ success: false, message: '该结算单已标记为已收款，不可再确认' });
-    if (cur === '已确认') return res.json({ success: true, message: '该结算单已确认', data: { status: '已确认' } });
-    doc.status = '已确认';
-    doc.confirmedAt = new Date();
-    await doc.save();
-    res.json({ success: true, message: '结算单已确认', data: { status: '已确认', confirmedAt: doc.confirmedAt } });
+    const list = await PurchaseOrder.find({ splitStatus: '分账失败' })
+      .populate('supplierId', 'name')
+      .sort({ updatedAt: -1 })
+      .limit(200)
+      .lean();
+    res.json({
+      success: true,
+      data: list.map(o => ({
+        _id: o._id,
+        orderNo: o.orderNo,
+        supplierName: (o.supplierId && o.supplierId.name) || '',
+        splitAmount: Number(o.splitAmount) || 0,
+        supplierShare: Number(o.supplierShare) || 0,
+        platformShare: Number(o.platformShare) || 0,
+        splitRetryCount: Number(o.splitRetryCount) || 0,
+        splitError: o.splitError || '',
+        splitLogs: o.splitLogs || [],
+        updatedAt: o.updatedAt
+      }))
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// PUT /api/dev/rebate/settlements/:id/paid  已确认 → 已收款
-router.put('/rebate/settlements/:id/paid', async (req, res) => {
+// POST /api/dev/split-orders/:id/retry  重试某订单的分账（复用采购订单的分账发起逻辑）
+router.post('/split-orders/:id/retry', async (req, res) => {
   try {
-    const doc = await RebateSettlement.findById(req.params.id);
-    if (!doc) return res.status(404).json({ success: false, message: '结算单不存在' });
-    const cur = rebate.normalizeSettlementStatus(doc.status);
-    if (cur === '已收款') return res.json({ success: true, message: '该结算单已标记为已收款', data: { status: '已收款' } });
-    // 允许从 待结算 直接收款（兼容跳过确认的快速流程）
-    doc.status = '已收款';
-    doc.paidAt = new Date();
-    if (!doc.confirmedAt) doc.confirmedAt = new Date();
-    await doc.save();
-    res.json({ success: true, message: '结算单已标记为已收款', data: { status: '已收款', paidAt: doc.paidAt } });
+    const order = await PurchaseOrder.findById(req.params.id);
+    if (!order) return res.status(404).json({ success: false, message: '采购订单不存在' });
+    const supplier = await Supplier.findById(order.supplierId);
+    await purchaseOrdersRouter.initiateOrderSplit(order, supplier);
+    await order.save();
+    res.json({ success: true, message: '已发起重试', data: { splitStatus: order.splitStatus, splitRetryCount: order.splitRetryCount, splitError: order.splitError } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -1156,6 +1117,161 @@ router.get('/marketing', async (req, res) => {
       };
     });
     res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ 会员现金购卡订单（双产品线） ============
+// 等级/产品线判定统一走 dhConfig 双线配置，不再保留 LEVEL_RANK
+
+// GET /api/dev/membership-orders?status=pending
+// 平台侧查看商家的现金购卡订单，附商家当前会员等级/到期时间，便于确认收款时核对
+router.get('/membership-orders', async (req, res) => {
+  try {
+    const { status } = req.query;
+    const filter = {};
+    if (status) filter.status = status;
+    const list = await MembershipOrder.find(filter).sort({ createdAt: -1 }).limit(200).lean();
+
+    const shopIds = [...new Set(list.map(o => o.shopId).filter(Boolean))];
+    const members = shopIds.length
+      ? await Member.find({ shopId: { $in: shopIds } }).lean()
+      : [];
+    const memberMap = new Map(members.map(m => [m.shopId, m]));
+
+    const TYPE_NAME = {
+      basic: '点餐基础版', advanced: '点餐进阶版', premium: '点餐尊享版',
+      free: '采购免费版', plus: '采购省钱卡', pro: '采购省钱卡Pro'
+    };
+    const data = list.map(o => {
+      const mem = memberMap.get(o.shopId) || {};
+      const isPurchase = o.productLine === 'purchase';
+      return {
+        ...o,
+        productLine: isPurchase ? 'purchase' : 'pos',
+        levelName: TYPE_NAME[o.level] || o.level,
+        memberLevel: mem.memberLevel || 'basic',
+        memberExpire: mem.memberExpire || null,
+        purchaseLevel: mem.purchaseLevel || 'free',
+        purchaseExpire: mem.purchaseExpire || null
+      };
+    });
+
+    const pendingCount = await MembershipOrder.countDocuments({ status: 'pending' });
+    res.json({ success: true, data, pendingCount });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PUT /api/dev/membership-orders/:id/confirm
+// 确认收款并开通会员：写入 memberSource='cash'，到期时间按续费/新开通口径计算（与币兑换一致）
+router.put('/membership-orders/:id/confirm', async (req, res) => {
+  try {
+    const order = await MembershipOrder.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: '订单不存在' });
+    }
+    if (order.status !== 'pending') {
+      return res.status(400).json({ success: false, message: `该订单已处理（${order.status}）` });
+    }
+    // 微信支付订单不走人工确认：未支付等待回调，已支付由回调自动开通
+    if (order.payChannel === 'wechat') {
+      return res.status(400).json({
+        success: false,
+        message: order.payStatus === 'paid' ? '该微信订单已支付并自动开通' : '微信支付订单请等待支付结果，无需人工确认'
+      });
+    }
+    const productLine = order.productLine === 'purchase' ? 'purchase' : 'pos';
+    const isPurchase = productLine === 'purchase';
+    const pricing = isPurchase ? dhConfig.PURCHASE_PRICING : dhConfig.POS_PRICING;
+    if (!pricing[order.level]) {
+      return res.status(400).json({ success: false, message: '订单会员等级无效' });
+    }
+    const ranks = isPurchase ? dhConfig.PURCHASE_LEVELS : dhConfig.POS_LEVELS;
+    const levelField = isPurchase ? 'purchaseLevel' : 'memberLevel';
+    const expireField = isPurchase ? 'purchaseExpire' : 'memberExpire';
+    const trialField = isPurchase ? 'purchaseIsTrial' : 'memberIsTrial';
+    const sourceField = isPurchase ? 'purchaseSource' : 'memberSource';
+
+    let member = await Member.findOne({ shopId: order.shopId });
+    if (!member) member = await Member.create({ shopId: order.shopId });
+
+    const today = new Date();
+    const curExpire = member[expireField];
+    const isActive = curExpire && curExpire > today;
+    // 不允许按低等级订单覆盖更高等级会员
+    if ((ranks[member[levelField]] ?? 0) > (ranks[order.level] ?? 0)) {
+      return res.status(400).json({ success: false, message: '商家当前会员等级更高，不能按此订单开通低等级' });
+    }
+
+    // 同等级续费且有效期内 → 在现有到期时间上顺延；否则从今天起算
+    const base = (member[levelField] === order.level && isActive)
+      ? new Date(curExpire)
+      : new Date();
+    base.setDate(base.getDate() + 30 * order.months);
+
+    member[levelField] = order.level;
+    member[expireField] = base;
+    member[trialField] = false;
+    member[sourceField] = 'cash';
+    if (!isPurchase) member.customerPointsEnabled = true;
+    await member.save();
+
+    order.status = 'paid';
+    order.paidAt = new Date();
+    order.confirmedBy = req.user && req.user.userId ? String(req.user.userId) : 'dev';
+    order.memberExpireAfter = base;
+    await order.save();
+
+    res.json({
+      success: true,
+      data: {
+        order,
+        productLine,
+        memberLevel: member.memberLevel,
+        memberExpire: member.memberExpire,
+        purchaseLevel: member.purchaseLevel,
+        purchaseExpire: member.purchaseExpire
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PUT /api/dev/membership-orders/:id/cancel
+// 取消待支付订单（如商家未付款或信息有误）
+router.put('/membership-orders/:id/cancel', async (req, res) => {
+  try {
+    const order = await MembershipOrder.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: '订单不存在' });
+    }
+    if (order.status !== 'pending') {
+      return res.status(400).json({ success: false, message: `该订单已处理（${order.status}）` });
+    }
+    order.status = 'cancelled';
+    await order.save();
+    res.json({ success: true, data: order });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ 通知发送日志 ============
+// GET /api/dev/notification-logs?channel=&status=&limit=
+// 查看各渠道通知的真实发送结果（success/failed/skipped），用于排查渠道配置
+router.get('/notification-logs', async (req, res) => {
+  try {
+    const { channel, status } = req.query;
+    const limit = Math.min(parseInt(req.query.limit) || 100, 300);
+    const filter = {};
+    if (channel) filter.channel = channel;
+    if (status) filter.status = status;
+    const list = await NotificationLog.find(filter).sort({ createdAt: -1 }).limit(limit).lean();
+    res.json({ success: true, data: list });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

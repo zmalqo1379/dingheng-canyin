@@ -7,10 +7,11 @@ const CoinHistory = require('../models/CoinHistory');
 const Coupon = require('../models/Coupon');
 const PurchaseOrder = require('../models/PurchaseOrder');
 const dhConfig = require('../utils/dhConfig');
+const entitlements = require('../utils/entitlements');
 const coinRule = require('../utils/coinRule');
+const { requireMerchant } = require('../middlewares/auth');
 
-// 等级权重，用于比较 needLevel
-const LEVEL_RANK = { basic: 0, advanced: 1, premium: 2 };
+// 等级判定统一走 utils/entitlements（双产品线），此文件不再保留 LEVEL_RANK
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // ============ 工具函数 ============
@@ -62,30 +63,54 @@ async function deductCoinsFifo(shopId, amount, session) {
   }
 }
 
-// ============ 会员价值基准（币/天，与 dhConfig.DAILY_COIN 一致） ============
-// basic   = 2000币 / 30天 ≈ 66.7币/天 → 取整 67
-// advanced = 3000币 / 30天 = 100币/天
-// premium  = 5000币 / 30天 ≈ 166.7币/天 → 取整 167
-const DAILY_COIN = dhConfig.DAILY_COIN || { basic: 67, advanced: 100, premium: 167 };
+// ============ 会员价值基准（币/天，升级折算剩余天数价值用） ============
+// 点餐线：advanced 1500/30=50，premium 2400/30=80（basic 永久免费，基准 0）
+// 采购线：plus 3000/30=100，pro 5000/30=167（free 永久免费，基准 0）
+const DAILY_COIN_POS = dhConfig.DAILY_COIN_POS || { basic: 0, advanced: 50, premium: 80 };
+const DAILY_COIN_PURCHASE = dhConfig.DAILY_COIN_PURCHASE || { free: 0, plus: 100, pro: 167 };
 
 // ============ POST /api/coin/exchange-membership 兑换/升级会员 ============
-// 分支：
+// 2026-09 双产品线：body.productLine = 'pos' | 'purchase'（默认 pos），两条线独立兑换。
+//   pos      → 可兑等级 advanced / premium（basic 永久免费，无需兑换）
+//   purchase → 可兑等级 plus / pro（free 永久免费，无需兑换）
+// 分支（两条线同规则）：
 //  1) 同等级续费（currentLevel == targetLevel）→ 到期时间 +30 天（未过期顺延，已过期从今天起）
-//  2) 低等级 → 高等级（basic→advanced/premium、advanced→premium）且当前会员有效：
-//     剩余天数 × 当前等级币/天 折算抵扣差价，新效期 = 30天目标等级 + floor(剩余价值/目标等级币/天)
-//  3) 低等级 → 高等级但当前已失活（无有效期）：按全价开通 30 天
-//  4) 高等级 → 低等级（含 premium→advanced/basic、advanced→basic）：拒绝（不可降兑）
-router.post('/coin/exchange-membership', async (req, res) => {
+//  2) 低等级 → 高等级且当前有效：剩余天数 × 当前档币/天 折算抵扣差价，新效期 = 30天 + 零头天数
+//  3) 低等级 → 高等级但当前已失活：按全价开通 30 天
+//  4) 高等级 → 低等级：拒绝（不可降兑）
+router.post('/coin/exchange-membership', requireMerchant, async (req, res) => {
   const session = await mongoose.startSession();
   try {
-    const { shopId, targetLevel } = req.body;
-    if (!shopId || !targetLevel) {
-      return res.status(400).json({ success: false, message: 'shopId、targetLevel 不能为空' });
+    const shopId = req.shopId;
+    const { targetLevel } = req.body;
+    const productLine = req.body.productLine === 'purchase' ? 'purchase' : 'pos';
+    if (!targetLevel) {
+      return res.status(400).json({ success: false, message: 'targetLevel 不能为空' });
     }
-    const cfg = dhConfig.membership[targetLevel];
-    if (!cfg) {
-      return res.status(400).json({ success: false, message: '目标等级无效，仅支持 basic / advanced / premium' });
+
+    const isPurchase = productLine === 'purchase';
+    const pricing = isPurchase ? dhConfig.PURCHASE_PRICING : dhConfig.POS_PRICING;
+    const ranks = isPurchase ? dhConfig.PURCHASE_LEVELS : dhConfig.POS_LEVELS;
+    const daily = isPurchase ? DAILY_COIN_PURCHASE : DAILY_COIN_POS;
+    const freeLevel = isPurchase ? 'free' : 'basic';
+    const lineName = isPurchase ? '采购' : '点餐';
+
+    const p = pricing[targetLevel];
+    if (!p) {
+      return res.status(400).json({
+        success: false,
+        message: isPurchase
+          ? '采购线目标等级无效（可兑 plus / pro；free 永久免费无需兑换）'
+          : '点餐线目标等级无效（可兑 advanced / premium；basic 永久免费无需兑换）'
+      });
     }
+    const cfg = { name: p.name, coinCost: p.monthlyCoin };
+
+    // 产品线对应的成员字段
+    const levelField = isPurchase ? 'purchaseLevel' : 'memberLevel';
+    const expireField = isPurchase ? 'purchaseExpire' : 'memberExpire';
+    const trialField = isPurchase ? 'purchaseIsTrial' : 'memberIsTrial';
+    const sourceField = isPurchase ? 'purchaseSource' : 'memberSource';
 
     const result = await session.withTransaction(async () => {
       let member = await Member.findOne({ shopId }).session(session);
@@ -95,25 +120,24 @@ router.post('/coin/exchange-membership', async (req, res) => {
       }
 
       const today = new Date();
-      const currentLevel = member.memberLevel; // basic / advanced / premium
-      const currentExpire = member.memberExpire;
-      const isActive = currentExpire && currentExpire > today;
-      const curRank = LEVEL_RANK[currentLevel] ?? 0;
-      const targetRank = LEVEL_RANK[targetLevel] ?? 0;
+      const currentLevel = member[levelField] || freeLevel;
+      const currentExpire = member[expireField];
+      const isActive = !!currentExpire && currentExpire > today;
+      const curRank = ranks[currentLevel] ?? 0;
+      const targetRank = ranks[targetLevel] ?? 0;
 
       // === 分支 4：高等级 → 低等级 拒绝 ===
       if (targetRank < curRank) {
-        const e = new Error('高等级会员无法降兑为低等级会员');
+        const e = new Error(`${lineName}线高等级无法降兑为低等级`);
         e.code = 'DOWNGRADE_NOT_ALLOWED';
         throw e;
       }
 
-      // === 分支 2：低等级 → 高等级升级折算（当前会员有效时） ===
+      // === 分支 2：低等级 → 高等级升级折算（当前有效时） ===
       if (targetRank > curRank && isActive) {
-        // 剩余天数（向上取整，不足 1 天算 0）
         const daysLeft = Math.max(0, Math.ceil((currentExpire - today) / DAY_MS));
-        const dailyCurrent = DAILY_COIN[currentLevel] || 100;
-        const dailyTarget = DAILY_COIN[targetLevel] || 100;
+        const dailyCurrent = daily[currentLevel] || 0;
+        const dailyTarget = daily[targetLevel] || 0;
         const proratedValue = daysLeft * dailyCurrent;
         const targetCoinCost = cfg.coinCost;
         let payCoin = targetCoinCost - proratedValue;
@@ -125,24 +149,21 @@ router.post('/coin/exchange-membership', async (req, res) => {
           throw e;
         }
 
-        // FIFO 扣减（可能为 0，不执行实际扣减）
         if (payCoin > 0) {
           await deductCoinsFifo(shopId, payCoin, session);
           member.dinghengCoin = member.dinghengCoin - payCoin;
         }
 
-        // 新有效期 = 30 天目标等级 + floor(剩余价值 / 目标等级币/天) 天零头
-        const extraDays = Math.floor(proratedValue / dailyTarget);
+        const extraDays = dailyTarget > 0 ? Math.floor(proratedValue / dailyTarget) : 0;
         const newExpire = new Date();
         newExpire.setDate(newExpire.getDate() + 30 + extraDays);
-        member.memberExpire = newExpire;
-        member.memberLevel = targetLevel;
-        member.memberIsTrial = false;
-        member.memberSource = 'coin';
-        member.customerPointsEnabled = true;
+        member[expireField] = newExpire;
+        member[levelField] = targetLevel;
+        member[trialField] = false;
+        member[sourceField] = 'coin';
+        if (!isPurchase) member.customerPointsEnabled = true;
         await member.save({ session });
 
-        // 流水
         await CoinHistory.create([{
           shopId,
           amount: -payCoin,
@@ -150,7 +171,7 @@ router.post('/coin/exchange-membership', async (req, res) => {
           balanceAfter: member.dinghengCoin,
           expireAt: null,
           remaining: null,
-          description: `升级${cfg.name}：剩余 ${daysLeft} 天折算抵扣 ${proratedValue} 币（${dailyCurrent}币/天），实付 ${payCoin} 币，额外获 ${extraDays} 天${cfg.name}`
+          description: `[${lineName}线] 升级${cfg.name}：剩余 ${daysLeft} 天折算抵扣 ${proratedValue} 币（${dailyCurrent}币/天），实付 ${payCoin} 币，额外获 ${extraDays} 天${cfg.name}`
         }], { session });
 
         return {
@@ -161,13 +182,13 @@ router.post('/coin/exchange-membership', async (req, res) => {
           payCoin,
           extraDays,
           message: daysLeft > 0
-            ? `您剩余的 ${daysLeft} 天会员已折算抵扣 ${proratedValue} 币，一天都不浪费！`
+            ? `您剩余的 ${daysLeft} 天${lineName}会员已折算抵扣 ${proratedValue} 币，一天都不浪费！`
             : `当前会员已过期，按全价 ${targetCoinCost} 币开通${cfg.name}`
         };
       }
 
       // === 分支 1 & 3：同等级续费 / 失活后新开通 / 无折算升级 ===
-      const coinCost = cfg.coinCost; // 全价
+      const coinCost = cfg.coinCost;
 
       if (member.dinghengCoin < coinCost) {
         const e = new Error(`鼎恒币不足，需 ${coinCost}，当前 ${member.dinghengCoin}`);
@@ -175,31 +196,27 @@ router.post('/coin/exchange-membership', async (req, res) => {
         throw e;
       }
 
-      // FIFO 扣减
       await deductCoinsFifo(shopId, coinCost, session);
       member.dinghengCoin = member.dinghengCoin - coinCost;
 
-      // 到期时间计算：未过期则顺延 30 天，否则从今天起 +30 天
       let base;
       if (currentLevel === targetLevel && isActive) {
-        // 同等级续费 + 有效期内 → 顺延
         base = new Date(currentExpire);
       } else {
-        // 新开通 / 已过期续费 / basic→高级 → 从今天开始
         base = new Date();
       }
       base.setDate(base.getDate() + 30);
-      member.memberExpire = base;
-      member.memberLevel = targetLevel;
-      member.memberIsTrial = false;
-      member.memberSource = 'coin';
-      member.customerPointsEnabled = true;
+      member[expireField] = base;
+      member[levelField] = targetLevel;
+      member[trialField] = false;
+      member[sourceField] = 'coin';
+      if (!isPurchase) member.customerPointsEnabled = true;
       await member.save({ session });
 
-      const scenario = (currentLevel === targetLevel) ? 'renewal' : 'basic_upgrade';
+      const scenario = (currentLevel === targetLevel) ? 'renewal' : 'upgrade';
       const scenarioText = (currentLevel === targetLevel)
-        ? `${cfg.name}续费（+30天）`
-        : `${cfg.name}开通`;
+        ? `[${lineName}线] ${cfg.name}续费（+30天）`
+        : `[${lineName}线] ${cfg.name}开通`;
 
       await CoinHistory.create([{
         shopId,
@@ -215,15 +232,20 @@ router.post('/coin/exchange-membership', async (req, res) => {
         member,
         scenario,
         coinCost,
-        message: (currentLevel === targetLevel) ? `${cfg.name}续费成功，有效期至 ${fmtDate(base)}` : `${cfg.name}开通成功，有效期 30 天`
+        message: (currentLevel === targetLevel)
+          ? `${cfg.name}续费成功，有效期至 ${fmtDate(base)}`
+          : `${cfg.name}开通成功，有效期 30 天`
       };
     });
 
     res.json({
       success: true,
       data: {
+        productLine,
         memberLevel: result.member.memberLevel,
         memberExpire: result.member.memberExpire,
+        purchaseLevel: result.member.purchaseLevel,
+        purchaseExpire: result.member.purchaseExpire,
         dinghengCoin: result.member.dinghengCoin,
         customerPointsEnabled: result.member.customerPointsEnabled,
         scenario: result.scenario,
@@ -258,12 +280,14 @@ function fmtDate(d) {
 
 // ============ POST /api/coin/exchange-coupon 兑换抵用券 ============
 
-router.post('/coin/exchange-coupon', async (req, res) => {
+router.post('/coin/exchange-coupon', requireMerchant, async (req, res) => {
   const session = await mongoose.startSession();
   try {
-    const { shopId, couponType } = req.body;
-    if (!shopId || !couponType) {
-      return res.status(400).json({ success: false, message: 'shopId、couponType 不能为空' });
+    // shopId 只信任 JWT（requireMerchant 已校验），不再从 body 读取
+    const shopId = req.shopId;
+    const { couponType } = req.body;
+    if (!couponType) {
+      return res.status(400).json({ success: false, message: 'couponType 不能为空' });
     }
     const item = dhConfig.coupons.find(c => c.type === couponType);
     if (!item) {
@@ -273,10 +297,11 @@ router.post('/coin/exchange-coupon', async (req, res) => {
       return res.status(403).json({ success: false, message: `${item.faceValue} 元大额抵用券暂未开放，敬请期待` });
     }
 
-    // 预校验：等级 + 余额（事务外快速失败）
+    // 预校验：采购线等级（券属采购线权益）+ 余额（事务外快速失败）
     const pre = await getOrCreateMember(shopId);
-    if (LEVEL_RANK[pre.memberLevel] < LEVEL_RANK[item.needLevel]) {
-      return res.status(403).json({ success: false, message: `会员等级不足，需 ${item.needLevel} 及以上` });
+    if (!entitlements.canRedeemCoupon(item, pre)) {
+      const needPurchase = dhConfig.COUPON_NEED_PURCHASE_LEVEL[item.needLevel] || 'free';
+      return res.status(403).json({ success: false, message: `采购会员等级不足，需 ${needPurchase} 及以上` });
     }
     if (pre.dinghengCoin < item.coinCost) {
       return res.status(400).json({ success: false, message: `鼎恒币不足，需 ${item.coinCost}，当前 ${pre.dinghengCoin}` });
@@ -382,21 +407,21 @@ router.get('/coin/month-progress/:shopId', async (req, res) => {
     const purchaseCount = await PurchaseOrder.countDocuments({ shopId });
     const hasPurchased = purchaseCount > 0;
 
-    // 组装当前等级可达的全部兑换目标，按币价升序（locked 暂未开放的券不纳入）
-    const rank = LEVEL_RANK[member.memberLevel] || 0;
+    // 组装当前采购档可达的兑换目标，按币价升序（locked 暂未开放的券不纳入）
+    const pRank = entitlements.purchaseRank(member);
+    const pRanks = dhConfig.PURCHASE_LEVELS;
     const targets = [];
     for (const c of dhConfig.coupons) {
-      if (!c.locked && LEVEL_RANK[c.needLevel] <= rank) {
+      if (entitlements.canRedeemCoupon(c, member)) {
         targets.push({ kind: 'coupon', cost: c.coinCost, label: `¥${c.faceValue} 采购抵用券` });
       }
     }
-    // 会员月卡：基础版月卡仅基础版可见（续费/失活重开）；进阶版非尊享可兑；尊享版仅非尊享
-    if (rank <= LEVEL_RANK.basic) {
-      targets.push({ kind: 'membership', cost: dhConfig.membership.basic.coinCost, label: '基础版月卡' });
+    // 采购省钱卡月卡：free 可兑 plus；plus 可续费 plus 或升 pro；pro 无需再兑
+    if (pRank <= pRanks.plus) {
+      targets.push({ kind: 'membership', cost: dhConfig.PURCHASE_PRICING.plus.monthlyCoin, label: '采购省钱卡月卡' });
     }
-    if (rank < LEVEL_RANK.premium) {
-      targets.push({ kind: 'membership', cost: dhConfig.membership.advanced.coinCost, label: '进阶版月卡' });
-      targets.push({ kind: 'membership', cost: dhConfig.membership.premium.coinCost, label: '尊享版月卡' });
+    if (pRank < pRanks.pro) {
+      targets.push({ kind: 'membership', cost: dhConfig.PURCHASE_PRICING.pro.monthlyCoin, label: '采购省钱卡Pro月卡' });
     }
     targets.sort((a, b) => a.cost - b.cost);
 
@@ -453,19 +478,31 @@ router.get('/coin/status/:shopId', async (req, res) => {
       expireDate: { $gt: now, $lte: in7 }
     }).sort({ expireDate: 1 });
 
+    const pos = entitlements.posState(member);
+    const purchase = entitlements.purchaseState(member);
+
     res.json({
       success: true,
       data: {
         shopId,
         dinghengCoin: member.dinghengCoin,
+        // ---- 点餐线（历史字段名保留，前端兼容） ----
         memberLevel: member.memberLevel,
         memberExpire: member.memberExpire,
-        // 首月体验期标记（基础版 30 天免费体验）；老数据无该字段时按"剩余不足31天"兜底识别
+        // 首月体验期标记（30 天进阶体验）；老数据无该字段时按"剩余不足31天"兜底识别
         memberIsTrial: member.memberIsTrial === true ||
           (member.memberIsTrial == null &&
             member.memberExpire && (member.memberExpire - now) <= 31 * DAY_MS && (member.memberExpire - now) > 0),
-        // 会员是否在有效期内（未开通/已过期为 false）
-        membershipActive: dhConfig.isMembershipActive(member),
+        membershipActive: pos.active,
+        // ---- 采购线 ----
+        purchaseLevel: member.purchaseLevel || 'free',
+        purchaseExpire: member.purchaseExpire,
+        purchaseIsTrial: member.purchaseIsTrial === true,
+        purchaseActive: purchase.active,
+        coinRate: entitlements.coinRateOf(member),
+        // ---- 两线状态汇总（供前端渲染两张卡） ----
+        pos,
+        purchase,
         totalEarnedCoin: member.totalEarnedCoin,
         customerPointsEnabled: member.customerPointsEnabled,
         coupons,
@@ -483,31 +520,49 @@ router.get('/member/permissions/:shopId', async (req, res) => {
   try {
     const { shopId } = req.params;
     const member = await getOrCreateMember(shopId);
-    const level = member.memberLevel;
-    // 无有效会员（未开通/过期）时所有会员功能均关闭
-    const active = dhConfig.isMembershipActive(member);
-    const has = (feat) => active && Array.isArray(dhConfig.features[feat]) && dhConfig.features[feat].includes(level);
+    const addonFeatures = await entitlements.getActiveAddonFeatures(shopId);
+    const pos = entitlements.posState(member);
+    const purchase = entitlements.purchaseState(member);
+    const hasPos = (feat) => entitlements.hasPosFeature(feat, member, addonFeatures);
+    const hasPurchase = (feat) => entitlements.hasPurchaseFeature(feat, member, addonFeatures);
 
-    // 该等级可兑换的最大面额券类型（locked 暂未开放的券不计入）
+    // 该采购档可兑换的最大面额券类型（locked 暂未开放的券不计入）
     let maxCouponType = null;
     for (const c of dhConfig.coupons) {
-      if (!c.locked && LEVEL_RANK[level] >= LEVEL_RANK[c.needLevel]) maxCouponType = c.type;
+      if (entitlements.canRedeemCoupon(c, member)) maxCouponType = c.type;
     }
 
     res.json({
       success: true,
       data: {
-        customerPoints: has('customerPoints'),
-        marketingDiscount: has('marketingDiscount'),
-        marketingCategoryDiscount: has('marketingCategoryDiscount'),
-        marketingRecharge: has('marketingRecharge'),
-        marketingFull: has('marketingFull'),
-        reportBasic: has('reportBasic'),
-        reportAdvanced: has('reportAdvanced'),
+        // ---- 点餐线功能（历史键名保留，前端兼容） ----
+        customerPoints: hasPos('customerPoints'),
+        marketingDiscount: hasPos('marketingDiscount'),
+        marketingCategoryDiscount: hasPos('marketingCategoryDiscount'),
+        marketingRecharge: hasPos('marketingRecharge'),
+        marketingFull: hasPos('marketingRecharge') || hasPos('marketingCategoryDiscount'),
+        reportBasic: hasPos('reportBasic'),
+        reportAdvanced: hasPos('reportAdvanced'),
+        premiumTheme: hasPos('premiumTheme'),
+        storedValue: hasPos('storedValue'),
+        // ---- 采购线功能 ----
+        smartForecast: hasPurchase('smartForecast'),
+        priceMonitor: hasPurchase('priceMonitor'),
+        priceCompare: hasPurchase('priceCompare'),
+        largeCoupon: hasPurchase('largeCoupon'),
+        priorityDelivery: hasPurchase('priorityDelivery'),
+        // ---- 券与两线状态 ----
         maxCouponType,
-        memberLevel: level,
-        membershipActive: active,
-        memberExpire: member.memberExpire
+        memberLevel: member.memberLevel,
+        memberExpire: member.memberExpire,
+        membershipActive: pos.active,
+        purchaseLevel: purchase.paidLevel,
+        purchaseExpire: member.purchaseExpire,
+        purchaseActive: purchase.active,
+        coinRate: entitlements.coinRateOf(member),
+        pos,
+        purchase,
+        addonFeatures
       }
     });
   } catch (err) {

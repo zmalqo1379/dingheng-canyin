@@ -5,12 +5,10 @@ const Marketing = require('../models/Marketing');
 const Member = require('../models/Member');
 const ShopAccount = require('../models/ShopAccount');
 const dhConfig = require('../utils/dhConfig');
+const entitlements = require('../utils/entitlements');
 const { requireMerchant, requirePublicShopId } = require('../middlewares/auth');
 
-// 等级权重
-const LEVEL_RANK = { basic: 0, advanced: 1, premium: 2 };
-
-// 各活动类型所需功能权限
+// 各活动类型所需功能权限（点餐线）
 const TYPE_FEATURE = {
   fullReduction: 'marketingDiscount',        // 满减：进阶版+
   discount: 'marketingCategoryDiscount',     // 折扣：尊享版
@@ -30,10 +28,10 @@ async function getMember(shopId) {
   return member;
 }
 
-// 校验当前商家是否有权创建/编辑该类型活动（等级达标且会员在有效期内）
+// 校验当前商家是否有权创建/编辑该类型活动（点餐线等级达标）
+// 2026-09 双产品线：营销工具属点餐线权益，统一走 entitlements 判定
 function hasFeature(feature, member) {
-  const allow = dhConfig.features[feature] || [];
-  return dhConfig.isMembershipActive(member) && allow.includes(member.memberLevel);
+  return entitlements.hasPosFeature(feature, member);
 }
 
 // 活动标题自动生成（未填 title 时用规则拼出）
@@ -58,7 +56,7 @@ function normalizeActivity(body, shopId, member) {
   const feature = TYPE_FEATURE[type];
   if (!hasFeature(feature, member)) {
     const need = feature === 'marketingDiscount' ? '进阶版' : '尊享版';
-    const reason = dhConfig.isMembershipActive(member)
+    const reason = entitlements.posState(member).active
       ? `该活动需${need}及以上会员，请先升级`
       : `会员已过期，开通/续费会员后即可使用（该活动需${need}）`;
     return { error: reason, needUpgrade: true };
