@@ -1,7 +1,8 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-// 开发者账号模型：开发者账号只能由管理员在数据库手动创建或通过 /api/auth/dev/seed 初始化
+// 开发者账号模型：开发者账号由服务启动时读取环境变量 DEV_ADMIN_USER / DEV_ADMIN_PASSWORD 创建（见 server.js），
+// 或由管理员直接在数据库手动创建；不再提供任何公开播种接口。
 const adminSchema = new mongoose.Schema({
   username: {
     type: String,

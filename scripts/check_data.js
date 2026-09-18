@@ -11,12 +11,12 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 
-const Dish = require('./models/Dish');
-const Table = require('./models/Table');
-const Order = require('./models/Order');
-const Category = require('./models/Category');
-const Setting = require('./models/Setting');
-const ShopAccount = require('./models/ShopAccount');
+const Dish = require('../models/Dish');
+const Table = require('../models/Table');
+const Order = require('../models/Order');
+const Category = require('../models/Category');
+const Setting = require('../models/Setting');
+const ShopAccount = require('../models/ShopAccount');
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/dingheng_canyin';
 

@@ -6,7 +6,7 @@ const mongoose = require('mongoose');
 const historyItemSchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ['earn', 'deduct', 'redeem'],
+    enum: ['earn', 'deduct', 'redeem', 'expired'],
     required: true
   },
   // 正数为增加，负数为消耗
@@ -34,6 +34,31 @@ const historyItemSchema = new mongoose.Schema({
   }
 }, { _id: false });
 
+// 积分批次：每笔获得积分单独记录，用于「先得先过期」FIFO 扣减与到期清零
+const pointBatchSchema = new mongoose.Schema({
+  // 该批次原始获得积分
+  points: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  // 该批次剩余可用积分
+  remaining: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  earnedAt: {
+    type: Date,
+    default: Date.now
+  },
+  // 过期时间（permanent 模式为 null）
+  expireAt: {
+    type: Date,
+    default: null
+  }
+}, { _id: false });
+
 const customerPointSchema = new mongoose.Schema({
   shopId: {
     type: String,
@@ -58,6 +83,8 @@ const customerPointSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  // 积分批次（FIFO 扣减与到期清零依据）；老数据无此字段视为永久有效
+  batches: [pointBatchSchema],
   history: [historyItemSchema]
 }, { timestamps: true });
 

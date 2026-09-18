@@ -7,8 +7,11 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-const Supplier = require('./models/Supplier');
-const SupplyProduct = require('./models/SupplyProduct');
+const Supplier = require('../models/Supplier');
+const SupplyProduct = require('../models/SupplyProduct');
+
+// 示例供应商密码从环境变量读取（.env 的 SEED_SUPPLIER_PASSWORD），不再硬编码
+const SEED_SUPPLIER_PASSWORD = process.env.SEED_SUPPLIER_PASSWORD;
 
 // 示例商品清单：全部关联到「鼎恒农贸」
 const PRODUCT_SEEDS = [
@@ -57,8 +60,12 @@ async function run() {
     console.log('🔍 查找供应商「鼎恒农贸」...');
     let supplier = await Supplier.findOne({ name: '鼎恒农贸' });
     if (!supplier) {
+      if (!SEED_SUPPLIER_PASSWORD) {
+        console.error('❌ 未设置 SEED_SUPPLIER_PASSWORD 环境变量，拒绝创建示例供应商（请在 .env 配置后重跑）');
+        process.exit(1);
+      }
       console.log('➕ 供应商不存在，正在创建...');
-      const hashedPwd = await bcrypt.hash('123456', 10);
+      const hashedPwd = await bcrypt.hash(SEED_SUPPLIER_PASSWORD, 10);
       supplier = await Supplier.create({
         name: '鼎恒农贸',
         contact: '张经理',
@@ -69,7 +76,7 @@ async function run() {
         rebateRate: 0.05,
         balance: 0,
       });
-      console.log('✅ 已创建供应商「鼎恒农贸」，登录账号: dingheng_nongmao / 密码: 123456');
+      console.log('✅ 已创建供应商「鼎恒农贸」，登录账号: dingheng_nongmao / 密码: 见 .env 的 SEED_SUPPLIER_PASSWORD');
     } else {
       console.log('✅ 供应商「鼎恒农贸」已存在');
     }

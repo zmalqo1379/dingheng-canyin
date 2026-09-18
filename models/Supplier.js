@@ -96,6 +96,42 @@ const supplierSchema = new mongoose.Schema({
     default: '',
     trim: true
   },
+  // ============ 微信支付进件（2026-09 供应商进件流程）============
+  // 资金流 supplier_first 模式：门店货款直接进供应商特约商户号，平台分账抽走加价部分。
+  // 本轮不接微信真实进件 API（特约商户号由平台在微信商户平台代为进件），采用
+  // 「供应商线上提交资料 → 平台人工在微信侧进件 → 开发者后台录入特约商户号并标记通过」模式。
+  // 进件状态机：none=未提交 / pending=审核中 / approved=已通过 / rejected=被驳回（可重新提交）
+  // 银行账号等敏感字段 AES-256-GCM 加密存储（utils/cryptoBox.js），接口/日志一律脱敏输出。
+  wechatOnboarding: {
+    status: {
+      type: String,
+      enum: ['none', 'pending', 'approved', 'rejected'],
+      default: 'none',
+      index: true
+    },
+    // 营业执照照片 URL（/uploads/...）
+    businessLicenseUrl: { type: String, default: '' },
+    // 法人姓名
+    legalPerson: { type: String, default: '', trim: true },
+    // 法人身份证正/反面照片 URL
+    idCardFrontUrl: { type: String, default: '' },
+    idCardBackUrl: { type: String, default: '' },
+    // 银行账户（结算户）：账号加密存储，其余明文
+    bankAccountName: { type: String, default: '', trim: true },
+    bankAccountNoEnc: { type: String, default: '' },
+    bankName: { type: String, default: '', trim: true },
+    bankBranch: { type: String, default: '', trim: true },
+    // 联系人 / 联系电话
+    contactName: { type: String, default: '', trim: true },
+    contactPhone: { type: String, default: '', trim: true },
+    // 经营类目（如：蔬菜/肉类/冻品/粮油/调料/一次性用品 等，可与主营品类不同）
+    category: { type: String, default: '', trim: true },
+    // 经营地址
+    address: { type: String, default: '', trim: true, maxlength: 200 },
+    submittedAt: { type: Date, default: null },
+    reviewedAt: { type: Date, default: null },
+    rejectReason: { type: String, default: '', trim: true }
+  },
   // ============ 供应商治理体系字段 ============
   // 入驻审核状态：pending=待审核（默认，新注册）/ active=已通过 / frozen=已冻结 / rejected=已拒绝
   status: {

@@ -1,8 +1,8 @@
 // 查找已确认订单 + 供应商，用于真实 weigh 路由测试
 require('dotenv').config();
 const mongoose = require('mongoose');
-const PurchaseOrder = require('./models/PurchaseOrder');
-const Supplier = require('./models/Supplier');
+const PurchaseOrder = require('../models/PurchaseOrder');
+const Supplier = require('../models/Supplier');
 
 async function main() {
   await mongoose.connect(process.env.MONGODB_URI);

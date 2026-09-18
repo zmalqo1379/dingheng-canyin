@@ -83,6 +83,8 @@ if (MERCHANT_TOKEN) {
   }, 0);
   // 新手开张四步曲任务卡（首页顶部，状态实时检测）
   try { loadOnboarding(); } catch (e) { console.error('新手任务加载失败', e); }
+  // 商家认证状态卡（顶栏；点开即认证弹窗）
+  try { renderCertStatusBar(); } catch (e) { console.error('认证状态卡渲染失败', e); }
 }
 
 /* ---------- 侧边栏导航 ---------- */
@@ -168,9 +170,14 @@ function _startOfDay(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return 
 let _homeCoinMapRes = null; // 品类倍率缓存（得币攻略用）
 async function loadHome() {
   // 1) 问候横幅：店名 + 日期 + 随机小贴士
-  const shopName = localStorage.getItem('merchantShopName') || '';
+  // 问候语带店铺名：登录缓存 → 店铺设置里已加载的店名 → 兜底「老板」，不再出现空店名
+  const setNameEl = $('setShopName');
+  const shopName = localStorage.getItem('merchantShopName')
+    || (setNameEl && setNameEl.value ? setNameEl.value.trim() : '')
+    || '老板';
   const greet = $('homeGreet');
   if (greet) greet.textContent = `${_homeGreetWord()}，${shopName}`;
+  if (shopName && shopName !== '老板') localStorage.setItem('merchantShopName', shopName);
   const dateEl = $('homeDate');
   if (dateEl) {
     const now = new Date();
@@ -213,7 +220,7 @@ async function loadHome() {
     tr.textContent = pct >= 0 ? `较昨日 +${pct}%` : `较昨日 ${pct}%`;
     tr.className = pct >= 0 ? 'up' : 'down';
   };
-  const amtEl = $('hsTodayAmount'); if (amtEl) amtEl.textContent = '¥' + todayAmt.toFixed(2);
+  const amtEl = $('hsTodayAmount'); if (amtEl) amtEl.textContent = '¥' + todayAmt.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
   const cntEl = $('hsTodayOrders'); if (cntEl) cntEl.textContent = String(todayOrders.length);
   setTrend('hsAmountTrend', todayAmt, ystAmt);
   setTrend('hsOrdersTrend', todayOrders.length, ystOrders.length);
@@ -747,6 +754,14 @@ $('siSaveBtn').onclick = async function () {
       body: JSON.stringify(body)
     });
     if (!res.success) { toast(res.message || '保存失败', true); return; }
+    // 后端按详细地址自动识别位置 → 正反馈（经纬度选填，未定位/定位失败也不阻断保存）
+    if (res.geo && res.geo.ok && res.geo.source === 'geocode') {
+      const h = $('siLocateHint');
+      if (h) {
+        h.textContent = '✓ 位置已自动识别（' + Number(res.geo.longitude).toFixed(6) + ', ' + Number(res.geo.latitude).toFixed(6) + '）';
+        h.className = 'si-hint success';
+      }
+    }
     // 标记门店资料已完善
     const c = await api('/api/admin/store-info/complete', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -787,6 +802,213 @@ $('siSkipBtn').onclick = async function () {
 // 黄色提醒条按钮
 $('sibCompleteBtn').onclick = () => openStoreInfoModal({ force: false });
 $('sibHideBtn').onclick = () => { $('storeInfoBar').style.display = 'none'; };
+
+/* ===================== 商家认证 Modal（上线加固第一批）=====================
+   从 CERT_REQUIRED 拦截弹窗 / 顶栏「去认证」进入。
+   提交走 POST /api/admin/certification/submit；本轮提交即认证通过。
+   资料字段在 utils/dhConfig.CERT_GATING 中分级（履约 / 合规），前端仅做体验区分。 */
+let _certExistingStoreFront = '';
+let _certExistingLicense = '';
+async function openCertModal() {
+  const modal = $('certModal');
+  if (!modal) return;
+  // 回填已有数据（PUT /api/settings 已经存的资料）
+  try {
+    const res = await api('/api/settings');
+    const s = res.data || {};
+    $('certAddress').value = s.shopAddress || '';
+    $('certLng').value = (s.shopLongitude != null ? s.shopLongitude : '');
+    $('certLat').value = (s.shopLatitude != null ? s.shopLatitude : '');
+    _certExistingStoreFront = s.storeFrontPhoto || '';
+    if (_certExistingStoreFront) {
+      $('certStoreFrontPreview').src = _certExistingStoreFront;
+      $('certStoreFrontPreview').style.display = 'block';
+    }
+    const cert = s.certification || {};
+    _certExistingLicense = cert.businessLicense || '';
+    if (_certExistingLicense) {
+      $('certLicensePreview').src = _certExistingLicense;
+      $('certLicensePreview').style.display = 'block';
+    }
+    // 门店定位状态提示（经纬度已改为选填：有值=已识别；换算失败=提示不阻断）
+    const geoHint = $('certGeoHint');
+    if (geoHint) {
+      const hasPos = s.shopLongitude != null && s.shopLatitude != null;
+      if (hasPos) {
+        geoHint.className = 'si-hint success';
+        geoHint.textContent = '✓ 位置已自动识别（' + Number(s.shopLongitude).toFixed(6) + ', ' + Number(s.shopLatitude).toFixed(6) + '）';
+        geoHint.style.display = 'block';
+      } else if (cert.geoStatus === 'failed') {
+        geoHint.className = 'si-hint';
+        geoHint.textContent = '位置暂未识别' + (cert.geoMessage ? '（' + cert.geoMessage + '）' : '') + '，不影响提交与下单，可稍后补全';
+        geoHint.style.display = 'block';
+      } else {
+        geoHint.style.display = 'none';
+      }
+    }
+  } catch (e) { /* 回填失败不阻塞 */ }
+  // 联系手机显示（仅展示）：用本地登录账号手机号（暂取 ShopAccount 不可行，本轮显示占位即可）
+  const phoneEl = $('certPhone');
+  if (phoneEl) phoneEl.value = (localStorage.getItem('merchantPhone') || '（请保持畅通）');
+  modal.classList.add('show');
+
+  // 地图选点（复用店铺设置页同一套逻辑，无 Key/失败自动退化到手动经纬度）
+  // 旧实例销毁（重复打开 modal 时不累积 marker 与事件）
+  try { if (_certMapPicker && _certMapPicker.destroy) _certMapPicker.destroy(); } catch (e) { /* 忽略 */ }
+  // 下一次宏任务再调（等 modal 完成 show，容器尺寸已可计算，否则 AMap.Map 会高度为 0）
+  setTimeout(async () => {
+    _certMapPicker = await bindMapPicker({
+      mapWrapEl: 'certMapWrap',       // 含「搜索框 + 地图」的总容器：只负责显示/隐藏
+      mapEl: 'certMap',               // 地图宿主容器（里层）：避免画布盖住搜索框
+      manualWrapEl: 'certLngLatManual',
+      keepManualWrapVisible: true,    // 经纬度改「选填」后不再隐藏手输框，让商家能看到自动识别的结果
+      fallbackHintEl: 'certMapFallbackHint',
+      searchInputEl: 'certMapSearch',
+      addressInputEl: 'certAddress',
+      lngInputEl: 'certLng',
+      latInputEl: 'certLat'
+      // 不传 mapHeight：#certMap 自带 240px 高度，外层容器高度交给内容撑开
+    });
+  }, 50);
+}
+let _certMapPicker = null;
+function closeCertModal() {
+  const modal = $('certModal');
+  if (modal) modal.classList.remove('show');
+  // 销毁地图实例，避免内存泄漏 + 避免下次打开时 AMap.Map 容器尺寸为 0
+  try { if (_certMapPicker && _certMapPicker.destroy) _certMapPicker.destroy(); } catch (e) { /* 忽略 */ }
+  _certMapPicker = null;
+}
+$('certCancelBtn') && ($('certCancelBtn').onclick = closeCertModal);
+$('certStoreFront') && ($('certStoreFront').onchange = function () {
+  const f = this.files[0]; if (!f) return;
+  const r = new FileReader(); r.onload = (e) => {
+    $('certStoreFrontPreview').src = e.target.result;
+    $('certStoreFrontPreview').style.display = 'block';
+  }; r.readAsDataURL(f);
+});
+$('certLicense') && ($('certLicense').onchange = function () {
+  const f = this.files[0]; if (!f) return;
+  const r = new FileReader(); r.onload = (e) => {
+    $('certLicensePreview').src = e.target.result;
+    $('certLicensePreview').style.display = 'block';
+  }; r.readAsDataURL(f);
+});
+
+// 提交认证：上传图片 + 调 /api/admin/certification/submit
+$('certSubmitBtn') && ($('certSubmitBtn').onclick = async function () {
+  const btn = this;
+  const address = $('certAddress').value.trim();
+  // 经纬度已改为「选填」：商家填了就带上；没填由后端按详细地址自动地理编码识别（换算失败也不阻断）
+  const lngRaw = $('certLng').value.trim();
+  const latRaw = $('certLat').value.trim();
+  const lng = parseFloat(lngRaw);
+  const lat = parseFloat(latRaw);
+  const hasPos = lngRaw !== '' && latRaw !== '' && isFinite(lng) && isFinite(lat);
+  if (!address) { toast('请填写详细地址', true); return; }
+
+  btn.classList.add('loading'); btn.textContent = '提交中…';
+  try {
+    // 1) 上传门头照（如有选新文件）
+    let storeFrontUrl = _certExistingStoreFront;
+    const sfFile = $('certStoreFront').files[0];
+    if (sfFile) {
+      const fd = new FormData(); fd.append('file', sfFile);
+      const u = await fetch('/api/admin/upload', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + MERCHANT_TOKEN, 'x-shop-id': SHOP_ID },
+        body: fd
+      }).then(r => r.json());
+      if (!u.success) { toast(u.message || '门头照上传失败', true); return; }
+      storeFrontUrl = u.data.url;
+    }
+    if (!storeFrontUrl) { toast('请上传门头照', true); return; }
+
+    // 2) 上传营业执照（如有选新文件）
+    let licenseUrl = _certExistingLicense;
+    const lfFile = $('certLicense').files[0];
+    if (lfFile) {
+      const fd = new FormData(); fd.append('file', lfFile);
+      const u = await fetch('/api/admin/upload', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + MERCHANT_TOKEN, 'x-shop-id': SHOP_ID },
+        body: fd
+      }).then(r => r.json());
+      if (!u.success) { toast(u.message || '营业执照上传失败', true); return; }
+      licenseUrl = u.data.url;
+    }
+    if (!licenseUrl) { toast('请上传营业执照', true); return; }
+
+    // 3) 提交认证（经纬度选填：有才带，否则由后端按地址自动换算）
+    const payload = {
+      shopAddress: address,
+      storeFrontPhoto: storeFrontUrl,
+      businessLicense: licenseUrl
+    };
+    if (hasPos) { payload.shopLongitude = lng; payload.shopLatitude = lat; }
+    const res = await api('/api/admin/certification/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (res.success) {
+      // 后端地理编码结果 → 正反馈（位置已自动识别 / 未识别但不影响下单）
+      const geoResult = (res.data && res.data.geoResult) || null;
+      if (geoResult && geoResult.ok && geoResult.source === 'geocode') {
+        if (geoResult.longitude != null && geoResult.latitude != null) {
+          $('certLng').value = Number(geoResult.longitude).toFixed(6);
+          $('certLat').value = Number(geoResult.latitude).toFixed(6);
+        }
+        toast('认证已通过 · 门店位置已自动识别');
+      } else if (geoResult && !geoResult.ok) {
+        toast('认证已通过（位置未识别，不影响下单）');
+      } else {
+        toast('认证已通过');
+      }
+      closeCertModal();
+      // 刷新顶栏状态卡 + 隐藏
+      renderCertStatusBar({ certified: true });
+    } else {
+      toast(res.message || '提交失败', true);
+    }
+  } catch (e) {
+    toast('网络错误', true);
+  } finally {
+    btn.classList.remove('loading'); btn.textContent = '提交认证';
+  }
+});
+
+// 顶栏认证状态卡渲染（页面初始化 / CERT_REQUIRED 后调用）
+async function renderCertStatusBar(opts) {
+  const bar = $('certStatusBar');
+  if (!bar) return;
+  try {
+    let s = opts;
+    if (!s) {
+      const st = await api('/api/admin/certification/status');
+      s = (st && st.success && st.data) || null;
+    }
+    if (!s) { bar.style.display = 'none'; return; }
+    const fo = s.firstOrder || {};
+    if (s.certified) {
+      $('certStatusLabel').textContent = '已认证';
+      $('certStatusSub').textContent = '可不限额下单';
+      $('certStatusBtn').textContent = '查看认证';
+      bar.classList.add('is-approved');
+      bar.style.display = 'flex';
+    } else {
+      const blocking = s.missingBlocking || [];
+      const skippable = s.missingSkippable || [];
+      $('certStatusLabel').textContent = '未认证';
+      $('certStatusSub').textContent = `缺履约 ${blocking.length} 项 · 合规 ${skippable.length} 项` + (fo.enabled && !fo.used ? ` · 首单可直通 ¥${fo.limit}` : '');
+      $('certStatusBtn').textContent = '去认证';
+      bar.classList.remove('is-approved');
+      bar.style.display = 'flex';
+    }
+  } catch (e) { /* 静默 */ }
+}
+$('certStatusBtn') && ($('certStatusBtn').onclick = openCertModal);
+$('certStatusHideBtn') && ($('certStatusHideBtn').onclick = () => { $('certStatusBar').style.display = 'none'; });
 
 /* ===================== 菜单管理 ===================== */
 async function loadCategories() {
@@ -1271,8 +1493,8 @@ async function loadStats() {
   });
 
   $('statTodayCount').innerHTML = `${todayCount}<small> 单</small>`;
-  $('statTodayRevenue').textContent = todayRevenue.toFixed(2);
-  $('statMonthRevenue').textContent = monthRevenue.toFixed(2);
+  $('statTodayRevenue').textContent = todayRevenue.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
+  $('statMonthRevenue').textContent = monthRevenue.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
 
   // 经营报表 / 顾客画像 / 损耗分析（按会员等级逐块鉴权）
   loadReports();
@@ -1557,12 +1779,11 @@ async function loadSettings() {
 }
 
 /* ===================== 门店地图选点（高德地图 JS API） ===================== */
-let _amapPromise = null;
-let _mapConfigCache = null;
-let _shopMap = null;
-let _shopMarker = null;
-let _amapGeocoder = null;
-let _amapPlaceSearch = null;
+// 公共：动态加载高德 JS API（浏览器端只加载一次）+ 取后端下发的 Key 配置 + 创建选点实例。
+// 任意 modal/页面均可调用 bindMapPicker(opts) 拿到独立的地图实例 + 句柄，互不干扰。
+// 旧 initShopMap() 仅作为「店铺设置」页面的适配器（保留不变），认证 modal 用 bindMapPicker 复用同一套逻辑。
+let _amapConfigPromise = null;
+let _amapConfigCache = null;
 
 // 动态加载高德地图脚本（只加载一次）
 function loadAMapScript(key, securityCode) {
@@ -1578,13 +1799,179 @@ function loadAMapScript(key, securityCode) {
   });
   return _amapPromise;
 }
+let _amapPromise = null;
 
-// 读取后端下发的地图配置（含浏览器端公开 Key）
+// 读取后端下发的地图配置（含浏览器端公开 Key，promise 缓存避免多次拉取）
 async function getMapConfig() {
-  if (_mapConfigCache) return _mapConfigCache;
-  const res = await api('/api/config/map');
-  _mapConfigCache = (res && res.data) || { amapKey: '', amapSecurityCode: '' };
-  return _mapConfigCache;
+  if (_amapConfigCache) return _amapConfigCache;
+  if (_amapConfigPromise) return _amapConfigPromise;
+  _amapConfigPromise = api('/api/config/map').then(res => {
+    _amapConfigCache = (res && res.data) || { amapKey: '', amapSecurityCode: '' };
+    return _amapConfigCache;
+  }).catch(() => ({ amapKey: '', amapSecurityCode: '' }));
+  return _amapConfigPromise;
+}
+
+/**
+ * 通用地图选点绑定器（Web 端所有需要「点一下选位置」的页面都用它）。
+ * 自动处理：有 Key 走地图，无 Key / 加载失败退化为手动经纬度输入（不报错）。
+ *
+ * @param {object} opts
+ *   - mapWrapEl:       地图**外层**容器 DOM id 字符串或 Element（含搜索框，未传 mapEl 时同时作为地图宿主）
+ *   - mapEl:           地图**宿主**容器 DOM id 或 Element（可选）。不传则用 mapWrapEl（兼容旧行为）；
+ *                      传了则 AMap.Map 挂在这个里层容器上，避免地图画布盖住搜索框
+ *   - manualWrapEl:    手输经纬度容器（无 Key/失败时显示）
+ *   - keepManualWrapVisible: true 时地图可用也不隐藏 manualWrapEl（经纬度改为「选填」后需要一直可见）
+ *   - fallbackHintEl:  「未配 Key/加载失败」提示文案 DOM id 或 Element（可选）
+ *   - searchInputEl:   搜索框 DOM id 或 Element（可选；自动联想+回车搜索）
+ *   - lngInputEl/latInputEl: 经度/纬度输入框（写入 + 反读）
+ *   - addressInputEl:  地址输入框（地图选点后逆地理回填，仅在为空时回填避免覆盖商家手填）
+ *   - lnglatInputIds:  [lngId, latId]，与 lngInputEl/latInputEl 二选一
+ *   - defaultCenter:   [lng, lat]，未设置时默认北京天安门
+ *   - onReady:         初始化完成后回调 (state: 'ok'|'fallback', reason?: string)
+ *   - mapHeight:       套在「地图宿主容器」上的高度（不传则沿用容器自身样式）
+ * @returns {Promise<{state: 'ok'|'fallback', instance?: object, setPos?: Function, destroy?: Function}>}
+ */
+async function bindMapPicker(opts) {
+  const $el = (v) => (typeof v === 'string') ? $(v) : v;
+  const mapWrap = $el(opts.mapWrapEl);
+  const manualWrap = $el(opts.manualWrapEl);
+  const fallbackHint = $el(opts.fallbackHintEl);
+  const searchInput = $el(opts.searchInputEl);
+  const lngInput = $el(opts.lngInputEl || (opts.lnglatInputIds && opts.lnglatInputIds[0]));
+  const latInput = $el(opts.latInputEl || (opts.lnglatInputIds && opts.lnglatInputIds[1]));
+  const addressInput = $el(opts.addressInputEl);
+  // 地图宿主容器：优先里层专用容器（如 #certMap），否则退回外层包裹容器（兼容旧调用）
+  const mapHost = $el(opts.mapEl) || mapWrap;
+
+  const fallback = (reason) => {
+    if (mapWrap) mapWrap.style.display = 'none';
+    if (manualWrap) manualWrap.style.display = 'flex';
+    if (fallbackHint) {
+      fallbackHint.style.display = 'block';
+      if (fallbackHint.textContent !== undefined) fallbackHint.textContent = reason || '地图加载失败，暂可手输经纬度';
+    }
+    if (typeof opts.onReady === 'function') opts.onReady('fallback', reason);
+    return { state: 'fallback', reason };
+  };
+
+  if (!mapWrap || !manualWrap) {
+    return { state: 'fallback', reason: 'dom-not-found' };
+  }
+
+  let cfg = { amapKey: '' };
+  try { cfg = await getMapConfig(); } catch (e) { /* fallthrough */ }
+  if (!cfg.amapKey) return fallback('未配置高德地图 Key（.env 的 AMAP_KEY），暂可手输经纬度');
+
+  try {
+    await loadAMapScript(cfg.amapKey, cfg.amapSecurityCode);
+  } catch (e) {
+    return fallback('高德地图加载失败，暂可手输经纬度');
+  }
+
+  mapWrap.style.display = 'block';
+  // 经纬度已改为「选填」：地图可用时也保留手输框，让商家能看到自动识别的结果
+  if (manualWrap && !opts.keepManualWrapVisible) manualWrap.style.display = 'none';
+  if (fallbackHint) fallbackHint.style.display = 'none';
+
+  // 高度套在「地图宿主容器」上；未传 mapEl 时宿主就是 mapWrap（等价旧行为）
+  if (opts.mapHeight && mapHost) {
+    mapHost.style.height = typeof opts.mapHeight === 'number' ? (opts.mapHeight + 'px') : opts.mapHeight;
+  }
+
+  const lng = parseFloat(lngInput && lngInput.value);
+  const lat = parseFloat(latInput && latInput.value);
+  const hasPos = isFinite(lng) && isFinite(lat) && Math.abs(lng) <= 180 && Math.abs(lat) <= 90;
+  const center = hasPos ? [lng, lat] : (opts.defaultCenter || [116.397428, 39.90923]);
+
+  // 容器尺寸为 0 时 AMap v2 会渲染成空白（弹窗未展开/外层 display:none）→ 明确退化，不留白屏
+  if (!mapHost || !mapHost.clientWidth || !mapHost.clientHeight) {
+    return fallback('地图容器尺寸为 0（弹窗尚未展开），暂可手输经纬度');
+  }
+
+  let map;
+  try {
+    map = new AMap.Map(mapHost, { zoom: hasPos ? 16 : 11, center, resizeEnable: true });
+  } catch (e) {
+    return fallback('地图初始化失败：' + ((e && e.message) || '未知错误'));
+  }
+  if (!map) return fallback('地图初始化失败，暂可手输经纬度');
+
+  const marker = new AMap.Marker({ position: center, draggable: true, cursor: 'move' });
+  marker.setMap(map);
+  // 插件可能因 Key/域名/配额被拒而不可用：单独 try，避免拖垮整个选点能力
+  let geocoder = null;
+  let placeSearch = null;
+  try { geocoder = new AMap.Geocoder(); } catch (e) { geocoder = null; }
+  try { placeSearch = new AMap.PlaceSearch({ map, autoFitView: true }); } catch (e) { placeSearch = null; }
+
+  const setLngLat = (newLng, newLat) => {
+    if (lngInput) lngInput.value = Number(newLng).toFixed(6);
+    if (latInput) latInput.value = Number(newLat).toFixed(6);
+  };
+  const reverseFillAddress = (newLng, newLat) => {
+    if (!addressInput || addressInput.value.trim() || !geocoder) return;
+    geocoder.getAddress([newLng, newLat], (status, result) => {
+      if (status === 'complete' && result && result.regeocode) {
+        addressInput.value = result.regeocode.formattedAddress || '';
+      }
+    });
+  };
+
+  marker.on('dragend', () => {
+    const p = marker.getPosition();
+    setLngLat(p.getLng(), p.getLat());
+    reverseFillAddress(p.getLng(), p.getLat());
+  });
+  map.on('click', (e) => {
+    marker.setPosition(e.lnglat);
+    setLngLat(e.lnglat.getLng(), e.lnglat.getLat());
+    reverseFillAddress(e.lnglat.getLng(), e.lnglat.getLat());
+  });
+
+  if (searchInput && AMap.AutoComplete) {
+    const ac = new AMap.AutoComplete({ input: searchInput });
+    ac.on('select', (e) => {
+      if (e && e.poi && e.poi.location) {
+        const p = e.poi.location;
+        map.setZoomAndCenter(16, p);
+        marker.setPosition(p);
+        setLngLat(p.getLng(), p.getLat());
+        reverseFillAddress(p.getLng(), p.getLat());
+      }
+    });
+  }
+  if (searchInput) {
+    searchInput.addEventListener('keydown', (ev) => {
+      if (ev.key !== 'Enter') return;
+      ev.preventDefault();
+      const kw = searchInput.value.trim();
+      if (!kw) return;
+      if (!placeSearch) { toast('地址搜索暂不可用，请在地图上手动选点或直接填详细地址', true); return; }
+      placeSearch.search(kw, (status, result) => {
+        if (status === 'complete' && result && result.poiList && result.poiList.pois.length) {
+          const p = result.poiList.pois[0].location;
+          map.setZoomAndCenter(16, p);
+          marker.setPosition(p);
+          setLngLat(p.getLng(), p.getLat());
+          reverseFillAddress(p.getLng(), p.getLat());
+        } else {
+          toast('未找到该地址，请在地图上手动选点', true);
+        }
+      });
+    });
+  }
+
+  if (typeof opts.onReady === 'function') opts.onReady('ok');
+  return {
+    state: 'ok',
+    setPos: (newLng, newLat) => {
+      marker.setPosition([newLng, newLat]);
+      map.setZoomAndCenter(16, [newLng, newLat]);
+      setLngLat(newLng, newLat);
+    },
+    destroy: () => { try { map.destroy(); } catch (e) { /* 忽略 */ } }
+  };
 }
 
 // 写入经纬度（沿用门店保存逻辑读取的输入框）
@@ -1797,7 +2184,14 @@ $('saveSettingsBtn').onclick = async () => {
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
   });
   if (res.success) {
-    toast('保存成功');
+    // 只填了文字地址、没设置经纬度时后端会自动识别 → 给商家正反馈
+    if (res.geo && res.geo.ok && res.geo.source === 'geocode') {
+      $('setShopLng').value = Number(res.geo.longitude).toFixed(6);
+      $('setShopLat').value = Number(res.geo.latitude).toFixed(6);
+      toast('保存成功 · 门店位置已自动识别');
+    } else {
+      toast('保存成功');
+    }
     // 同步已保存 URL 与预览
     _existingStoreFront = storeFrontUrl;
     _existingStreetView = streetViewUrl;
@@ -2617,8 +3011,9 @@ async function exchangeAddon(addonKey) {
 window.exchangeAddon = exchangeAddon;
 
 /* ===================== 会员现金购卡（线下收款 + 客服确认开通） ===================== */
-// 服务电话：与后端 routes/membership.js SERVICE_PHONE 保持一致
-const MEMBER_SERVICE_PHONE = '400-888-6666';
+// 服务电话：不硬编码任何号码，优先使用后端 /api/membership/* 接口下发的 servicePhone；
+// 此处仅为接口未返回时的兜底提示文案（真实号码由 .env 的 SERVICE_PHONE 配置后经后端下发）
+const MEMBER_SERVICE_PHONE = '（客服电话未配置）';
 let _cashBuyLevel = 'advanced';
 let _cashBuyMonths = 1;
 let _cashPayMethod = 'cash';        // cash 线下转账 / wechat 微信扫码
@@ -3658,7 +4053,65 @@ function closeMallCartDrawer() {
   if (mSubmit) mSubmit.onclick = submitMallOrder;
 })();
 
-// 提交采购订单（shopId 由后端从 JWT 取；couponId 随单提交，后端同事务核销）
+// ============ 下单支付（上线加固第一批：草稿 → 支付 → 推送供应商） ============
+// mock 支付阶段：草稿创建成功后自动调用 POST /:id/pay 完成支付；
+// 接入真实微信支付后改为用 payment 参数拉起收银台，由支付回调接管落账
+async function payDraftOrder(draft) {
+  if (!draft || !draft._id) return;
+  const payRes = await api(`/api/purchase-orders/${draft._id}/pay`, { method: 'POST' });
+  if (payRes.success) {
+    toast('订单已支付并提交供应商');
+  } else if (payRes.code === 'CERT_REQUIRED') {
+    showCertRequired(payRes);
+  } else {
+    toast(payRes.message || '支付失败，请到「采购订单-待支付」重新支付', true);
+  }
+}
+
+// 认证门控拦截提示：拉取认证状态聚合视图（GET /api/admin/certification/status），
+// 列出缺失项 + 首单直通剩余额度提示，引导商家完成认证（订单保留为待支付草稿，24 小时内可支付）
+// 上线加固第一批：blocking（履约必需）/ skippable（首单可暂缓）分流提示，并提供「去认证」入口。
+async function showCertRequired(res) {
+  const d = res.data || {};
+  const blocking = (d.missingBlocking || (d.missing && d.missing.blocking) || []).slice();
+  const skippable = (d.missingSkippable || (d.missing && d.missing.skippable) || []).slice();
+  const allMissing = (Array.isArray(d.missing) ? d.missing : (d.missing && d.missing.all) || []).slice();
+  let extra = '';
+  let certified = false;
+  // 聚合视图拉取失败时降级为仅展示拦截接口返回的信息，不阻断提示
+  try {
+    const st = await api('/api/admin/certification/status' + (d.totalAmount ? '?amount=' + d.totalAmount : ''));
+    const s = (st && st.success && st.data) || null;
+    if (s) {
+      certified = !!s.certified;
+      const fo = s.firstOrder || {};
+      if (s.certified) {
+        extra = '认证状态：已认证（如仍被拦截，请刷新页面后重试）。\n\n';
+      } else if (fo.enabled && !fo.used) {
+        extra = `提示：首笔不超过 ¥${fo.limit} 的订单可免认证直通下单，但履约资料必须先补齐。\n\n`;
+      } else if (fo.enabled && fo.used) {
+        extra = `提示：首单直通已使用（上限 ¥${fo.limit}），完成认证后不限额下单。\n\n`;
+      }
+      // 合并缺失（兼容：直接返回 d.missing 是字符串数组的情况）
+      if (Array.isArray(s.missing)) s.missing.forEach(x => { if (!allMissing.includes(x)) allMissing.push(x); });
+    }
+  } catch (e) { /* 降级：略 */ }
+  const blockingTxt = blocking.length ? blocking.join('、') : '无';
+  const skippableTxt = skippable.length ? skippable.join('、') : '无';
+  alert(
+    `订单已保存（待支付），但需先补齐以下资料：\n\n` +
+    `【必须现在补齐 · 否则无法配送】\n${blockingTxt}\n\n` +
+    (skippable.length ? `【首单可暂缓 · 合规章程】\n${skippableTxt}\n\n` : '') +
+    (res.message ? `${res.message}\n\n` : '') +
+    extra +
+    `点「确定」打开认证页面补全资料；订单保留 24 小时，认证后到「采购订单-待支付」中重新支付。`
+  );
+  if (!certified && typeof openCertModal === 'function') {
+    openCertModal();
+  }
+}
+
+// 提交采购订单（shopId 由后端从 JWT 取；couponId 随单提交，后端同事务锁定为 locked，支付成功才核销）
 // 桌面端 submitPurchaseBtn 与手机端 mSubmitPurchaseBtn 共用此函数
 // 囤货保护：后端预检若返回 STOCKPILE_WARNING，弹窗提示商家选择"修改"或"坚持下单"
 async function submitMallOrder() {
@@ -3708,17 +4161,28 @@ async function submitMallOrder() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ supplierId, items, couponId: couponId || undefined, force: true })
       });
-      if (!forceRes.success) { toast(forceRes.message || '下单失败', true); return; }
-      toast('采购订单已提交（已标注异常提醒供应商）');
+      if (!forceRes.success) {
+        if (forceRes.code === 'CERT_REQUIRED') showCertRequired(forceRes);
+        else toast(forceRes.message || '下单失败', true);
+        return;
+      }
+      await payDraftOrder(forceRes.data);
     } else {
       toast('已取消，请修改后重新提交', true);
       return;
     }
   } else if (!orderRes.success) {
-    toast(orderRes.message || '下单失败', true);
+    // 认证门控：未认证且不符首单直通 → 订单挂起为待支付草稿，引导去完成认证
+    if (orderRes.code === 'CERT_REQUIRED') {
+      showCertRequired(orderRes);
+    } else {
+      toast(orderRes.message || '下单失败', true);
+    }
     return;
   } else {
-    toast('采购订单已提交！');
+    // 草稿创建成功（待支付）：mock 支付阶段自动完成支付；
+    // 接入真实微信支付后，此处改为用返回的 payment 参数拉起收银台，由支付回调完成落账
+    await payDraftOrder(orderRes.data);
   }
 
   _mallCart = [];
@@ -3764,7 +4228,7 @@ async function loadPurchaseOrders() {
   }
   // 后端已 populate supplierId 为对象（含 name），直接取；兼容旧字符串 id
   const badgeCls = {
-    '待确认': 'b-gray', '已确认': 'b-blue', '已发货': 'b-orange', '已完成': 'b-green'
+    '待支付': 'b-yellow', '待确认': 'b-gray', '已确认': 'b-blue', '已发货': 'b-orange', '已完成': 'b-green', '已取消': 'b-gray'
   };
   // 商品行文案：已过秤行追加实称重量
   const itemLine = (i) => {
@@ -3787,7 +4251,9 @@ async function loadPurchaseOrders() {
     const sortTag = o.sorted ? '<span class="badge b-green" style="margin-left:4px;font-size:11px;">已分拣</span>' : '';
     const actionHtml = o.status === '已发货'
       ? `<button class="btn btn-orange" data-id="${o._id}">确认收货</button>`
-      : (o.status === '已完成' ? `<span style="color:#16a34a;">✓ 已返 ${o.rewardCoin || 0} DH</span>` : '—');
+      : (o.status === '待支付'
+        ? `<button class="btn btn-blue" data-pay="${o._id}">去支付</button>`
+        : (o.status === '已完成' ? `<span style="color:#16a34a;">✓ 已返 ${o.rewardCoin || 0} DH</span>` : '—'));
 
     return `
       <tr>
@@ -3822,10 +4288,12 @@ async function loadPurchaseOrders() {
       // 已分拣则实付按实称重算，标注提示
       const weighedCount = (o.items || []).filter(i => i.weighed).length;
       const sortedTip = weighedCount > 0 ? `<span class="pcard-amount"><small style="color:#b45309;">${weighedCount}项已实称</small></span>` : '';
-      // 卡片操作按钮：已发货显示「确认收货」，已完成显示返币，其他状态显示占位
+      // 卡片操作按钮：待支付显示「去支付」，已发货显示「确认收货」，已完成显示返币，其他状态显示占位
       const actionHtml = o.status === '已发货'
         ? `<button class="btn btn-orange" data-id="${o._id}">确认收货</button>`
-        : (o.status === '已完成' ? `<span class="pcard-coin-done">✓ 已返 ${rewardCoin} DH</span>` : '');
+        : (o.status === '待支付'
+          ? `<button class="btn btn-blue" data-pay="${o._id}">去支付</button>`
+          : (o.status === '已完成' ? `<span class="pcard-coin-done">✓ 已返 ${rewardCoin} DH</span>` : ''));
       return `
         <div class="pcard">
           <div class="pcard-head">
@@ -3868,6 +4336,29 @@ async function loadPurchaseOrders() {
   // 手机端卡片内按钮（卡片容器内同样用 data-id 标识）
   if (cardList) {
     cardList.querySelectorAll('button[data-id]').forEach(btn => { btn.onclick = () => confirmHandler(btn); });
+  }
+
+  // 绑定「去支付」按钮（待支付草稿；mock 支付：调用即支付成功）
+  const payHandler = async (btn) => {
+    if (!confirm('确认支付该订单？支付成功后将推送供应商接单。')) return;
+    btn.disabled = true;
+    const r = await api(`/api/purchase-orders/${btn.dataset.pay}/pay`, { method: 'POST' });
+    if (r.success) {
+      toast('支付成功，订单已提交供应商');
+      loadPurchaseOrders();
+    } else {
+      // CERT_REQUIRED：复用认证引导（拉取聚合视图，含首单直通提示）
+      if (r.code === 'CERT_REQUIRED') {
+        await showCertRequired(r);
+      } else {
+        toast(r.message || '支付失败', true);
+      }
+      btn.disabled = false;
+    }
+  };
+  body.querySelectorAll('button[data-pay]').forEach(btn => { btn.onclick = () => payHandler(btn); });
+  if (cardList) {
+    cardList.querySelectorAll('button[data-pay]').forEach(btn => { btn.onclick = () => payHandler(btn); });
   }
 }
 
@@ -4104,17 +4595,27 @@ async function submitSmartReplenish(supplierId, type) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ supplierId, items, force: true })
       });
-      if (!forceRes.success) { toast(forceRes.message || '下单失败', true); return; }
-      toast('采购订单已提交（已标注异常提醒供应商）');
+      if (!forceRes.success) {
+        if (forceRes.code === 'CERT_REQUIRED') showCertRequired(forceRes);
+        else toast(forceRes.message || '下单失败', true);
+        return;
+      }
+      await payDraftOrder(forceRes.data);
     } else {
       toast('已取消，请修改后重新提交', true);
       return;
     }
   } else if (!res.success) {
-    toast(res.message || '下单失败', true);
+    // 认证门控：未认证且不符首单直通 → 订单挂起为待支付草稿，引导去完成认证
+    if (res.code === 'CERT_REQUIRED') {
+      showCertRequired(res);
+    } else {
+      toast(res.message || '下单失败', true);
+    }
     return;
   } else {
-    toast('采购订单已提交！');
+    // 草稿创建成功（待支付）：mock 支付阶段自动完成支付
+    await payDraftOrder(res.data);
   }
   loadSmartReplenish();
 }
@@ -4586,6 +5087,13 @@ async function loadPoints() {
     $('setPointDeductPoints').value = s.pointDeductPoints ?? 100;
     $('setPointDeductMaxPercent').value = s.pointDeductMaxPercent ?? 20;
 
+    // 积分有效期
+    const expiryMode = s.pointExpiryMode || 'permanent';
+    $('setPointExpiryPermanent').checked = (expiryMode === 'permanent');
+    $('setPointExpiryFixed').checked = (expiryMode === 'fixed');
+    $('setPointExpiryDays').value = s.pointExpiryDays ?? 30;
+    $('pointExpiryDaysRow').style.display = (expiryMode === 'fixed') ? 'flex' : 'none';
+
     // 兑换菜品列表 + 下拉填充
     _ptExchangeDishes = Array.isArray(s.pointExchangeDishes) ? s.pointExchangeDishes.map(d => ({
       dishId: String(d.dishId), dishName: d.dishName, points: d.points
@@ -4641,6 +5149,17 @@ $('ptAddDishBtn').onclick = () => {
   toast('已添加，记得点"保存积分设置"');
 };
 
+// 积分有效期模式切换：选中"固定天数"时显示天数输入框
+document.querySelectorAll('input[name="pointExpiryMode"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    $('pointExpiryDaysRow').style.display = (radio.value === 'fixed' && radio.checked) ? 'flex' : 'none';
+    // 确保只有一个 radio 触发
+    if (radio.value === 'permanent' && radio.checked) {
+      $('pointExpiryDaysRow').style.display = 'none';
+    }
+  });
+});
+
 // 保存积分设置（写入后端 Setting，顾客端实时生效）
 $('savePointsBtn').onclick = async () => {
   const btn = $('savePointsBtn');
@@ -4650,6 +5169,8 @@ $('savePointsBtn').onclick = async () => {
     pointDeductEnabled: $('setPointDeductEnabled').checked,
     pointDeductPoints: Math.max(1, Math.round(Number($('setPointDeductPoints').value) || 100)),
     pointDeductMaxPercent: Math.min(100, Math.max(0, Number($('setPointDeductMaxPercent').value) || 0)),
+    pointExpiryMode: $('setPointExpiryFixed').checked ? 'fixed' : 'permanent',
+    pointExpiryDays: Math.max(1, Math.round(Number($('setPointExpiryDays').value) || 30)),
     pointExchangeDishes: _ptExchangeDishes
   };
   btn.disabled = true;

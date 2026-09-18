@@ -15,7 +15,9 @@ const { requireMerchant } = require('../middlewares/auth');
 //   微信下单不带 profit_sharing 标记，资金直接结算至平台商户号。
 
 // 客服电话（现金购卡引导商家线下付款/联系确认）
-const SERVICE_PHONE = '400-888-6666';
+// 统一从环境变量读取（utils/serviceContact.js 为唯一事实源），未配置时回退为占位值
+const { getServicePhone } = require('../utils/serviceContact');
+const SERVICE_PHONE = getServicePhone();
 
 // 解析购卡方案：按产品线取定价（basic / free 为永久免费档，不可购买）
 //   productLine='pos'      → POS_PRICING（advanced/premium）

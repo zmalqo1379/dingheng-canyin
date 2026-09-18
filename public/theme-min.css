@@ -1,0 +1,70 @@
+/* 鼎恒餐饮 商家端主题（纯净版：只换配色，零布局改动） */
+:root {
+  --bg:#f5f6fa; --card:#fff; --primary:#ff6b35; --primary-2:#ff8e53;
+  --nav:#0f172a; --nav-2:#020617;
+  --text:#1f2937; --text-2:#374151; --text-3:#4b5563; --text-sub:#6b7280;
+  --text-muted:#9ca3af;
+  --border:#e5e7eb; --border-strong:#d1d5db;
+  --surface-2:#f9fafb; --surface-3:#f3f4f6; --surface-4:#fcfcfd; --surface-5:#fafbfc;
+  --c-red:#dc2626; --c-green:#16a34a; --c-emerald:#059669;
+  --c-amber-700:#b45309; --c-amber-500:#f59e0b; --c-amber:#f59e0b;
+  --c-blue-700:#1d4ed8; --c-blue-600:#2563eb;
+  --accent:var(--primary); --accent-2:var(--primary-2); --line:var(--border);
+  --gray:var(--text-muted); --green:var(--c-green); --red:#ef4444; --blue:#1a88ff;
+}
+[data-theme="warm"] {
+  --bg:#F7F8FA; --card:#fff; --primary:#FF7A3D; --primary-2:#FF9E6B;
+  --text:#1F2329; --text-2:#34383F; --text-3:#4C5057; --text-sub:#70747B; --text-muted:#A0A4AA;
+  --border:#EBEDF0; --border-strong:#D6D9DD;
+  --surface-2:#FAFBFC; --surface-3:#F3F4F6; --surface-4:#FCFCFD; --surface-5:#FAFBFC;
+}
+[data-theme="dark"] {
+  --bg:#0F1419; --card:#182029; --primary:#FF9463; --primary-2:#FFB48C;
+  --text:#E3E6EA; --text-2:#CBD2DB; --text-3:#B4BCC7; --text-sub:#8A94A6; --text-muted:#8A94A6;
+  --border:#2A3542; --border-strong:#35424F;
+  --surface-2:#212B36; --surface-3:#2A3542; --surface-4:#1E2733; --surface-5:#1F2833;
+  --c-red:#F87171; --c-green:#34D399; --c-emerald:#34D399;
+  --c-amber-700:#FBBF24; --c-amber-500:#FBBF24; --c-amber:#FBBF24;
+  --c-blue-700:#93C5FD; --c-blue-600:#60A5FA; --red:#FF7A7A; --blue:#4DA3FF;
+}
+[data-theme="fresh"] {
+  --bg:#F4F7F7; --card:#fff; --primary:#00B8A9; --primary-2:#FF7A3D;
+  --text:#1F2329; --text-2:#333A39; --text-3:#4A5251; --text-sub:#6D7775; --text-muted:#9BA5A3;
+  --border:#E4EBEA; --border-strong:#D2DBD9;
+  --surface-2:#F7FAFA; --surface-3:#EEF3F2; --surface-4:#FBFCFC; --surface-5:#F8FBFA;
+}
+body { background:var(--bg); color:var(--text); }
+[data-theme="dark"] input:not([type=checkbox]):not([type=radio]),
+[data-theme="dark"] select, [data-theme="dark"] textarea {
+  background:var(--card); color:var(--text); border-color:var(--border);
+}
+/* 主题切换 UI */
+.theme-fab {
+  position:fixed; bottom:24px; right:24px; z-index:120;
+  width:44px; height:44px; border-radius:50%; border:none; cursor:pointer;
+  background:var(--primary); color:#fff; font-size:18px;
+  box-shadow:0 4px 14px rgba(0,0,0,.18);
+}
+.theme-modal{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;padding:24px;}
+.theme-modal.show{display:flex;}
+.theme-mask{position:absolute;inset:0;background:rgba(15,23,42,.45);}
+.theme-panel{position:relative;width:100%;max-width:880px;max-height:88vh;overflow-y:auto;
+  background:var(--card);color:var(--text);border-radius:20px;padding:28px;box-shadow:0 18px 44px rgba(0,0,0,.2);}
+.theme-head{display:flex;align-items:flex-start;gap:16px;margin-bottom:24px;}
+.theme-head h3{font-size:19px;font-weight:700;margin:0;}
+.theme-head p{margin:8px 0 0;font-size:12.5px;color:var(--text-sub);line-height:1.8;}
+.theme-close{margin-left:auto;background:var(--surface-3);border:none;color:var(--text-sub);
+  width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:15px;}
+.theme-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:18px;}
+.theme-card{text-align:left;cursor:pointer;font-family:inherit;background:var(--surface-2);
+  color:var(--text);border:2px solid transparent;border-radius:16px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+.theme-card.is-active{border-color:var(--primary);}
+.theme-card .tc-name{font-size:15.5px;font-weight:700;}
+.theme-card .tc-slogan{margin-top:10px;font-size:12.5px;line-height:1.8;color:var(--text-sub);}
+.theme-swatches{display:flex;gap:8px;margin-top:14px;}
+.theme-swatches i{width:26px;height:26px;border-radius:50%;}
+.theme-section{margin-top:22px;background:var(--card);border-radius:16px;padding:22px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+.theme-section-head{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap;}
+.theme-section-head .t-title{font-size:16px;font-weight:800;}
+.theme-section-head .t-open{margin-left:auto;background:var(--primary);color:#fff;border:none;
+  padding:9px 18px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;}

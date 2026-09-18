@@ -237,25 +237,6 @@ router.post('/dev/login', async (req, res) => {
   }
 });
 
-// ============ 开发者账号初始化 POST /api/auth/dev/seed ============
-// 创建一个默认开发者账号（username: admin, password: dingheng2024），若已存在则跳过
-router.post('/dev/seed', async (req, res) => {
-  try {
-    const existing = await Admin.findOne({ username: 'admin' });
-    if (existing) {
-      return res.json({ success: true, message: '默认开发者账号已存在，已跳过创建', data: { username: 'admin' } });
-    }
-    await Admin.create({
-      username: 'admin',
-      password: 'dingheng2024',
-      name: '系统管理员'
-    });
-    res.status(201).json({ success: true, message: '默认开发者账号创建成功', data: { username: 'admin' } });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
 // ============ 商家修改密码 POST /api/auth/merchant/change-password ============
 // 需登录（JWT），body: { oldPassword, newPassword }
 // 新密码保存时由模型 pre-save 钩子自动 bcrypt 哈希，数据库不存明文

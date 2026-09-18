@@ -302,8 +302,8 @@
   <!-- 新订单红框闪烁 -->
   <div class="flash-overlay" id="flashOverlay"></div>
 
-  <!-- 提示音 -->
-  <audio id="beepAudio" src="https://www.soundjay.com/buttons/beep-01a.mp3" preload="auto"></audio>
+  <!-- 提示音（本地文件，外网不通也可用；加载失败时移除自身静默降级，不报错） -->
+  <audio id="beepAudio" src="/new-order.wav" preload="auto" onerror="this.remove()"></audio>
 
   <!-- 语音解锁遮罩（浏览器自动播放策略要求至少一次用户手势） -->
   <div class="voice-unlock" id="voiceUnlock">

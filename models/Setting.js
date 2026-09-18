@@ -175,13 +175,26 @@ const settingSchema = new mongoose.Schema({
     dishName: { type: String, default: '', maxlength: 50 },
     points: { type: Number, default: 100, min: 1 }
   }],
+  // 积分有效期模式：permanent 永久有效 / fixed 固定天数
+  pointExpiryMode: {
+    type: String,
+    enum: ['permanent', 'fixed'],
+    default: 'permanent'
+  },
+  // 积分有效期天数（仅 fixed 模式有效，正整数）
+  pointExpiryDays: {
+    type: Number,
+    default: 30,
+    min: 1
+  },
   // ============ 配送三件套：门店定位与收货 ============
-  // 门店经度（地图 API 暂用经纬度输入占位，后续接入高德/腾讯地图选点）
+  // 门店经度（选填）：来源为①商家在地图上标注/手输 ②后端按 shopAddress 自动地理编码换算
+  //   （utils/geocode.js，高德 Web 服务；换算结果与状态见下面 certification.geo*）
   shopLongitude: {
     type: Number,
     default: null
   },
-  // 门店纬度
+  // 门店纬度（选填，同 shopLongitude）
   shopLatitude: {
     type: Number,
     default: null
@@ -219,6 +232,44 @@ const settingSchema = new mongoose.Schema({
   expectedReceiveEnd: {
     type: String,
     default: '09:00'
+  },
+  // ============ 商家认证（内嵌 Setting，写法参照 Supplier.qualification） ============
+  // 认证状态：none=未认证（默认）/ pending=已提交待平台核验 / approved=已认证 / rejected=已驳回（可重新提交）
+  // 已认证（approved）商家下采购单不受金额限制；未认证商家受「首单直通」规则约束（utils/dhConfig.FIRST_ORDER_NO_AUTH_LIMIT）
+  certification: {
+    status: {
+      type: String,
+      enum: ['none', 'pending', 'approved', 'rejected'],
+      default: 'none',
+      index: true
+    },
+    // 营业执照照片 URL（第二批接入 OCR 自动识别，本轮仅预留字段位）
+    businessLicense: { type: String, default: '' },
+    // 手机号是否已验证（等 AppID / 短信通道就绪后启用验证逻辑，本轮仅预留字段位，默认 false）
+    phoneVerified: { type: Boolean, default: false },
+    phoneVerifiedAt: { type: Date, default: null },
+    // 门店定位（经纬度）自动换算状态（服务端用高德 Web 服务按文字地址换算，见 utils/geocode.js）：
+    //   none     未尝试
+    //   provided 商家在地图上选点/手输自带（无需换算）
+    //   ok       后端按文字地址自动换算成功
+    //   failed   换算失败（技术原因，不阻断认证与下单；记录原因供后续补全）
+    geoStatus: {
+      type: String,
+      enum: ['none', 'provided', 'ok', 'failed'],
+      default: 'none'
+    },
+    // 用于换算的文字地址（失败后便于补全/重试，避免重复打高德配额）
+    geoFrom: { type: String, default: '', trim: true },
+    // 换算失败原因（高德返回的 info 或网络错误摘要）
+    geoMessage: { type: String, default: '', trim: true },
+    // 最近一次尝试换算时间
+    geoAttemptedAt: { type: Date, default: null },
+    // 最近一次提交认证时间
+    submittedAt: { type: Date, default: null },
+    // 平台核验时间
+    reviewedAt: { type: Date, default: null },
+    // 核验驳回原因（商家端可见）
+    rejectReason: { type: String, default: '', trim: true }
   }
 }, { timestamps: true });
 

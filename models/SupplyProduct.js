@@ -72,6 +72,14 @@ const supplyProductSchema = new mongoose.Schema({
     default: null,
     min: 0
   },
+  // 【2026-09 上线加固】手动定价标记：true 表示该商品卖价由人工填写，
+  // 一键定价（批量加价率）不得覆盖此类商品——手动定价的优先级最高。
+  // PUT /api/dev/pricing/product/:id 写入非空 salePrice 时置 true，
+  // 一键定价命中带 isManualPrice=true 的商品时直接跳过（不在影响范围内）。
+  isManualPrice: {
+    type: Boolean,
+    default: false
+  },
   // ============ 【已废弃】智能定价系统字段 ============
   // markupRate（单品加价率）已随智能定价停用，仅保留字段避免旧数据写入报错，不再参与任何计算。
   markupRate: {

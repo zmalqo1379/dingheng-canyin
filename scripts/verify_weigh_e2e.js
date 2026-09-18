@@ -2,8 +2,13 @@
 require('dotenv').config();
 const BASE = 'http://localhost:3000';
 const mongoose = require('mongoose');
-const PurchaseOrder = require('./models/PurchaseOrder');
-const Supplier = require('./models/Supplier');
+const PurchaseOrder = require('../models/PurchaseOrder');
+const Supplier = require('../models/Supplier');
+
+// 测试账号从环境变量读取（.env），不再硬编码
+const DEV_ADMIN_USER = process.env.DEV_ADMIN_USER;
+const DEV_ADMIN_PASSWORD = process.env.DEV_ADMIN_PASSWORD;
+const TEST_SUPPLIER_PASSWORD = process.env.TEST_SUPPLIER_PASSWORD;
 
 async function post(path, body, token) {
   const headers = { 'Content-Type': 'application/json' };
@@ -18,7 +23,7 @@ async function main() {
   console.log('[1] 注册测试供应商');
   const phone = '1' + Date.now().toString().slice(-10);
   const reg = await post('/api/auth/supplier/register', {
-    name: '过秤测试供应商', contact: '测试员', phone, password: 'test123456', confirm: 'test123456', categories: ['蔬菜']
+    name: '过秤测试供应商', contact: '测试员', phone, password: TEST_SUPPLIER_PASSWORD, confirm: TEST_SUPPLIER_PASSWORD, categories: ['蔬菜']
   });
   if (!reg.success) { console.log('  注册失败:', reg.message); return; }
   const sToken = reg.data.token;
@@ -65,7 +70,7 @@ async function main() {
   }
 
   // 4. dev 调 weigh 应 403
-  const dLogin = await post('/api/auth/dev/login', { username: 'admin', password: 'dingheng2024' });
+  const dLogin = await post('/api/auth/dev/login', { username: DEV_ADMIN_USER, password: DEV_ADMIN_PASSWORD });
   const weighDev = await post(`/api/purchase-orders/${order._id}/weigh`, { items: [{ productId: '507f1f77bcf86cd799439011', actualWeight: 1 }] }, dLogin.data.token);
   console.log('\n[4] dev 调 weigh 应被拒:', !weighDev.success ? '✓ 已拒(' + weighDev.message + ')' : '✗ 未拒');
 

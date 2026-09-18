@@ -1,0 +1,5 @@
+MongoDB 已连接: mongodb+srv://13589536015_db_user:48DkNX5r3hRFtEkD@cluster0.ip19e9v.mongodb.net/dingheng_canyin?retryWrites=true&w=majority
+开发者账号 admin 已存在，已跳过创建
+[DH Cron] 已注册每日 02:00 清理任务、每 10 分钟会员购卡超时取消、采购分账失败重试
+[PriceRule] 平台预置品类保鲜期规则已就绪
+服务器已启动: http://localhost:3000

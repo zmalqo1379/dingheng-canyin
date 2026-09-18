@@ -11,8 +11,10 @@ const Member = require('../models/Member');
 const CoinHistory = require('../models/CoinHistory');
 const Coupon = require('../models/Coupon');
 const ShopInventory = require('../models/ShopInventory');
+const PlatformConfig = require('../models/PlatformConfig');
 const dhConfig = require('../utils/dhConfig');
 const entitlements = require('../utils/entitlements');
+const certification = require('../utils/certification');
 const coinRule = require('../utils/coinRule');
 const stockpileCheck = require('../utils/stockpileCheck');
 const notify = require('../utils/notify');
@@ -30,6 +32,51 @@ function generateOrderNo() {
   const d = String(now.getDate()).padStart(2, '0');
   const rand = String(Math.floor(1000 + Math.random() * 9000));
   return `CG${y}${m}${d}${rand}`;
+}
+
+// ============ 供应商视图：剔除平台侧定价（防止反推平台毛利）============
+// 供应商只应看到「供货口径」金额（supplyAmount / supplyPrice / supplyLineTotal / actualSupplyLineTotal），
+// 平台卖价、顾客实付、平台分成、返点/加价率等一律不下发；商家与开发者视图不受影响。
+function toSupplierOrderView(order) {
+  if (!order) return order;
+  const o = order.toObject ? order.toObject() : JSON.parse(JSON.stringify(order));
+  // 订单级：平台定价与顾客实付口径
+  delete o.totalAmount;              // 卖价总额（顾客应付）
+  delete o.platformAmount;           // 平台差价
+  delete o.platformRate;             // 平台加价率
+  delete o.discountAmount;           // 券抵扣（平台侧）
+  delete o.actualPayAmount;          // 顾客实付
+  delete o.splitAmount;              // 顾客实付（分账口径）
+  delete o.supplierShare;            // 分账快照（统一在「我的分账」查看）
+  delete o.platformShare;            // 平台服务费
+  delete o.compensateAmount;         // 补差总额（卖价口径）
+  delete o.compensatePlatformShare;  // 平台补差
+  delete o.splitLogs;                // 分账日志含平台分成金额
+  delete o.splitError;               // 失败原因可能含渠道金额
+  delete o.pointsGenerated;          // = 卖价总额，可反推
+  delete o.rewardCoin;               // 由卖价小计计算，可反推
+  delete o.priceDropWarning;         // 由卖价环比推导
+  delete o.priceDropItems;           // 含卖价单价与均价
+  delete o.appliedCouponId;          // 券信息（面值可反推实付）
+  delete o.rebateAmount;             // 旧返点（已停用）
+  delete o.preRebate;
+  delete o.preRebateRate;
+  delete o.actualRebateAmount;
+  // 明细级：剔除卖价与平台加价，保留供货价与实称
+  if (Array.isArray(o.items)) {
+    o.items = o.items.map(it => {
+      const x = Object.assign({}, it);
+      delete x.unitPrice;        // 商家视角单价 = 卖价
+      delete x.totalPrice;       // 卖价小计
+      delete x.salePrice;        // 卖价单价
+      delete x.retailPrice;      // 旧卖价单价
+      delete x.saleLineTotal;    // 卖价小计
+      delete x.actualLineTotal;  // 实称卖价小计
+      delete x.platformRate;     // 平台加价率
+      return x;
+    });
+  }
+  return o;
 }
 
 // 供应商通知：若配置了 webhookUrl 则真实 POST 推送（带 5s 超时），并落库通知日志
@@ -59,12 +106,43 @@ async function sendNotification(supplier, event, payload) {
 // ============ 云分账：发起分账指令（下单付款即发起；失败落库并支持重试）============
 // 两笔拆账：供货价 → 供应商，差价 → 平台。金额按订单当前 items（下单数量 Q1）计算。
 // 状态机：待分账 →（本次调用）已发起分账 → 分账成功 / 分账失败（splitRetryCount++，记 splitError）
+//   供应商未进件/进件未通过 →（降级）待人工分账（不阻断下单支付，开发者后台人工结算）
 // mock provider 同步返回结果；真实渠道为异步回调，届时由 /:id/split/callback 落定最终状态。
 async function initiateOrderSplit(order, supplier) {
   const r = split.calcOrderSplit(order);
   order.splitAmount = r.splitAmount;
   order.supplierShare = r.supplierShare;
   order.platformShare = r.platformShare;
+
+  // 资金流模式快照（supplier_first=钱进供应商 / platform_first=钱进平台；utils/payRuntime 动态读取）
+  const payRuntime = require('../utils/payRuntime');
+  const flowMode = payRuntime.getPaymentFlowMode();
+  order.paymentFlowMode = flowMode;
+  order.supplierWechatSubMchId = (supplier && supplier.wechatSubMchId) || '';
+
+  // ============ 降级：供应商未完成微信进件 → 不发起渠道分账，转「待人工分账」 ============
+  // 业务不阻断：商家正常下单支付、供应商正常接单发货；资金由平台线下人工结算
+  // （供应商未进件 → 线下全额打款给供应商；进件完成前的订单都走这里，开发者后台可见）
+  const ob = (supplier && supplier.wechatOnboarding) || {};
+  const onboarded = ob.status === 'approved' && !!supplier.wechatSubMchId;
+  if (!onboarded) {
+    order.splitStatus = split.SPLIT_STATUS.MANUAL; // 待人工分账
+    order.manualSettlement = true;
+    order.manualSettleReason = ob.status === 'rejected'
+      ? '供应商微信进件被驳回，转人工结算'
+      : ob.status === 'pending'
+        ? '供应商微信进件审核中，转人工结算'
+        : !supplier.wechatSubMchId && ob.status === 'approved'
+          ? '供应商已通过进件但未配置特约商户号，转人工结算'
+          : '供应商未完成微信进件，转人工结算';
+    split.appendSplitLog(order, {
+      action: 'manual',
+      status: split.SPLIT_STATUS.MANUAL,
+      message: `供应商 ${r.supplierShare} / 平台 ${r.platformShare}（${order.manualSettleReason}，金额口径不变，资金线下人工结算）`
+    });
+    return order;
+  }
+
   order.splitStatus = split.SPLIT_STATUS.INITIATED;
   split.appendSplitLog(order, { action: 'initiate', status: '已发起分账', message: `供应商 ${r.supplierShare} / 平台 ${r.platformShare}` });
 
@@ -74,7 +152,7 @@ async function initiateOrderSplit(order, supplier) {
       supplierShareFen: Math.round(r.supplierShare * 100),
       platformShareFen: Math.round(r.platformShare * 100),
       supplierMchId: supplier ? supplier.wechatSubMchId : '',
-      platformMchId: ''
+      platformMchId: process.env.WXPAY_SP_MCHID || ''
     });
   } catch (e) {
     res = { status: 'failed', error: String((e && e.message) || '分账异常').slice(0, 300), splitNo: order.splitNo };
@@ -86,7 +164,12 @@ async function initiateOrderSplit(order, supplier) {
     order.channelSplitOrderId = res.channelSplitOrderId || '';
     order.splitAt = new Date();
     order.splitError = '';
-    split.appendSplitLog(order, { action: 'result', status: '分账成功', message: `流水号 ${order.splitNo}` });
+    const flowDesc = res.flowMode === 'supplier_first'
+      ? '（资金流：钱进供应商，平台分账抽加价部分）'
+      : res.flowMode === 'platform_first'
+        ? '（资金流：钱进平台，分账付供应商供货价）'
+        : '';
+    split.appendSplitLog(order, { action: 'result', status: '分账成功', message: `流水号 ${order.splitNo}${flowDesc}` });
   } else {
     order.splitStatus = split.SPLIT_STATUS.FAILED;
     order.splitNo = (res && res.splitNo) || order.splitNo;
@@ -113,6 +196,11 @@ async function listOrdersHandler(req, res) {
       filter.shopId = req.user.shopId;
     } else if (req.user.role === 'supplier') {
       filter.supplierId = req.user.supplierId;
+      // 待支付草稿尚未支付、未推送供应商，供应商端不可见（显式查询该状态同样屏蔽，防绕过）
+      if (status === '待支付') {
+        return res.json({ success: true, data: [] });
+      }
+      if (!status) filter.status = { $ne: '待支付' };
     }
     // dev 不加过滤，看全部
     if (status) filter.status = status;
@@ -162,7 +250,9 @@ async function listOrdersHandler(req, res) {
       });
     }
 
-    res.json({ success: true, data: orders });
+    // 供应商视角下发布供货口径视图，剔除平台卖价/分成等商业机密
+    const data = req.user.role === 'supplier' ? orders.map(toSupplierOrderView) : orders;
+    res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -174,10 +264,16 @@ router.get('/', verifyToken, listOrdersHandler);
 // 返回当前供应商收到的所有订单（含商家名称/联系人/电话），支持 ?status=待确认 筛选
 router.get('/supplier', requireSupplier, listOrdersHandler);
 
-// ============ POST /api/purchase-orders 创建采购订单 ============
+// ============ POST /api/purchase-orders 创建采购订单（草稿） ============
 // 仅商家可下单；shopId/shopName 取自 JWT，前端不可伪造
-// 支持下单时直接使用抵用券（couponId），满足起送价与券门槛校验后
-// 在同一事务内：创建订单 + 核销券 + 计算 actualPayAmount
+// 上线加固第一批：拆分为「草稿创建」——只创建 status='待支付'、payStatus='unpaid' 的草稿，
+//   不支付、不分账、不推送供应商；支付动作移至 POST /:id/pay。
+// 支持下单时使用抵用券（couponId）：满足起送价与券门槛校验后，在同一事务内
+//   创建订单 + 锁定券（status='locked'，30 分钟未支付由定时任务释放；支付成功才真正核销）。
+// 认证判定（服务端权威，utils/certification）：
+//   已认证 或 首单直通（该店从未有成功订单 且 金额 ≤ FIRST_ORDER_NO_AUTH_LIMIT）
+//     → 返回订单 + 支付参数（payment）
+//   未认证且不符直通 → 409 code='CERT_REQUIRED'，data.missing 列出缺失项，订单挂起（保留草稿）
 
 router.post('/', requireMerchant, async (req, res) => {
   const session = await mongoose.startSession();
@@ -249,6 +345,10 @@ router.post('/', requireMerchant, async (req, res) => {
     // 起送价（兜底 300，避免老数据缺字段导致 undefined）
     const minOrderAmount = Number(supplier.minOrderAmount) > 0 ? Number(supplier.minOrderAmount) : 300;
 
+    // 卖价底线（系统设置·最低加价率）：卖价（未定价时=供货价）不得低于 供货价 × (1 + 最低加价率)
+    const platformCfg = await PlatformConfig.getSingleton();
+    const minMarkupRate = dhConfig.resolveMinMarkupRate(platformCfg.minMarkupRate);
+
     // 校验商品并计算明细；同时根据商品写入对应 supplierId（防绕过）
     // 加价分销口径：供货价 = SupplyProduct.costPrice（供应商维护，商家不可覆盖）；
     //              卖价   = SupplyProduct.salePrice（平台手动填，未填则等于供货价）
@@ -276,6 +376,39 @@ router.post('/', requireMerchant, async (req, res) => {
       // 供货价取自商品（供应商维护），卖价取自平台手动定价（未填默认=供货价）
       const supplyPrice = +(Number(product.costPrice) || 0).toFixed(2);
       const salePrice = +split.resolveSalePrice(product.salePrice, product.costPrice).toFixed(2);
+      // 【2026-09 上线加固·资金安全】下单防御：未定价（salePrice=0）或供货价为 0 一律拒绝，
+      // 防止供货价被填成 0 后下出真 0 元单，平台倒贴货款给供应商；并校验卖价 ≥ 供货价（不得负加价）
+      const hasSalePrice = product.salePrice != null && Number(product.salePrice) > 0;
+      if (!hasSalePrice) {
+        return res.status(400).json({
+          success: false,
+          message: `商品「${product.name}」尚未由平台定价，暂不可下单`
+        });
+      }
+      const supplyFen = dhConfig.toFen(supplyPrice);
+      const saleFen = dhConfig.toFen(salePrice);
+      if (supplyFen <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: `商品「${product.name}」供货价异常（≤0 元），不可下单`
+        });
+      }
+      if (saleFen <= 0 || saleFen < supplyFen) {
+        return res.status(400).json({
+          success: false,
+          message: `商品「${product.name}」卖价 ${salePrice.toFixed(2)} 元低于供货价 ${supplyPrice.toFixed(2)} 元，不可下单`
+        });
+      }
+      // 卖价底线兜底（后端强制）：金额统一转「分」做整数比较；未定价商品生效卖价=供货价，同样低于底线，一并拦截
+      const minSalePriceFen = dhConfig.computeMinSalePriceFen(supplyPrice, minMarkupRate);
+      const minSalePrice = +(minSalePriceFen / 100).toFixed(2);
+      if (saleFen < minSalePriceFen) {
+        const markupPercent = Math.round(minMarkupRate * 100);
+        return res.status(400).json({
+          success: false,
+          message: `商品「${product.name}」卖价不能低于 ${minSalePrice.toFixed(2)} 元（供货价 ${supplyPrice.toFixed(2)} 元 + 平台成本底线 ${markupPercent}%）`
+        });
+      }
       const totalPrice = +(salePrice * quantity).toFixed(2);        // 卖价小计（顾客应付）
       const supplyLineTotal = +(supplyPrice * quantity).toFixed(2); // 供货价小计（供应商实收）
       totalAmount += totalPrice;
@@ -331,7 +464,7 @@ router.post('/', requireMerchant, async (req, res) => {
     const orderNo = generateOrderNo();
     let orderDoc;
     await session.withTransaction(async () => {
-      // 1) 创建订单（券信息一并写入，actualPayAmount = totalAmount - 抵扣）
+      // 1) 创建订单草稿（券信息一并写入，actualPayAmount = totalAmount - 抵扣）
       // 囤货保护：写入 anomalyFlag / anomalyItems / priceDropWarning / priceDropItems 供供应商后台标红
       const created = await PurchaseOrder.create([{
         orderNo,
@@ -346,8 +479,8 @@ router.post('/', requireMerchant, async (req, res) => {
         appliedCouponId: coupon ? coupon._id : null,
         discountAmount,
         actualPayAmount,
-        status: '待确认',
-        // 云分账：下单即置「待分账」，随后发起分账指令
+        status: '待支付',
+        // 云分账：支付成功后才发起分账指令，草稿期保持「待分账」
         splitStatus: '待分账',
         pointsGenerated: 0,
         rewardCoin: 0,
@@ -359,25 +492,51 @@ router.post('/', requireMerchant, async (req, res) => {
       }], { session });
       orderDoc = created[0];
 
-      // 2) 若使用券，在同一事务内核销：状态置已使用，记录 usedOrderId 与 usedAt
+      // 2) 若使用券，在同一事务内锁定（不直接核销）：状态置 locked，记录 lockedOrderId 与 lockedAt；
+      //    30 分钟未支付由定时任务释放回 unused；支付成功时在 POST /:id/pay 真正核销为 used
       if (coupon) {
         await Coupon.findByIdAndUpdate(
           coupon._id,
-          { status: 'used', usedOrderId: String(orderDoc._id), usedAt: new Date() },
+          {
+            status: 'locked',
+            lockedOrderId: String(orderDoc._id),
+            lockedAt: new Date()
+          },
           { session }
         );
       }
     });
 
-    // ============ 支付 + 云分账（下单付款即发起分账指令）============
-    // 走统一支付抽象层：mock 阶段下单即视为支付成功并发起分账；
-    // 接入真实微信支付后，改为由支付回调置 payStatus=paid 并触发 initiateOrderSplit。
+    // ============ 认证门控判定（草稿已创建，无论是否放行都保留订单） ============
+    const gate = await certification.checkOrderCertGate(shopId, totalAmount);
+    if (!gate.pass) {
+      // 订单挂起：保留待支付草稿（24h 内完成认证后仍可支付），不生成支付参数、不推送供应商
+      // missing 已拆为 blocking（履约必需）/ skippable（首单可暂缓），前端分流引导
+      const missing = gate.missing || { blocking: [], skippable: [], all: [] };
+      return res.status(409).json({
+        success: false,
+        code: 'CERT_REQUIRED',
+        message: gate.message,
+        data: {
+          orderId: String(orderDoc._id),
+          orderNo,
+          totalAmount,
+          missing,                         // { blocking:[], skippable:[], all:[] }
+          missingBlocking: missing.blocking,
+          missingSkippable: missing.skippable,
+          firstOrder: {
+            limit: dhConfig.FIRST_ORDER_NO_AUTH_LIMIT,
+            enabled: dhConfig.FIRST_ORDER_NO_AUTH_LIMIT > 0,
+            used: gate.via === null ? !(await certification.hasSuccessfulOrder(shopId)) : false
+          }
+        }
+      });
+    }
+
+    // ============ 生成支付参数（mock 占位；真实微信支付时为拉起收银台参数） ============
+    // 草稿阶段不落账：payStatus 保持 unpaid，实际支付成功（mock 调用 /pay，真实渠道走支付回调）才置 paid
     const pay = await paymentProvider.createPayment(orderDoc);
     orderDoc.payNo = pay.payNo;
-    orderDoc.payStatus = 'paid';
-    orderDoc.paidAt = new Date();
-    orderDoc.transactionId = `MOCKTX${pay.payNo}`;
-    await initiateOrderSplit(orderDoc, supplier);
     await orderDoc.save();
 
     // 返回时 populate 供应商名与券信息，避免前端 undefined
@@ -385,16 +544,13 @@ router.post('/', requireMerchant, async (req, res) => {
       .populate('supplierId', 'name contact phone')
       .populate('appliedCouponId', 'type faceValue minOrder name');
 
-    // 自动化：订单创建（待确认）→ 通知供应商
-    await sendNotification(supplier, 'order_created', {
-      orderNo, shopId, shopName, totalAmount, actualPayAmount,
-      splitAmount: orderDoc.splitAmount,
-      supplierShare: orderDoc.supplierShare,
-      platformShare: orderDoc.platformShare,
-      items: itemDocs
+    // 注意：供应商推送已移至 POST /:id/pay（支付成功才推送），此处不再调用 sendNotification
+    res.status(201).json({
+      success: true,
+      data: populated,
+      payment: pay,
+      gate: { via: gate.via } // certified=已认证直通 / first_order=首单直通
     });
-
-    res.status(201).json({ success: true, data: populated });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   } finally {
@@ -402,9 +558,145 @@ router.post('/', requireMerchant, async (req, res) => {
   }
 });
 
-// ============ 供应商确认订单 ============
+// ============ POST /api/purchase-orders/:id/pay 支付（mock 支付入口） ============
+// 仅下单商家本人可支付自己的待支付草稿。
+// 服务端二次复核认证门控：已认证 或 符合首单直通条件，二者满足其一即可。
+//   【注意】复核必须包含首单直通判定（不能只查是否已认证），否则首单直通的单会被这一步自己拦截。
+// 支付成功后（markOrderPaid 内）：
+//   - status → 待确认、payStatus='paid'
+//   - 抵用券从 locked 真正核销为 used（锁已超时释放但券仍可用则重新占用；券已不可用则降级无券支付并重算金额）
+//   - 发起云分账（保持原 initiateOrderSplit 逻辑）
+//   - 推送供应商 order_created（此步从下单接口移到这里，未支付订单不推送）
+//
+// 【接入真实微信支付时的迁移说明】
+//   当前 mock：调用本接口即视为支付成功并完成上述全部落账。
+//   接入真实微信支付后：本接口只负责「再次复核门控 + 创建支付单 + 返回拉起参数」，
+//   支付成功的落账逻辑（置 paid / 核销券 / 分账 / 推送供应商）由支付回调
+//   POST /api/purchase-orders/:id/split/callback 接管——把 markOrderPaid 的调用迁入回调即可，
+//   本接口保留 mock 分支用于联调。凭证与商户号待配置，本轮不改动支付代码本身。
+router.post('/:id/pay', requireMerchant, async (req, res) => {
+  const session = await mongoose.startSession();
+  try {
+    const order = await PurchaseOrder.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: '采购订单不存在' });
+    }
+    // 权限校验：仅下单商家本人可支付
+    if (String(order.shopId) !== String(req.user.shopId)) {
+      return res.status(403).json({ success: false, message: '无权操作该订单（非本店铺订单）' });
+    }
+    // 状态校验：仅待支付草稿可支付（幂等：已支付的直接返回成功，避免重复支付）
+    if (order.payStatus === 'paid') {
+      const already = await PurchaseOrder.findById(order._id)
+        .populate('supplierId', 'name contact phone')
+        .populate('appliedCouponId', 'type faceValue minOrder name');
+      return res.json({ success: true, data: already, idempotent: true });
+    }
+    if (order.status !== '待支付' || order.payStatus !== 'unpaid') {
+      return res.status(400).json({ success: false, message: `当前状态为「${order.status}」，无法支付` });
+    }
+
+    const supplier = await Supplier.findById(order.supplierId);
+    if (!supplier) {
+      return res.status(404).json({ success: false, message: '供应商不存在' });
+    }
+
+    // ============ 认证门控二次复核（与下单接口同口径，含首单直通判定） ============
+    const gate = await certification.checkOrderCertGate(order.shopId, order.totalAmount);
+    if (!gate.pass) {
+      const missing = gate.missing || { blocking: [], skippable: [], all: [] };
+      return res.status(409).json({
+        success: false,
+        code: 'CERT_REQUIRED',
+        message: gate.message,
+        data: {
+          orderId: String(order._id),
+          orderNo: order.orderNo,
+          totalAmount: order.totalAmount,
+          missing,
+          missingBlocking: missing.blocking,
+          missingSkippable: missing.skippable
+        }
+      });
+    }
+
+    // ============ 支付落账（mock：调用即支付成功；真实渠道由支付回调接管此段） ============
+    const pay = await paymentProvider.createPayment(order);
+    const paidAt = new Date();
+
+    await session.withTransaction(async () => {
+      // 1) 券核销：locked → used；异常场景降级处理（金额全程服务端权威重算）
+      if (order.appliedCouponId) {
+        const coupon = await Coupon.findById(order.appliedCouponId).session(session);
+        if (coupon && coupon.status === 'locked' && String(coupon.lockedOrderId) === String(order._id)) {
+          // 正常路径：锁定中 → 真正核销
+          coupon.status = 'used';
+          coupon.usedOrderId = String(order._id);
+          coupon.usedAt = paidAt;
+          coupon.lockedOrderId = '';
+          coupon.lockedAt = null;
+          await coupon.save({ session });
+        } else if (coupon && coupon.status === 'unused' && new Date() < new Date(coupon.expireDate)) {
+          // 锁被定时任务超时释放，但券仍可用且未被其他订单占用 → 重新占用并核销
+          coupon.status = 'used';
+          coupon.usedOrderId = String(order._id);
+          coupon.usedAt = paidAt;
+          coupon.lockedOrderId = '';
+          coupon.lockedAt = null;
+          await coupon.save({ session });
+        } else {
+          // 券已过期/已被其他订单核销：本单降级为无券支付，实付按总额重算（服务端权威）
+          order.appliedCouponId = null;
+          order.discountAmount = 0;
+          order.actualPayAmount = +(Number(order.totalAmount) || 0).toFixed(2);
+        }
+      }
+
+      // 2) 订单落账：待确认 + 已支付
+      order.payNo = pay.payNo;
+      order.payStatus = 'paid';
+      order.paidAt = paidAt;
+      order.transactionId = `MOCKTX${pay.payNo}`;
+      order.status = '待确认';
+      await order.save({ session });
+    });
+
+    // 3) 发起云分账（渠道调用在事务外执行，保持既有 initiateOrderSplit 逻辑）
+    await initiateOrderSplit(order, supplier);
+    await order.save();
+
+    // 4) 推送供应商（从下单接口移到这里：只有支付成功的订单才通知供应商，仅下发供货口径）
+    await sendNotification(supplier, 'order_created', {
+      orderNo: order.orderNo, shopId: order.shopId, shopName: order.shopName,
+      supplyAmount: order.supplyAmount,
+      items: (order.items || []).map(it => ({
+        productId: it.productId,
+        name: it.name,
+        category: it.category,
+        quantity: it.quantity,
+        supplyPrice: it.supplyPrice
+      }))
+    });
+    order.supplierNotifiedAt = order.supplierNotifiedAt || new Date();
+    await order.save();
+
+    const populated = await PurchaseOrder.findById(order._id)
+      .populate('supplierId', 'name contact phone')
+      .populate('appliedCouponId', 'type faceValue minOrder name');
+
+    res.json({ success: true, data: populated, payment: pay });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  } finally {
+    session.endSession();
+  }
+});
+
+// ============ 供应商确认订单（需电话联系留痕） ============
 // 仅订单归属供应商可操作，校验 supplierId == req.user.supplierId
 // 校验 status === '待确认' → 更新为 '已确认'
+// 上线加固：必须携带 contactConfirmed: true（供应商端弹窗勾选「我已电话联系商家，确认地址可送达」），
+//           否则 400 拒绝；确认后留痕写入 order.contactConfirm = { at, by, byName }
 
 async function supplierConfirmHandler(req, res) {
   try {
@@ -419,9 +711,13 @@ async function supplierConfirmHandler(req, res) {
     if (order.status !== '待确认') {
       return res.status(400).json({ success: false, message: `当前状态为「${order.status}」，无法确认` });
     }
+    // 联系留痕校验：必须先电话联系商家并勾选确认声明
+    if (req.body.contactConfirmed !== true) {
+      return res.status(400).json({ success: false, message: '请先勾选「我已电话联系商家，确认地址可送达」后再确认订单' });
+    }
 
     // 治理门槛：冻结供应商不可接新单（不能确认待确认订单）；在途的已确认订单仍可发货/完成
-    const curSupplier = await Supplier.findById(order.supplierId).select('status agreementSigned orderEnabled frozenReason');
+    const curSupplier = await Supplier.findById(order.supplierId).select('name status agreementSigned orderEnabled frozenReason');
     if (!curSupplier || curSupplier.status === 'frozen') {
       return res.status(403).json({ success: false, message: '账户已被冻结，请联系平台' });
     }
@@ -431,12 +727,18 @@ async function supplierConfirmHandler(req, res) {
 
     order.status = '已确认';
     order.confirmAt = new Date();
+    // 留痕：谁在什么时间确认已电话联系商家
+    order.contactConfirm = {
+      at: new Date(),
+      by: String(req.user.supplierId),
+      byName: curSupplier.name || ''
+    };
     await order.save();
 
     const supplier = await Supplier.findById(order.supplierId);
     await sendNotification(supplier, 'order_confirmed', { orderNo: order.orderNo, status: order.status });
 
-    res.json({ success: true, data: order });
+    res.json({ success: true, data: toSupplierOrderView(order) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -469,7 +771,7 @@ async function supplierShipHandler(req, res) {
     const supplier = await Supplier.findById(order.supplierId);
     await sendNotification(supplier, 'order_delivered', { orderNo: order.orderNo, status: order.status });
 
-    res.json({ success: true, data: order });
+    res.json({ success: true, data: toSupplierOrderView(order) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -521,7 +823,7 @@ async function getOrderDetailHandler(req, res) {
       order.expectedReceiveStart = st.expectedReceiveStart || '';
       order.expectedReceiveEnd = st.expectedReceiveEnd || '';
     }
-    res.json({ success: true, data: order });
+    res.json({ success: true, data: req.user.role === 'supplier' ? toSupplierOrderView(order) : order });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -605,7 +907,7 @@ router.post('/:id/weigh', requireSupplier, async (req, res) => {
       }
     }
     await order.save();
-    res.json({ success: true, data: order });
+    res.json({ success: true, data: toSupplierOrderView(order) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -643,7 +945,7 @@ router.post('/:id/deliver-photo', requireSupplier, async (req, res) => {
       deliveredAt: order.deliveredAt
     });
 
-    res.json({ success: true, data: order });
+    res.json({ success: true, data: toSupplierOrderView(order) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -909,11 +1211,21 @@ router.post('/:id/apply-coupon', requireMerchant, async (req, res) => {
         },
         { new: true, session }
       );
-      await Coupon.findByIdAndUpdate(
-        coupon._id,
-        { status: 'used', usedOrderId: String(order._id), usedAt: new Date() },
-        { session }
-      );
+      // 上线加固：待支付草稿只「锁定」券（30 分钟未支付自动释放），支付成功才真正核销；
+      // 兼容老流程（对已支付订单用券，历史行为保持不变：直接核销）
+      if (order.status === '待支付') {
+        await Coupon.findByIdAndUpdate(
+          coupon._id,
+          { status: 'locked', lockedOrderId: String(order._id), lockedAt: new Date() },
+          { session }
+        );
+      } else {
+        await Coupon.findByIdAndUpdate(
+          coupon._id,
+          { status: 'used', usedOrderId: String(order._id), usedAt: new Date() },
+          { session }
+        );
+      }
 
       return { order: updatedOrder, actualPayAmount, discountAmount };
     });
@@ -946,30 +1258,37 @@ router.get('/:id/split', verifyToken, async (req, res) => {
     if (req.user.role === 'supplier' && String(order.supplierId) !== String(req.user.supplierId)) {
       return res.status(403).json({ success: false, message: '无权查看该分账' });
     }
-    res.json({
-      success: true,
-      data: {
-        orderNo: order.orderNo,
-        payStatus: order.payStatus,
-        payNo: order.payNo,
-        transactionId: order.transactionId,
-        splitStatus: order.splitStatus,
-        splitAmount: order.splitAmount,
-        supplierShare: order.supplierShare,
-        platformShare: order.platformShare,
-        splitNo: order.splitNo,
-        channelSplitOrderId: order.channelSplitOrderId,
-        splitAt: order.splitAt,
-        splitRetryCount: order.splitRetryCount,
-        splitError: order.splitError,
-        splitLogs: order.splitLogs || [],
-        compensateAmount: order.compensateAmount,
-        compensateSupplierShare: order.compensateSupplierShare,
-        compensatePlatformShare: order.compensatePlatformShare,
-        compensateNo: order.compensateNo,
-        compensateAt: order.compensateAt
-      }
-    });
+    const data = {
+      orderNo: order.orderNo,
+      payStatus: order.payStatus,
+      payNo: order.payNo,
+      transactionId: order.transactionId,
+      splitStatus: order.splitStatus,
+      splitAmount: order.splitAmount,
+      supplierShare: order.supplierShare,
+      platformShare: order.platformShare,
+      splitNo: order.splitNo,
+      channelSplitOrderId: order.channelSplitOrderId,
+      splitAt: order.splitAt,
+      splitRetryCount: order.splitRetryCount,
+      splitError: order.splitError,
+      splitLogs: order.splitLogs || [],
+      compensateAmount: order.compensateAmount,
+      compensateSupplierShare: order.compensateSupplierShare,
+      compensatePlatformShare: order.compensatePlatformShare,
+      compensateNo: order.compensateNo,
+      compensateAt: order.compensateAt
+    };
+    // 供应商视角：剔除顾客实付/平台分成/补差平台部分（防反推平台毛利）
+    if (req.user.role === 'supplier') {
+      delete data.splitAmount;
+      delete data.platformShare;
+      delete data.compensateAmount;
+      delete data.compensatePlatformShare;
+      delete data.splitLogs;   // 日志含平台分成金额
+      delete data.splitError;
+    }
+    res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -1012,12 +1331,50 @@ router.post('/:id/split/callback', async (req, res) => {
       return res.status(404).json({ success: false, message: '采购订单不存在' });
     }
     if (cb.status === 'paid') {
-      order.payStatus = 'paid';
-      order.paidAt = order.paidAt || new Date();
-      order.transactionId = cb.transactionId || order.transactionId;
+      // 草稿状态对齐：支付回调置 待确认 + paid（真实微信支付上线后，此处即为支付成功的落账入口，
+      // 与 POST /:id/pay 的 mock 落账同口径：置状态 / 核销券 / 发起分账 / 推送供应商）
+      if (order.status === '待支付' || order.payStatus !== 'paid') {
+        order.status = '待确认';
+        order.payStatus = 'paid';
+        order.paidAt = order.paidAt || new Date();
+        order.transactionId = cb.transactionId || order.transactionId;
+        // 券核销：locked → used（锁已释放但券仍可用则重新占用；不可用则降级无券并重算金额）
+        if (order.appliedCouponId) {
+          const coupon = await Coupon.findById(order.appliedCouponId);
+          const reUsable = coupon && (coupon.status === 'unused' ||
+            (coupon.status === 'locked' && String(coupon.lockedOrderId) === String(order._id)));
+          if (reUsable && new Date() < new Date(coupon.expireDate)) {
+            coupon.status = 'used';
+            coupon.usedOrderId = String(order._id);
+            coupon.usedAt = new Date();
+            coupon.lockedOrderId = '';
+            coupon.lockedAt = null;
+            await coupon.save();
+          } else {
+            order.appliedCouponId = null;
+            order.discountAmount = 0;
+            order.actualPayAmount = +(Number(order.totalAmount) || 0).toFixed(2);
+          }
+        }
+      }
       if (order.splitStatus === split.SPLIT_STATUS.PENDING || order.splitStatus === split.SPLIT_STATUS.FAILED) {
         const supplier = await Supplier.findById(order.supplierId);
         await initiateOrderSplit(order, supplier);
+        // 推送供应商（与 /pay 同口径：支付成功才通知）
+        if (supplier && order.status === '待确认' && !order.supplierNotifiedAt) {
+          await sendNotification(supplier, 'order_created', {
+            orderNo: order.orderNo, shopId: order.shopId, shopName: order.shopName,
+            supplyAmount: order.supplyAmount,
+            items: (order.items || []).map(it => ({
+              productId: it.productId,
+              name: it.name,
+              category: it.category,
+              quantity: it.quantity,
+              supplyPrice: it.supplyPrice
+            }))
+          });
+          order.supplierNotifiedAt = new Date();
+        }
       }
     }
     split.appendSplitLog(order, { action: 'callback', status: order.splitStatus, message: `支付回调 ${cb.transactionId || ''}` });
@@ -1035,3 +1392,5 @@ router.post('/:id/split/callback', async (req, res) => {
 module.exports = router;
 // 供开发者后台「分账失败重试」复用
 module.exports.initiateOrderSplit = initiateOrderSplit;
+// 供应商控制台路由（/api/supplier/orders/pending 等）复用同一脱敏视图，防止绕过列表接口拿到平台定价字段
+module.exports.toSupplierOrderView = toSupplierOrderView;

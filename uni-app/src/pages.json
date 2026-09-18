@@ -61,6 +61,15 @@
       }
     },
     {
+      "path": "pages/admin/cert",
+      "style": {
+        "navigationBarTitleText": "商家认证",
+        "navigationBarBackgroundColor": "#FF6B35",
+        "navigationBarTextStyle": "white",
+        "backgroundColor": "#f5f5f5"
+      }
+    },
+    {
       "path": "pages/admin/menu",
       "style": {
         "navigationBarTitleText": "菜单管理",

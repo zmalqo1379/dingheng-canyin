@@ -11,11 +11,11 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 
-const ShopAccount = require('./models/ShopAccount');
-const Supplier = require('./models/Supplier');
-const PurchaseOrder = require('./models/PurchaseOrder');
-const Coupon = require('./models/Coupon');
-const CoinHistory = require('./models/CoinHistory');
+const ShopAccount = require('../models/ShopAccount');
+const Supplier = require('../models/Supplier');
+const PurchaseOrder = require('../models/PurchaseOrder');
+const Coupon = require('../models/Coupon');
+const CoinHistory = require('../models/CoinHistory');
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/dingheng_canyin';
 

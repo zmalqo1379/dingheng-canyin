@@ -166,20 +166,25 @@ async function verifyAndDecryptNotify(headers, rawBody) {
 }
 
 // ============ 下单（Native 扫码支付） ============
-// 服务商模式：会员费由特约商户（sub_mchid）收取；未配置 sub_mchid 时退回普通直连商户下单
-async function nativePrepay({ outTradeNo, description, amountFen, attach, timeExpire }) {
-  if (CFG.subMchId) {
+// 服务商模式：收款方为特约商户（sub_mchid）；未配置 sub_mchid 时退回普通直连商户下单
+// opts.subMchId       按订单指定收款特约商户号（供应商进件 supplier_first 模式：货款直接进供应商账户）
+// opts.profitSharing  true 时下单携带 profit_sharing=true 分账标识（该订单资金进入冻结态，可发起分账）
+async function nativePrepay({ outTradeNo, description, amountFen, attach, timeExpire }, opts = {}) {
+  const orderSubMchId = (opts && opts.subMchId) || CFG.subMchId;
+  if (orderSubMchId) {
     return request('POST', '/v3/pay/partner/transactions/native', {
       sp_appid: CFG.appId,
       sp_mchid: CFG.spMchId,
       sub_appid: CFG.subAppId || undefined,
-      sub_mchid: CFG.subMchId,
+      sub_mchid: orderSubMchId,
       description,
       out_trade_no: outTradeNo,
       time_expire: timeExpire,
       notify_url: CFG.notifyUrl,
       amount: { total: amountFen, currency: 'CNY' },
-      attach
+      attach,
+      // 分账标识：下单时必须传 true，支付成功后该笔资金冻结（仅计入不可用余额），才能发起分账
+      profit_sharing: opts.profitSharing ? true : undefined
     });
   }
   return request('POST', '/v3/pay/transactions/native', {
@@ -218,9 +223,11 @@ async function closeOrder(outTradeNo) {
 
 // ============ 服务商分账 ============
 // 添加分账接收方（已存在 DUPLICATE 视为成功）
-async function addSplitReceiver({ account, name, relationType }) {
+// opts.subMchId：分账出资方（收款）特约商户号；缺省用全局 CFG.subMchId。
+// 注意：接收方按「出资方子商户号」分别绑定（供应商 A 收款的订单，要先把平台加为 A 的接收方）
+async function addSplitReceiver({ account, name, relationType }, opts = {}) {
   const body = {
-    sub_mchid: CFG.subMchId,
+    sub_mchid: (opts && opts.subMchId) || CFG.subMchId,
     appid: CFG.subAppId || CFG.appId,
     type: 'MERCHANT_ID',
     account,
@@ -237,9 +244,10 @@ async function addSplitReceiver({ account, name, relationType }) {
 }
 
 // 请求分账
-async function requestProfitSharing({ transactionId, outOrderNo, receivers, unfreezeUnsplit = true }) {
+// opts.subMchId：分账出资方（收款）特约商户号；缺省用全局 CFG.subMchId
+async function requestProfitSharing({ transactionId, outOrderNo, receivers, unfreezeUnsplit = true }, opts = {}) {
   return request('POST', '/v3/profitsharing/orders', {
-    sub_mchid: CFG.subMchId,
+    sub_mchid: (opts && opts.subMchId) || CFG.subMchId,
     appid: CFG.subAppId || CFG.appId,
     transaction_id: transactionId,
     out_order_no: outOrderNo,
@@ -248,10 +256,23 @@ async function requestProfitSharing({ transactionId, outOrderNo, receivers, unfr
   });
 }
 
-// 查询分账结果
-async function queryProfitSharing({ outOrderNo, transactionId }) {
-  const qs = `sub_mchid=${encodeURIComponent(CFG.subMchId)}&transaction_id=${encodeURIComponent(transactionId)}`;
+// 查询分账结果（opts.subMchId 同上）
+async function queryProfitSharing({ outOrderNo, transactionId }, opts = {}) {
+  const sub = (opts && opts.subMchId) || CFG.subMchId;
+  const qs = `sub_mchid=${encodeURIComponent(sub)}&transaction_id=${encodeURIComponent(transactionId)}`;
   return request('GET', `/v3/profitsharing/orders/${encodeURIComponent(outOrderNo)}?${qs}`);
+}
+
+// 解冻剩余资金（分账完成后把未分部分解冻给出资方，准实时、无 T+1 限制）
+// opts.subMchId：分账出资方特约商户号；缺省用全局 CFG.subMchId
+async function unfreezeRemaining({ transactionId, outOrderNo, description }, opts = {}) {
+  return request('POST', '/v3/profitsharing/orders/unfreeze', {
+    sub_mchid: (opts && opts.subMchId) || CFG.subMchId,
+    appid: CFG.subAppId || CFG.appId,
+    transaction_id: transactionId,
+    out_order_no: outOrderNo,
+    description: description || '分账完成，解冻剩余资金'
+  });
 }
 
 // 分账回退（退款前回收已分出的资金）
@@ -288,6 +309,7 @@ module.exports = {
   isConfigured,
   isSplitConfigured,
   splitRate: () => CFG.splitRate,
+  spMchId: () => CFG.spMchId,
   subMchId: () => CFG.subMchId,
   nativePrepay,
   queryOrder,
@@ -295,6 +317,7 @@ module.exports = {
   addSplitReceiver,
   requestProfitSharing,
   queryProfitSharing,
+  unfreezeRemaining,
   returnProfitSharing,
   refund,
   verifyAndDecryptNotify

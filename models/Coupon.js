@@ -26,10 +26,22 @@ const couponSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
+  // 券状态：unused=未使用 / locked=已锁定（下单草稿占用，30 分钟未支付自动释放回 unused）
+  //          / used=已核销（支付成功后真正使用）/ expired=已过期
   status: {
     type: String,
-    enum: ['unused', 'used', 'expired'],
+    enum: ['unused', 'locked', 'used', 'expired'],
     default: 'unused'
+  },
+  // 锁定该券的订单 id（status=locked 时记录，支付成功后随核销写入 usedOrderId）
+  lockedOrderId: {
+    type: String,
+    default: ''
+  },
+  // 锁定时间（用于 30 分钟超时释放判定）
+  lockedAt: {
+    type: Date,
+    default: null
   },
   usedOrderId: {
     type: String,

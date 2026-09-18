@@ -19,6 +19,7 @@
           <text class="prod-name">{{ p.name }}</text>
           <text class="prod-meta">{{ p.category || '未分类' }} · {{ supplierName(p) }}</text>
           <text class="prod-price">¥{{ money(p.salePrice) }}<text class="prod-unit">/{{ p.unit || '份' }}</text></text>
+          <text class="prod-save" v-if="saveAmount(p) > 0">市场参考 ¥{{ money(p.refPrice) }} · 省 ¥{{ money(saveAmount(p)) }}</text>
         </view>
         <button class="add-btn" @tap="openQty(p)">加购</button>
       </view>
@@ -181,18 +182,34 @@ async function submit() {
   for (const sid of supplierIds) {
     try {
       const body = { supplierId: sid, items: groups[sid] };
-      let res;
+      const created = await post('/purchase-orders', body, { showError: false });
+      // 草稿已创建（待支付）：mock 支付阶段自动调用支付接口完成下单；
+      // 接入真实微信支付后，此处改为拉起收银台，由支付回调完成落账
       try {
-        res = await post('/purchase-orders', body, { showError: false });
-      } catch (e) {
+        await payDraft(created._id);
+        done++;
+      } catch (pe) {
+        if (pe.body && pe.body.code === 'CERT_REQUIRED') {
+          showCertRequired(pe.body);
+          done++; // 订单已保存为待支付草稿，认证后仍可支付
+        } else {
+          uni.showToast({ title: pe.message || '支付失败，请到订单中支付', icon: 'none' });
+          done++;
+        }
+      }
+    } catch (e) {
+      if (e.body && e.body.code === 'CERT_REQUIRED') {
+        // 认证门控：未认证且不符首单直通 → 订单挂起为待支付草稿，引导完成认证
+        showCertRequired(e.body);
+        done++;
+      } else if (e.body && e.body.code === 'STOCKPILE_WARNING') {
         // 库存/跌价预警：二次确认后强制下单
         await forceOrder(sid, groups[sid]);
         done++;
-        continue;
+      } else {
+        uni.showToast({ title: e.message || '下单失败', icon: 'none' });
+        failed.push(sid);
       }
-      done++;
-    } catch (e) {
-      failed.push(sid);
     }
   }
   submitting.value = false;
@@ -206,6 +223,36 @@ async function submit() {
   }
 }
 
+// 支付待支付草稿（mock：调用即支付成功；真实微信支付上线后由收银台/回调接管）
+async function payDraft(orderId) {
+  return post(`/purchase-orders/${orderId}/pay`, {}, { showError: false });
+}
+
+// 认证门控拦截提示：列出缺失项，引导商家完成认证（订单保留为待支付草稿，24 小时内可支付）
+// 上线加固第一批：blocking（履约必需）/ skippable（首单可暂缓）分流，并提供「去认证」入口
+function showCertRequired(body) {
+  const d = (body && body.data) || {};
+  const blocking = d.missingBlocking || (d.missing && d.missing.blocking) || [];
+  const skippable = d.missingSkippable || (d.missing && d.missing.skippable) || [];
+  const blockingTxt = blocking.length ? blocking.join('、') : '无';
+  const skippableTxt = skippable.length ? skippable.join('、') : '无';
+  const content =
+    '订单已保存（待支付）。\n\n' +
+    '【必须现在补齐 · 否则无法配送】\n' + blockingTxt + '\n\n' +
+    (skippable.length ? '【首单可暂缓 · 合规章程】\n' + skippableTxt + '\n\n' : '') +
+    (body.message ? body.message + '\n\n' : '') +
+    '点「去认证」补全资料；订单保留 24 小时，认证后到「采购单」中重新支付';
+  uni.showModal({
+    title: '需完成商家认证',
+    content,
+    confirmText: '去认证',
+    cancelText: '稍后',
+    success: (r) => {
+      if (r.confirm) uni.navigateTo({ url: '/pages/admin/cert' });
+    }
+  });
+}
+
 function forceOrder(supplierId, items) {
   return new Promise((resolve, reject) => {
     uni.showModal({
@@ -214,9 +261,21 @@ function forceOrder(supplierId, items) {
       success: async (r) => {
         if (!r.confirm) return reject(new Error('cancel'));
         try {
-          await post('/purchase-orders', { supplierId, items, force: true });
+          const created = await post('/purchase-orders', { supplierId, items, force: true }, { showError: false });
+          // 强制下单的草稿同样走支付（mock 自动完成）
+          try {
+            await payDraft(created._id);
+          } catch (pe) {
+            if (pe.body && pe.body.code === 'CERT_REQUIRED') showCertRequired(pe.body);
+            else uni.showToast({ title: pe.message || '支付失败，请到订单中支付', icon: 'none' });
+          }
           resolve(true);
-        } catch (e) { reject(e); }
+        } catch (e) {
+          if (e.body && e.body.code === 'CERT_REQUIRED') {
+            showCertRequired(e.body);
+            resolve(true);
+          } else { reject(e); }
+        }
       },
       fail: () => reject(new Error('fail'))
     });
@@ -263,6 +322,7 @@ onPullDownRefresh(async () => {
 .prod-meta { font-size: $fs-sm; color: $ink-400; margin-top: 6rpx; }
 .prod-price { font-size: $fs-xl; color: $brand; font-weight: $fw-bold; margin-top: 8rpx; }
 .prod-unit { font-size: $fs-sm; color: $ink-300; font-weight: $fw-regular; }
+.prod-save { font-size: $fs-sm; color: #16a34a; margin-top: 6rpx; }
 .add-btn {
   background: $brand-grad; color: #fff; border-radius: $radius-full;
   font-size: $fs-base; font-weight: $fw-semibold; height: 60rpx; line-height: 60rpx; padding: 0 28rpx;

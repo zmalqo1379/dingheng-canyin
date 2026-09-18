@@ -14,12 +14,20 @@ let spyLockUntil = 0; // 点击分类平滑滚动期间暂停滚动联动
 let dishMap = {};     // { dishId: dish }
 let activeMarketing = []; // 当前生效的满减/折扣/充值送活动（/api/marketing/active 返回）
 let shopSetting = null;   // 店铺装修设置（含优惠海报 promoPoster / promoPosterSize）
-let pointCfg = { enabled: false, spendPerPoint: 0, deductEnabled: false, deductPoints: 100, maxPercent: 0, exchangeDishes: [] };
+let pointCfg = { enabled: false, spendPerPoint: 0, deductEnabled: false, deductPoints: 100, maxPercent: 0, exchangeDishes: [], expiryMode: 'permanent', expiryDays: 30 };
 let phonePoints = null; // 结算页手机号查询到的积分余额（null=未查询）
 let svCfg = { enabled: false }; // 该店是否启用顾客储值（存在有余额的储值账户）
 let phoneStoredBalance = null;  // 结算页手机号查询到的储值余额（null=未查询）
 
 const $ = (id) => document.getElementById(id);
+
+// 积分有效期文案（根据商家配置返回展示文本）
+function pointExpiryText() {
+  if (pointCfg.expiryMode === 'fixed' && pointCfg.expiryDays > 0) {
+    return `积分有效期为 ${pointCfg.expiryDays} 天`;
+  }
+  return '积分永久有效';
+}
 
 /* ---------- 工具 ---------- */
 function esc(s) {
@@ -72,7 +80,7 @@ function phStyle(dish) {
   };
 }
 
-// 月销量占位（按菜名稳定生成）
+// 月销量占位数据（已停用显示）：接入真实销量统计后可在此恢复显示（配合下方 salesText 渲染）
 const SALES = ['月售 32', '月售 58', '月售 126', '月售 200+', '月售 456+', '月售 88'];
 function salesText(dish) {
   return SALES[hashStr('sale_' + dish.name) % SALES.length];
@@ -270,9 +278,10 @@ function buildPromoItems() {
     const subs = [];
     if (pointCfg.exchangeDishes.length > 0) subs.push('可换菜');
     if (pointCfg.deductEnabled) subs.push('可抵现');
+    subs.push(pointExpiryText());
     items.push(promoCard('points',
       `消费 1 元 = ${pointCfg.spendPerPoint} 积分`,
-      subs.length ? `积分${subs.join('、')}` : '消费就有积分拿'));
+      `积分${subs.join('、')}`));
   }
   return items;
 }
@@ -441,7 +450,7 @@ function renderMenu() {
         <div class="dish-info">
           <div class="dish-name">${esc(d.name)}</div>
           ${d.description ? `<div class="dish-desc">${esc(d.description)}</div>` : ''}
-          <div class="dish-meta"><span class="sales">${salesText(d)}</span></div>
+          <!-- 月售字段已隐藏：假数据有虚假宣传风险，接入真实销量统计后可恢复 -->
           <div class="dish-foot">
             <span class="price">${priceHtml(d.price)}</span>
             <div class="stepper step-slot" data-id="${d._id}">${stepperHtml(d, qty)}</div>
@@ -764,8 +773,11 @@ function renderPointSection() {
     const earn = Math.floor(calc.finalTotal * pointCfg.spendPerPoint);
     earnRow.style.display = 'flex';
     $('ckEarnVal').textContent = earn;
+    // 积分有效期说明
+    $('ckPhoneHint').textContent = pointExpiryText() + '，填同一手机号积分自动累积';
   } else {
     earnRow.style.display = 'none';
+    $('ckPhoneHint').textContent = '下次光临填同一手机号，积分自动累积';
   }
   // 使用积分抵现勾选行
   const useRow = $('ckUsePointsRow');
@@ -984,7 +996,7 @@ function renderSuccessPoints(orderData) {
   }
   box.style.display = 'block';
   $('spEarnText').textContent = `🎉 恭喜获得 ${earned} 积分！`;
-  $('spBalanceText').textContent = `当前共 ${balance} 分`;
+  $('spBalanceText').textContent = `当前共 ${balance} 分（${pointExpiryText()}）`;
   // 积分够换菜时提示可兑换（取兑换门槛最低的菜品）
   const exLink = $('spExchange');
   const affordable = pointCfg.exchangeDishes
@@ -1018,6 +1030,7 @@ function openPointsSheet() {
   $('ptPhoneInput').value = saved;
   ptSheetPhone = '';
   $('ptBalanceRow').style.display = 'none';
+  $('ptExpiryHint').style.display = 'none';
   if (/^1\d{10}$/.test(saved)) queryPtBalance();
   $('pointsMask').classList.add('show');
   document.body.style.overflow = 'hidden';
@@ -1042,6 +1055,9 @@ async function queryPtBalance() {
       localStorage.setItem(PHONE_KEY, phone);
       $('ptBalanceVal').textContent = res.data.points;
       $('ptBalanceRow').style.display = 'block';
+      // 积分有效期说明
+      $('ptExpiryHint').textContent = pointExpiryText();
+      $('ptExpiryHint').style.display = 'block';
       renderPtDishList(); // 刷新按钮可用态
     } else {
       toast(res.message || '查询失败');
@@ -1108,6 +1124,7 @@ $('ptPhoneInput').addEventListener('input', () => {
   // 修改手机号后需重新查询
   ptSheetPhone = '';
   $('ptBalanceRow').style.display = 'none';
+  $('ptExpiryHint').style.display = 'none';
   renderPtDishList();
 });
 $('ptPhoneInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') queryPtBalance(); });
@@ -1161,7 +1178,8 @@ function setupPreviewReturn() {
   // 改造顶部 back-nav 为「✕ 返回装修」
   const nav = $('backNav');
   if (nav) {
-    nav.innerHTML = `<a class="back-link" id="previewBack">✕<span class="back-txt"> 返回装修</span></a><span class="hint">按 Esc 键或点 ✕ 返回商家后台</span>`;
+    // 只保留右上/左上角的 ✕ 返回入口：预览框是手机屏幕，不再显示电脑端的按键提示
+    nav.innerHTML = `<a class="back-link" id="previewBack">✕<span class="back-txt"> 返回装修</span></a>`;
     const back = $('previewBack');
     if (back) back.onclick = closePreviewWindow;
   }

@@ -29,7 +29,10 @@ const SPLIT_STATUS = {
   SUCCESS: '分账成功',
   FAILED: '分账失败',
   COMPENSATING: '补差中',
-  COMPENSATED: '已补差'
+  COMPENSATED: '已补差',
+  // 供应商未进件/进件未通过时的降级状态：订单不阻断，由平台线下人工结算
+  // （金额计算口径不变，仅资金划转不走渠道分账）
+  MANUAL: '待人工分账'
 };
 
 function num(v, d = 0) {

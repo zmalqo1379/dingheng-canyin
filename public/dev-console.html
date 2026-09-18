@@ -4,32 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>开发者控制台 - 鼎恒餐饮</title>
+  <link rel="stylesheet" href="/theme.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    :root {
-      --nav: #0f172a;
-      --nav-2: #020617;
-      --accent: #ff6b35;
-      --accent-2: #ff8e53;
-      --teal: #14b8a6;
-      --green: #16a34a;
-      --blue: #1a88ff;
-      --red: #ef4444;
-      --gray: #9ca3af;
-      --bg: #f5f6fa;
-      --line: #e5e7eb;
-      /* 统一设计规范 token */
-      --radius-sm: 8px;
-      --radius: 12px;
-      --radius-lg: 16px;
-      --shadow-sm: 0 1px 3px rgba(0, 0, 0, .05);
-      --shadow: 0 4px 14px rgba(0, 0, 0, .06);
-      --shadow-lg: 0 12px 32px rgba(0, 0, 0, .12);
-    }
+    
     body {
       font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
       background: var(--bg);
-      color: #1f2937;
+      color: var(--text);
       -webkit-font-smoothing: antialiased;
     }
     button { font-family: inherit; }
@@ -105,7 +87,7 @@
     }
     .nav-tip {
       padding: 14px 16px;
-      font-size: 11px; color: #6b7280;
+      font-size: 11px; color: var(--text-sub);
       border-top: 1px solid rgba(255,255,255,.06);
     }
     /* 侧边栏未读红点角标 */
@@ -113,7 +95,7 @@
       margin-left: auto;
       min-width: 20px; height: 20px; padding: 0 6px;
       border-radius: 10px;
-      background: #ef4444; color: #fff;
+      background: var(--c-red-500); color: #fff;
       font-size: 11.5px; font-weight: 700;
       display: none; align-items: center; justify-content: center;
       line-height: 1;
@@ -122,9 +104,9 @@
 
     /* 总览-待办事项卡片 */
     .todo-card {
-      margin-top: 18px;
-      background: #fff;
-      border: 1px solid var(--line);
+      margin-top: var(--gap);
+      background: var(--card);
+      border: var(--border-w) solid var(--border);
       border-radius: 14px;
       padding: 18px 22px;
       display: flex; align-items: center; gap: 26px;
@@ -138,31 +120,31 @@
       border-radius: 10px;
       transition: background .15s;
     }
-    .todo-item:hover { background: #fff7f3; }
+    .todo-item:hover { background: var(--tint-orange-25); }
     .todo-item .num { font-size: 24px; font-weight: 800; color: var(--accent); }
-    .todo-item .num.zero { color: #9ca3af; }
-    .todo-item .lbl { font-size: 12.5px; color: #6b7280; }
+    .todo-item .num.zero { color: var(--text-muted); }
+    .todo-item .lbl { font-size: 12.5px; color: var(--text-sub); }
 
     /* 分页条 */
     .pager {
       display: flex; align-items: center; gap: 12px;
       margin-top: 14px; justify-content: flex-end;
-      font-size: 13px; color: #6b7280;
+      font-size: 13px; color: var(--text-sub);
     }
     .pager button {
-      background: #fff; border: 1px solid var(--line);
+      background: var(--card); border: 1px solid var(--line);
       border-radius: 8px; padding: 6px 14px;
-      cursor: pointer; font-size: 13px; color: #374151;
+      cursor: pointer; font-size: 13px; color: var(--text-2);
     }
     .pager button:disabled { opacity: .45; cursor: not-allowed; }
     .pager button:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
 
     /* 资质状态小标签 */
     .qual-tag { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
-    .qual-tag.none { background: #f3f4f6; color: #6b7280; }
-    .qual-tag.pending { background: #eff6ff; color: #1d4ed8; }
-    .qual-tag.approved { background: #dcfce7; color: #15803d; }
-    .qual-tag.rejected { background: #fee2e2; color: #b91c1c; }
+    .qual-tag.none { background: var(--surface-3); color: var(--text-sub); }
+    .qual-tag.pending { background: var(--tint-blue-50); color: var(--c-blue-700); }
+    .qual-tag.approved { background: var(--tint-green-100); color: var(--c-green-700); }
+    .qual-tag.rejected { background: var(--tint-red-100); color: var(--c-red-700); }
 
     /* 供应商详情弹窗-资质照片网格 */
     .qual-photo-grid {
@@ -171,35 +153,35 @@
     }
     .qual-photo-item { text-align: center; }
     .qual-photo-item .qph {
-      display: block; font-size: 12.5px; color: #6b7280; margin-bottom: 6px;
+      display: block; font-size: 12.5px; color: var(--text-sub); margin-bottom: 6px;
     }
     .qual-photo-item img {
       width: 100%; aspect-ratio: 1/1; object-fit: cover;
-      border-radius: 10px; border: 1px solid var(--line);
-      cursor: zoom-in; background: #f9fafb;
+      border-radius: 10px; border: var(--border-w) solid var(--border);
+      cursor: zoom-in; background: var(--surface-2);
     }
     .qual-photo-item .empty {
       width: 100%; aspect-ratio: 1/1;
-      border-radius: 10px; border: 1px dashed var(--line);
+      border-radius: 10px; border: var(--border-w) dashed var(--border);
       display: flex; align-items: center; justify-content: center;
-      color: #c0c4cc; font-size: 13px; background: #f9fafb;
+      color: var(--text-pale); font-size: 13px; background: var(--surface-2);
     }
     .detail-stats {
       display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
       margin: 14px 0;
     }
     .detail-stat {
-      background: #f9fafb; border-radius: 10px; padding: 12px 14px;
+      background: var(--surface-2); border-radius: 10px; padding: 12px 14px;
     }
-    .detail-stat .ds-num { font-size: 20px; font-weight: 800; color: #1f2937; }
-    .detail-stat .ds-num.green { color: #16a34a; }
-    .detail-stat .ds-num.red { color: #ef4444; }
-    .detail-stat .ds-lbl { font-size: 12px; color: #6b7280; margin-top: 2px; }
+    .detail-stat .ds-num { font-size: 20px; font-weight: 800; color: var(--text); }
+    .detail-stat .ds-num.green { color: var(--c-green); }
+    .detail-stat .ds-num.red { color: var(--c-red-500); }
+    .detail-stat .ds-lbl { font-size: 12px; color: var(--text-sub); margin-top: 2px; }
     .modal-box.wide { max-width: 960px; }
     .dish-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
     .dish-chips .chip {
-      background: #f3f4f6; border-radius: 999px; padding: 3px 10px;
-      font-size: 12px; color: #4b5563;
+      background: var(--surface-3); border-radius: 999px; padding: 3px 10px;
+      font-size: 12px; color: var(--text-3);
     }
     .preview-link-btn {
       display: inline-block; margin-top: 10px;
@@ -212,11 +194,11 @@
       display: flex; gap: 10px; margin: 12px 0;
     }
     .qual-actions-bar .btn-qa-approve {
-      background: #16a34a; color: #fff; border: none;
+      background: var(--c-green); color: #fff; border: none;
       padding: 9px 18px; border-radius: 9px; font-size: 13.5px; cursor: pointer; font-weight: 600;
     }
     .qual-actions-bar .btn-qa-reject {
-      background: #fff; color: #ef4444; border: 1px solid #ef4444;
+      background: var(--card); color: var(--c-red-500); border: 1px solid var(--c-red-500);
       padding: 9px 18px; border-radius: 9px; font-size: 13.5px; cursor: pointer; font-weight: 600;
     }
     .config-form-row { margin-bottom: 18px; max-width: 560px; }
@@ -225,7 +207,7 @@
       width: 100%; padding: 10px 12px;
       border: 1px solid var(--line); border-radius: 9px; font-size: 14px;
     }
-    .config-form-row .hint { font-size: 12px; color: #9ca3af; margin-top: 6px; line-height: 1.6; }
+    .config-form-row .hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; line-height: 1.6; }
 
     /* ============ 内容区 ============ */
     .main {
@@ -244,41 +226,47 @@
     .stat-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      gap: 18px;
+      gap: var(--gap);
     }
     .stat-card {
-      background: #fff;
-      border-radius: var(--radius-lg);
-      padding: 28px 26px;
-      box-shadow: var(--shadow);
+      background: var(--card);
+      border-radius: var(--radius-card);
+      padding: var(--card-pad);
+      box-shadow: var(--card-shadow);
       border-top: 4px solid var(--accent);
     }
     .stat-card.blue { border-top-color: var(--blue); }
     .stat-card.teal { border-top-color: var(--teal); }
-    .stat-card .label { font-size: 14px; color: #6b7280; margin-bottom: 10px; }
-    .stat-card .value { font-size: 40px; font-weight: 800; line-height: 1.1; color: var(--accent); }
+    .stat-card .label { font-size: 14px; color: var(--text-sub); margin-bottom: 10px; }
+    .stat-card .value { font-size: var(--num-size); font-weight: 800; line-height: 1.1; color: var(--num-color); word-break: break-all; overflow-wrap: break-word; }
     .stat-card.blue .value { color: var(--blue); }
     .stat-card.teal .value { color: var(--teal); }
     .stat-card .value small { font-size: 18px; font-weight: 600; color: inherit; }
 
     .placeholder {
-      background: #fff;
+      background: var(--card);
       border-radius: var(--radius-lg);
       padding: 60px 30px;
       text-align: center;
-      color: #9ca3af;
+      color: var(--text-muted);
       box-shadow: var(--shadow);
     }
     .placeholder .ico { font-size: 44px; margin-bottom: 14px; }
-    .placeholder h3 { font-size: 17px; color: #4b5563; margin-bottom: 8px; }
+    .placeholder h3 { font-size: 17px; color: var(--text-3); margin-bottom: 8px; }
     .placeholder p { font-size: 13px; }
 
-    /* ============ 通用表格（横向滚动适配小屏） ============ */
+    /* ============ 通用表格（表头冻结 + 表格区域自带滚动条） ============ */
+    /* 【2026-09 列表体验】
+       a) 表格区域自己滚（纵向 + 横向）：横向滚动条固定在可见区域底部，
+          不用再拖到页面最底部才能左右拖；
+       b) 表头 position:sticky 冻结在表格区域顶部：向下滚动时列标题始终可见。 */
     .table-wrap {
-      background: #fff;
+      background: var(--card);
       border-radius: var(--radius-lg);
       box-shadow: var(--shadow);
-      overflow-x: auto;
+      overflow: auto;
+      max-height: max(320px, calc(100vh - 240px));
+      -webkit-overflow-scrolling: touch;
     }
     .dtable {
       width: 100%;
@@ -289,14 +277,25 @@
     .dtable th, .dtable td {
       padding: 12px 14px;
       text-align: left;
-      border-bottom: 1px solid #f3f4f6;
+      border-bottom: 1px solid var(--surface-3);
       white-space: nowrap;
     }
-    .dtable th { background: #f9fafb; color: #6b7280; font-size: 12px; font-weight: 600; }
-    .dtable tbody tr:hover { background: #fffaf6; }
-    .dtable tfoot td { font-weight: 700; background: #fff8f3; border-top: 2px solid var(--accent); }
+    .dtable th {
+      background: var(--surface-2); color: var(--text-sub); font-size: 12px; font-weight: 600;
+      /* 冻结表头：纵向滚动时贴在表格区域顶部（border-collapse 下用内阴影补底边线） */
+      position: sticky; top: 0; z-index: 3;
+      box-shadow: inset 0 -1px 0 var(--border);
+    }
+    /* 【2026-09 列表体验】可排序表头：点列头在升序 / 降序之间切换 */
+    .dtable th.sortable { cursor: pointer; user-select: none; }
+    .dtable th.sortable:hover { background: var(--tint-head-hover); color: var(--text-2); }
+    .dtable th .sort-ind { display: inline-block; margin-left: 6px; font-size: 10px; color: var(--text-faint); }
+    .dtable th.sortable.sort-asc .sort-ind,
+    .dtable th.sortable.sort-desc .sort-ind { color: var(--accent); }
+    .dtable tbody tr:hover { background: var(--tint-warm-hover); }
+    .dtable tfoot td { font-weight: 700; background: var(--tint-warm-50); border-top: 2px solid var(--accent); }
     .dtable .mono { font-family: Consolas, Menlo, monospace; }
-    .dtable .no-data { text-align: center; color: #9ca3af; padding: 36px 0; white-space: normal; }
+    .dtable .no-data { text-align: center; color: var(--text-muted); padding: 36px 0; white-space: normal; }
     .money-red { color: var(--red); font-weight: 700; }
     .money-green { color: var(--green); font-weight: 700; }
     .money-profit { color: var(--accent); font-weight: 800; font-size: 15px; }
@@ -305,15 +304,15 @@
       display: inline-block; padding: 3px 10px;
       border-radius: 12px; font-size: 12px; font-weight: 600;
     }
-    .badge.s-pending { background: #fef3c7; color: #92400e; }
-    .badge.s-confirmed { background: #dbeafe; color: #1e40af; }
-    .badge.s-delivered { background: #ede9fe; color: #5b21b6; }
-    .badge.s-done { background: #dcfce7; color: #166534; }
-    .badge.s-failed { background: #fee2e2; color: #991b1b; }
+    .badge.s-pending { background: var(--tint-amber-100); color: var(--c-amber-800); }
+    .badge.s-confirmed { background: var(--tint-blue-100); color: var(--c-blue-800); }
+    .badge.s-delivered { background: var(--tint-purple-100); color: var(--c-purple); }
+    .badge.s-done { background: var(--tint-green-100); color: var(--c-green-800); }
+    .badge.s-failed { background: var(--tint-red-100); color: var(--c-red-800); }
     .tag {
       display: inline-block; padding: 2px 8px;
       border-radius: 10px; font-size: 11px;
-      background: #ffedd5; color: #ea580c; font-weight: 600;
+      background: var(--tint-orange-100); color: var(--c-orange); font-weight: 600;
       margin-right: 4px;
     }
     /* 供应商治理状态标签 */
@@ -321,10 +320,10 @@
       display: inline-block; padding: 3px 10px;
       border-radius: 12px; font-size: 12px; font-weight: 700;
     }
-    .sup-status.pending { background: #fef3c7; color: #92400e; }
-    .sup-status.active { background: #dcfce7; color: #166534; }
-    .sup-status.frozen { background: #fee2e2; color: #991b1b; }
-    .sup-status.rejected { background: #fee2e2; color: #991b1b; }
+    .sup-status.pending { background: var(--tint-amber-100); color: var(--c-amber-800); }
+    .sup-status.active { background: var(--tint-green-100); color: var(--c-green-800); }
+    .sup-status.frozen { background: var(--tint-red-100); color: var(--c-red-800); }
+    .sup-status.rejected { background: var(--tint-red-100); color: var(--c-red-800); }
     .sup-action {
       display: inline-block; padding: 4px 10px;
       border-radius: 7px; font-size: 12px; font-weight: 600;
@@ -332,31 +331,31 @@
       transition: opacity .15s;
     }
     .sup-action:hover { opacity: .88; }
-    .sup-action.approve { background: #dcfce7; color: #166534; }
-    .sup-action.reject { background: #fee2e2; color: #991b1b; }
-    .sup-action.freeze { background: #dbeafe; color: #1e40af; }
-    .sup-action.unfreeze { background: #dcfce7; color: #166534; }
-    .sup-action.enable { background: #fef3c7; color: #92400e; }
-    .sup-action.disable { background: #f3f4f6; color: #6b7280; }
-    .sup-action.delete { background: #fee2e2; color: #991b1b; }
+    .sup-action.approve { background: var(--tint-green-100); color: var(--c-green-800); }
+    .sup-action.reject { background: var(--tint-red-100); color: var(--c-red-800); }
+    .sup-action.freeze { background: var(--tint-blue-100); color: var(--c-blue-800); }
+    .sup-action.unfreeze { background: var(--tint-green-100); color: var(--c-green-800); }
+    .sup-action.enable { background: var(--tint-amber-100); color: var(--c-amber-800); }
+    .sup-action.disable { background: var(--surface-3); color: var(--text-sub); }
+    .sup-action.delete { background: var(--tint-red-100); color: var(--c-red-800); }
     .overdue-tag {
       display: inline-block; padding: 2px 6px; border-radius: 6px;
       font-size: 11px; font-weight: 700;
-      background: #fecaca; color: #991b1b; margin-left: 4px;
+      background: var(--tint-red-200); color: var(--c-red-800); margin-left: 4px;
     }
 
     /* ============ 筛选栏 ============ */
     .filter-bar {
       display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
-      background: #fff; padding: 14px 18px;
+      background: var(--card); padding: 14px 18px;
       border-radius: 14px; margin-bottom: 16px;
       box-shadow: 0 2px 10px rgba(0,0,0,.05);
     }
-    .filter-bar label { font-size: 13px; color: #6b7280; display: flex; align-items: center; gap: 8px; }
+    .filter-bar label { font-size: 13px; color: var(--text-sub); display: flex; align-items: center; gap: 8px; }
     .filter-bar select, .filter-bar input {
       padding: 8px 12px; border: 1px solid var(--line);
       border-radius: 9px; font-size: 13px; font-family: inherit;
-      color: #1f2937; background: #fff;
+      color: var(--text); background: var(--card);
     }
     .filter-bar select:focus, .filter-bar input:focus {
       outline: none; border-color: var(--accent);
@@ -365,12 +364,13 @@
 
     /* ============ 按钮 ============ */
     .btn {
-      padding: 9px 20px; border-radius: 9px;
+      padding: 9px 20px; border-radius: var(--btn-radius);
       border: none; cursor: pointer;
       font-size: 14px; font-weight: 600;
       transition: opacity .15s;
     }
-    .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; }
+    /* 主按钮：形状 / 填充由各主题的 --btn-primary-* 令牌决定（classic 保持渐变实心） */
+    .btn-primary { background: var(--btn-primary-bg); color: var(--btn-primary-color); border: var(--btn-primary-border); }
     .btn-primary:hover { opacity: .92; }
     .btn-link {
       background: none; border: none; color: var(--accent);
@@ -387,7 +387,7 @@
     }
     .modal.show { display: flex; }
     .modal-box {
-      background: #fff; border-radius: 16px;
+      background: var(--card); border-radius: 16px;
       width: 100%; max-width: 780px; max-height: 84vh;
       overflow-y: auto; padding: 26px 28px;
       box-shadow: 0 20px 60px rgba(0,0,0,.25);
@@ -396,18 +396,18 @@
       font-size: 17px; margin-bottom: 16px;
       display: flex; justify-content: space-between; align-items: center;
     }
-    .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: #9ca3af; line-height: 1; }
+    .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text-muted); line-height: 1; }
     .modal-close:hover { color: var(--red); }
     .info-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
       gap: 12px; margin-bottom: 6px;
     }
-    .info-item { background: #f9fafb; border-radius: 10px; padding: 10px 14px; }
-    .info-item .k { font-size: 11px; color: #9ca3af; margin-bottom: 4px; }
-    .info-item .v { font-size: 14px; font-weight: 600; color: #1f2937; }
+    .info-item { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; }
+    .info-item .k { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+    .info-item .v { font-size: 14px; font-weight: 600; color: var(--text); }
     .info-item .v.hl { color: var(--accent); font-size: 18px; font-weight: 800; }
-    .sub-title { font-size: 14px; font-weight: 700; margin: 18px 0 10px; color: #374151; }
+    .sub-title { font-size: 14px; font-weight: 700; margin: 18px 0 10px; color: var(--text-2); }
 
     .scrim {
       display: none;
@@ -419,46 +419,46 @@
 
     /* ============ 返点概览卡片 ============ */
     .rebate-card {
-      background: #fff; border-radius: 14px;
+      background: var(--card); border-radius: 14px;
       box-shadow: 0 2px 10px rgba(0,0,0,.05);
       margin-bottom: 14px; overflow: hidden;
     }
     .rebate-card-head {
       display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-      padding: 14px 18px; background: #fff8f3;
+      padding: 14px 18px; background: var(--tint-warm-50);
       font-size: 15px; font-weight: 700;
-      border-bottom: 1px solid #f3f4f6;
+      border-bottom: 1px solid var(--surface-3);
     }
-    .rebate-card-head .sum { margin-left: auto; font-size: 13px; font-weight: 600; color: #6b7280; }
+    .rebate-card-head .sum { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--text-sub); }
     .rebate-card-head .sum b { color: var(--accent); font-size: 16px; }
     .rebate-card table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .rebate-card th, .rebate-card td {
       padding: 9px 14px; text-align: left;
-      border-bottom: 1px solid #f7f8fa;
+      border-bottom: 1px solid var(--tint-row);
     }
-    .rebate-card th { color: #9ca3af; font-size: 12px; font-weight: 600; background: #fcfcfd; }
+    .rebate-card th { color: var(--text-muted); font-size: 12px; font-weight: 600; background: var(--surface-4); }
     .rebate-card tr:last-child td { border-bottom: none; }
     .tier-badge {
       display: inline-block; padding: 2px 9px; border-radius: 10px;
-      font-size: 12px; font-weight: 600; background: #dcfce7; color: #166534;
+      font-size: 12px; font-weight: 600; background: var(--tint-green-100); color: var(--c-green-800);
     }
-    .tier-badge.none { background: #f3f4f6; color: #6b7280; }
-    .tier-badge.default { background: #fef3c7; color: #92400e; }
+    .tier-badge.none { background: var(--surface-3); color: var(--text-sub); }
+    .tier-badge.default { background: var(--tint-amber-100); color: var(--c-amber-800); }
     .gap-text { color: var(--blue); font-size: 12px; font-weight: 600; }
-    .gap-text.max { color: #9ca3af; }
+    .gap-text.max { color: var(--text-muted); }
     .section-title {
-      font-size: 15px; font-weight: 700; margin: 22px 0 12px;
+      font-size: 15px; font-weight: 700; margin: var(--section-gap) 0 12px;
       display: flex; align-items: center; gap: 10px;
     }
     .section-title .btn { margin-left: auto; font-size: 13px; padding: 7px 16px; }
 
     /* ============ 返点规则编辑器 ============ */
     .form-row { margin-bottom: 14px; }
-    .form-row label { display: block; font-size: 13px; color: #6b7280; margin-bottom: 6px; font-weight: 600; }
+    .form-row label { display: block; font-size: 13px; color: var(--text-sub); margin-bottom: 6px; font-weight: 600; }
     .form-row input, .form-row select {
       width: 100%; padding: 9px 12px;
       border: 1px solid var(--line); border-radius: 9px;
-      font-size: 13px; font-family: inherit; color: #1f2937;
+      font-size: 13px; font-family: inherit; color: var(--text);
     }
     .form-row input:focus, .form-row select:focus {
       outline: none; border-color: var(--accent);
@@ -473,16 +473,16 @@
       font-size: 13px; font-family: inherit; width: 100%;
     }
     .tier-del {
-      background: #fee2e2; color: var(--red); border: none;
+      background: var(--tint-red-100); color: var(--red); border: none;
       width: 30px; height: 30px; border-radius: 8px; cursor: pointer; font-size: 15px;
     }
     .tier-add {
-      background: #fff7ed; color: var(--accent); border: 1px dashed var(--accent);
+      background: var(--tint-orange-50); color: var(--accent); border: 1px dashed var(--accent);
       padding: 8px 16px; border-radius: 9px; cursor: pointer;
       font-size: 13px; font-weight: 600;
     }
-    .rule-tiers-text { font-size: 12px; color: #4b5563; line-height: 1.7; }
-    .rule-tiers-text .t { display: inline-block; background: #f3f4f6; border-radius: 8px; padding: 2px 8px; margin: 2px 4px 2px 0; white-space: nowrap; }
+    .rule-tiers-text { font-size: 12px; color: var(--text-3); line-height: 1.7; }
+    .rule-tiers-text .t { display: inline-block; background: var(--surface-3); border-radius: 8px; padding: 2px 8px; margin: 2px 4px 2px 0; white-space: nowrap; }
 
     @media (max-width: 768px) {
       .topbar .hamburger { display: flex; }
@@ -503,6 +503,7 @@
       .table-wrap {
         background: transparent; box-shadow: none;
         border-radius: 0; overflow: visible;
+        max-height: none; /* 【2026-09 列表体验】手机端卡片式不限制高度，避免卡片被裁切 */
       }
       .dtable, .rebate-card table { min-width: 0 !important; }
       .dtable thead, .rebate-card table thead { display: none; }
@@ -510,23 +511,23 @@
       .dtable tr, .rebate-card table, .rebate-card table tbody,
       .rebate-card table tr { display: block; }
       .dtable tr, .rebate-card table tr {
-        background: #fff;
+        background: var(--card);
         border-radius: 14px;
         box-shadow: 0 2px 10px rgba(0,0,0,.06);
         padding: 6px 16px;
         margin-bottom: 12px;
       }
-      .dtable tbody tr:hover, .rebate-card table tr:hover { background: #fff; }
+      .dtable tbody tr:hover, .rebate-card table tr:hover { background: var(--card); }
       .dtable td, .rebate-card table td {
         display: flex; justify-content: space-between; align-items: center; gap: 12px;
         padding: 10px 0 !important;
-        border-bottom: 1px dashed #f0f1f5;
+        border-bottom: 1px dashed var(--tint-divider);
         white-space: normal !important;
         text-align: right;
       }
       .dtable td[data-label]::before, .rebate-card table td[data-label]::before {
         content: attr(data-label);
-        color: #9ca3af; font-size: 12px; flex-shrink: 0; text-align: left;
+        color: var(--text-muted); font-size: 12px; flex-shrink: 0; text-align: left;
       }
       .dtable tr td:last-child, .rebate-card table tr td:last-child { border-bottom: none; }
       .dtable td[colspan] {
@@ -534,7 +535,7 @@
         text-align: center; padding: 36px 0 !important;
       }
       .dtable td[colspan]::before { content: none !important; }
-      .dtable tfoot tr { background: #fff8f3; }
+      .dtable tfoot tr { background: var(--tint-warm-50); }
       .dtable .rule-tiers-text { max-width: none !important; }
 
       .filter-bar { gap: 10px; padding: 12px 14px; }
@@ -553,24 +554,37 @@
     }
 
     /* ============ 比价工作台 ============ */
-    .pc-summary { font-size: 13px; color: #6b7280; }
-    .pc-summary b.over { color: #dc2626; }
+    .pc-summary { font-size: 13px; color: var(--text-sub); }
+    .pc-summary b.over { color: var(--c-red); }
     .pc-badge {
       display: inline-block; padding: 3px 10px; border-radius: 20px;
       font-size: 12px; font-weight: 700; white-space: nowrap;
     }
-    .pc-badge.over { background: #fee2e2; color: #b91c1c; }
-    .pc-badge.ok { background: #dcfce7; color: #15803d; }
-    .pc-badge.none { background: #f3f4f6; color: #9ca3af; }
-    .pc-row-over > td { background: #fef2f2 !important; }
-    .pc-row-ok > td { background: #f0fdf4 !important; }
+    .pc-badge.over { background: var(--tint-red-100); color: var(--c-red-700); }
+    .pc-badge.ok { background: var(--tint-green-100); color: var(--c-green-700); }
+    .pc-badge.none { background: var(--surface-3); color: var(--text-muted); }
+    .pc-row-over > td { background: var(--tint-red-50) !important; }
+    .pc-row-ok > td { background: var(--tint-green-50) !important; }
     .pc-input {
       width: 100%; min-width: 76px;
       padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px;
-      font-size: 13px; font-family: inherit; color: #1f2937; background: #fff;
+      font-size: 13px; font-family: inherit; color: var(--text); background: var(--card);
     }
     .pc-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,107,53,.12); }
+
   </style>
+  <script>
+    // 主题预加载：首屏渲染前给 <html> 打上 data-theme，避免默认主题闪一下再切换
+    (function () {
+      var VALID = ['classic', 'warm', 'dark', 'fresh'];
+      var t = 'warm';
+      try {
+        var saved = localStorage.getItem('dhDevTheme');
+        if (VALID.indexOf(saved) >= 0) t = saved;
+      } catch (e) { /* 隐私模式下 localStorage 不可用，回落默认主题 */ }
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
 </head>
 <body>
 
@@ -580,7 +594,10 @@
       <button class="hamburger" id="menuToggle">☰</button>
       <div class="brand"><span class="dot">开</span> <span class="brand-sub">鼎恒餐饮·</span>开发者控制台</div>
     </div>
-    <button class="logout" id="logoutBtn">退出登录</button>
+    <div class="topbar-right">
+      <button class="theme-icon-btn" id="themeBtn" title="界面主题" aria-label="界面主题">🎨</button>
+      <button class="logout" id="logoutBtn">退出登录</button>
+    </div>
   </div>
 
   <div class="layout">
@@ -608,18 +625,50 @@
       <!-- 1. 总览 -->
       <section class="pane active" id="pane-overview">
         <div class="pane-title">🏠 平台总览</div>
+        <!-- 统计卡：三张卡的"形态"由主题决定（暖橙=三张厚卡 / 深色=一整块仪表盘 / 青绿=左大右小）
+             统计数字仍由 loadStats() 写入 merchantCount / supplierCount / monthlyTotal，渲染逻辑未改 -->
         <div class="stat-grid">
-          <div class="stat-card blue">
-            <div class="label">注册商家总数</div>
-            <div class="value"><span id="merchantCount">-</span><small> 家</small></div>
+          <div class="stat-card stat-card-merchant blue">
+            <i class="stat-ico">🏪</i>
+            <!-- 极简线性图标（1.5px 描边、无底色），仅暖橙使用；其它主题用上面的 .stat-ico 或不用 -->
+            <svg class="stat-ico-line" viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="8" width="18" height="12" rx="1.5"></rect>
+              <path d="M3 8l2.2-4.5h13.6L21 8"></path>
+              <path d="M9 20v-5h6v5"></path>
+            </svg>
+            <div class="stat-main">
+              <div class="label">注册商家总数</div>
+              <div class="value"><span id="merchantCount">-</span><small> 家</small></div>
+              <div class="stat-trend"></div>
+            </div>
           </div>
-          <div class="stat-card teal">
-            <div class="label">注册供应商总数</div>
-            <div class="value"><span id="supplierCount">-</span><small> 家</small></div>
+          <div class="stat-card stat-card-supplier teal">
+            <i class="stat-ico">🚚</i>
+            <svg class="stat-ico-line" viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="2" y="7" width="13" height="9" rx="1.5"></rect>
+              <path d="M15 11h4l3 3v2h-7"></path>
+              <circle cx="6" cy="18" r="1.6"></circle>
+              <circle cx="18" cy="18" r="1.6"></circle>
+            </svg>
+            <div class="stat-main">
+              <div class="label">注册供应商总数</div>
+              <div class="value"><span id="supplierCount">-</span><small> 家</small></div>
+              <div class="stat-trend"></div>
+            </div>
           </div>
-          <div class="stat-card">
-            <div class="label">本月采购订单总额</div>
-            <div class="value">¥<span id="monthlyTotal">-</span></div>
+          <div class="stat-card stat-card-amount">
+            <i class="stat-ico">💰</i>
+            <svg class="stat-ico-line" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M9 8.5l3 4 3-4"></path>
+              <path d="M12 12.5V17"></path>
+              <path d="M9.5 13.8h5M9.5 15.8h5"></path>
+            </svg>
+            <div class="stat-main">
+              <div class="label">本月采购订单总额</div>
+              <div class="value">¥<span id="monthlyTotal">-</span></div>
+              <div class="stat-trend"></div>
+            </div>
           </div>
         </div>
 
@@ -634,7 +683,17 @@
             <span class="num" id="todoQualNum">-</span>
             <span class="lbl">待核验资质申请</span>
           </div>
-          <div style="font-size:12px;color:#9ca3af;">点击数字进入「供应商管理」处理，进入后未读红点消除</div>
+          <div style="font-size:12px;color:var(--text-muted);">点击数字进入「供应商管理」处理，进入后未读红点消除</div>
+        </div>
+
+        <!-- 界面主题：本地外观设置，选中即生效，只存当前浏览器 -->
+        <div class="theme-section">
+          <div class="theme-section-head">
+            <span class="t-title">🎨 界面主题</span>
+            <span class="t-sub">只影响当前浏览器，不上传服务器，不影响其他账号</span>
+            <button type="button" class="t-open" id="themeOpenBtn">打开主题面板</button>
+          </div>
+          <div class="theme-grid" id="overviewThemeGrid"></div>
         </div>
       </section>
 
@@ -686,7 +745,7 @@
           <button class="btn btn-primary" id="supFilterBtn">查询</button>
         </div>
         <div class="table-wrap">
-          <table class="dtable" style="min-width:980px;">
+          <table class="dtable" style="min-width:1080px;">
             <thead>
               <tr>
                 <th>供应商名称</th>
@@ -696,13 +755,14 @@
                 <th>审核状态</th>
                 <th>协议</th>
                 <th>资质核验</th>
+                <th>微信进件</th>
                 <th>接单</th>
                 <th>注册时间</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody id="supplierTbody">
-              <tr><td colspan="10" class="no-data">加载中...</td></tr>
+              <tr><td colspan="11" class="no-data">加载中...</td></tr>
             </tbody>
           </table>
         </div>
@@ -712,7 +772,7 @@
           <span id="supPageNum">1</span>
           <button id="supNextBtn">下一页</button>
         </div>
-        <p style="font-size:12px;color:#9ca3af;margin-top:10px;line-height:1.7;">
+        <p style="font-size:12px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
           状态说明：待审核（置顶，可"通过/拒绝"）/ 已通过 / 已冻结 / 已拒绝。
           上线流程：审核通过 → 供应商签协议（即进控制台）→ 上传 4 张资质 → 平台核验通过自动开通接单，店铺才出现在采购商城。
           点"查看"可只读预览资料、资质照片、商品定价与本月经营数据。冻结后店铺从商城隐藏、不能接新单；清退删除需二次确认。
@@ -722,39 +782,110 @@
       <!-- 4. 定价工作台（加价分销：平台手动填写卖价，无任何自动加价） -->
       <section class="pane" id="pane-pricing">
         <div class="pane-title">🏷️ 定价工作台</div>
-        <p style="font-size:13px;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;margin:0 0 14px;line-height:1.7;">
-          供应商每日更新<b>供货价</b>；平台在此为每个商品手动填写<b>卖价</b>。加价额（卖价 − 供货价）完全由平台手动决定，
-          系统不设任何公式、比例、上下限，也不自动计算。卖价留空＝未定价（下单时默认按供货价）。
+        <p style="font-size:13px;color:var(--c-amber-700);background:var(--tint-amber-100);border:1px solid var(--tint-amber-200);border-radius:8px;padding:10px 14px;margin:0 0 14px;line-height:1.7;">
+          供应商每日更新<b>供货价</b>；平台在此为每个商品手动填写<b>卖价</b>。加价额（卖价 − 供货价）由平台手动决定。
+          <b>卖价底线 = 供货价 × (1 + 最低加价率)</b>（最低加价率见「系统设置」，当前 <b><span id="pricingRateHint">--</span></b>），
+          保存卖价时低于底线会被拒绝；卖价留空＝未定价（下单时默认按供货价），未定价商品同样不满足底线、无法被下单。
           顾客按卖价付款，云分账自动拆两笔：供货价 → 供应商，差价 → 平台。
           <b>到账说明：</b>微信为 T+1 结算，「已发起分账」仅表示下单即发起了分账指令，资金非实时到账。
         </p>
+
+        <!-- ============ 【2026-09 上线加固】一键定价面板 ============ -->
+        <div class="bulk-pricing-card" style="background:var(--tint-sky-50);border:1px solid var(--tint-sky-200);border-radius:12px;padding:16px 18px;margin:0 0 18px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
+            <div>
+              <div style="font-size:15px;font-weight:700;color:var(--c-sky-700);">⚡ 一键定价（统一加价率）</div>
+              <div style="font-size:12px;color:var(--text-slate);margin-top:4px;line-height:1.6;">
+                公式：<b id="bulkHintFormula">卖价 = 供货价 × (1 + 加价率)</b> → 按 <b><span id="bulkHintRoundTail">四舍五入到角</span></b> 取整
+                ｜ 保底加价额 <b id="bulkHintMinAmount2">关闭</b>
+                ｜ 加价率上限 <span id="bulkHintCapRate">--</span>%（＝加价率 × <span id="bulkHintCapMult">2</span>）
+                ｜ 成本线保护 <span id="bulkHintFloorRate">3.00</span>%
+                ｜ 硬地板 <span id="bulkHintHardFloor">5.00</span>%（系统设置可改，下限 3%）
+                ｜ 取整保护 <b><span id="bulkHintRoundGuard">开启</span></b>（取整后加价率超「加价率 × <span id="bulkHintGuardMult">1.5</span>」的商品放弃取整，改用精确价）
+              </div>
+            </div>
+            <div id="bulkRollbackArea" style="font-size:12px;color:var(--text-slate);"></div>
+          </div>
+          <div class="filter-bar" style="margin-bottom:10px;">
+            <label>统一加价率 <input type="number" id="bulkRate" min="0" max="1" step="0.01" value="0.10" style="width:80px;">（如 0.10 表示 10%）</label>
+            <label style="font-weight:600;" title="默认不勾选＝保底关闭：完全按加价率算卖价，不补任何金额（设 7% 就是 7%，不会额外加钱）"><input type="checkbox" id="bulkMinAmountEnabled"> 启用保底加价额</label>
+            <label title="启用后：加价不足该金额的商品补到该金额（例：设 7%、保底 0.5 元，1 元的商品本该只加 0.07 元，会补到 1.50 元）；不启用时该输入框不生效">保底加价额 <input type="number" id="bulkMinAmount" min="0" max="10" step="0.1" value="0.5" style="width:70px;" disabled>元</label>
+            <label title="单个商品实际加价率不得超过「加价率 × 该倍数」；超出时放弃保底、改用按比例算出的精确值（例：设 8%、上限 2 倍 → 0.3 元商品加 0.048 元、卖 0.35 元）">加价率上限倍数 <input type="number" id="bulkCapMult" min="1" max="10" step="0.5" value="2" style="width:60px;">倍</label>
+            <label>供应商 <select id="bulkSupplier"><option value="all">全部</option></select></label>
+            <label>品类 <select id="bulkCategory"><option value="all">全部</option></select></label>
+            <label>范围 <select id="bulkScope">
+              <option value="pending">仅未定价商品</option>
+              <option value="all">所有可定价商品（手动定价的会被跳过）</option>
+              <option value="selected">仅表格中勾选的商品</option>
+            </select></label>
+            <label>尾数取整 <select id="bulkRoundMode">
+              <option value="none">不取整（精确到分）</option>
+              <option value="round" selected>四舍五入到角</option>
+              <option value="ceil:9">向上取整到 .9</option>
+              <option value="ceil:8">向上取整到 .8</option>
+              <option value="ceil:7">向上取整到 .7</option>
+              <option value="ceil:6">向上取整到 .6</option>
+              <option value="int">向上取整到整数</option>
+              <option value="custom">自定义尾数…</option>
+            </select></label>
+            <label id="bulkRoundTailWrap" style="display:none;" title="向上取整的尾数，可填 0~9（如 5 → 取整到 .5）">尾数 .<input type="number" id="bulkRoundTail" min="0" max="9" step="1" value="9" style="width:52px;"></label>
+            <label style="font-weight:600;" title="开启后：单个商品取整后加价率不得超过「加价率 × 1.5」，超出则放弃取整、改用精确价（低价商品的取整放大被拦住）"><input type="checkbox" id="bulkRoundGuard" checked> 取整保护</label>
+            <label style="color:var(--c-red-700);font-weight:600;" title="勾选后，一键定价会把之前手动改过价的商品也按统一加价率重定"><input type="checkbox" id="bulkForceOverride"> 强制覆盖手动定价</label>
+            <button class="btn" id="bulkPreviewBtn">预览</button>
+            <button class="btn btn-primary" id="bulkApplyBtn" style="background:var(--c-green);">应用（自动预览并确认）</button>
+            <button class="btn" id="bulkRollbackBtn" disabled style="background:var(--c-red);color:#fff;">回滚上次定价</button>
+            <span id="bulkMsg" style="font-size:12px;color:var(--c-green);"></span>
+          </div>
+          <div style="font-size:12px;color:var(--text-slate-400);margin-bottom:8px;line-height:1.6;">
+            按供应商一键全量定价：把「供应商」选成目标供应商（如 鼎恒农贸），「范围」选「所有可定价商品」即可给它家全部商品定价；<br>
+            想只给部分商品定价，先在下方表格按供应商/品类筛选 → 勾选（或点表头复选框全选当前筛选结果）→「范围」选「仅表格中勾选的商品」。<br>
+            保底：<b>默认关闭</b>——不勾选「启用保底加价额」就是完全按加价率算（设 7%，平均加价率就是 7% 左右，不补任何金额）；<br>
+            勾选后「保底加价额」与「加价率上限倍数」才生效（服务端权威计算，只对本次定价生效）——
+            例：勾选保底 0.5 元、设 8%、上限 2 倍，0.3 元的打包盒最多加 0.048 元、卖 0.35 元，而不是按保底加 0.5 元。
+          </div>
+          <div id="bulkForceWarn" style="display:none;font-size:12px;color:var(--c-red-700);background:var(--tint-red-100);border:1px solid var(--tint-red-200);border-radius:8px;padding:8px 12px;margin-bottom:8px;line-height:1.6;"></div>
+          <div id="bulkSelectionHint" style="display:none;font-size:12px;color:var(--c-amber-700);background:var(--tint-amber-100);border:1px solid var(--tint-amber-200);border-radius:8px;padding:8px 12px;margin-bottom:8px;line-height:1.6;"></div>
+          <div id="bulkPreviewArea" style="font-size:12px;color:var(--text-slate);line-height:1.6;"></div>
+        </div>
+
         <div class="filter-bar">
           <label>供应商 <select id="pricingSupplier"><option value="all">全部供应商</option></select></label>
-          <label>品类 <select id="pricingCategory"><option value="all">全部品类</option></select></label>
+          <label>品类 <select id="pricingCategory"><option value="all">全部品类</option></label>
           <label>搜索 <input type="text" id="pricingKeyword" placeholder="商品名" style="width:130px;"></label>
+          <label>筛选 <select id="pricingFilter">
+            <option value="all">全部商品</option>
+            <option value="underpriced">待定价（未定价或低于底线）</option>
+          </select></label>
           <button class="btn" id="pricingQueryBtn">查询</button>
           <button class="btn btn-primary" id="pricingSaveAllBtn">保存全部改动</button>
-          <span id="pricingMsg" style="font-size:12px;color:#16a34a;"></span>
+          <span id="pricingMsg" style="font-size:12px;color:var(--c-green);"></span>
         </div>
         <div class="table-wrap">
-          <table class="dtable" style="min-width:940px;">
+          <table class="dtable" style="min-width:1080px;">
             <thead>
               <tr>
-                <th>供应商</th>
-                <th>商品</th>
-                <th>品类</th>
+                <th style="width:40px;"><input type="checkbox" id="pricingSelectAll" title="全选当前筛选出的商品"></th>
+                <th data-sort="text">供应商</th>
+                <th data-sort="text">商品</th>
+                <th data-sort="text">品类</th>
                 <th>单位</th>
-                <th>供货价</th>
-                <th style="width:150px;">卖价（平台填写）</th>
+                <th data-sort="number" data-sort-default="desc" title="点击列头排序：从高到低 / 从低到高">供货价</th>
+                <th>最低卖价（底线）</th>
+                <th style="width:150px;" data-sort="number">卖价（平台填写）</th>
                 <th>实时差价</th>
-                <th>供货价更新时间</th>
+                <th data-sort="number" title="加价率 =（卖价 − 供货价）÷ 供货价；未定价显示「—」">加价率</th>
+                <th data-sort="date" data-sort-default="desc">供货价更新时间</th>
               </tr>
             </thead>
             <tbody id="pricingTbody">
-              <tr><td colspan="8" class="no-data">加载中...</td></tr>
+              <tr><td colspan="11" class="no-data">加载中...</td></tr>
             </tbody>
           </table>
         </div>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:8px;line-height:1.7;">
+          提示：<b>点列头即可排序</b>（再点一次切换升序 / 降序）——供货价、卖价、加价率、品类、供应商、供货价更新时间；
+          表头已<b>冻结</b>，表格区域自带滚动条，向下 / 左右滚动都不用拖到页面底部。
+        </p>
       </section>
 
       <!-- 4.5 平台收入（虚拟分账层） -->
@@ -770,7 +901,7 @@
           <div class="stat-card">
             <div class="label">本月平台实得</div>
             <div class="value">¥<span id="revPlatformShare">0.00</span></div>
-            <div style="font-size:12px;color:#9ca3af;margin-top:6px;">Σ 平台分账 = 顾客实付 − 供应商实得（T+1 到账）</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:6px;">Σ 平台分账 = 顾客实付 − 供应商实得（T+1 到账）</div>
           </div>
           <div class="stat-card blue">
             <div class="label">本月顾客实付（分账总额）</div>
@@ -783,7 +914,7 @@
           <div class="stat-card">
             <div class="label">本月过秤补差合计</div>
             <div class="value">¥<span id="revCompensate">0.00</span></div>
-            <div style="font-size:12px;color:#9ca3af;margin-top:6px;">正=补收，负=退款</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:6px;">正=补收，负=退款</div>
           </div>
           <div class="stat-card">
             <div class="label">本月完成订单数</div>
@@ -873,7 +1004,34 @@
             </tbody>
           </table>
         </div>
-        <p style="font-size:12px;color:#9ca3af;margin-top:10px;line-height:1.7;">
+
+        <!-- 待人工分账（供应商未进件的降级订单：不阻断业务，线下人工结算） -->
+        <div class="section-title" style="margin-top:18px;">待人工分账订单（供应商未进件，不阻断业务）</div>
+        <div class="table-wrap">
+          <table class="dtable" style="min-width:1000px;">
+            <thead>
+              <tr>
+                <th>订单号</th>
+                <th>门店</th>
+                <th>供应商</th>
+                <th>货款总额</th>
+                <th>应结供应商（供货价）</th>
+                <th>平台留存（加价）</th>
+                <th>原因</th>
+                <th>下单时间</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="revManualTbody">
+              <tr><td colspan="10" class="no-data">加载中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.7;">
+          说明：供应商未完成微信进件时<b>不阻断下单</b>，订单自动转「待人工分账」——请线下全额打款供应商供货价（一分不少），平台留存加价部分；完成后点「标记已结算」。
+        </p>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
           说明：云分账在<b>下单付款时即发起分账指令</b>，两笔拆账＝供货价 → 供应商、差价 → 平台；
           到账本质为微信 <b>T+1 结算</b>，界面状态「已发起分账 / 分账成功」表示指令结果，并非资金秒到。
           过秤后数量有差异时会自动补差（补收或退款，含向供应商/平台补分账或追回）。
@@ -887,7 +1045,7 @@
           品类得币倍率
           <button class="btn btn-primary" id="coinRuleSaveBtn">保存配置</button>
         </div>
-        <p style="font-size:13px;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;margin:0 0 14px;">
+        <p style="font-size:13px;color:var(--c-amber-700);background:var(--tint-amber-100);border:1px solid var(--tint-amber-200);border-radius:8px;padding:10px 14px;margin:0 0 14px;">
           💡 倍率越高，商家采购该品类获得的鼎恒币越多
         </p>
         <div class="table-wrap">
@@ -905,7 +1063,7 @@
             </tbody>
           </table>
         </div>
-        <p style="font-size:12px;color:#9ca3af;margin-top:10px;line-height:1.7;">
+        <p style="font-size:12px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
           说明：商家确认收货时按订单明细逐行计算——每行得币 = 商品金额 × 会员返币率 × 该品类倍率，再汇总向下取整。
           倍率 <b>1</b> 为基础得币，<b>2</b> 即该品类得币翻倍；未配置的品类默认按 1 倍计，「其他」作为未知品类的兜底倍率。
           停用某品类后该品类按 1 倍计。配置保存后即时生效，仅影响之后确认收货的订单。
@@ -917,7 +1075,7 @@
       <!-- 7. 营销活动总览（各商家，只读） -->
       <section class="pane" id="pane-marketing">
         <div class="pane-title">🎯 营销活动总览</div>
-        <p style="font-size:13px;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;margin:0 0 14px;">
+        <p style="font-size:13px;color:var(--c-amber-700);background:var(--tint-amber-100);border:1px solid var(--tint-amber-200);border-radius:8px;padding:10px 14px;margin:0 0 14px;">
           💡 查看全平台各商家的满减 / 折扣 / 充值送活动，仅只读。
         </p>
         <div class="filter-bar">
@@ -1023,7 +1181,7 @@
       <!-- 11. 比价工作台 -->
       <section class="pane" id="pane-pricecheck">
         <div class="pane-title">⚖️ 比价工作台</div>
-        <p style="font-size:13px;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;margin:0 0 14px;">
+        <p style="font-size:13px;color:var(--c-amber-700);background:var(--tint-amber-100);border:1px solid var(--tint-amber-200);border-radius:8px;padding:10px 14px;margin:0 0 14px;">
           💡 平台售价高于外部参考价（如美菜价）的商品标红提示「超标」，售价 ≤ 参考价标绿「正常」，未录参考价显示「未录价」。参考价由开发者逐条录入，可一键导出超标清单。
         </p>
         <div class="filter-bar">
@@ -1036,7 +1194,7 @@
             </select>
           </label>
           <button class="btn btn-primary" id="pcRefreshBtn">刷新</button>
-          <button class="btn" id="pcExportBtn" style="background:#fee2e2;color:#b91c1c;">⬇ 导出超标清单</button>
+          <button class="btn" id="pcExportBtn" style="background:var(--tint-red-100);color:var(--c-red-700);">⬇ 导出超标清单</button>
           <span class="pc-summary" id="pcSummary" style="margin-left:auto;"></span>
         </div>
         <div class="table-wrap">
@@ -1073,10 +1231,45 @@
           </div>
         </div>
         <div class="config-form-row">
+          <label>最低加价率（卖价底线，0~1 小数）</label>
+          <input type="number" id="cfgMinMarkupRate" min="0.03" max="1" step="0.01" placeholder="例如：0.05">
+          <div class="hint">
+            <b>公式：卖价底线 = 供货价 × (1 + 最低加价率)</b>。填 0.05 表示最低加价 5%（默认 0.05）。<br>
+            <b style="color:var(--c-amber-700);">最低只能填 0.03（3% 是平台成本线，不能再低）；低于 0.05（5%）保存时会提示利润很薄。</b><br>
+            用途：平台盈利 = 卖价 − 供货价 − 平台成本（主要是抵扣券成本），故卖价不得低于该底线。<br>
+            「定价工作台」保存卖价、一键定价、以及商家采购下单时都会按此校验；未定价（卖价留空）商品同样低于底线、无法被下单。
+          </div>
+        </div>
+        <div class="config-form-row">
           <label>资金分账口径（固定规则，无需配置）</label>
-          <div class="hint" style="padding:10px 12px;background:#f0f7ff;border:1px solid #bfdbfe;border-radius:8px;color:#1e40af;line-height:1.8;">
+          <div class="hint" style="padding:10px 12px;background:var(--tint-page-alt);border:1px solid var(--tint-blue-200);border-radius:8px;color:var(--c-blue-800);line-height:1.8;">
             · <b>云分账只分顾客采购货款</b>：门店按卖价付款后，供货价部分结算给供应商，差价（卖价−供货价）留平台；过秤多退少补。<br>
             · <b>会员费（点餐会员卡 / 采购省钱卡）、增值包、鼎恒币等软件收入全额归平台</b>，不发起分账、不分给任何供应商。
+          </div>
+        </div>
+        <div class="config-form-row">
+          <label>支付模式（演示 / 真实，切换立即生效，无需重启）</label>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <button class="btn" id="payModeMockBtn">🎬 演示模式（mock）</button>
+            <button class="btn" id="payModeWechatBtn">💳 真实微信支付（wechat）</button>
+            <span id="payModeState" style="font-size:13px;color:var(--text-sub);">加载中...</span>
+          </div>
+          <div class="hint">
+            <b>mock（默认）</b>：所有交易均为模拟数据，真实微信接口一律拒绝调用，各端显示「演示模式」橙色横幅（给供应商演示用）。<br>
+            <b>wechat</b>：走真实微信支付（需已配置 WXPAY_* 环境变量）。<b>服务商资质未下来之前不要切</b>，切了会报错。
+          </div>
+        </div>
+        <div class="config-form-row">
+          <label>资金流模式（钱进谁账户，切换立即生效）</label>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <button class="btn" id="flowModeSupplierBtn">🏦 钱进供应商（supplier_first）</button>
+            <button class="btn" id="flowModePlatformBtn">🏢 钱进平台（platform_first）</button>
+            <span id="flowModeState" style="font-size:13px;color:var(--text-sub);">加载中...</span>
+          </div>
+          <div class="hint">
+            金额口径固定不变（供货价归供应商、加价归平台），本开关只决定资金路径：<br>
+            · <b>钱进供应商（默认）</b>：货款直接进供应商微信特约商户号，平台分账只抽加价部分（远低于微信 30% 默认分账上限，<b>无需申请白名单</b>）。<br>
+            · <b>钱进平台</b>：货款先进平台账户再分账给供应商——供应商占货款九成以上，超过 30% 默认限额，<b>必须先拿到微信「高比例分账」白名单批复才能切</b>，否则分账会被微信拒绝。
           </div>
         </div>
         <button class="btn btn-primary" id="cfgSaveBtn">保存配置</button>
@@ -1122,8 +1315,38 @@
         <button class="modal-close" id="sdClose">×</button>
       </h3>
       <div id="sdBody">
-        <div style="color:#9ca3af;font-size:13px;padding:30px 0;text-align:center;">加载中...</div>
+        <div style="color:var(--text-muted);font-size:13px;padding:30px 0;text-align:center;">加载中...</div>
       </div>
+    </div>
+  </div>
+
+  <!-- 通用确认弹窗（支持 danger 红色警示样式，用于一键定价 / 关键配置保存的二确认） -->
+  <div class="modal" id="confirmModal">
+    <div class="modal-box" style="max-width:460px;">
+      <h3>
+        <span id="confirmTitle">确认操作</span>
+        <button class="modal-close" id="confirmClose">×</button>
+      </h3>
+      <div id="confirmBody" style="font-size:13px;line-height:1.8;color:var(--text-2);"></div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px;">
+        <button class="btn" id="confirmCancelBtn">取消</button>
+        <button class="btn btn-primary" id="confirmOkBtn">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 界面主题弹窗（右上角调色盘 / 总览「界面主题」区块共用入口，选择只存 localStorage） -->
+  <div class="theme-modal" id="themeModal">
+    <div class="theme-mask" id="themeMask"></div>
+    <div class="theme-panel">
+      <div class="theme-head">
+        <div>
+          <h3>🎨 界面主题</h3>
+          <p>四套主题只改这块屏幕的外观，不动任何业务数据；选择保存在本机浏览器，不会上传服务器，也不影响其他账号。</p>
+        </div>
+        <button class="theme-close" id="themeClose" title="关闭">✕</button>
+      </div>
+      <div class="theme-grid" id="themeGrid"></div>
     </div>
   </div>
 
@@ -1155,7 +1378,8 @@
       return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
     }
     function fmtMoney(n) {
-      return '¥' + Number(n || 0).toFixed(2);
+      // 保留千分位：配合表格的 tabular-nums，小数点能上下严格对齐
+      return '¥' + Number(n || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
     function statusClass(s) {
       switch (s) {
@@ -1167,6 +1391,36 @@
       }
     }
     // 统一 API 调用（自动携带开发者 JWT）
+    // ============ 通用确认弹窗（Promise 化；danger=true 时标题/按钮用红色警示样式）============
+    function showConfirm(opts) {
+      const o = opts || {};
+      return new Promise(resolve => {
+        const modal = $('confirmModal');
+        const okBtn = $('confirmOkBtn');
+        $('confirmTitle').textContent = o.title || '确认操作';
+        $('confirmTitle').style.color = o.danger ? 'var(--c-red-700)' : '';
+        $('confirmBody').innerHTML = o.html || '';
+        okBtn.textContent = o.okText || '确定';
+        okBtn.style.background = o.danger ? 'var(--c-red)' : '';
+        const onKey = (e) => { if (e.key === 'Escape') close(false); };
+        function close(val) {
+          modal.classList.remove('show');
+          okBtn.onclick = null;
+          $('confirmCancelBtn').onclick = null;
+          $('confirmClose').onclick = null;
+          modal.onclick = null;
+          document.removeEventListener('keydown', onKey);
+          resolve(val);
+        }
+        okBtn.onclick = () => close(true);
+        $('confirmCancelBtn').onclick = () => close(false);
+        $('confirmClose').onclick = () => close(false);
+        modal.onclick = (e) => { if (e.target === modal) close(false); };
+        document.addEventListener('keydown', onKey);
+        modal.classList.add('show');
+      });
+    }
+
     async function api(url, opts) {
       try {
         const finalOpts = opts || {};
@@ -1225,7 +1479,7 @@
       const ok = res.success && res.data;
       $('merchantCount').textContent = ok ? (res.data.merchantCount || 0) : '0';
       $('supplierCount').textContent = ok ? (res.data.supplierCount || 0) : '0';
-      $('monthlyTotal').textContent = ok ? Number(res.data.monthlyPurchaseTotal || 0).toFixed(2) : '0.00';
+      $('monthlyTotal').textContent = ok ? Number(res.data.monthlyPurchaseTotal || 0).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2}) : '0.00';
     }
 
     // ============ 待办红点（微信式未读：进入供应商管理页即消除） ============
@@ -1288,23 +1542,23 @@
         const isWechat = o.payChannel === 'wechat';
         const chanText = isWechat ? '微信支付' : '线下转账';
         const splitHtml = (isWechat && o.splitSupplierId)
-          ? `<div style="font-size:11px;color:${o.splitStatus === 'done' ? '#059669' : (o.splitStatus === 'failed' ? '#dc2626' : '#9ca3af')};">${esc(SPLIT_TXT[o.splitStatus] || o.splitStatus)}${o.splitSupplierName ? ' · ' + esc(o.splitSupplierName) : ''}</div>`
+          ? `<div style="font-size:11px;color:${o.splitStatus === 'done' ? 'var(--c-emerald)' : (o.splitStatus === 'failed' ? 'var(--c-red)' : 'var(--text-muted)')};">${esc(SPLIT_TXT[o.splitStatus] || o.splitStatus)}${o.splitSupplierName ? ' · ' + esc(o.splitSupplierName) : ''}</div>`
           : '';
         const amountHtml = fmtMoney(o.amountRmb) + ((isWechat && (o.platformAmount || o.supplyAmount))
-          ? `<div style="font-size:11px;color:#9ca3af;">平台 ${fmtMoney(o.platformAmount)} / 供应商 ${fmtMoney(o.supplyAmount)}</div>` : '');
+          ? `<div style="font-size:11px;color:var(--text-muted);">平台 ${fmtMoney(o.platformAmount)} / 供应商 ${fmtMoney(o.supplyAmount)}</div>` : '');
         // 微信单由支付回调自动开通，不提供人工确认；现金单保持人工确认/取消
         const actions = o.status === 'pending'
           ? (isWechat
-              ? '<span style="font-size:12px;color:#9ca3af;">等待支付回调</span>'
+              ? '<span style="font-size:12px;color:var(--text-muted);">等待支付回调</span>'
               : `<button class="sup-action approve" data-act="confirm" data-id="${esc(String(o._id))}">确认收款并开通</button>
                  <button class="sup-action delete" data-act="cancel" data-id="${esc(String(o._id))}">取消</button>`)
           : '—';
         return `<tr>
           <td class="mono">${esc(o.orderNo)}</td>
-          <td>${esc(o.shopName || '未命名商家')}<div style="font-size:11px;color:#9ca3af;">${esc(o.shopId)}</div></td>
-          <td>${esc(MEM_LEVEL_NAME[o.level] || o.level)} × ${o.months} 个月<div style="font-size:11px;color:#9ca3af;">${chanText}</div></td>
+          <td>${esc(o.shopName || '未命名商家')}<div style="font-size:11px;color:var(--text-muted);">${esc(o.shopId)}</div></td>
+          <td>${esc(MEM_LEVEL_NAME[o.level] || o.level)} × ${o.months} 个月<div style="font-size:11px;color:var(--text-muted);">${chanText}</div></td>
           <td class="money-profit">${amountHtml}</td>
-          <td>${esc(MEM_LEVEL_NAME[o.memberLevel] || o.memberLevel)}${o.memberExpire ? `<div style="font-size:11px;color:#9ca3af;">至 ${fmtDate(o.memberExpire)}</div>` : ''}</td>
+          <td>${esc(MEM_LEVEL_NAME[o.memberLevel] || o.memberLevel)}${o.memberExpire ? `<div style="font-size:11px;color:var(--text-muted);">至 ${fmtDate(o.memberExpire)}</div>` : ''}</td>
           <td>${fmtTime(o.createdAt)}</td>
           <td><span class="badge ${st.cls}">${esc(st.text)}</span>${splitHtml}</td>
           <td style="white-space:normal;max-width:180px;">${esc(o.buyerNote || '—')}</td>
@@ -1420,7 +1674,7 @@
         const titleRule = (m.title ? esc(m.title) + '<br>' : '') + mktRuleTextDev(m);
         return `
         <tr>
-          <td data-label="商家"><b>${esc(m.shopName)}</b><br><span style="font-size:11px;color:#9ca3af;">${esc(m.shopId)}</span></td>
+          <td data-label="商家"><b>${esc(m.shopName)}</b><br><span style="font-size:11px;color:var(--text-muted);">${esc(m.shopId)}</span></td>
           <td data-label="类型">${esc(m.typeName)}</td>
           <td data-label="规则">${titleRule}</td>
           <td data-label="生效时间">${fmtDate(m.startTime)} ~ ${m.endTime ? fmtDate(m.endTime) : '长期'}</td>
@@ -1449,11 +1703,11 @@
         const enabled = r.enabled !== false;
         return `
         <tr>
-          <td data-label="品类"><b>${esc(r.category)}</b>${r.configured ? '' : ' <span style="font-size:11px;color:#9ca3af;">(未配置，默认1倍)</span>'}</td>
+          <td data-label="品类"><b>${esc(r.category)}</b>${r.configured ? '' : ' <span style="font-size:11px;color:var(--text-muted);">(未配置，默认1倍)</span>'}</td>
           <td data-label="得币倍率">
             <input type="number" class="coin-mult-input" min="0" max="10" step="0.1" value="${mult}"
-              style="width:90px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
-            <span style="color:#9ca3af;font-size:12px;margin-left:4px;">倍</span>
+              style="width:90px;padding:6px 8px;border:1px solid var(--border-strong);border-radius:6px;font-size:13px;">
+            <span style="color:var(--text-muted);font-size:12px;margin-left:4px;">倍</span>
           </td>
           <td data-label="是否启用">
             <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
@@ -1544,7 +1798,7 @@
     // 商家详情弹窗：商家信息 + 鼎恒币余额 + 采购历史
     async function openMerchantDetail(id) {
       $('mmTitle').textContent = '商家详情';
-      $('mmInfo').innerHTML = '<div style="color:#9ca3af;font-size:13px;">加载中...</div>';
+      $('mmInfo').innerHTML = '<div style="color:var(--text-muted);font-size:13px;">加载中...</div>';
       $('mmOrders').innerHTML = '<tr><td colspan="5" class="no-data">加载中...</td></tr>';
       $('merchantModal').classList.add('show');
 
@@ -1572,7 +1826,7 @@
         <div class="info-item"><div class="k">桌台数量</div><div class="v">${ov.tableCount != null ? ov.tableCount : '—'} 张</div></div>
         <div class="info-item" style="grid-column:1/-1;">
           <div class="k">菜品样例（前 10 道）</div>
-          <div class="dish-chips">${dishChips || '<span style="font-size:12px;color:#9ca3af;">暂无菜品</span>'}</div>
+          <div class="dish-chips">${dishChips || '<span style="font-size:12px;color:var(--text-muted);">暂无菜品</span>'}</div>
         </div>
         <div class="info-item" style="grid-column:1/-1;">
           <div class="k">点餐页预览（买家真实点餐页）</div>
@@ -1616,7 +1870,7 @@
 
     async function loadSuppliers() {
       const tbody = $('supplierTbody');
-      tbody.innerHTML = '<tr><td colspan="10" class="no-data">加载中...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="11" class="no-data">加载中...</td></tr>';
       const q = new URLSearchParams({
         page: String(_supPage),
         pageSize: String(_supPageSize),
@@ -1627,12 +1881,12 @@
       const res = await api('/api/dev/suppliers?' + q.toString());
       const costMs = (performance.now() - t0).toFixed(0);
       if (!res.success || !Array.isArray(res.data)) {
-        tbody.innerHTML = `<tr><td colspan="10" class="no-data">${esc(res.message || '加载失败')}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11" class="no-data">${esc(res.message || '加载失败')}</td></tr>`;
         return;
       }
       const list = res.data;
       if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="10" class="no-data">暂无符合条件的供应商</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="no-data">暂无符合条件的供应商</td></tr>';
       } else {
         tbody.innerHTML = list.map(s => {
           const status = s.status || 'pending';
@@ -1665,10 +1919,14 @@
 
           const agreeTxt = s.agreementSigned ? '已签署' : '未签署';
           let orderTxt;
-          if (status === 'frozen') orderTxt = '<span style="color:#b91c1c;">已冻结</span>';
+          if (status === 'frozen') orderTxt = '<span style="color:var(--c-red-700);">已冻结</span>';
           else if (status !== 'active') orderTxt = '—';
-          else if (s.orderEnabled) orderTxt = '<b style="color:#15803d;">已开通</b>';
-          else orderTxt = '<span style="color:#9ca3af;">未开通</span>';
+          else if (s.orderEnabled) orderTxt = '<b style="color:var(--c-green-700);">已开通</b>';
+          else orderTxt = '<span style="color:var(--text-muted);">未开通</span>';
+
+          // 微信进件状态（2026-09：supplier_first 资金流的前提；未进件订单转人工分账）
+          const OB_TEXT = { none: '未提交', pending: '审核中', approved: '已通过', rejected: '被驳回' };
+          const obStatus = s.obStatus || 'none';
 
           return `
           <tr>
@@ -1680,6 +1938,9 @@
             <td data-label="协议">${agreeTxt}</td>
             <td data-label="资质核验">
               <span class="qual-tag ${qualStatus}" ${qualStatus === 'rejected' && s.qualRejectReason ? `title="驳回原因：${esc(s.qualRejectReason)}"` : ''}>${QUAL_STATUS_TEXT[qualStatus] || qualStatus}</span>
+            </td>
+            <td data-label="微信进件">
+              <span class="qual-tag ${obStatus}" ${obStatus === 'rejected' && s.obRejectReason ? `title="驳回原因：${esc(s.obRejectReason)}"` : ''} ${s.wechatSubMchId ? `title="特约商户号：${esc(s.wechatSubMchId)}"` : ''}>${OB_TEXT[obStatus] || obStatus}</span>
             </td>
             <td data-label="接单">${orderTxt}</td>
             <td data-label="注册时间">${fmtTime(s.createdAt)}</td>
@@ -1777,7 +2038,7 @@
     async function openSupplierDetail(id) {
       _sdCurrentId = id;
       $('sdTitle').textContent = '供应商详情';
-      $('sdBody').innerHTML = '<div style="color:#9ca3af;font-size:13px;padding:30px 0;text-align:center;">加载中...</div>';
+      $('sdBody').innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:30px 0;text-align:center;">加载中...</div>';
       $('supplierDetailModal').classList.add('show');
 
       const res = await api(`/api/dev/suppliers/${id}/detail`);
@@ -1833,18 +2094,21 @@
           <div class="info-item"><div class="k">资质核验状态</div><div class="v"><span class="qual-tag ${esc(qual.status)}">${qualText}</span></div></div>
           <div class="info-item"><div class="k">资质提交时间</div><div class="v">${fmtTime(qual.submittedAt)}</div></div>
         </div>
-        ${p.status === 'rejected' && p.rejectReason ? `<p style="font-size:12.5px;color:#b91c1c;margin-top:8px;">入驻拒绝原因：${esc(p.rejectReason)}</p>` : ''}
-        ${qual.status === 'rejected' && qual.rejectReason ? `<p style="font-size:12.5px;color:#b91c1c;margin-top:8px;">资质驳回原因：${esc(qual.rejectReason)}</p>` : ''}
+        ${p.status === 'rejected' && p.rejectReason ? `<p style="font-size:12.5px;color:var(--c-red-700);margin-top:8px;">入驻拒绝原因：${esc(p.rejectReason)}</p>` : ''}
+        ${qual.status === 'rejected' && qual.rejectReason ? `<p style="font-size:12.5px;color:var(--c-red-700);margin-top:8px;">资质驳回原因：${esc(qual.rejectReason)}</p>` : ''}
 
         <div class="sub-title" style="margin-top:18px;">微信支付分账信息</div>
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--line,#e5e7eb);border-radius:8px;background:#f9fafb;">
-          <div style="font-size:13px;color:#374151;flex:1;min-width:240px;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--line,var(--border));border-radius:8px;background:var(--surface-2);">
+          <div style="font-size:13px;color:var(--text-2);flex:1;min-width:240px;">
             <div style="margin-bottom:6px;">特约商户号（分账接收方 sub_mchid）：</div>
-            <input type="text" id="sdWechatSubMchId" value="${esc(p.wechatSubMchId || '')}" placeholder="微信支付特约商户号" style="max-width:340px;padding:8px 10px;border:1px solid var(--line,#e5e7eb);border-radius:8px;width:100%;">
+            <input type="text" id="sdWechatSubMchId" value="${esc(p.wechatSubMchId || '')}" placeholder="微信支付特约商户号" style="max-width:340px;padding:8px 10px;border:1px solid var(--line,var(--border));border-radius:8px;width:100%;">
           </div>
           <button class="btn btn-sm" id="sdSaveWechat" style="margin-left:auto;">保存</button>
         </div>
-        <p style="font-size:12px;color:#9ca3af;margin:6px 2px 0;">顾客采购货款云分账时，供货价部分将结算至该特约商户号（差价留平台）；会员费等软件收入全额归平台，与该商户号无关。</p>
+        <p style="font-size:12px;color:var(--text-muted);margin:6px 2px 0;">顾客采购货款云分账时，供货价部分将结算至该特约商户号（差价留平台）；会员费等软件收入全额归平台，与该商户号无关。</p>
+
+        <div class="sub-title" style="margin-top:18px;">微信支付进件（2026-09 人工录入模式）</div>
+        <div id="sdObSection"><div style="color:var(--text-muted);font-size:13px;padding:12px 0;">进件资料加载中...</div></div>
 
         <div class="sub-title" style="margin-top:18px;">协议签署记录</div>
         ${p.agreementSigned ? `
@@ -1854,9 +2118,9 @@
           <div class="info-item"><div class="k">来源 IP</div><div class="v">${esc((p.agreementEvidence && p.agreementEvidence.ip) || '—')}</div></div>
           <div class="info-item"><div class="k">协议版本</div><div class="v">${esc((p.agreementEvidence && p.agreementEvidence.version) || '—')}</div></div>
         </div>
-        <p style="font-size:12px;color:#9ca3af;margin:6px 2px 0;">设备信息：${esc((p.agreementEvidence && p.agreementEvidence.ua) || '—')}</p>
-        <p style="font-size:12px;color:#9ca3af;margin:4px 2px 0;word-break:break-all;">协议文本哈希：${esc((p.agreementEvidence && p.agreementEvidence.textHash) || '—')}</p>
-        ` : '<p style="font-size:12.5px;color:#9ca3af;margin:8px 2px 0;">该供应商尚未签署《供应商入驻合作协议》</p>'}
+        <p style="font-size:12px;color:var(--text-muted);margin:6px 2px 0;">设备信息：${esc((p.agreementEvidence && p.agreementEvidence.ua) || '—')}</p>
+        <p style="font-size:12px;color:var(--text-muted);margin:4px 2px 0;word-break:break-all;">协议文本哈希：${esc((p.agreementEvidence && p.agreementEvidence.textHash) || '—')}</p>
+        ` : '<p style="font-size:12.5px;color:var(--text-muted);margin:8px 2px 0;">该供应商尚未签署《供应商入驻合作协议》</p>'}
 
         <div class="sub-title" style="margin-top:18px;">资质照片（点击图片可放大查看）</div>
         <div class="qual-photo-grid">${qualPhotosHtml}</div>
@@ -1877,17 +2141,23 @@
               <tr><th>商品名称</th><th>品类</th><th>单位</th><th>供货价</th><th>平台卖价</th><th>差价</th><th>库存</th><th>状态</th></tr>
             </thead>
             <tbody>
-              ${products.length ? products.map(pr => `
-                <tr>
+              ${products.length ? products.map(pr => {
+                // 【2026-09 上线加固】待定价（卖价 0/空）行高亮 + 标「待定价」：
+                // 未定价商品不进采购商城，此处提示平台尽快到「定价工作台」或一键定价补价
+                const pending = pr.priced === false || pr.pricingStatus === 'pending';
+                const pendingTag = '<span style="display:inline-block;padding:1px 6px;border-radius:8px;background:var(--tint-amber-100);color:var(--c-amber-700);font-size:12px;font-weight:700;">待定价</span>';
+                return `
+                <tr style="${pending ? 'background:var(--tint-amber-50);' : ''}">
                   <td data-label="商品名称"><b>${esc(pr.name)}</b></td>
                   <td data-label="品类">${esc(pr.category)}</td>
                   <td data-label="单位">${esc(pr.unit)}</td>
                   <td data-label="供货价">${fmtMoney(pr.costPrice)}</td>
-                  <td data-label="平台卖价">${fmtMoney(pr.salePrice)}</td>
-                  <td data-label="差价" style="color:${Number(pr.priceDiff) < 0 ? '#dc2626' : '#16a34a'};">${fmtMoney(pr.priceDiff)}</td>
+                  <td data-label="平台卖价">${pending ? pendingTag : fmtMoney(pr.salePrice)}</td>
+                  <td data-label="差价" style="color:${Number(pr.priceDiff) < 0 ? 'var(--c-red)' : 'var(--c-green)'};">${pending ? '—' : fmtMoney(pr.priceDiff)}</td>
                   <td data-label="库存">${pr.stock}</td>
                   <td data-label="状态"><span class="tag">${esc(pr.status)}</span></td>
-                </tr>`).join('')
+                </tr>`;
+              }).join('')
                 : '<tr><td colspan="8" class="no-data">暂无商品</td></tr>'}
             </tbody>
           </table>
@@ -1945,6 +2215,113 @@
         if (r.success) alert('已保存');
         else alert(r.message || '保存失败');
       };
+      // 微信进件资料 + 审核（人工录入模式：通过时录入特约商户号）
+      loadSdOnboarding();
+    }
+
+    // ============ 供应商详情 · 微信进件审核（2026-09）============
+    // 状态机：none=未提交 / pending=审核中 / approved=已通过 / rejected=被驳回
+    // 审核通过 = 平台已在微信商户平台代为完成进件 → 录入拿到的特约商户号 → 状态置已通过
+    async function loadSdOnboarding() {
+      const box = $('sdObSection');
+      if (!box || !_sdCurrentId) return;
+      const res = await api(`/api/dev/suppliers/${_sdCurrentId}/wechat-onboarding`);
+      if (!res.success || !res.data) {
+        box.innerHTML = `<div style="color:var(--red,var(--c-red));font-size:13px;padding:12px 0;">${esc(res.message || '进件资料加载失败')}</div>`;
+        return;
+      }
+      const ob = res.data;
+      const OB_TEXT = { none: '未提交', pending: '审核中', approved: '已通过', rejected: '被驳回' };
+      const photos = [
+        { key: 'businessLicenseUrl', label: '营业执照' },
+        { key: 'idCardFrontUrl', label: '身份证正面' },
+        { key: 'idCardBackUrl', label: '身份证反面' }
+      ];
+      const photosHtml = photos.map(ph => `
+        <div class="qual-photo-item">
+          <span class="qph">${ph.label}</span>
+          ${ob[ph.key]
+            ? `<img src="${esc(ob[ph.key])}" data-photo="${esc(ob[ph.key])}" alt="${ph.label}">`
+            : '<div class="empty">未上传</div>'}
+        </div>`).join('');
+
+      const infoHtml = ob.status === 'none'
+        ? '<p style="font-size:12.5px;color:var(--text-muted);margin:8px 2px;">该供应商尚未在「进件中心」提交微信进件资料。未进件不阻断接单，订单由平台线下人工结算。</p>'
+        : `
+        <div class="info-grid">
+          <div class="info-item"><div class="k">进件状态</div><div class="v"><span class="qual-tag ${esc(ob.status)}">${OB_TEXT[ob.status] || ob.status}</span></div></div>
+          <div class="info-item"><div class="k">法人姓名</div><div class="v">${esc(ob.legalPerson || '—')}</div></div>
+          <div class="info-item"><div class="k">联系人</div><div class="v">${esc(ob.contactName || '—')}</div></div>
+          <div class="info-item"><div class="k">联系电话</div><div class="v">${esc(ob.contactPhone || '—')}</div></div>
+          <div class="info-item"><div class="k">经营类目</div><div class="v">${esc(ob.category || '—')}</div></div>
+          <div class="info-item"><div class="k">经营地址</div><div class="v">${esc(ob.address || '—')}</div></div>
+          <div class="info-item"><div class="k">结算账户户名</div><div class="v">${esc(ob.bankAccountName || '—')}</div></div>
+          <div class="info-item"><div class="k">银行账号（脱敏）</div><div class="v">${esc(ob.bankAccountNoMasked || '—')}</div></div>
+          <div class="info-item"><div class="k">开户银行</div><div class="v">${esc(ob.bankName || '—')}</div></div>
+          <div class="info-item"><div class="k">开户支行</div><div class="v">${esc(ob.bankBranch || '—')}</div></div>
+          <div class="info-item"><div class="k">提交时间</div><div class="v">${fmtTime(ob.submittedAt)}</div></div>
+          <div class="info-item"><div class="k">审核时间</div><div class="v">${fmtTime(ob.reviewedAt)}</div></div>
+        </div>
+        ${ob.status === 'rejected' && ob.rejectReason ? `<p style="font-size:12.5px;color:var(--c-red-700);margin-top:8px;">驳回原因：${esc(ob.rejectReason)}</p>` : ''}
+        <div class="qual-photo-grid" style="margin-top:12px;">${photosHtml}</div>`;
+
+      // 审核操作条：pending 可通过（录入特约商户号）/ 驳回；approved 可改录商户号
+      let actionBar = '';
+      if (ob.status === 'pending') {
+        actionBar = `
+        <div class="qual-actions-bar">
+          <button class="btn-qa-approve" id="sdObApprove">✅ 通过并录入特约商户号</button>
+          <button class="btn-qa-reject" id="sdObReject">❌ 驳回并填写原因</button>
+        </div>
+        <p style="font-size:12px;color:var(--text-muted);margin:6px 2px 0;">通过前请先在微信商户平台用左侧资料完成进件，拿到特约商户号后点「通过」录入。</p>`;
+      } else if (ob.status === 'approved') {
+        actionBar = `<p style="font-size:12.5px;color:var(--c-green-700);margin:8px 2px 0;">✅ 进件已通过，该供应商新订单走渠道分账（货款直接进其微信商户账户，平台分账抽加价部分）。</p>`;
+      }
+
+      box.innerHTML = infoHtml + actionBar;
+      box.querySelectorAll('img[data-photo]').forEach(img => {
+        img.onclick = () => showDevImageLightbox(img.dataset.photo);
+      });
+
+      const apBtn = $('sdObApprove');
+      if (apBtn) apBtn.onclick = async () => {
+        const subMchId = prompt('请输入微信支付特约商户号（8~20 位数字，微信商户平台进件完成后获取）：', ob.wechatSubMchId || '');
+        if (subMchId === null) return;
+        if (!/^\d{8,20}$/.test(subMchId.trim())) { alert('特约商户号须为 8~20 位数字'); return; }
+        if (!confirm(`确认通过「${ob.supplierName}」的微信进件并录入特约商户号 ${subMchId.trim()}？\n此后该供应商新订单货款将直接进其微信商户账户（平台分账抽加价部分）。`)) return;
+        apBtn.disabled = true;
+        const r = await api(`/api/dev/suppliers/${_sdCurrentId}/wechat-onboarding/review`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'approve', subMchId: subMchId.trim() })
+        });
+        if (r.success) {
+          alert(r.message || '进件已标记通过');
+          loadSuppliers();
+          openSupplierDetail(_sdCurrentId);
+        } else {
+          alert(r.message || '操作失败');
+          apBtn.disabled = false;
+        }
+      };
+      const rjBtn = $('sdObReject');
+      if (rjBtn) rjBtn.onclick = async () => {
+        const reason = prompt('请填写进件驳回原因（供应商端可见）：');
+        if (reason === null) return;
+        if (!reason.trim()) { alert('驳回原因不能为空'); return; }
+        rjBtn.disabled = true;
+        const r = await api(`/api/dev/suppliers/${_sdCurrentId}/wechat-onboarding/review`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'reject', reason })
+        });
+        if (r.success) {
+          alert(r.message || '已驳回');
+          loadSuppliers();
+          openSupplierDetail(_sdCurrentId);
+        } else {
+          alert(r.message || '操作失败');
+          rjBtn.disabled = false;
+        }
+      };
     }
 
     // 图片灯箱（开发者后台）
@@ -1966,27 +2343,117 @@
     };
 
     // ============ 系统设置（平台配置） ============
+    // 最低加价率下限（3% = 平台成本线，不能再低），由后端下发；用于前端输入校验与提示
+    let cfgMinMarkupFloor = 0.03;
     async function loadPlatformConfig() {
       const res = await api('/api/dev/config');
       if (res.success && res.data) {
         $('cfgPlatformCompanyName').value = res.data.platformCompanyName || '';
         $('cfgPlatformCreditCode').value = res.data.platformCreditCode || '';
+        $('cfgMinMarkupRate').value = res.data.minMarkupRate != null ? res.data.minMarkupRate : 0.05;
+        if (res.data.minMarkupRateHardFloor != null) cfgMinMarkupFloor = Number(res.data.minMarkupRateHardFloor);
         // 会员费分账配置已下线：会员费全额归平台，云分账仅用于采购货款
+        renderPayModeButtons(res.data);
+        renderFlowModeButtons(res.data);
       }
     }
+    // 支付模式 / 资金流模式按钮态渲染（当前模式高亮 + 状态文字）
+    function renderPayModeButtons(d) {
+      const mode = (d && d.payMode) || 'mock';
+      const wechatOk = !!(d && d.wechatConfigured);
+      $('payModeMockBtn').style.background = mode === 'mock' ? 'var(--c-amber-500)' : '';
+      $('payModeMockBtn').style.color = mode === 'mock' ? '#fff' : '';
+      $('payModeWechatBtn').style.background = mode === 'wechat' ? 'var(--c-emerald)' : '';
+      $('payModeWechatBtn').style.color = mode === 'wechat' ? '#fff' : '';
+      $('payModeState').textContent = mode === 'mock'
+        ? '当前：演示模式（所有交易模拟，不会真实扣款/打款）'
+        : '当前：真实微信支付 ⚠️ 交易将真实扣款/打款';
+      $('payModeState').style.color = mode === 'mock' ? 'var(--c-amber-700)' : 'var(--c-red)';
+      $('payModeWechatBtn').disabled = !wechatOk;
+      $('payModeWechatBtn').title = wechatOk ? '' : '微信支付凭证未配置（缺少 WXPAY_* 环境变量），不能切换';
+    }
+    function renderFlowModeButtons(d) {
+      const mode = (d && d.paymentFlowMode) || 'supplier_first';
+      $('flowModeSupplierBtn').style.background = mode === 'supplier_first' ? 'var(--c-blue-600)' : '';
+      $('flowModeSupplierBtn').style.color = mode === 'supplier_first' ? '#fff' : '';
+      $('flowModePlatformBtn').style.background = mode === 'platform_first' ? 'var(--c-red)' : '';
+      $('flowModePlatformBtn').style.color = mode === 'platform_first' ? '#fff' : '';
+      $('flowModeState').textContent = mode === 'supplier_first'
+        ? '当前：钱进供应商账户，平台分账抽加价部分（默认，无需白名单）'
+        : '当前：钱进平台账户，再分账付供应商供货价（需高比例分账白名单）';
+      $('flowModeState').style.color = mode === 'supplier_first' ? 'var(--c-blue-700)' : 'var(--c-red)';
+    }
+    // 切换支付模式：立即生效（后端写穿缓存），成功后刷新按钮态
+    async function switchPayMode(mode) {
+      if (mode === 'wechat' && !confirm('确认切换到【真实微信支付】？此后所有采购交易将真实扣款/分账！\n（服务商资质未就绪前不要切换）')) return;
+      const r = await api('/api/dev/config', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payMode: mode })
+      });
+      if (r.success) {
+        alert(mode === 'mock' ? '已切换到演示模式（立即生效），各端橙色横幅已显示' : '已切换到真实微信支付（立即生效）');
+        await loadPlatformConfig();
+      } else alert(r.message || '切换失败');
+    }
+    async function switchFlowMode(mode) {
+      if (mode === 'platform_first') {
+        const ok = confirm('切换到【钱进平台】模式：供应商货款占比通常超过微信 30% 默认分账上限。\n必须已取得微信支付「高比例分账」白名单批复，否则分账请求会被微信拒绝！\n\n确认已拿到白名单批复？');
+        if (!ok) return;
+      }
+      const r = await api('/api/dev/config', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentFlowMode: mode, confirmFlowSwitch: mode === 'platform_first' })
+      });
+      if (r.success) {
+        alert(r.data && r.data.paymentFlowMode === 'platform_first'
+          ? '已切换到「钱进平台」模式（立即生效）'
+          : '已切换到「钱进供应商」模式（立即生效）');
+        await loadPlatformConfig();
+      } else alert(r.message || '切换失败');
+    }
+    $('payModeMockBtn').onclick = () => switchPayMode('mock');
+    $('payModeWechatBtn').onclick = () => switchPayMode('wechat');
+    $('flowModeSupplierBtn').onclick = () => switchFlowMode('supplier_first');
+    $('flowModePlatformBtn').onclick = () => switchFlowMode('platform_first');
     $('cfgSaveBtn').onclick = async () => {
       const btn = $('cfgSaveBtn');
+      // 最低加价率前端校验：3% 是成本线不能再低；低于 5% 保存前给「利润很薄」提示
+      const rateRaw = ($('cfgMinMarkupRate').value || '').trim();
+      if (rateRaw !== '') {
+        const r = Number(rateRaw);
+        if (!isFinite(r) || r < 0 || r > 1) {
+          alert('最低加价率须为 0~1 之间的小数（如 0.05 表示 5%）');
+          return;
+        }
+        if (r < cfgMinMarkupFloor) {
+          alert(`最低加价率不得低于 ${(cfgMinMarkupFloor * 100).toFixed(0)}%（3% 是平台成本线，不能再低）`);
+          return;
+        }
+        if (r < 0.05) {
+          const ok = await showConfirm({
+            title: '⚠️ 加价率低于 5%',
+            danger: true,
+            html: `最低加价率将设置为 <b style="color:var(--c-red-700);">${(r * 100).toFixed(2).replace(/\.?0+$/, '')}%</b>，<b style="color:var(--c-red-700);">利润会很薄</b>。<br>` +
+              `该值是全平台卖价硬地板：定价工作台保存卖价、一键定价、商家下单都会按此校验。<br><br>确定要保存吗？`,
+            okText: '确定保存'
+          });
+          if (!ok) return;
+        }
+      }
       btn.disabled = true; btn.textContent = '保存中...';
       const r = await api('/api/dev/config', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           platformCompanyName: $('cfgPlatformCompanyName').value,
-          platformCreditCode: $('cfgPlatformCreditCode').value
+          platformCreditCode: $('cfgPlatformCreditCode').value,
+          minMarkupRate: $('cfgMinMarkupRate').value
         })
       });
       btn.disabled = false; btn.textContent = '保存配置';
-      if (r.success) alert('平台配置已保存');
-      else alert(r.message || '保存失败');
+      if (r.success) {
+        alert('平台配置已保存');
+        await loadPlatformConfig();
+      } else alert(r.message || '保存失败');
     };
 
     // ============ 比价工作台 ============
@@ -2131,6 +2598,7 @@
       }
       await loadRevenue($('revMonth').value || curMonth());
       await loadSplitFailures();
+      await loadManualSettlements();
     }
 
     async function loadRevenue(month) {
@@ -2164,7 +2632,7 @@
           <td style="font-weight:700;color:var(--accent);">${fmtMoney(x.platformShare)}</td>
           <td>
             <div style="display:flex;align-items:center;gap:8px;">
-              <div style="width:70px;height:6px;background:#f3f4f6;border-radius:3px;overflow:hidden;">
+              <div style="width:70px;height:6px;background:var(--surface-3);border-radius:3px;overflow:hidden;">
                 <div style="width:${Math.min(100, Number(x.share) || 0)}%;height:100%;background:var(--accent);"></div>
               </div>
               <span>${Number(x.share || 0).toFixed(1)}%</span>
@@ -2196,12 +2664,51 @@
           <td>${fmtMoney(r.splitAmount)}</td>
           <td>${fmtMoney(r.supplierShare)}</td>
           <td style="font-weight:700;color:var(--accent);">${fmtMoney(r.platformShare)}</td>
-          <td style="color:${comp < 0 ? '#dc2626' : (comp > 0 ? '#16a34a' : 'inherit')};">${comp ? fmtMoney(comp) : '—'}</td>
+          <td style="color:${comp < 0 ? 'var(--c-red)' : (comp > 0 ? 'var(--c-green)' : 'inherit')};">${comp ? fmtMoney(comp) : '—'}</td>
           <td><span class="badge ${badge}">${esc(r.splitStatus || '待分账')}</span></td>
           <td class="mono">${esc(r.splitNo || '—')}</td>
           <td>${fmtTime(r.receiveAt)}</td>
         </tr>`;
       }).join('') : '<tr><td colspan="10" class="no-data">该月暂无分账明细</td></tr>';
+    }
+
+    // ============ 待人工分账订单（供应商未进件降级，2026-09）============
+    async function loadManualSettlements() {
+      const tbody = $('revManualTbody');
+      tbody.innerHTML = '<tr><td colspan="10" class="no-data">加载中...</td></tr>';
+      const res = await api('/api/dev/manual-settlements');
+      if (!res.success || !Array.isArray(res.data)) {
+        tbody.innerHTML = `<tr><td colspan="10" class="no-data">${esc(res.message || '加载失败')}</td></tr>`;
+        return;
+      }
+      const list = res.data;
+      tbody.innerHTML = list.length ? list.map(r => `
+        <tr>
+          <td class="mono">${esc(r.orderNo || '—')}</td>
+          <td>${esc(r.shopName || '—')}</td>
+          <td>${esc(r.supplierName || '—')}</td>
+          <td>${fmtMoney(r.totalAmount)}</td>
+          <td style="color:var(--c-green-700);font-weight:600;">${fmtMoney(r.supplierShare)}</td>
+          <td style="color:var(--c-blue-700);font-weight:600;">${fmtMoney(r.platformShare)}</td>
+          <td style="font-size:12px;color:var(--c-amber-700);">${esc(r.manualSettleReason || '—')}</td>
+          <td>${fmtTime(r.createdAt)}</td>
+          <td>${r.splitStatus === '待人工分账'
+            ? '<span class="qual-tag pending">待人工结算</span>'
+            : `<span class="qual-tag approved">已结算 ${fmtTime(r.manualSettledAt)}</span>`}</td>
+          <td>${r.splitStatus === '待人工分账'
+            ? `<button class="btn" data-msettle="${esc(String(r._id))}">标记已结算</button>`
+            : '—'}</td>
+        </tr>`).join('') : '<tr><td colspan="10" class="no-data">暂无待人工分账订单</td></tr>';
+      tbody.querySelectorAll('[data-msettle]').forEach(b => {
+        b.onclick = async () => {
+          if (!confirm('确认已线下完成该订单的人工结算？\n（供应商供货价已打款、平台加价已留存，订单分账状态将落定为「分账成功」）')) return;
+          b.disabled = true;
+          b.textContent = '标记中...';
+          const r2 = await api('/api/dev/manual-settlements/' + b.getAttribute('data-msettle') + '/settle', { method: 'POST' });
+          if (r2.success) { await loadManualSettlements(); }
+          else { b.disabled = false; b.textContent = '标记已结算'; alert('操作失败：' + (r2.message || '')); }
+        };
+      });
     }
 
     // 分账失败订单 + 重试入口
@@ -2220,7 +2727,7 @@
           <td>${esc(r.supplierName || '—')}</td>
           <td>${fmtMoney(r.splitAmount)}</td>
           <td>${Number(r.splitRetryCount || 0)} 次</td>
-          <td style="color:#dc2626;font-size:12px;">${esc(r.splitError || '—')}</td>
+          <td style="color:var(--c-red);font-size:12px;">${esc(r.splitError || '—')}</td>
           <td><button class="btn" data-retry="${esc(String(r._id))}">重试分账</button></td>
         </tr>`).join('') : '<tr><td colspan="6" class="no-data">暂无分账失败订单</td></tr>';
       tbody.querySelectorAll('[data-retry]').forEach(b => {
@@ -2237,6 +2744,8 @@
     // ============ 定价工作台（平台手动填写卖价，无自动加价）============
     let pricingInited = false;
     let pricingProducts = [];
+    // 一键定价状态（预览结果缓存，便于「应用」直接拿）
+    let bulkPreviewResult = null;
     async function initPricingTab() {
       if (!pricingInited) {
         pricingInited = true;
@@ -2244,35 +2753,226 @@
         $('pricingSaveAllBtn').onclick = saveAllPricing;
         $('pricingSupplier').onchange = () => loadPricing();
         $('pricingCategory').onchange = () => loadPricing();
+        $('pricingFilter').onchange = () => loadPricing();
         $('pricingKeyword').addEventListener('keydown', e => { if (e.key === 'Enter') loadPricing(); });
-        // 供应商下拉
+        // 供应商下拉（手动定价 + 一键定价共用同一选项）
         loadSupplierOptions().then(list => {
-          const sel = $('pricingSupplier');
-          (list || []).forEach(sp => {
-            const o = document.createElement('option');
-            o.value = String(sp._id);
-            o.textContent = sp.name || '未命名';
-            sel.appendChild(o);
+          ['pricingSupplier', 'bulkSupplier'].forEach(id => {
+            const sel = $(id);
+            if (!sel) return;
+            (list || []).forEach(sp => {
+              const o = document.createElement('option');
+              o.value = String(sp._id);
+              o.textContent = sp.name || '未命名';
+              sel.appendChild(o);
+            });
           });
         });
+        // 一键定价按钮事件绑定
+        $('bulkPreviewBtn').onclick = bulkPreview;
+        $('bulkApplyBtn').onclick = bulkApply;
+        $('bulkRollbackBtn').onclick = bulkRollback;
+        // 【2026-09】尾数取整选项：下拉 / 自定义尾数 / 取整保护开关，改动即刷新提示
+        $('bulkRoundMode').onchange = updateBulkRoundUI;
+        $('bulkRoundTail').oninput = updateBulkRoundUI;
+        $('bulkRoundGuard').onchange = updateBulkRoundUI;
+        // 【2026-09 低价商品加价上限】保底加价额 / 加价率上限倍数 / 加价率改动即刷新公式提示
+        // 【2026-09 保底开关】「启用保底加价额」勾选框：切换即刷新公式提示与金额输入框可用性
+        $('bulkMinAmountEnabled').onchange = updateBulkRoundUI;
+        $('bulkMinAmount').oninput = updateBulkRoundUI;
+        $('bulkCapMult').oninput = updateBulkRoundUI;
+        $('bulkRate').oninput = updateBulkRoundUI;
+        updateBulkRoundUI();
+        // 表头「全选」：勾选/取消当前筛选出的全部商品
+        $('pricingSelectAll').onchange = () => {
+          const on = $('pricingSelectAll').checked;
+          $('pricingTbody').querySelectorAll('.price-select').forEach(cb => { cb.checked = on; });
+          updatePricingSelectionUI();
+        };
+        // 行勾选框（tbody 会被整体重绘，用事件委托）
+        $('pricingTbody').addEventListener('change', (e) => {
+          if (e.target && e.target.classList && e.target.classList.contains('price-select')) updatePricingSelectionUI();
+        });
+        // 强制覆盖手动定价：勾选后立刻给出红色提醒
+        $('bulkForceOverride').onchange = updateBulkForceWarn;
+        // 范围切换：勾选提示文案随范围变化
+        $('bulkScope').onchange = updatePricingSelectionUI;
+        // 拉取最近一次一键定价快照（用于显示「回滚」按钮是否可用）
+        await loadBulkSnapshot();
       }
       await loadPricing();
     }
 
+    // 读取表格里已勾选的商品 ID（用于「仅勾选商品」范围的一键定价）
+    function getSelectedPricingIds() {
+      return Array.from($('pricingTbody').querySelectorAll('.price-select'))
+        .filter(cb => cb.checked).map(cb => cb.dataset.pid);
+    }
+
+    // 勾选态联动：表头全选框状态 + 已勾选件数提示
+    function updatePricingSelectionUI() {
+      const boxes = Array.from($('pricingTbody').querySelectorAll('.price-select'));
+      const checked = boxes.filter(cb => cb.checked);
+      const all = $('pricingSelectAll');
+      all.checked = boxes.length > 0 && checked.length === boxes.length;
+      all.indeterminate = checked.length > 0 && checked.length < boxes.length;
+      all.disabled = boxes.length === 0;
+      const hint = $('bulkSelectionHint');
+      const usingSelected = $('bulkScope').value === 'selected';
+      if (checked.length > 0 || usingSelected) {
+        hint.style.display = 'block';
+        hint.innerHTML = checked.length
+          ? `已勾选 <b>${checked.length}</b> 件商品${usingSelected
+            ? `（范围＝仅表格中勾选的商品，一键定价只作用于这 ${checked.length} 件）`
+            : '；把「范围」选成「仅表格中勾选的商品」即可只给这些商品定价'}`
+          : '范围已选「仅表格中勾选的商品」，但当前一件都没勾选 —— 请在下方表格勾选商品，或点表头复选框全选当前筛选结果（可先按供应商筛选）。';
+      } else {
+        hint.style.display = 'none';
+      }
+    }
+
+    // 「强制覆盖手动定价」勾选后的红色预警（真正执行前还会在确认弹窗里再提示一次覆盖件数）
+    function updateBulkForceWarn() {
+      const w = $('bulkForceWarn');
+      if (!$('bulkForceOverride').checked) {
+        w.style.display = 'none'; w.innerHTML = '';
+        return;
+      }
+      const manualCount = pricingProducts.filter(p => p.isManualPrice).length;
+      w.style.display = 'block';
+      w.innerHTML = '⚠️ 已勾选「强制覆盖手动定价」：一键定价会把之前手动改过价的商品也按统一加价率重定' +
+        (manualCount > 0 ? `（当前列表中手动定价商品 <b>${manualCount}</b> 件）` : '') +
+        '。执行前会弹窗再次确认，执行后可在 24 小时内一键回滚。';
+    }
+
+    // 【2026-09】读取「尾数取整」下拉的取整方式与尾数（自定义尾数时才读输入框）
+    // 返回 { roundMode: 'none'|'round'|'ceil'|'int', roundTail: number|null }
+    function readRoundOption() {
+      const v = $('bulkRoundMode').value;
+      if (v === 'custom') {
+        const n = parseInt($('bulkRoundTail').value, 10);
+        return { roundMode: 'ceil', roundTail: Math.min(9, Math.max(0, isNaN(n) ? 9 : n)) };
+      }
+      if (v.indexOf('ceil:') === 0) return { roundMode: 'ceil', roundTail: Number(v.slice(5)) };
+      return { roundMode: v, roundTail: null };
+    }
+
+    // 【2026-09 保底开关】顶部公式与「保底加价额」状态提示
+    // on=false（未勾选「启用保底加价额」）：完全按加价率算，不补任何金额
+    function renderBulkFloorHint(on, amount, capMult) {
+      const amt = (isFinite(amount) ? Number(amount) : 0).toFixed(2);
+      $('bulkHintFormula').textContent = on
+        ? `卖价 = max(供货价 × (1 + 加价率), 供货价 + ${amt})，且保底后实际加价率 ≤ 加价率 × ${capMult}（超出则放弃保底、改用按比例算出的精确值）`
+        : '卖价 = 供货价 × (1 + 加价率)（不补任何金额）';
+      $('bulkHintMinAmount2').textContent = on ? `开启 ${amt} 元` : '关闭';
+    }
+
+    // 取整选项的界面联动：自定义尾数输入框显隐 + 公式提示同步（取整方式、取整保护、加价率上限、保底开关）
+    function updateBulkRoundUI() {
+      const opt = readRoundOption();
+      $('bulkRoundTailWrap').style.display = $('bulkRoundMode').value === 'custom' ? '' : 'none';
+      $('bulkHintRoundTail').textContent = opt.roundMode === 'ceil'
+        ? `向上取整到 .${opt.roundTail}`
+        : ({ none: '不取整（精确到分）', round: '四舍五入到角', int: '向上取整到整数' }[opt.roundMode] || opt.roundMode);
+      $('bulkHintRoundGuard').textContent = $('bulkRoundGuard').checked ? '开启' : '关闭';
+      // 【2026-09 保底开关】未勾选「启用保底加价额」＝保底关闭：金额输入框置灰，公式里不带保底
+      const floorOn = $('bulkMinAmountEnabled').checked;
+      $('bulkMinAmount').disabled = !floorOn;
+      // 【2026-09 低价商品加价上限】上限加价率 = 加价率 × 上限倍数（仅页面提示，服务端会重新权威计算）
+      const mult = Number($('bulkCapMult').value);
+      const multOk = isFinite(mult) && mult > 0;
+      $('bulkHintCapMult').textContent = multOk ? String(mult) : '2';
+      renderBulkFloorHint(floorOn, Number($('bulkMinAmount').value), multOk ? mult : 2);
+      const rate = validateBulkRate();
+      $('bulkHintCapRate').textContent = (rate == null || !multOk)
+        ? '--'
+        : (rate * mult * 100).toFixed(2).replace(/\.?0+$/, '');
+    }
+
+    // 【2026-09 低价商品加价上限】读取「保底加价额 / 加价率上限倍数」（留空则不传，服务端按默认值兜底）
+    // 【2026-09 保底开关】未勾选「启用保底加价额」时保底额按 0 提交＝完全按加价率算、不补任何金额
+    function readMarkupRules() {
+      const rules = {};
+      const enabled = $('bulkMinAmountEnabled').checked;
+      const minRaw = ($('bulkMinAmount').value || '').trim();
+      if (enabled) {
+        rules.minMarkupAmount = minRaw === '' ? Number.NaN : Number(minRaw);
+      } else {
+        rules.minMarkupAmount = 0;
+      }
+      const capRaw = ($('bulkCapMult').value || '').trim();
+      if (capRaw !== '') rules.markupCapMultiplier = Number(capRaw);
+      return rules;
+    }
+
+    // 校验保底加价额 / 上限倍数（口径与后端 validateMarkupRules 一致）：非法返回错误文案，合法返回 null
+    function validateMarkupRules() {
+      const rules = readMarkupRules();
+      if ($('bulkMinAmountEnabled').checked && ($('bulkMinAmount').value || '').trim() === '') {
+        return '已启用保底加价额，请填写保底金额（0~10 元）';
+      }
+      if (rules.minMarkupAmount != null &&
+        (!isFinite(rules.minMarkupAmount) || rules.minMarkupAmount < 0 || rules.minMarkupAmount > 10)) {
+        return '保底加价额须为 0~10 之间的数字（元）';
+      }
+      if (rules.markupCapMultiplier != null &&
+        (!isFinite(rules.markupCapMultiplier) || rules.markupCapMultiplier < 1 || rules.markupCapMultiplier > 10)) {
+        return '加价率上限倍数须为 1~10 之间的数字（倍）';
+      }
+      return null;
+    }
+
+    // 组装一键定价请求参数（预览 / 应用共用，保证两者口径一致）
+    function buildBulkBody() {
+      const scope = $('bulkScope').value;
+      const round = readRoundOption();
+      const body = {
+        rate: Number(($('bulkRate').value || '').trim()),
+        supplierId: $('bulkSupplier').value || 'all',
+        category: $('bulkCategory').value || 'all',
+        onlyPending: scope === 'pending',
+        forceOverride: $('bulkForceOverride').checked,
+        // 尾数取整选项：只随本次请求提交，服务端权威计算，前端仅展示
+        roundMode: round.roundMode,
+        roundGuard: $('bulkRoundGuard').checked
+      };
+      if (round.roundMode === 'ceil') body.roundTail = round.roundTail;
+      // 【2026-09 低价商品加价上限】保底加价额 / 上限倍数：同样只随本次请求提交，服务端权威计算
+      Object.assign(body, readMarkupRules());
+      // 范围=仅勾选商品：显式传 productIds（空数组 = 一件都没勾选，后端不命中任何商品）
+      if (scope === 'selected') body.productIds = getSelectedPricingIds();
+      return body;
+    }
+
+    // 加价率校验：非法返回 null
+    function validateBulkRate() {
+      const raw = ($('bulkRate').value || '').trim();
+      if (raw === '') return null;
+      const rate = Number(raw);
+      if (!isFinite(rate) || rate < 0 || rate > 1) return null;
+      return rate;
+    }
+
     async function loadPricing() {
       const tbody = $('pricingTbody');
-      tbody.innerHTML = '<tr><td colspan="8" class="no-data">加载中...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="11" class="no-data">加载中...</td></tr>';
       const qs = new URLSearchParams();
       qs.set('supplierId', $('pricingSupplier').value || 'all');
       qs.set('category', $('pricingCategory').value || 'all');
+      if ($('pricingFilter').value === 'underpriced') qs.set('onlyUnderpriced', '1');
       const kw = $('pricingKeyword').value.trim();
       if (kw) qs.set('keyword', kw);
       const res = await api('/api/dev/pricing?' + qs.toString());
       if (!res.success || !Array.isArray(res.data)) {
-        tbody.innerHTML = `<tr><td colspan="8" class="no-data">${esc(res.message || '加载失败')}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11" class="no-data">${esc(res.message || '加载失败')}</td></tr>`;
+        updatePricingSelectionUI();
         return;
       }
       pricingProducts = res.data;
+      // 最低加价率提示（卖价底线 = 供货价 × (1 + 最低加价率)）
+      if (res.minMarkupRate != null) {
+        $('pricingRateHint').textContent = (Number(res.minMarkupRate) * 100).toFixed(2).replace(/\.?0+$/, '') + '%';
+      }
       // 品类下拉（首次填充，去重）
       const catSel = $('pricingCategory');
       if (catSel.options.length <= 1) {
@@ -2286,39 +2986,73 @@
       tbody.innerHTML = res.data.length ? res.data.map(p => {
         const cost = Number(p.costPrice) || 0;
         const diff = Number(p.priceDiff) || 0;
+        // 最低卖价必须来自后端真实计算的 minSalePrice；缺失时显示「—」，绝不静默显示 0
+        const min = Number.isFinite(Number(p.minSalePrice)) ? Number(p.minSalePrice) : null;
+        const minText = min == null ? '—' : '¥' + min.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const minTitle = min == null ? '' : `卖价不能低于 ¥${min.toFixed(2)}（供货价 + 平台成本底线）`;
+        const belowFloor = !!p.belowFloor;
+        // 行底色只标记「需要动手」的行：未定价 / 低于底线 → 极淡黄；已定价但亏本（卖价 < 供货价）→ 极淡红；其余行保持干净
+        const rowBg = (!p.priced || belowFloor) ? 'var(--row-unpriced)' : (diff < 0 ? 'var(--row-loss)' : '');
+        // 手动定价只加小标签，不整行上色
+        const manualTag = p.isManualPrice ? '<span class="mini-tag">手动</span>' : '';
+        // 【2026-09 列表体验】加价率列 =（卖价 − 供货价）÷ 供货价；未定价显示「—」，可点列头排序
+        const rate = (p.priced && cost > 0) ? (Number(p.salePrice) - cost) / cost : null;
+        const rateText = rate == null ? '—' : (rate < 0 ? '-' : '') + (Math.abs(rate) * 100).toFixed(2) + '%';
+        const rateColor = (rate == null || rate === 0) ? 'var(--text-sub)' : (rate < 0 ? 'var(--c-red)' : 'var(--c-green)');
         return `
-        <tr>
+        <tr${rowBg ? ` style="background:${rowBg};"` : ''}>
+          <td><input type="checkbox" class="price-select" data-pid="${esc(p._id)}" title="勾选后可只给该商品一键定价"></td>
           <td>${esc(p.supplierName || '—')}</td>
-          <td>${esc(p.name || '—')}</td>
+          <td>${esc(p.name || '—')}${manualTag}</td>
           <td>${esc(p.category || '未分类')}</td>
           <td>${esc(p.unit || '个')}</td>
-          <td class="mono">¥${cost.toFixed(2)}</td>
+          <td class="mono">¥${cost.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <td class="mono" style="font-weight:700;color:var(--c-orange);">${minText}${belowFloor ? ' <span style="font-weight:400;color:var(--c-amber-700);font-size:12px;">待定价</span>' : ''}</td>
           <td>
-            <input type="number" min="0" step="0.01" class="price-input" style="width:120px;"
+            <input type="number" min="0" step="0.01" class="price-input" style="width:120px;${belowFloor ? 'border-color:var(--c-amber-500);' : ''}"
               data-pid="${esc(p._id)}" value="${p.priced ? Number(p.salePrice).toFixed(2) : ''}"
-              placeholder="未定价（=供货价）">
+              placeholder="未定价（=供货价）"
+              title="${belowFloor ? (minTitle || '未定价或低于底线') : ''}">
           </td>
-          <td class="pricing-diff" data-pid="${esc(p._id)}" style="font-weight:700;color:${diff < 0 ? '#dc2626' : (diff > 0 ? '#16a34a' : '#6b7280')};">
-            ${p.priced ? '¥' + diff.toFixed(2) : '—'}
+          <td class="pricing-diff" data-pid="${esc(p._id)}" style="font-weight:700;color:${diff < 0 ? 'var(--c-red)' : (diff > 0 ? 'var(--c-green)' : 'var(--text-sub)')};">
+            ${p.priced ? '¥' + diff.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
           </td>
+          <td class="pricing-rate" data-pid="${esc(p._id)}" style="font-weight:700;color:${rateColor};">${rateText}</td>
           <td>${fmtTime(p.priceUpdatedAt)}</td>
         </tr>`;
-      }).join('') : '<tr><td colspan="8" class="no-data">暂无商品</td></tr>';
+      }).join('') : '<tr><td colspan="11" class="no-data">暂无商品</td></tr>';
 
-      // 实时差价（输入即算，仅展示，不自动回填）
+      // 勾选态 / 手动定价数量提示随列表刷新
+      updatePricingSelectionUI();
+      updateBulkForceWarn();
+
+      // 实时差价 + 加价率（输入即算，仅展示，不自动回填）
       tbody.querySelectorAll('.price-input').forEach(inp => {
         inp.oninput = () => {
           const pid = inp.dataset.pid;
           const prod = pricingProducts.find(x => x._id === pid);
           const cell = tbody.querySelector(`.pricing-diff[data-pid="${pid}"]`);
+          const rateCell = tbody.querySelector(`.pricing-rate[data-pid="${pid}"]`);
           if (!prod || !cell) return;
+          const cost = Number(prod.costPrice || 0);
+          // 【2026-09 列表体验】加价率单元格跟着卖价输入实时刷新（排序读的就是这个单元格文本）
+          const setRate = (d) => {
+            if (!rateCell) return;
+            if (d == null || !(cost > 0)) {
+              rateCell.textContent = '—'; rateCell.style.color = 'var(--text-sub)'; return;
+            }
+            const rate = d / cost;
+            rateCell.textContent = (rate < 0 ? '-' : '') + (Math.abs(rate) * 100).toFixed(2) + '%';
+            rateCell.style.color = (rate === 0 ? 'var(--text-sub)' : (rate < 0 ? 'var(--c-red)' : 'var(--c-green)'));
+          };
           const v = inp.value.trim();
-          if (v === '') { cell.textContent = '—'; cell.style.color = '#6b7280'; return; }
+          if (v === '') { cell.textContent = '—'; cell.style.color = 'var(--text-sub)'; setRate(null); return; }
           const n = Number(v);
-          if (isNaN(n) || n < 0) { cell.textContent = '—'; return; }
-          const d = n - Number(prod.costPrice || 0);
-          cell.textContent = (d < 0 ? '-' : '') + '¥' + Math.abs(d).toFixed(2);
-          cell.style.color = d < 0 ? '#dc2626' : (d > 0 ? '#16a34a' : '#6b7280');
+          if (isNaN(n) || n < 0) { cell.textContent = '—'; setRate(null); return; }
+          const d = n - cost;
+          cell.textContent = (d < 0 ? '-' : '') + '¥' + Math.abs(d).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          cell.style.color = d < 0 ? 'var(--c-red)' : (d > 0 ? 'var(--c-green)' : 'var(--text-sub)');
+          setRate(d);
         };
       });
     }
@@ -2335,32 +3069,535 @@
         const orig = prod.priced ? Number(prod.salePrice).toFixed(2) : '';
         if (raw === orig) return; // 无改动
         if (raw !== '' && (isNaN(Number(raw)) || Number(raw) < 0)) return; // 非法值跳过
-        jobs.push({ pid, salePrice: raw === '' ? null : Number(raw) });
+        jobs.push({ pid, name: prod.name, salePrice: raw === '' ? null : Number(raw) });
       });
-      if (!jobs.length) { msg.style.color = '#6b7280'; msg.textContent = '没有改动'; return; }
-      msg.style.color = '#6b7280';
+      if (!jobs.length) { msg.style.color = 'var(--text-sub)'; msg.textContent = '没有改动'; return; }
+      msg.style.color = 'var(--text-sub)';
       msg.textContent = '保存中...';
-      let ok = 0, fail = 0;
+      let ok = 0;
+      const errs = [];
       for (const j of jobs) {
         const r = await api('/api/dev/pricing/product/' + j.pid, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ salePrice: j.salePrice })
         });
-        if (r.success) ok++; else fail++;
+        if (r.success) {
+          ok++;
+        } else {
+          const errMsg = r.message || '保存失败';
+          errs.push(`「${j.name}」${errMsg}`);
+          alert(errMsg); // 原样弹出后端返回的错误信息，不吞掉、不替换为「保存失败」
+        }
       }
-      msg.style.color = fail ? '#dc2626' : '#16a34a';
-      msg.textContent = `已保存 ${ok} 个商品${fail ? '，失败 ' + fail + ' 个' : ''}`;
+      if (errs.length) {
+        msg.style.color = 'var(--c-red)';
+        msg.textContent = `已保存 ${ok} 个，失败 ${errs.length} 个：${errs.slice(0, 3).join('；')}${errs.length > 3 ? ' 等' : ''}`;
+      } else {
+        msg.style.color = 'var(--c-green)';
+        msg.textContent = `已保存 ${ok} 个商品`;
+      }
       await loadPricing();
+    }
+
+    // ============ 【2026-09 上线加固】一键定价（统一加价率）============
+    // 预览：影响商品数 / 平均加价率 / 预计毛利率 / 跳过原因清单
+    // 说明：「应用」按钮会自己先调一次这里，所以不必先单独点「预览」
+    async function bulkPreview() {
+      const msg = $('bulkMsg');
+      if (validateBulkRate() == null) {
+        msg.style.color = 'var(--c-red)'; msg.textContent = '加价率须为 0~1 之间的小数（如 0.10 表示 10%）';
+        $('bulkPreviewArea').innerHTML = '';
+        return;
+      }
+      // 【2026-09 低价商品加价上限】保底加价额 / 上限倍数非法时不发请求
+      const rulesErr = validateMarkupRules();
+      if (rulesErr) {
+        msg.style.color = 'var(--c-red)'; msg.textContent = rulesErr;
+        $('bulkPreviewArea').innerHTML = '';
+        return;
+      }
+      if ($('bulkScope').value === 'selected' && getSelectedPricingIds().length === 0) {
+        msg.style.color = 'var(--c-red)'; msg.textContent = '范围选了「仅表格中勾选的商品」，但当前一件都没勾选';
+        $('bulkPreviewArea').innerHTML = '';
+        return;
+      }
+      msg.style.color = 'var(--text-sub)'; msg.textContent = '预览中...';
+      const r = await api('/api/dev/pricing/bulk/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildBulkBody())
+      });
+      if (!r.success) {
+        msg.style.color = 'var(--c-red)'; msg.textContent = r.message || '预览失败';
+        $('bulkPreviewArea').innerHTML = '';
+        return;
+      }
+      bulkPreviewResult = r.data;
+      renderBulkPreview(r.data);
+      applyBulkConfigHints(r.data.config);
+      msg.style.color = 'var(--c-green)';
+      msg.textContent = `预览完成：影响 ${r.data.summary.affectedCount} 件（点「应用」会重新计算并弹窗确认）`;
+    }
+
+    function renderBulkPreview(d) {
+      const area = $('bulkPreviewArea');
+      const sum = d.summary || {};
+      const cfg = d.config || {};
+      const ratePct = (Number(d.rate) * 100).toFixed(2).replace(/\.?0+$/, '');
+      const avgPct = (Number(sum.averageMarkupRate) * 100).toFixed(2).replace(/\.?0+$/, '');
+      const avgBeforePct = (Number(sum.averageMarkupRateBeforeRound) * 100).toFixed(2).replace(/\.?0+$/, '');
+      const guardSkipped = Number(sum.roundingSkippedCount) || 0;
+      const capInfo = sum.skippedManual > 0
+        ? `<span style="color:var(--c-cyan);">｜跳过 ${sum.skippedManual} 件手动定价的商品（不会被覆盖）</span>`
+        : '';
+      const overrideInfo = sum.overriddenManual > 0
+        ? `<span style="color:var(--c-red-700);font-weight:700;">｜强制覆盖 ${sum.overriddenManual} 件手动定价商品</span>`
+        : '';
+      const noCostInfo = sum.skippedNoCost > 0
+        ? `<span style="color:var(--c-red-700);">｜跳过 ${sum.skippedNoCost} 件供货价异常</span>`
+        : '';
+      const roundInfo = cfg.roundText
+        ? `<span style="color:var(--c-cyan);">｜取整方式 ${cfg.roundText}</span>`
+        : '';
+      const guardInfo = cfg.roundGuard
+        ? `<span style="color:var(--c-cyan);">｜取整保护 开启</span>`
+        : `<span style="color:var(--c-amber-700);">｜取整保护 关闭</span>`;
+      const guardSkipInfo = guardSkipped > 0
+        ? `<span style="color:var(--c-amber-700);">｜${guardSkipped} 件取整后加价率超「加价率 × 1.5」，已放弃取整改用精确价</span>`
+        : '';
+      // 【2026-09 保底开关】预览里回显本次保底状态（服务端权威值）：开启 X 元 / 关闭
+      const floorAmt = Number(cfg.minMarkupAmount || 0);
+      const floorInfo = floorAmt > 0
+        ? `<span style="color:var(--c-cyan);">｜保底 开启 ${floorAmt.toFixed(2)} 元</span>`
+        : '<span style="color:var(--c-amber-700);">｜保底 关闭</span>';
+      // 【2026-09 低价商品加价上限】保底加价额被「加价率 × 上限倍数」截断的商品件数
+      const floorDropped = Number(sum.floorDroppedCount) || 0;
+      const capMultText = Number(cfg.markupCapMultiplier || 2);
+      const floorDropInfo = floorDropped > 0
+        ? `<span style="color:var(--c-cyan);">｜${floorDropped} 件低价商品保底被加价率上限（加价率 × ${capMultText}）截断，已按比例精确价</span>`
+        : '';
+      area.innerHTML = `
+        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;background:var(--card);border:1px dashed var(--tint-sky-200);border-radius:8px;padding:10px 12px;">
+          <span><b>加价率：</b>${ratePct}%</span>
+          <span><b>影响：</b><b style="color:var(--c-cyan);">${sum.affectedCount}</b> / 共 ${sum.totalScanned} 件</span>
+          <span><b>平均加价率（取整后）：</b>${avgPct}%</span>
+          <span><b>预计总毛利：</b><b style="color:var(--c-green);">¥${(Number(sum.estimatedMargin) || 0).toFixed(2)}</b></span>
+          <span><b>改价后总卖价：</b>¥${(Number(sum.newTotalSale) || 0).toFixed(2)}</span>
+          ${floorInfo}${capInfo}${overrideInfo}${noCostInfo}${roundInfo}${guardInfo}${guardSkipInfo}${floorDropInfo}
+        </div>
+        <div style="margin-top:8px;background:var(--card);border:1px dashed var(--tint-sky-200);border-radius:8px;padding:8px 12px;font-weight:700;color:var(--c-cyan);">
+          取整前平均加价率 ${avgBeforePct}% → 取整后平均加价率 ${avgPct}%
+          ${guardSkipped > 0 ? `<span style="font-weight:400;color:var(--c-amber-700);">（取整保护拦下 ${guardSkipped} 件，已按精确价计）</span>` : ''}
+        </div>
+      `;
+    }
+
+    // 把后端返回的一键定价配置常量回填到面板提示
+    // 硬地板优先取「系统设置 · 最低加价率」（开发者后台可改，下限 3%），缺失时回退默认值
+    function applyBulkConfigHints(cfg) {
+      if (!cfg) return;
+      // 【2026-09 保底开关】以服务端回显的「本次请求实际使用」为准：>0 记「开启 X 元」，=0 记「关闭」
+      const minAmount = Number(cfg.minMarkupAmount);
+      renderBulkFloorHint(minAmount > 0, minAmount, Number(cfg.markupCapMultiplier || 2));
+      // 【2026-09 低价商品加价上限】上限倍数 / 上限加价率：以服务端回显的「本次请求实际使用」为准
+      if (cfg.markupCapMultiplier != null) {
+        $('bulkHintCapMult').textContent = String(Number(cfg.markupCapMultiplier));
+      }
+      if (cfg.markupCapRate != null) {
+        $('bulkHintCapRate').textContent = (Number(cfg.markupCapRate) * 100).toFixed(2).replace(/\.?0+$/, '');
+      }
+      // 尾数取整 / 取整保护：以服务端回显的「本次请求实际使用」为准（与页面上的选择同源同口径）
+      if (cfg.roundText) $('bulkHintRoundTail').textContent = cfg.roundText;
+      $('bulkHintRoundGuard').textContent = cfg.roundGuard ? '开启' : '关闭';
+      if (cfg.roundGuardMultiplier != null) {
+        $('bulkHintGuardMult').textContent = Number(cfg.roundGuardMultiplier).toFixed(1).replace(/\.0$/, '');
+      }
+      $('bulkHintFloorRate').textContent = (Number(cfg.costFloorRate) * 100).toFixed(2).replace(/\.?0+$/, '');
+      const hardFloor = cfg.minMarkupRate != null ? cfg.minMarkupRate : cfg.defaultMinMarkupRate;
+      $('bulkHintHardFloor').textContent = (Number(hardFloor) * 100).toFixed(2).replace(/\.?0+$/, '');
+    }
+
+    // 应用：点一下 → 自动算出预览结果 → 弹窗确认 → 写入（服务端保存快照供回滚）
+    async function bulkApply() {
+      const msg = $('bulkMsg');
+      const area = $('bulkPreviewArea');
+      if (validateBulkRate() == null) {
+        msg.style.color = 'var(--c-red)'; msg.textContent = '加价率须为 0~1 之间的小数（如 0.10 表示 10%）';
+        return;
+      }
+      // 【2026-09 低价商品加价上限】保底加价额 / 上限倍数非法时不发请求
+      const rulesErr = validateMarkupRules();
+      if (rulesErr) {
+        msg.style.color = 'var(--c-red)'; msg.textContent = rulesErr;
+        return;
+      }
+      if ($('bulkScope').value === 'selected' && getSelectedPricingIds().length === 0) {
+        msg.style.color = 'var(--c-red)'; msg.textContent = '范围选了「仅表格中勾选的商品」，但当前一件都没勾选';
+        return;
+      }
+      // 1) 自动预览（不用先单独点「预览」，保证确认弹窗里的数字是最新的）
+      msg.style.color = 'var(--text-sub)'; msg.textContent = '正在计算预览结果...';
+      const body = buildBulkBody();
+      const r = await api('/api/dev/pricing/bulk/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!r.success) {
+        msg.style.color = 'var(--c-red)'; msg.textContent = r.message || '预览失败';
+        area.innerHTML = '';
+        return;
+      }
+      bulkPreviewResult = r.data;
+      renderBulkPreview(r.data);
+      applyBulkConfigHints(r.data.config);
+      const sum = r.data.summary || {};
+      if (!sum.affectedCount) {
+        msg.style.color = 'var(--c-red)'; msg.textContent = '没有可定价的商品';
+        return;
+      }
+      // 2) 弹窗确认：勾了「强制覆盖手动定价」时红色警示「将覆盖 N 个手动定价商品」
+      const forced = !!r.data.forceOverride;
+      const overridden = Number(sum.overriddenManual) || 0;
+      const danger = forced && overridden > 0;
+      const redWarn = danger
+        ? `<div style="color:var(--c-red-700);font-weight:700;background:var(--tint-red-100);border:1px solid var(--tint-red-200);border-radius:8px;padding:8px 10px;margin-bottom:10px;">将覆盖 ${overridden} 个手动定价商品，确定？</div>`
+        : '';
+      // 【2026-09 低价商品加价上限】确认弹窗里回显本次生效的保底/上限与截断件数（服务端权威值）
+      const capCfg = r.data.config || {};
+      const capMultShow = Number(capCfg.markupCapMultiplier || 2);
+      const capRateShow = (Number(capCfg.markupCapRate || 0) * 100).toFixed(2).replace(/\.?0+$/, '');
+      const floorDroppedNum = Number(sum.floorDroppedCount) || 0;
+      const ok = await showConfirm({
+        title: forced ? '⚠️ 一键定价（强制覆盖手动定价）' : '⚙️ 一键定价确认',
+        danger: danger,
+        okText: '确定应用',
+        html: `${redWarn}即将对 <b style="color:var(--c-cyan);">${sum.affectedCount}</b> 件商品执行一键定价（共扫描 ${sum.totalScanned} 件）。<br>` +
+          `统一加价率：<b>${(Number(r.data.rate) * 100).toFixed(2).replace(/\.?0+$/, '')}%</b><br>` +
+          `保底加价额：<b>${Number(capCfg.minMarkupAmount || 0) > 0 ? '开启 ' + Number(capCfg.minMarkupAmount).toFixed(2) + ' 元' : '关闭'}</b> ｜ 加价率上限：<b>加价率 × ${capMultShow}</b>（${capRateShow}%）<br>` +
+          `尾数取整：<b>${capCfg.roundText || '—'}</b>${capCfg.roundGuard ? '（取整保护 开启）' : '（取整保护 关闭）'}<br>` +
+          `取整前平均加价率 <b>${(Number(sum.averageMarkupRateBeforeRound) * 100).toFixed(2).replace(/\.?0+$/, '')}%</b> → 取整后平均加价率 <b>${(Number(sum.averageMarkupRate) * 100).toFixed(2).replace(/\.?0+$/, '')}%</b><br>` +
+          (Number(sum.roundingSkippedCount) > 0 ? `取整保护拦下：<b style="color:var(--c-amber-700);">${sum.roundingSkippedCount}</b> 件（已改用精确价）<br>` : '') +
+          (floorDroppedNum > 0 ? `加价率上限截断保底：<b style="color:var(--c-cyan);">${floorDroppedNum}</b> 件低价商品（已按比例精确价）<br>` : '') +
+          `预计总毛利：<b style="color:var(--c-green);">¥${(Number(sum.estimatedMargin) || 0).toFixed(2)}</b><br>` +
+          `跳过：${sum.skippedManual} 件手动定价 / ${sum.skippedNoCost} 件供货价异常` +
+          (danger ? `<br>本次强制覆盖手动定价：<b style="color:var(--c-red-700);">${overridden}</b> 件` : '') +
+          `<br><br>执行后可在 24 小时内点击「回滚上次定价」一键撤销。`
+      });
+      if (!ok) { msg.style.color = 'var(--text-sub)'; msg.textContent = '已取消，未做任何改动'; return; }
+      // 3) 应用（服务端会再校验一次硬地板并保存回滚快照）
+      msg.style.color = 'var(--text-sub)'; msg.textContent = '应用定价中...';
+      const ra = await api('/api/dev/pricing/bulk/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!ra.success) {
+        msg.style.color = 'var(--c-red)'; msg.textContent = ra.message || '应用失败';
+        return;
+      }
+      msg.style.color = 'var(--c-green)';
+      msg.textContent = `✅ ${ra.message || '一键定价已应用'}`;
+      bulkPreviewResult = null;
+      area.innerHTML = '';
+      await loadBulkSnapshot();
+      await loadPricing();
+    }
+
+    // 回滚：恢复到上次一键定价前的状态
+    async function bulkRollback() {
+      const msg = $('bulkMsg');
+      const ok = confirm('确认回滚到上次一键定价之前的状态？\n\n回滚后该次快照会被清空，二次回滚将不可用。');
+      if (!ok) return;
+      msg.style.color = 'var(--text-sub)'; msg.textContent = '回滚中...';
+      $('bulkRollbackBtn').disabled = true;
+      const r = await api('/api/dev/pricing/bulk/rollback', { method: 'POST' });
+      if (!r.success) {
+        msg.style.color = 'var(--c-red)'; msg.textContent = r.message || '回滚失败';
+        await loadBulkSnapshot();
+        return;
+      }
+      msg.style.color = 'var(--c-green)'; msg.textContent = `✅ ${r.message || '已回滚'}`;
+      bulkPreviewResult = null;
+      $('bulkPreviewArea').innerHTML = '';
+      await loadBulkSnapshot();
+      await loadPricing();
+    }
+
+    // 拉取最近一次一键定价快照，用于回滚按钮的可用性 + 显示时间
+    async function loadBulkSnapshot() {
+      const r = await api('/api/dev/pricing/bulk/snapshot');
+      const btn = $('bulkRollbackBtn');
+      const area = $('bulkRollbackArea');
+      if (r.success && r.data && r.data.appliedAt) {
+        const t = new Date(r.data.appliedAt);
+        const time = t.toLocaleString('zh-CN');
+        area.innerHTML = `上次一键定价：<b>${time}</b> ｜ 加价率 <b>${(Number(r.data.rate)*100).toFixed(2)}%</b> ｜ 影响 <b>${r.data.affectedCount}</b> 件`;
+        btn.disabled = false;
+      } else {
+        area.innerHTML = '（暂无最近一次一键定价记录）';
+        btn.disabled = true;
+      }
     }
 
     // 返点规则管理 / 结算弹窗已随返点体系下线；平台定价改由「定价工作台」手动填写卖价。
 
+    // ============ 【2026-09 列表体验】表格排序 + 冻结表头 + 表格区域自带滚动条 ============
+    // 1) 排序：只在前端 DOM 上重排行，不重新请求接口、不改任何业务数据；
+    //    行内输入框里未保存的改动、勾选状态都跟着整行一起移动，不会丢。
+    //    · 显式声明：表头写 data-sort="number|text|date" 的列可排序（定价工作台用这种，列控精确）；
+    //      data-sort-default="desc" 表示首次点击从大到小（如供货价：从高到低）；
+    //    · 自动模式：没有显式声明的表（商家管理、供应商管理、平台收入等列表）自动识别可排序列——
+    //      跳过含勾选框 / 按钮的列（勾选列、操作列），其余按内容判类型（日期 → 数字 → 文本）；
+    //    · 数据刷新后（tbody 重绘）自动重新套用当前排序，表头箭头与实际顺序始终一致。
+    // 2) 冻结表头 + 表格区域自带滚动条：由样式里的 .table-wrap（max-height + overflow:auto）
+    //    与 .dtable th（position:sticky）实现——横向滚动条固定在可见区域底部，无需 JS。
+    const SORT_DATE_RE = /^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}/;  // 2026-09-16 / 2026/09/16
+    const SORT_NUM_RE = /^[+\-]?[¥￥]?\d[\d,]*(\.\d+)?/;    // 1,234.00 / ¥12.5 / 120 币 / +8%
+
+    // 取单元格排序值：行内输入框/下拉以控件当前值为准；空值（—、-、留空）返回 null（恒排最后）
+    function readCellSortValue(cell, type) {
+      if (!cell) return null;
+      const ctrl = cell.querySelector('input, select, textarea');
+      const raw = (ctrl ? ctrl.value : (cell.textContent || '')).trim();
+      if (raw === '' || raw === '—' || raw === '-' || raw === '/') return null;
+      if (type === 'number') {
+        const n = parseFloat(raw.replace(/[^\d.\-]/g, ''));
+        return isFinite(n) ? n : null;
+      }
+      if (type === 'date') {
+        const t = Date.parse(raw.replace(/[/.]/g, '-'));
+        return isFinite(t) ? t : null;
+      }
+      return raw;
+    }
+
+    // 该列是否含勾选框 / 按钮（勾选列、操作列不参与排序）；只看前 30 行，避免大表卡顿
+    function colHasControl(tbody, colIdx) {
+      return Array.from(tbody.rows).slice(0, 30).some(tr => {
+        const cell = tr.cells[colIdx];
+        return !!cell && !!cell.querySelector('input[type=checkbox], input[type=radio], button');
+      });
+    }
+
+    // 自动识别列类型：日期 → 数字 → 文本（只看前 30 行非空值）
+    function detectColType(tbody, colIdx) {
+      const values = Array.from(tbody.rows).slice(0, 30)
+        .map(tr => readCellSortValue(tr.cells[colIdx], 'text'))
+        .filter(v => v != null);
+      if (!values.length) return 'text';
+      if (values.every(v => SORT_DATE_RE.test(v))) return 'date';
+      const numLike = values.filter(v => SORT_NUM_RE.test(v.replace(/\s/g, ''))).length;
+      return numLike >= Math.ceil(values.length * 0.7) ? 'number' : 'text';
+    }
+
+    // 按第 colIdx 列排序 tbody：空值恒排最后，占位行（加载中 / 暂无数据）保持最后
+    // 返回 true 表示行顺序确实发生了变化（用于避免 MutationObserver 反复触发）
+    function sortTableRows(table, colIdx, type, dir) {
+      const tbody = table.tBodies[0];
+      if (!tbody) return false;
+      const dirMul = dir === 'desc' ? -1 : 1;
+      const dataRows = [], tailRows = [];
+      Array.from(tbody.rows).forEach(tr => {
+        if (tr.querySelector('td.no-data')) tailRows.push(tr); else dataRows.push(tr);
+      });
+      const list = dataRows.map((tr, idx) => ({ tr, v: readCellSortValue(tr.cells[colIdx], type), idx }));
+      list.sort((a, b) => {
+        if (a.v === null && b.v === null) return a.idx - b.idx;
+        if (a.v === null) return 1;
+        if (b.v === null) return -1;
+        if (typeof a.v === 'string' || typeof b.v === 'string') {
+          const r = String(a.v).localeCompare(String(b.v), 'zh-CN', { numeric: true });
+          return r !== 0 ? r * dirMul : a.idx - b.idx;
+        }
+        return a.v !== b.v ? (a.v - b.v) * dirMul : a.idx - b.idx;
+      });
+      const desired = list.map(x => x.tr).concat(tailRows);
+      const current = Array.from(tbody.rows);
+      if (desired.length === current.length && desired.every((tr, i) => tr === current[i])) return false;
+      desired.forEach(tr => tbody.appendChild(tr));
+      return true;
+    }
+
+    // 更新表头箭头（⇅ 可排序 / ▲ 升序 / ▼ 降序）
+    function updateSortIndicator(th) {
+      let ind = th.querySelector('.sort-ind');
+      if (!ind) {
+        ind = document.createElement('span');
+        ind.className = 'sort-ind';
+        th.appendChild(ind);
+      }
+      ind.textContent = th.classList.contains('sort-asc') ? '▲' : (th.classList.contains('sort-desc') ? '▼' : '⇅');
+    }
+
+    // 套用排序：同一张表同时只有一列处于激活态
+    function setTableSort(table, th, dir) {
+      const headRow = table.tHead && table.tHead.rows[table.tHead.rows.length - 1];
+      if (!headRow) return;
+      const idx = Array.from(headRow.cells).indexOf(th);
+      if (idx < 0) return;
+      Array.from(headRow.cells).forEach(x => {
+        if (x === th) return;
+        x.classList.remove('sort-asc', 'sort-desc');
+        if (x.classList.contains('sortable')) updateSortIndicator(x);
+      });
+      th.classList.toggle('sort-asc', dir === 'asc');
+      th.classList.toggle('sort-desc', dir === 'desc');
+      updateSortIndicator(th);
+      table._sortState = { idx, type: th._sortType || 'text', dir };
+      sortTableRows(table, idx, table._sortState.type, dir);
+    }
+
+    // 绑定某张表的排序（explicit=true 时只让显式声明 data-sort 的列可排序）
+    function bindTableSort(table, explicit) {
+      const headRow = table.tHead && table.tHead.rows[table.tHead.rows.length - 1];
+      const tbody = table.tBodies[0];
+      if (!headRow || !tbody) return;
+      Array.from(headRow.cells).forEach((th, idx) => {
+        const declared = th.dataset.sort;
+        if (declared === 'none') return;
+        if (th.querySelector('input[type=checkbox], input[type=radio]')) return; // 勾选列不排序
+        const isDeclared = !!declared;
+        if (explicit && !isDeclared) return;                     // 显式表：没声明的列不排序
+        if (!isDeclared && colHasControl(tbody, idx)) return;     // 自动表：操作列不排序
+        th._sortType = isDeclared ? declared : detectColType(tbody, idx);
+        th._sortAuto = !isDeclared;
+        th.classList.add('sortable');
+        if (!th.title) th.title = '点击列头排序：升序 / 降序切换';
+        updateSortIndicator(th);
+        th.onclick = () => {
+          if (th._sortAuto) {
+            // 自动表的类型与可用性依赖真实数据，点击时再判一次（首屏只有「加载中」占位行）
+            if (colHasControl(tbody, idx)) {
+              th.classList.remove('sortable', 'sort-asc', 'sort-desc');
+              const ind = th.querySelector('.sort-ind');
+              if (ind) ind.remove();
+              return;
+            }
+            th._sortType = detectColType(tbody, idx);
+          }
+          const dir = th.classList.contains('sort-asc') ? 'desc'
+            : th.classList.contains('sort-desc') ? 'asc'
+              : (th.dataset.sortDefault === 'desc' ? 'desc' : 'asc');
+          setTableSort(table, th, dir);
+        };
+      });
+    }
+
+    // 数据到位后收一遍「自动模式」的表头：把操作列 / 勾选列上多余的排序标记去掉
+    function pruneAutoSortable(table) {
+      const tbody = table.tBodies[0];
+      const headRow = table.tHead && table.tHead.rows[table.tHead.rows.length - 1];
+      if (!tbody || !headRow) return;
+      Array.from(headRow.cells).forEach((th, idx) => {
+        if (!th._sortAuto || !th.classList.contains('sortable')) return;
+        if (!colHasControl(tbody, idx)) return;
+        th.classList.remove('sortable', 'sort-asc', 'sort-desc');
+        const ind = th.querySelector('.sort-ind');
+        if (ind) ind.remove();
+        if (table._sortState && table._sortState.idx === idx) table._sortState = null;
+      });
+    }
+
+    // 数据刷新（tbody 重绘）后自动重新套用当前排序，避免「箭头还在、顺序已乱」
+    function watchTableRerender(table) {
+      const tbody = table.tBodies[0];
+      if (!tbody || tbody._sortWatched) return;
+      tbody._sortWatched = true;
+      new MutationObserver(() => {
+        const st = table._sortState;
+        if (st) sortTableRows(table, st.idx, st.type, st.dir);
+        pruneAutoSortable(table);   // 首屏只有占位行，数据到位后再判一次操作列
+      }).observe(tbody, { childList: true });
+    }
+
+    // 给页面上所有列表表格启用「点列头排序」（三个端口同款体验的通用实现）
+    function initTableTools() {
+      document.querySelectorAll('table.dtable').forEach(table => {
+        if (table._sortReady) return;
+        const headRow = table.tHead && table.tHead.rows[table.tHead.rows.length - 1];
+        if (!headRow) return;
+        table._sortReady = true;
+        // 有 data-sort 声明的表按声明精确控制，其余表自动识别可排序列
+        const explicit = Array.from(headRow.cells).some(th => th.dataset.sort && th.dataset.sort !== 'none');
+        bindTableSort(table, explicit);
+        watchTableRerender(table);
+      });
+    }
+    initTableTools();
+
     // 首屏：总览统计 + 待办红点；红点每 60 秒轮询一次（新申请/新资质实时提醒）
+
+    // ============ 界面主题（本地外观设置，不上传服务器） ============
+    // 四套主题：classic 经典版 / warm 暖橙（默认）/ dark 深色 / fresh 青绿
+    // 取值只写 localStorage 的 dhDevTheme（per 浏览器），账号体系与其他端完全不感知
+    const THEME_KEY = 'dhDevTheme';
+    const THEMES = [
+      { key: 'classic', name: '经典版', slogan: '走了很远，也别忘了出发的样子。',
+        swatches: ['#f5f6fa', '#ffffff', '#ff6b35', '#1f2937', '#e5e7eb'] },
+      { key: 'warm', name: '暖橙', slogan: '人间烟火气，最抚凡人心。',
+        swatches: ['#F7F8FA', '#FFFFFF', '#FF7A3D', '#1F2329', '#EBEDF0'] },
+      { key: 'dark', name: '深色', slogan: '夜深了，数字还在替你守着生意。',
+        swatches: ['#0F1419', '#182029', '#FF9463', '#E3E6EA', '#2A3542'] },
+      { key: 'fresh', name: '青绿', slogan: '新鲜，是这行最贵的品质。',
+        swatches: ['#F4F7F7', '#FFFFFF', '#00B8A9', '#1F2329', '#FF7A3D'] }
+    ];
+    let _curTheme = 'warm';
+
+    function currentTheme() {
+      const t = document.documentElement.getAttribute('data-theme');
+      return THEMES.some(x => x.key === t) ? t : 'warm';
+    }
+    function applyTheme(key) {
+      const hit = THEMES.filter(x => x.key === key)[0];
+      if (!hit) return;
+      _curTheme = hit.key;
+      document.documentElement.setAttribute('data-theme', hit.key);
+      try { localStorage.setItem(THEME_KEY, hit.key); } catch (e) { /* 隐私模式下忽略，不影响使用 */ }
+      renderThemeCards();
+      if ($('themeBtn')) $('themeBtn').title = '界面主题：' + hit.name;
+    }
+    // 弹窗与总览区块共用同一套卡片，两个入口状态始终一致
+    function renderThemeCards() {
+      const html = THEMES.map(t => `
+        <button type="button" class="theme-card${t.key === _curTheme ? ' is-active' : ''}" data-theme-key="${t.key}">
+          <div class="tc-top">
+            <span class="tc-name">${t.name}</span>
+            <span class="tc-flag">当前在用</span>
+          </div>
+          <div class="tc-slogan">${t.slogan}</div>
+          <div class="theme-swatches">${t.swatches.map(c => `<i style="background:${c}"></i>`).join('')}</div>
+        </button>`).join('');
+      ['themeGrid', 'overviewThemeGrid'].forEach(id => {
+        const host = $(id);
+        if (!host) return;
+        host.innerHTML = html;
+        host.querySelectorAll('.theme-card').forEach(card => {
+          card.onclick = () => applyTheme(card.dataset.themeKey);
+        });
+      });
+    }
+    function openThemePanel() { $('themeModal').classList.add('show'); }
+    function closeThemePanel() { $('themeModal').classList.remove('show'); }
+
+    // 入口 1：右上角常驻调色盘
+    if ($('themeBtn')) $('themeBtn').onclick = openThemePanel;
+    if ($('themeClose')) $('themeClose').onclick = closeThemePanel;
+    if ($('themeMask')) $('themeMask').onclick = closeThemePanel;
+    // 入口 2：总览「界面主题」区块
+    if ($('themeOpenBtn')) $('themeOpenBtn').onclick = openThemePanel;
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeThemePanel();
+    });
+
+    applyTheme(currentTheme());
 
     loadStats();
     loadTodos();
     setInterval(loadTodos, 60000);
   </script>
+  <!-- 演示模式横幅（payMode=mock 时顶部显示橙色提示，切真实支付后自动消失） -->
+  <script src="/js/demo-banner.js"></script>
 </body>
 </html>

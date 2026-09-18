@@ -91,7 +91,7 @@ function confirmReceive(o) {
   const id = o._id || o.orderNo;
   uni.showModal({
     title: '确认收货',
-    content: `确认已收到「${supplierName(o)}」的货物？收货后将结算返点、采购积分并发放鼎恒币。`,
+    content: `确认已收到「${supplierName(o)}」的货物？收货后将结算采购积分并发放鼎恒币。`,
     confirmColor: '#FF6B35',
     success: async (r) => {
       if (!r.confirm) return;

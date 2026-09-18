@@ -1,0 +1,1351 @@
+
+/* =============================================================================
+   鼎恒餐饮 · 界面主题公共样式（public/theme.css）
+   -----------------------------------------------------------------------------
+   用法：页面 <head> 里在自身 <style> 之前引入：
+         <link rel="stylesheet" href="/theme.css">
+   内容：① 四套主题的完整变量  ② 统计卡 / 输入框 / 表格 / 按钮 的形态差异
+        ③ 主题切换弹窗与「界面主题」区块样式
+   规则：所有增强样式都用 [data-theme]:not([data-theme="classic"]) 或
+        [data-theme="x"] 限定作用域 —— 经典版（classic）下一个像素都不会变。
+   文案（四处入口共用，不得改动）：
+        经典版：走了很远，也别忘了出发的样子。
+        暖  橙：人间烟火气，最抚凡人心。
+        深  色：夜深了，数字还在替你守着生意。
+        青  绿：新鲜，是这行最贵的品质。
+   禁止：emoji/彩色圆形图标块、卡片底部彩色装饰条、按钮渐变。
+   ============================================================================= */
+/* ======THEME-TOKENS-START=====
+       界面主题令牌（四套）：classic 经典版 / warm 暖橙（默认）/ dark 深色 / fresh 青绿
+       用法：所有页面样式一律引用 var(--token)，本区块保留原始字面色值不再参与批量替换。
+       classic 取值与改造前逐项一致 —— 选择「经典版」时外观零变化。
+       切换：<html data-theme="xxx">，由右上角调色盘或总览「界面主题」区块写入 localStorage。 */
+    :root {
+      /* ---- classic 经典版（基线令牌，取值等同改造前，请勿随手改动） ---- */
+      --nav: #0f172a;
+      --nav-2: #020617;
+
+      /* 核心面板 */
+      --bg: #f5f6fa;
+      --card: #ffffff;
+      --primary: #ff6b35;
+      --primary-2: #ff8e53;
+      --teal: #14b8a6;
+      --blue-base: #1a88ff;
+      --text: #1f2937;
+      --border: #e5e7eb;
+
+      /* 文字层级 */
+      --text-2: #374151;
+      --text-3: #4b5563;
+      --text-slate: #475569;
+      --text-sub: #6b7280;
+      --text-muted: #9ca3af;
+      --text-faint: #b6bcc6;
+      --text-slate-400: #94a3b8;
+      --text-pale: #c0c4cc;
+      --border-strong: #d1d5db;
+
+      /* 面层级（卡片内的浅底块） */
+      --surface-2: #f9fafb;
+      --surface-3: #f3f4f6;
+      --surface-4: #fcfcfd;
+
+      /* 语义浅色块（状态标签 / 提示条底色） */
+      --tint-red-100: #fee2e2;
+      --tint-red-200: #fecaca;
+      --tint-red-50: #fef2f2;
+      --tint-green-100: #dcfce7;
+      --tint-green-50: #f0fdf4;
+      --tint-amber-100: #fef3c7;
+      --tint-amber-200: #fde68a;
+      --tint-amber-50: #fffbeb;
+      --tint-blue-100: #dbeafe;
+      --tint-blue-200: #bfdbfe;
+      --tint-blue-50: #eff6ff;
+      --tint-sky-50: #f0f9ff;
+      --tint-sky-200: #bae6fd;
+      --tint-purple-100: #ede9fe;
+      --tint-orange-100: #ffedd5;
+      --tint-orange-50: #fff7ed;
+      --tint-orange-25: #fff7f3;
+      --tint-warm-50: #fff8f3;
+      --tint-warm-hover: #fffaf6;
+      --tint-row: #f7f8fa;
+      --tint-divider: #f0f1f5;
+      --tint-head-hover: #eef2f7;
+      --tint-page-alt: #f0f7ff;
+
+      /* 语义强调色 */
+      --c-red: #dc2626;
+      --c-red-700: #b91c1c;
+      --c-red-800: #991b1b;
+      --c-red-500: #ef4444;
+      --c-green: #16a34a;
+      --c-green-700: #15803d;
+      --c-green-800: #166534;
+      --c-emerald: #059669;
+      --c-amber-700: #b45309;
+      --c-amber-800: #92400e;
+      --c-amber-500: #f59e0b;
+      --c-orange: #ea580c;
+      --c-cyan: #0e7490;
+      --c-sky-700: #0369a1;
+      --c-blue-700: #1d4ed8;
+      --c-blue-800: #1e40af;
+      --c-blue-600: #2563eb;
+      --c-purple: #5b21b6;
+
+      /* 形状与阴影 */
+      --radius-sm: 8px;
+      --radius: 12px;
+      --radius-lg: 16px;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, .05);
+      --shadow: 0 4px 14px rgba(0, 0, 0, .06);
+      --shadow-lg: 0 12px 32px rgba(0, 0, 0, .12);
+
+      /* 布局令牌（classic = 改造前实测值，勿改；warm/dark/fresh 按设计稿覆盖）
+         --gap 卡片间距 / --card-pad 统计卡内边距 / --section-gap 区块间距 /
+         --btn-radius 按钮圆角 / --card-shadow 卡片阴影 / --num-size --num-color 大数字 /
+         --border-w 卡片描边宽（新主题 0 = 去硬框）/ --row-pad 表格单元格内边距 */
+      --gap: 18px;
+      --card-pad: 28px 26px;
+      --section-gap: 22px;
+      --btn-radius: 9px;
+      --radius-card: 16px;
+      --card-shadow: 0 4px 14px rgba(0, 0, 0, .06);
+      --num-size: clamp(18px, 4.5vw, 40px);
+      --num-color: var(--accent);
+      --border-w: 1px;
+      --row-pad: 12px 14px;
+      /* 信息密度令牌（classic 不参与，规则均带 [data-theme] 作用域）：
+         --gap 卡片间距 / --row-h 表格行高 / --section-gap 区块间距 / --page-pad 页面留白 */
+      --row-h: 44px;
+      --page-pad: 26px;
+      /* 表格 / 表单令牌（classic 沿用原样，新主题在"现代样式层"里覆盖） */
+      --row-line: var(--tint-row);
+      /* classic 下「亏本」不上色（保持原样），未定价沿用原来的 --tint-amber-50 */
+      --row-loss: transparent;
+      --row-unpriced: var(--tint-amber-50);
+      --field-bg: var(--card);
+      /* 输入框形态（classic 不参与，规则带 [data-theme] 作用域） */
+      --field-border: 1px solid var(--border);
+      --field-radius: 9px;
+      --field-pad: 8px 12px;
+      --field-font: inherit;
+      --field-focus-shadow: 0 0 0 3px rgba(255, 107, 53, .12);
+      --primary-ring: rgba(255, 107, 53, .12);
+
+      /* 结构人格令牌（classic = 原始版本，各主题在下面各自覆盖） */
+      --sidebar-bg: linear-gradient(180deg, var(--nav), var(--nav-2));
+      --sidebar-color: #cbd5e1;
+      --sidebar-hover-bg: rgba(255, 255, 255, .06);
+      --sidebar-hover-color: #fff;
+      --sidebar-active-bg: rgba(255, 107, 53, .15);
+      --sidebar-active-color: #fff;
+      --sidebar-tip-color: var(--text-sub);
+      --card-border: none;
+      --btn-primary-bg: linear-gradient(135deg, var(--accent), var(--accent-2));
+      --btn-primary-color: #fff;
+      --btn-primary-border: none;
+
+      /* 旧 token 别名（保持历史样式表可用，随主题联动） */
+      --accent: var(--primary);
+      --accent-2: var(--primary-2);
+      --line: var(--border);
+      --gray: var(--text-muted);
+      --green: var(--c-green);
+      --red: var(--c-red-500);
+      --blue: var(--blue-base);
+    }
+
+    /* ---- warm 暖橙（出厂默认）---- */
+    [data-theme="warm"] {
+      --bg: #F7F8FA;
+      --card: #FFFFFF;
+      --primary: #FF7A3D;
+      --primary-2: #FF9E6B;
+      --teal: #14B8A6;
+      --blue-base: #1A88FF;
+      --text: #1F2329;
+      --border: #EBEDF0;
+      --text-2: #34383F;
+      --text-3: #4C5057;
+      --text-slate: #4C5057;
+      --text-sub: #70747B;
+      --text-muted: #A0A4AA;
+      --text-faint: #B7BBC1;
+      --text-slate-400: #9AA0A7;
+      --text-pale: #C2C6CB;
+      --border-strong: #D6D9DD;
+      --surface-2: #FAFBFC;
+      --surface-3: #F3F4F6;
+      --surface-4: #FCFCFD;
+      --tint-red-100: #FDE9E7;
+      --tint-red-200: #FBD6D2;
+      --tint-red-50: #FEF5F4;
+      --tint-green-100: #E1F6E9;
+      --tint-green-50: #F2FBF6;
+      --tint-amber-100: #FDF2D9;
+      --tint-amber-200: #FBE4AA;
+      --tint-amber-50: #FFFBEF;
+      --tint-blue-100: #E5EDFB;
+      --tint-blue-200: #D0DEFA;
+      --tint-blue-50: #F3F7FE;
+      --tint-sky-50: #F2F9FE;
+      --tint-sky-200: #C8E5F8;
+      --tint-purple-100: #EEEBFC;
+      --tint-orange-100: #FFEBDC;
+      --tint-orange-50: #FFF7EF;
+      --tint-orange-25: #FFF8F3;
+      --tint-warm-50: #FFF7F1;
+      --tint-warm-hover: #FFFAF6;
+      --tint-row: #F8F9FB;
+      --tint-divider: #F1F2F5;
+      --tint-head-hover: #EFF2F7;
+      --tint-page-alt: #F2F7FE;
+      --radius-sm: 10px;
+      --radius: 14px;
+      --radius-lg: 16px;
+      --shadow-sm: 0 1px 3px rgba(31, 35, 41, .05);
+      --shadow: 0 4px 16px rgba(31, 35, 41, .07);
+      --shadow-lg: 0 14px 36px rgba(31, 35, 41, .12);
+
+      /* 布局令牌（design/warm.png 设计稿规范值） */
+      /* 信息密度：宽松舒适 */
+      --gap: 20px;
+      --row-h: 52px;
+      --section-gap: 28px;
+      --page-pad: 28px 32px 44px;
+      --card-pad: 24px;
+      --btn-radius: 10px;
+      --radius-card: 16px;
+      --card-shadow: 0 2px 12px rgba(0, 0, 0, .06);
+      --num-size: 32px;
+      --num-color: var(--text);
+      --border-w: 0px;
+      --row-pad: 16px 16px;
+      /* 表格 / 表单令牌 */
+      --row-line: rgba(0, 0, 0, .05);
+      --row-loss: rgba(255, 77, 79, .06);
+      --row-unpriced: rgba(255, 169, 64, .06);
+      /* 暖橙输入框：浅灰填充、无边框、8px 圆角、聚焦主色边框 + 淡橙光晕 */
+      --field-bg: #F2F4F6;
+      --field-border: 1px solid transparent;
+      --field-radius: 8px;
+      --field-pad: 8px 12px;
+      --field-font: inherit;
+      --field-focus-shadow: 0 0 0 3px rgba(255, 122, 61, .12);
+      --primary-ring: rgba(255, 122, 61, .12);
+
+      /* 结构人格：稳重厚实 —— 深色侧栏 + 白卡柔和阴影浮起 + 实心主按钮 */
+      --sidebar-bg: linear-gradient(180deg, var(--nav), var(--nav-2));
+      --sidebar-color: #C3CBD8;
+      --sidebar-hover-bg: rgba(255, 255, 255, .08);
+      --sidebar-hover-color: #fff;
+      --sidebar-active-bg: rgba(255, 122, 61, .18);
+      --sidebar-active-color: #FFC0A0;
+      --sidebar-tip-color: #7A8798;
+      --card-border: none;
+      --btn-primary-bg: var(--primary);
+      --btn-primary-color: #fff;
+      --btn-primary-border: none;
+    }
+
+    /* ---- dark 深色 ---- */
+    [data-theme="dark"] {
+      --bg: #0F1419;
+      --card: #182029;
+      --primary: #FF9463;
+      --primary-2: #FFB48C;
+      --teal: #2DD4BF;
+      --blue-base: #4DA3FF;
+      --text: #E3E6EA;
+      --border: #2A3542;
+      --text-2: #CBD2DB;
+      --text-3: #B4BCC7;
+      --text-slate: #A7B0BD;
+      --text-sub: #8A94A6;
+      --text-muted: #8A94A6;
+      --text-faint: #7A8494;
+      --text-slate-400: #94A0B2;
+      --text-pale: #6E7787;
+      --border-strong: #35424F;
+      /* 面层级：背景 #0F1419 → 卡片 #182029 → 悬浮层 #212B36，逐档提亮，卡片才浮得起来 */
+      --surface-2: #212B36;
+      --surface-3: #2A3542;
+      --surface-4: #1E2733;
+      --tint-red-100: rgba(248, 113, 113, .16);
+      --tint-red-200: rgba(248, 113, 113, .28);
+      --tint-red-50: rgba(248, 113, 113, .10);
+      --tint-green-100: rgba(52, 211, 153, .16);
+      --tint-green-50: rgba(52, 211, 153, .10);
+      --tint-amber-100: rgba(251, 191, 36, .16);
+      --tint-amber-200: rgba(251, 191, 36, .28);
+      --tint-amber-50: rgba(251, 191, 36, .10);
+      --tint-blue-100: rgba(96, 165, 250, .16);
+      --tint-blue-200: rgba(96, 165, 250, .28);
+      --tint-blue-50: rgba(96, 165, 250, .10);
+      --tint-sky-50: rgba(56, 189, 248, .10);
+      --tint-sky-200: rgba(56, 189, 248, .28);
+      --tint-purple-100: rgba(167, 139, 250, .18);
+      --tint-orange-100: rgba(251, 146, 60, .18);
+      --tint-orange-50: rgba(251, 146, 60, .10);
+      --tint-orange-25: rgba(255, 138, 76, .12);
+      --tint-warm-50: rgba(255, 138, 76, .10);
+      --tint-warm-hover: rgba(255, 138, 76, .16);
+      --tint-row: rgba(255, 255, 255, .035);
+      --tint-divider: rgba(255, 255, 255, .08);
+      --tint-head-hover: rgba(255, 255, 255, .07);
+      --tint-page-alt: rgba(96, 165, 250, .10);
+      --c-red: #F87171;
+      --c-red-700: #FCA5A5;
+      --c-red-800: #FCA5A5;
+      --c-red-500: #FF7A7A;
+      --c-green: #34D399;
+      --c-green-700: #6EE7B7;
+      --c-green-800: #6EE7B7;
+      --c-emerald: #34D399;
+      --c-amber-700: #FBBF24;
+      --c-amber-800: #FCD34D;
+      --c-amber-500: #FBBF24;
+      --c-orange: #FB923C;
+      --c-cyan: #67E8F9;
+      --c-sky-700: #7DD3FC;
+      --c-blue-700: #93C5FD;
+      --c-blue-800: #93C5FD;
+      --c-blue-600: #60A5FA;
+      --c-purple: #C4B5FD;
+      /* 结构人格：冷静精密 —— 小圆角、无阴影、靠色阶与顶部高光分层、描边按钮 */
+      --radius-sm: 6px;
+      --radius: 8px;
+      --radius-lg: 10px;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, .40);
+      --shadow: 0 6px 18px rgba(0, 0, 0, .45);
+      --shadow-lg: 0 18px 44px rgba(0, 0, 0, .55);
+
+      /* 布局令牌（design/dark.png 设计稿规范值；深色下阴影加深才托得住卡片）
+         信息密度：紧凑高效 —— 晚上对账一屏能看更多订单 */
+      --gap: 14px;
+      --row-h: 44px;
+      --section-gap: 20px;
+      --page-pad: 20px 24px 32px;
+      --card-pad: 24px;
+      --btn-radius: 6px;
+      --radius-card: 10px;
+      /* 深色不用阴影：靠「背景 #0F1419 → 卡片 #182029」色阶 + 顶部 1px 高光分层 */
+      --card-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+      --num-size: 30px;
+      --num-color: var(--primary);
+      --border-w: 0px;
+      --row-pad: 16px 16px;
+      /* 表格 / 表单令牌 */
+      --row-line: rgba(255, 255, 255, .06);
+      --row-loss: rgba(255, 77, 79, .10);
+      --row-unpriced: rgba(255, 169, 64, .10);
+      /* 深色输入框：深底 + 1px 边框 + 6px 圆角 + 等宽字体（精密感），聚焦主色发光 */
+      --field-bg: #212B36;
+      --field-border: 1px solid #2A3542;
+      --field-radius: 6px;
+      --field-pad: 8px 12px;
+      --field-font: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --field-focus-shadow: 0 0 0 3px rgba(255, 148, 99, .18);
+      --primary-ring: rgba(255, 148, 99, .12);
+
+      /* 结构人格：冷静精密 —— 深色侧栏与整体一体 + 描边式主按钮（主色文字、不填充） */
+      --sidebar-bg: var(--card);
+      --sidebar-color: var(--text-sub);
+      --sidebar-hover-bg: var(--surface-2);
+      --sidebar-hover-color: var(--text);
+      --sidebar-active-bg: var(--tint-orange-25);
+      --sidebar-active-color: var(--primary);
+      --sidebar-tip-color: var(--text-muted);
+      --card-border: none;
+      --btn-primary-bg: transparent;
+      --btn-primary-color: var(--primary);
+      --btn-primary-border: 1px solid var(--primary);
+    }
+
+    /* ---- fresh 青绿（按钮渐变第二色即点缀橙 #FF7A3D）---- */
+    [data-theme="fresh"] {
+      --bg: #F4F7F7;
+      --card: #FFFFFF;
+      --primary: #00B8A9;
+      --primary-2: #FF7A3D;
+      --teal: #00B8A9;
+      --blue-base: #1A88FF;
+      --text: #1F2329;
+      --border: #E4EBEA;
+      --text-2: #333A39;
+      --text-3: #4A5251;
+      --text-slate: #4A5251;
+      --text-sub: #6D7775;
+      --text-muted: #9BA5A3;
+      --text-faint: #B4BDBB;
+      --text-slate-400: #97A1A0;
+      --text-pale: #C0C8C6;
+      --border-strong: #D2DBD9;
+      --surface-2: #F7FAFA;
+      --surface-3: #EEF3F2;
+      --surface-4: #FBFCFC;
+      --tint-red-100: #FDE8E6;
+      --tint-red-200: #FBD3D0;
+      --tint-red-50: #FEF4F3;
+      --tint-green-100: #DCF5EC;
+      --tint-green-50: #EFFAF5;
+      --tint-amber-100: #FCF3D8;
+      --tint-amber-200: #F8E5A6;
+      --tint-amber-50: #FFFBEE;
+      --tint-blue-100: #E3EDFA;
+      --tint-blue-200: #CCDEFA;
+      --tint-blue-50: #F1F7FE;
+      --tint-sky-50: #EFF8FD;
+      --tint-sky-200: #C4E4F7;
+      --tint-purple-100: #EBEBFB;
+      --tint-orange-100: #FFE9DB;
+      --tint-orange-50: #FFF6EF;
+      --tint-orange-25: #FFF7F3;
+      --tint-warm-50: #FFF6F2;
+      --tint-warm-hover: #FFFAF8;
+      --tint-row: #F6F9F9;
+      --tint-divider: #EDF2F1;
+      --tint-head-hover: #EAF2F1;
+      --tint-page-alt: #EFF7FB;
+      /* 结构人格：清爽轻快 —— 超大圆角、扁平卡片、白色侧栏、胶囊按钮 */
+      --radius-sm: 12px;
+      --radius: 16px;
+      --radius-lg: 20px;
+      --shadow-sm: 0 1px 3px rgba(0, 60, 55, .05);
+      --shadow: 0 4px 16px rgba(0, 60, 55, .07);
+      --shadow-lg: 0 14px 36px rgba(0, 60, 55, .12);
+
+      /* 布局令牌（design/fresh.png 设计稿规范值；大数字用青绿主色，橙 #FF7A3D 作点缀）
+         信息密度：极松 —— 留白最多，呼吸感 */
+      --gap: 28px;
+      --row-h: 56px;
+      --section-gap: 36px;
+      --page-pad: 36px 40px 56px;
+      --card-pad: 24px;
+      --btn-radius: 999px;
+      --radius-card: 20px;
+      /* 扁平：几乎无阴影，靠极淡边框勾勒 */
+      --card-shadow: 0 1px 2px rgba(0, 0, 0, .03);
+      --num-size: 34px;
+      --num-color: var(--primary);
+      --border-w: 0px;
+      --row-pad: 16px 16px;
+      /* 表格 / 表单令牌 */
+      --row-line: rgba(0, 0, 0, .05);
+      --row-loss: rgba(255, 77, 79, .06);
+      --row-unpriced: rgba(255, 169, 64, .06);
+      /* 青绿输入框：纯白底 + 极淡青绿边框 + 胶囊形，聚焦主色边框 + 淡青绿光晕 */
+      --field-bg: #FFFFFF;
+      --field-border: 1px solid #D5E9E7;
+      --field-radius: 999px;
+      --field-pad: 8px 16px;
+      --field-font: inherit;
+      --field-focus-shadow: 0 0 0 3px rgba(0, 184, 169, .12);
+      --primary-ring: rgba(0, 184, 169, .12);
+
+      /* 结构人格：清爽轻快 —— 白色侧栏 + 胶囊实心主按钮 + 极淡边框卡片 */
+      --sidebar-bg: #FFFFFF;
+      --sidebar-color: #5B6B68;
+      --sidebar-hover-bg: var(--tint-green-50);
+      --sidebar-hover-color: #00B8A9;
+      --sidebar-active-bg: var(--tint-green-100);
+      --sidebar-active-color: #00B8A9;
+      --sidebar-tip-color: var(--text-muted);
+      --card-border: 1px solid #E3EDEC;
+      --btn-primary-bg: #00B8A9;
+      --btn-primary-color: #fff;
+      --btn-primary-border: none;
+    }
+    /* ======THEME-TOKENS-END===== */
+
+    /* 表单控件在深色主题下不能沿用浏览器默认的白底黑字 */
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    select, textarea {
+      background: var(--card);
+      color: var(--text);
+    }
+    /* 主题切换时颜色平滑过渡（不影响布局） */
+    body, .stat-card, .todo-card, .table-wrap, .filter-bar, .modal-box,
+    .rebate-card, .info-item, .detail-stat, .dtable th, .dtable td,
+    .nav-item, .pane-title, .section-title {
+      transition: background-color .25s ease, color .25s ease, border-color .25s ease;
+    }
+
+    /* ============ 界面主题（仅本地外观，不上传服务器） ============ */
+    .topbar .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .theme-icon-btn {
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.22);
+      color: #fff; width: 38px; height: 38px;
+      border-radius: 12px; font-size: 17px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .2s, transform .15s;
+    }
+    .theme-icon-btn:hover { background: rgba(255,255,255,.24); transform: translateY(-1px); }
+
+    .theme-modal {
+      position: fixed; inset: 0; z-index: 300;
+      display: none; align-items: center; justify-content: center; padding: 24px;
+    }
+    .theme-modal.show { display: flex; }
+    .theme-mask {
+      position: absolute; inset: 0;
+      background: rgba(15,23,42,.45);
+    }
+    .theme-panel {
+      position: relative; width: 100%; max-width: 900px;
+      max-height: 88vh; overflow-y: auto;
+      /* 面板底用浅灰面，卡片用纯卡片色：不靠直线分隔也能分层 */
+      background: var(--surface-2); color: var(--text);
+      border-radius: calc(var(--radius-lg) + 8px);
+      box-shadow: var(--shadow-lg);
+      padding: 28px 30px 30px;
+    }
+    .theme-head { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 24px; }
+    .theme-head h3 { font-size: 19px; font-weight: 700; }
+    .theme-head p { margin-top: 8px; font-size: 12.5px; color: var(--text-sub); line-height: 1.8; }
+    .theme-close {
+      margin-left: auto; flex-shrink: 0;
+      background: var(--surface-3); border: none; color: var(--text-sub);
+      width: 34px; height: 34px; border-radius: 50%;
+      font-size: 15px; cursor: pointer; transition: color .15s, background .15s;
+    }
+    .theme-close:hover { color: var(--primary); background: var(--tint-warm-50); }
+
+    /* 主题卡片：大圆角 + 宽松间距 + 柔和阴影，不用直线分隔 */
+    .theme-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(238px, 1fr));
+      gap: 20px;
+    }
+    .theme-card {
+      text-align: left; cursor: pointer; font-family: inherit;
+      background: var(--card); color: var(--text);
+      border: none;
+      border-radius: var(--radius-lg);
+      padding: 22px 22px 20px;
+      box-shadow: var(--shadow-sm);
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+    .theme-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+    .theme-card.is-active {
+      box-shadow: 0 0 0 3px var(--tint-orange-100), var(--shadow);
+    }
+    .theme-card .tc-top { display: flex; align-items: center; gap: 10px; }
+    .theme-card .tc-name { font-size: 15.5px; font-weight: 700; }
+    .theme-card .tc-flag {
+      margin-left: auto; display: none;
+      font-size: 12px; font-weight: 700; color: #fff;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      padding: 3px 10px; border-radius: 999px;
+    }
+    .theme-card.is-active .tc-flag { display: inline-block; }
+    .theme-card .tc-slogan {
+      margin-top: 12px; min-height: 44px;
+      font-size: 12.5px; line-height: 1.8; color: var(--text-sub);
+    }
+    .theme-swatches { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 18px; }
+    .theme-swatches i {
+      width: 28px; height: 28px; border-radius: 50%;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.06);
+    }
+
+    /* 总览页「界面主题」区块 */
+    .theme-section {
+      margin-top: 22px;
+      /* 浅灰底 + 顶部主色渐隐，既显眼又不生硬；内部卡片用纯卡片色分层 */
+      background-color: var(--surface-2);
+      background-image: linear-gradient(180deg, var(--tint-warm-50), transparent 96px);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      padding: 24px 26px 26px;
+    }
+    .theme-section-head {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .theme-section-head .t-title { font-size: 16px; font-weight: 800; }
+    .theme-section-head .t-sub { font-size: 12.5px; color: var(--text-sub); }
+    .theme-section-head .t-open {
+      margin-left: auto; cursor: pointer; font-family: inherit;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      color: #fff; border: none;
+      padding: 9px 18px; border-radius: 999px;
+      font-size: 13px; font-weight: 600;
+      box-shadow: var(--shadow-sm);
+      transition: opacity .15s;
+    }
+    .theme-section-head .t-open:hover { opacity: .9; }
+
+    @media (max-width: 768px) {
+      .theme-panel { padding: 20px 18px 22px; border-radius: var(--radius-lg); }
+      .theme-grid { grid-template-columns: 1fr; gap: 16px; }
+      .theme-card .tc-slogan { min-height: 0; }
+      .theme-section { padding: 18px 16px 20px; }
+    }
+
+    /* ============ 新主题视觉层（按 design/warm|dark|fresh.png 设计稿） ============
+       作用域 [data-theme]:not([data-theme="classic"])：classic 经典版完全不经过这一层，
+       保持改造前外观一像素不变；warm/dark/fresh 在此套用设计稿规范。 */
+    /* 卡片：白底浮起（背景已换浅灰）、统一 20px 间距、28px 区块留白、柔和阴影、无硬框 */
+    [data-theme]:not([data-theme="classic"]) .stat-card .label { font-size: 13px; color: var(--text-sub); }
+    [data-theme]:not([data-theme="classic"]) .pane-title { margin-bottom: var(--section-gap); }
+    [data-theme]:not([data-theme="classic"]) .todo-card {
+      margin-top: var(--gap); border-radius: var(--radius-card);
+      padding: 22px 24px; box-shadow: var(--card-shadow);
+    }
+    [data-theme]:not([data-theme="classic"]) .filter-bar {
+      margin-bottom: var(--gap); border-radius: var(--radius-card);
+      padding: 18px 22px; box-shadow: var(--card-shadow);
+    }
+    [data-theme]:not([data-theme="classic"]) .rebate-card {
+      margin-bottom: var(--gap); border-radius: var(--radius-card); box-shadow: var(--card-shadow);
+    }
+    [data-theme]:not([data-theme="classic"]) .table-wrap {
+      margin-bottom: var(--gap); border-radius: var(--radius-card); box-shadow: var(--card-shadow);
+    }
+    [data-theme]:not([data-theme="classic"]) .pager { margin-top: 0; }
+    [data-theme]:not([data-theme="classic"]) .sup-status,
+    [data-theme]:not([data-theme="classic"]) .badge,
+    [data-theme]:not([data-theme="classic"]) .tag,
+    [data-theme]:not([data-theme="classic"]) .qual-tag { box-shadow: none; }
+
+    /* 表格：表头浅灰底、行高 ≥48px、行与行用极浅分隔色，去掉生硬黑线 */
+    [data-theme]:not([data-theme="classic"]) .dtable th,
+    [data-theme]:not([data-theme="classic"]) .dtable td { padding: var(--row-pad); border-bottom-color: var(--tint-row); }
+    [data-theme]:not([data-theme="classic"]) .dtable th { color: var(--text-sub); box-shadow: inset 0 -1px 0 var(--tint-divider); }
+    [data-theme]:not([data-theme="classic"]) .dtable th.sortable:hover { background: var(--tint-head-hover); }
+    [data-theme]:not([data-theme="classic"]) .rebate-card th,
+    [data-theme]:not([data-theme="classic"]) .rebate-card td { border-bottom-color: var(--tint-row); }
+    [data-theme]:not([data-theme="classic"]) .rebate-card-head { border-bottom: none; }
+
+    /* 按钮：统一 10px 圆角；主按钮主色实心（渐变），次要按钮浅灰底、去描边 */
+    [data-theme]:not([data-theme="classic"]) .pager button,
+    [data-theme]:not([data-theme="classic"]) .sup-action,
+    [data-theme]:not([data-theme="classic"]) .tier-del,
+    [data-theme]:not([data-theme="classic"]) .tier-add,
+    [data-theme]:not([data-theme="classic"]) .qual-actions-bar .btn-qa-approve,
+    [data-theme]:not([data-theme="classic"]) .qual-actions-bar .btn-qa-reject { border-radius: var(--btn-radius); }
+    [data-theme]:not([data-theme="classic"]) .btn { background: var(--surface-3); }
+    [data-theme]:not([data-theme="classic"]) .btn:hover { background: var(--surface-2); }
+    [data-theme]:not([data-theme="classic"]) .pager button {
+      border-color: transparent; background: var(--surface-3); box-shadow: var(--shadow-sm);
+    }
+    [data-theme]:not([data-theme="classic"]) .pager button:not(:disabled):hover { background: var(--tint-warm-50); }
+    [data-theme]:not([data-theme="classic"]) .btn-qa-reject { background: var(--tint-red-50); border-color: transparent; }
+    [data-theme]:not([data-theme="classic"]) .qual-photo-item img,
+    [data-theme]:not([data-theme="classic"]) .qual-photo-item .empty { box-shadow: var(--shadow-sm); }
+
+    /* 深浅两套 chrome：warm / fresh 顶栏与侧栏改浅色（设计稿）；dark 保持深蓝导航 */
+    [data-theme="warm"] .topbar,
+    [data-theme="fresh"] .topbar {
+      background: var(--card); color: var(--text);
+      box-shadow: 0 2px 12px rgba(0, 0, 0, .05);
+    }
+    [data-theme="warm"] .topbar .brand,
+    [data-theme="fresh"] .topbar .brand { color: var(--text); }
+    [data-theme="warm"] .topbar .hamburger,
+    [data-theme="fresh"] .topbar .hamburger { background: var(--surface-3); color: var(--text); }
+    [data-theme="warm"] .topbar .theme-icon-btn,
+    [data-theme="fresh"] .topbar .theme-icon-btn { background: var(--surface-3); border-color: transparent; color: var(--text); }
+    [data-theme="warm"] .topbar .logout { background: var(--tint-orange-25); border-color: transparent; color: var(--primary); }
+    [data-theme="warm"] .topbar .logout:hover { background: var(--tint-orange-100); }
+    [data-theme="fresh"] .topbar .logout { background: var(--tint-orange-25); border-color: transparent; color: #FF7A3D; }
+    [data-theme="fresh"] .topbar .logout:hover { background: var(--tint-orange-100); }
+    /* fresh 青绿：白色侧栏 + 青绿胶囊选中态（design/fresh.png） */
+    /* fresh 的侧栏配色已统一由 --sidebar-* 令牌提供（白色侧栏 + 青绿选中态） */
+
+    /* ============ 深色主题质感细节（只作用于 dark） ============
+       1) 卡片顶部一道极淡高光边（玻璃反光感），让卡片有立体感；
+       2) 主色文字（大数字 / 重点数字）加极淡发光。
+       选择器写成 [data-theme="dark"][data-theme] 是为了压过上面的新主题视觉层。 */
+    [data-theme="dark"][data-theme] .stat-card,
+    [data-theme="dark"][data-theme] .todo-card,
+    [data-theme="dark"][data-theme] .filter-bar,
+    [data-theme="dark"][data-theme] .table-wrap,
+    [data-theme="dark"][data-theme] .rebate-card {
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), var(--card-shadow);
+    }
+    [data-theme="dark"] .modal-box {
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 20px 60px rgba(0, 0, 0, .55);
+    }
+    [data-theme="dark"] .stat-card .value,
+    [data-theme="dark"] .stat-card .value small,
+    [data-theme="dark"] .todo-item .num,
+    [data-theme="dark"] .money-profit,
+    [data-theme="dark"] .btn-link {
+      text-shadow: 0 0 12px rgba(255, 148, 99, .25);
+    }
+
+    /* ============ 表格与表单现代样式层（仅 warm/dark/fresh；classic 完全不经过） ============ */
+    /* 1) 表格默认干净：所有行统一卡片底色，不做深浅交替、不做悬停变色（实测晃眼） */
+    [data-theme]:not([data-theme="classic"]) .dtable tbody tr,
+    [data-theme]:not([data-theme="classic"]) .dtable tbody tr:hover,
+    [data-theme]:not([data-theme="classic"]) .rebate-card table tr,
+    [data-theme]:not([data-theme="classic"]) .rebate-card table tr:hover { background: var(--card); }
+
+    /* 2) 靠留白分行：行高 52px（--row-pad 上下 16px）+ 1px 极淡横线，无竖线 */
+    [data-theme]:not([data-theme="classic"]) .dtable th,
+    [data-theme]:not([data-theme="classic"]) .dtable td,
+    [data-theme]:not([data-theme="classic"]) .rebate-card th,
+    [data-theme]:not([data-theme="classic"]) .rebate-card td {
+      border-left: none; border-right: none; border-top: none;
+    }
+    [data-theme]:not([data-theme="classic"]) .dtable td,
+    [data-theme]:not([data-theme="classic"]) .rebate-card td { border-bottom: 1px solid var(--row-line); }
+
+    /* 3) 表头：浅灰底 + 加粗 13px，无下边框硬线，与内容区分开即可 */
+    [data-theme]:not([data-theme="classic"]) .dtable th,
+    [data-theme]:not([data-theme="classic"]) .rebate-card th {
+      background: var(--surface-2); font-weight: 700; font-size: 13px;
+      border-bottom: none; box-shadow: none;
+    }
+
+    /* 4) 每行锚点：最左列（名称）加粗、颜色最深，眼睛回来能立刻定位 */
+    [data-theme]:not([data-theme="classic"]) .dtable tbody td:first-child { font-weight: 700; color: var(--text); }
+
+    /* 5) 数字纵向对齐：等宽数字 + 金额/价格列右对齐 */
+    [data-theme]:not([data-theme="classic"]) .dtable td,
+    [data-theme]:not([data-theme="classic"]) .rebate-card td { font-variant-numeric: tabular-nums; }
+    [data-theme]:not([data-theme="classic"]) .dtable td.mono,
+    [data-theme]:not([data-theme="classic"]) .money-red,
+    [data-theme]:not([data-theme="classic"]) .money-green,
+    [data-theme]:not([data-theme="classic"]) .money-profit,
+    [data-theme]:not([data-theme="classic"]) .pricing-diff,
+    [data-theme]:not([data-theme="classic"]) .pricing-rate { text-align: right; }
+
+    /* 6) 颜色只标记「需要动手的行」：亏本极淡红 / 未定价极淡黄，其余保持干净 */
+    [data-theme]:not([data-theme="classic"]) .pc-row-over > td { background: var(--row-loss) !important; }
+    [data-theme]:not([data-theme="classic"]) .pc-row-ok > td { background: transparent !important; }
+    /* 「手动定价」小标签：默认隐藏，只在新主题显示（经典版一个像素不动） */
+    .mini-tag { display: none; }
+    [data-theme]:not([data-theme="classic"]) .mini-tag {
+      display: inline-block; margin-left: 6px; padding: 1px 7px;
+      border-radius: 999px; font-size: 11px; font-weight: 700;
+      background: var(--tint-blue-100); color: var(--c-blue-800);
+    }
+
+    /* 移动端卡片式表格保持原来的虚线分隔 */
+    @media (max-width: 768px) {
+      [data-theme]:not([data-theme="classic"]) .dtable td,
+      [data-theme]:not([data-theme="classic"]) .rebate-card td { border-bottom-style: dashed; }
+    }
+
+    /* 3) 输入框 / 下拉框：浅灰填充底、去 1px 硬边框、8px 圆角、8px 12px 内边距 */
+    [data-theme]:not([data-theme="classic"]) .filter-bar select,
+    [data-theme]:not([data-theme="classic"]) .filter-bar input,
+    [data-theme]:not([data-theme="classic"]) .form-row input,
+    [data-theme]:not([data-theme="classic"]) .form-row select,
+    [data-theme]:not([data-theme="classic"]) .tier-row input,
+    [data-theme]:not([data-theme="classic"]) .tier-row select,
+    [data-theme]:not([data-theme="classic"]) .config-form-row input,
+    [data-theme]:not([data-theme="classic"]) .pc-input,
+    [data-theme]:not([data-theme="classic"]) .price-input,
+    [data-theme]:not([data-theme="classic"]) select,
+    [data-theme]:not([data-theme="classic"]) textarea,
+    [data-theme]:not([data-theme="classic"]) input[type="text"],
+    [data-theme]:not([data-theme="classic"]) input[type="number"],
+    [data-theme]:not([data-theme="classic"]) input[type="password"] {
+      background: var(--field-bg);
+      border: var(--field-border);
+      border-radius: var(--field-radius);
+      padding: var(--field-pad);
+      font-family: var(--field-font);
+      box-shadow: none;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    /* 聚焦：边框变主色 + 一圈极淡主色光晕 */
+    [data-theme]:not([data-theme="classic"]) .filter-bar select:focus,
+    [data-theme]:not([data-theme="classic"]) .filter-bar input:focus,
+    [data-theme]:not([data-theme="classic"]) .form-row input:focus,
+    [data-theme]:not([data-theme="classic"]) .form-row select:focus,
+    [data-theme]:not([data-theme="classic"]) .tier-row input:focus,
+    [data-theme]:not([data-theme="classic"]) .tier-row select:focus,
+    [data-theme]:not([data-theme="classic"]) .config-form-row input:focus,
+    [data-theme]:not([data-theme="classic"]) .pc-input:focus,
+    [data-theme]:not([data-theme="classic"]) .price-input:focus,
+    [data-theme]:not([data-theme="classic"]) select:focus,
+    [data-theme]:not([data-theme="classic"]) textarea:focus,
+    [data-theme]:not([data-theme="classic"]) input[type="text"]:focus,
+    [data-theme]:not([data-theme="classic"]) input[type="number"]:focus,
+    [data-theme]:not([data-theme="classic"]) input[type="password"]:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: var(--field-focus-shadow);
+    }
+    /* 4) 按钮：去描边，次要按钮浅灰底（圆角仍是 --btn-radius = 10px） */
+    [data-theme]:not([data-theme="classic"]) .btn,
+    [data-theme]:not([data-theme="classic"]) .btn-primary,
+    [data-theme]:not([data-theme="classic"]) .pager button,
+    [data-theme]:not([data-theme="classic"]) .sup-action,
+    [data-theme]:not([data-theme="classic"]) .tier-del,
+    [data-theme]:not([data-theme="classic"]) .qual-actions-bar .btn-qa-approve,
+    [data-theme]:not([data-theme="classic"]) .qual-actions-bar .btn-qa-reject { border: none; }
+
+    /* ============ 排版留白与色彩克制层（仅 warm/dark/fresh；classic 不经过） ============
+       原则：留白 > 分割线；字号只分 4 档（20 / 32 / 14 / 13）；
+             颜色只有 主色 + 红（异常）+ 绿（正常），其余一律灰阶；
+             去掉装饰性深色块与渐变，走 Notion / Linear 那种简洁克制风格。 */
+
+    /* —— 1. 留白：页面四周 ≥24px，区块之间 28px，用留白而不是分割线 —— */
+    [data-theme]:not([data-theme="classic"]) .main { padding: var(--page-pad); max-width: 1240px; }
+    [data-theme]:not([data-theme="classic"]) .topbar { padding: 0 24px; height: 64px; }
+    [data-theme]:not([data-theme="classic"]) .pane-title { margin-bottom: var(--section-gap); }
+    [data-theme]:not([data-theme="classic"]) .filter-bar { margin-bottom: var(--section-gap); gap: 16px; }
+    [data-theme]:not([data-theme="classic"]) .section-title { margin: var(--section-gap) 0 16px; }
+    [data-theme]:not([data-theme="classic"]) .sub-title { margin: var(--section-gap) 0 12px; }
+    [data-theme]:not([data-theme="classic"]) .qual-actions-bar { gap: 12px; margin: 16px 0 var(--section-gap); }
+    [data-theme]:not([data-theme="classic"]) .modal-box { padding: 28px 30px; }
+    [data-theme]:not([data-theme="classic"]) .info-grid { gap: 16px; margin-bottom: 16px; }
+    [data-theme]:not([data-theme="classic"]) .detail-stats { gap: 16px; margin: 16px 0 var(--section-gap); }
+    [data-theme]:not([data-theme="classic"]) .todo-card { gap: 28px; }
+    [data-theme]:not([data-theme="classic"]) .nav { padding: 16px 12px; }
+    @media (max-width: 768px) {
+      [data-theme]:not([data-theme="classic"]) .main { padding: 20px 18px 32px; }
+    }
+
+    /* —— 2. 字号四档：页面标题 20 / 大数字 32（--num-size） / 正文 14 / 次要 13 —— */
+    [data-theme]:not([data-theme="classic"]) body { font-size: 14px; }
+    [data-theme]:not([data-theme="classic"]) .pane-title { font-size: 20px; font-weight: 700; }
+    [data-theme]:not([data-theme="classic"]) .section-title { font-size: 16px; font-weight: 700; }
+    [data-theme]:not([data-theme="classic"]) .modal-box h3 { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+    [data-theme]:not([data-theme="classic"]) .dtable { font-size: 14px; }
+    [data-theme]:not([data-theme="classic"]) .dtable th { font-size: 13px; }
+    [data-theme]:not([data-theme="classic"]) .todo-card .todo-head { font-size: 14px; }
+    [data-theme]:not([data-theme="classic"]) .form-row label,
+    [data-theme]:not([data-theme="classic"]) .config-form-row label,
+    [data-theme]:not([data-theme="classic"]) .pager,
+    [data-theme]:not([data-theme="classic"]) .pc-summary,
+    [data-theme]:not([data-theme="classic"]) .qual-photo-item .qph,
+    [data-theme]:not([data-theme="classic"]) .config-form-row .hint,
+    [data-theme]:not([data-theme="classic"]) .todo-item .lbl { font-size: 13px; }
+
+    /* —— 3. 颜色克制：中性状态去彩，只留主色 / 红 / 绿 —— */
+    [data-theme]:not([data-theme="classic"]) .stat-card.blue,
+    [data-theme]:not([data-theme="classic"]) .stat-card.teal { border-top-color: var(--primary); }
+    [data-theme]:not([data-theme="classic"]) .stat-card.blue .value,
+    [data-theme]:not([data-theme="classic"]) .stat-card.teal .value { color: var(--num-color); }
+    [data-theme]:not([data-theme="classic"]) .badge.s-pending,
+    [data-theme]:not([data-theme="classic"]) .badge.s-confirmed,
+    [data-theme]:not([data-theme="classic"]) .badge.s-delivered,
+    [data-theme]:not([data-theme="classic"]) .qual-tag.none,
+    [data-theme]:not([data-theme="classic"]) .qual-tag.pending,
+    [data-theme]:not([data-theme="classic"]) .sup-status.pending,
+    [data-theme]:not([data-theme="classic"]) .sup-action.enable,
+    [data-theme]:not([data-theme="classic"]) .sup-action.freeze,
+    [data-theme]:not([data-theme="classic"]) .tier-badge.default,
+    [data-theme]:not([data-theme="classic"]) .tier-badge.none,
+    [data-theme]:not([data-theme="classic"]) .tag { background: var(--surface-3); color: var(--text-2); }
+    [data-theme]:not([data-theme="classic"]) .badge.s-done,
+    [data-theme]:not([data-theme="classic"]) .qual-tag.approved,
+    [data-theme]:not([data-theme="classic"]) .sup-status.active,
+    [data-theme]:not([data-theme="classic"]) .sup-action.approve,
+    [data-theme]:not([data-theme="classic"]) .sup-action.unfreeze,
+    [data-theme]:not([data-theme="classic"]) .tier-badge {
+      background: var(--tint-green-100); color: var(--c-green-800);
+    }
+    [data-theme]:not([data-theme="classic"]) .badge.s-failed,
+    [data-theme]:not([data-theme="classic"]) .qual-tag.rejected,
+    [data-theme]:not([data-theme="classic"]) .sup-status.frozen,
+    [data-theme]:not([data-theme="classic"]) .sup-status.rejected,
+    [data-theme]:not([data-theme="classic"]) .sup-action.reject,
+    [data-theme]:not([data-theme="classic"]) .sup-action.delete,
+    [data-theme]:not([data-theme="classic"]) .overdue-tag {
+      background: var(--tint-red-100); color: var(--c-red-800);
+    }
+    [data-theme]:not([data-theme="classic"]) .money-profit { color: var(--primary); }
+    [data-theme]:not([data-theme="classic"]) .preview-link-btn { background: var(--primary); }
+    /* 装饰性彩色底转灰阶：表头/合计/提示条不再用橙黄蓝 */
+    [data-theme]:not([data-theme="classic"]) .rebate-card-head,
+    [data-theme]:not([data-theme="classic"]) .dtable tfoot td { background: var(--surface-2); }
+    [data-theme]:not([data-theme="classic"]) .todo-item:hover { background: var(--surface-3); }
+    [data-theme]:not([data-theme="classic"]) [style*="--tint-amber-100"],
+    [data-theme]:not([data-theme="classic"]) [style*="--tint-sky-50"],
+    [data-theme]:not([data-theme="classic"]) [style*="--tint-blue-200"] {
+      background: var(--surface-2) !important;
+      border-color: var(--row-line) !important;
+      color: var(--text-2) !important;
+    }
+
+    /* —— 4. 去掉装饰性深色块与渐变：顶栏 / 侧栏走平色，主按钮实心 —— */
+    [data-theme]:not([data-theme="classic"]) .topbar {
+      background: var(--card); color: var(--text);
+      box-shadow: 0 1px 0 var(--row-line);
+    }
+    [data-theme]:not([data-theme="classic"]) .topbar .brand { color: var(--text); }
+    [data-theme]:not([data-theme="classic"]) .topbar .brand .dot { background: var(--primary); border-radius: 8px; }
+    [data-theme]:not([data-theme="classic"]) .topbar .hamburger { background: var(--surface-3); color: var(--text); }
+    [data-theme]:not([data-theme="classic"]) .topbar .theme-icon-btn { background: var(--surface-3); border-color: transparent; color: var(--text); }
+    [data-theme]:not([data-theme="classic"]) .topbar .logout { background: var(--surface-3); border-color: transparent; color: var(--text-sub); }
+    [data-theme]:not([data-theme="classic"]) .topbar .logout:hover { background: var(--surface-2); }
+    /* 侧栏 / 导航：底色与选中态由各主题的 --sidebar-* 令牌决定 */
+    [data-theme]:not([data-theme="classic"]) .sidebar { background: var(--sidebar-bg); color: var(--sidebar-color); }
+    [data-theme]:not([data-theme="classic"]) .nav-item { color: var(--sidebar-color); }
+    [data-theme]:not([data-theme="classic"]) .nav-item:hover { background: var(--sidebar-hover-bg); color: var(--sidebar-hover-color); }
+    [data-theme]:not([data-theme="classic"]) .nav-item.active {
+      background: var(--sidebar-active-bg); color: var(--sidebar-active-color); border-left-color: transparent;
+    }
+    [data-theme]:not([data-theme="classic"]) .nav-tip { color: var(--sidebar-tip-color); border-top: none; }
+    [data-theme]:not([data-theme="classic"]) .theme-section { background-image: none; }
+
+    /* ============ 主题结构差异：按钮形状与卡片质感 ============ */
+    /* dark：次要按钮走描边风格（细边框 + 主色文字，不填充）；
+       主按钮本身已是 --btn-primary-* 令牌给出的描边实心（透明底 + 主色边 + 主色字） */
+    [data-theme="dark"][data-theme] .btn:not(.btn-primary),
+    [data-theme="dark"][data-theme] .pager button {
+      background: transparent; border: 1px solid var(--border); color: var(--text-2);
+    }
+    [data-theme="dark"][data-theme] .btn:not(.btn-primary):hover,
+    [data-theme="dark"][data-theme] .pager button:not(:disabled):hover {
+      border-color: var(--primary); color: var(--primary); background: transparent;
+    }
+    [data-theme="dark"][data-theme] .tier-add { border-style: solid; border-color: var(--border); background: transparent; }
+    /* fresh：扁平卡片靠极淡边框勾勒（其他主题 --card-border: none，不画框） */
+    [data-theme="fresh"][data-theme] .stat-card,
+    [data-theme="fresh"][data-theme] .table-wrap,
+    [data-theme="fresh"][data-theme] .filter-bar,
+    [data-theme="fresh"][data-theme] .rebate-card,
+    [data-theme="fresh"][data-theme] .todo-card,
+    [data-theme="fresh"][data-theme] .modal-box,
+    [data-theme="fresh"][data-theme] .theme-section { border: var(--card-border); }
+
+    /* ============ 信息密度：行高与留白由各主题 --row-h / --gap / --section-gap / --page-pad 决定 ============
+       warm 宽松 52px / dark 紧凑 44px / fresh 极松 56px；仅桌面表格生效（移动端仍是卡片式流式布局） */
+    @media (min-width: 769px) {
+      [data-theme]:not([data-theme="classic"]) .dtable th,
+      [data-theme]:not([data-theme="classic"]) .dtable td,
+      [data-theme]:not([data-theme="classic"]) .rebate-card th,
+      [data-theme]:not([data-theme="classic"]) .rebate-card td { padding: 0 16px; }
+      [data-theme]:not([data-theme="classic"]) .dtable thead tr,
+      [data-theme]:not([data-theme="classic"]) .dtable tbody tr,
+      [data-theme]:not([data-theme="classic"]) .rebate-card table tr { height: var(--row-h); }
+    }
+    /* 深色的紧凑密度：表格可视区再高一点，一屏能多放几行；
+       行内输入框同步收窄，避免 44px 行高被输入框撑开 */
+    [data-theme="dark"][data-theme] .table-wrap { max-height: calc(100vh - 180px); }
+    [data-theme="dark"][data-theme] .price-input,
+    [data-theme="dark"][data-theme] .pc-input { padding: 6px 10px; }
+
+    /* ============ 总览统计卡：四套形态各不相同（结构级差异，不只是配色） ============
+       新增元素默认不显示 —— 经典版外观完全不变。
+       .stat-trend 为趋势行预留位：没有真实数据源时保持空，不做任何编造。 */
+    .stat-ico { display: none; }
+    .stat-ico-line { display: none; }
+    .stat-main { display: block; }
+    .stat-trend { display: none; }
+
+    /* —— warm：做减法的高级感 —— 纯白卡 + 极柔阴影 + 左侧 3px 主色竖线 + 右上角极简线性图标
+       （已删：彩色圆形图标块、底部 3px 装饰条、主按钮渐变） —— */
+    [data-theme="warm"][data-theme] .stat-grid { gap: 20px; }
+    [data-theme="warm"][data-theme] .stat-card {
+      display: block; position: relative;
+      padding: 28px; border-radius: var(--radius-card);
+      background: var(--card);
+      border-top: none;
+      border-left: 3px solid var(--primary);
+      box-shadow: 0 2px 12px rgba(0, 0, 0, .06);
+    }
+    [data-theme="warm"][data-theme] .stat-card .label {
+      font-size: 12px; letter-spacing: .5px; color: var(--text-sub); margin-bottom: 16px;
+    }
+    [data-theme="warm"][data-theme] .stat-card .value {
+      text-align: right; font-size: 34px; font-weight: 800; color: #1F2329;
+      font-variant-numeric: tabular-nums; line-height: 1.1;
+    }
+    /* 彩色圆块关掉，改用无底色的线性图标；页面内其余主色按钮一律实心、不用渐变 */
+    [data-theme="warm"][data-theme] .stat-ico { display: none; }
+    [data-theme="warm"][data-theme] .theme-section-head .t-open,
+    [data-theme="warm"][data-theme] .theme-card .tc-flag { background: var(--primary); }
+    [data-theme="warm"][data-theme] .stat-ico-line {
+      display: block; position: absolute; top: 26px; right: 26px;
+      width: 36px; height: 36px;
+      color: var(--primary); fill: none; stroke: currentColor; stroke-width: 1.5;
+      stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    /* —— dark：一整块仪表盘，三个数据合并，1px 竖线分隔 + 顶部 1px 主色渐变线 —— */
+    [data-theme="dark"][data-theme] .stat-grid {
+      position: relative; display: flex; gap: 0; padding: 0; overflow: hidden;
+      background: var(--card); border-radius: var(--radius-card);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), var(--card-shadow);
+    }
+    [data-theme="dark"][data-theme] .stat-grid::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; z-index: 1;
+      background: linear-gradient(90deg, transparent, var(--primary), transparent);
+    }
+    [data-theme="dark"][data-theme] .stat-card {
+      flex: 1; min-width: 0;
+      background: transparent; box-shadow: none; border-top: none; border-radius: 0;
+      border-left: 1px solid rgba(255, 255, 255, .06);
+      padding: 20px 24px;
+    }
+    [data-theme="dark"][data-theme] .stat-card:first-child { border-left: none; }
+    [data-theme="dark"][data-theme] .stat-card .label { font-size: 11px; color: var(--text-muted); margin-bottom: 10px; }
+    [data-theme="dark"][data-theme] .stat-card .value {
+      font-size: 30px; color: var(--primary);
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 0 12px rgba(255, 148, 99, .25);
+    }
+    [data-theme="dark"][data-theme] .stat-trend:not(:empty) {
+      display: block; margin-top: 8px; font-size: 12px; color: var(--text-faint);
+    }
+
+    /* —— fresh：左大右小不对称（左=本月采购订单总额），扁平 + 极淡边框 + 大留白 —— */
+    [data-theme="fresh"][data-theme] .stat-grid { grid-template-columns: 1fr 1fr; gap: 28px; }
+    [data-theme="fresh"][data-theme] .stat-card {
+      display: flex; align-items: center; gap: 18px;
+      border-top: none; box-shadow: var(--card-shadow);
+      padding: 26px 28px; border-radius: 20px;
+    }
+    [data-theme="fresh"][data-theme] .stat-card-amount {
+      grid-column: 1; grid-row: 1 / span 2;
+      border-radius: 24px; padding: 36px 32px; gap: 22px;
+    }
+    [data-theme="fresh"][data-theme] .stat-card-merchant { grid-column: 2; grid-row: 1; }
+    [data-theme="fresh"][data-theme] .stat-card-supplier { grid-column: 2; grid-row: 2; }
+    [data-theme="fresh"][data-theme] .stat-card .value { color: var(--primary); }
+    [data-theme="fresh"][data-theme] .stat-card-amount .value { font-size: 40px; }
+    [data-theme="fresh"][data-theme] .stat-card-merchant .value,
+    [data-theme="fresh"][data-theme] .stat-card-supplier .value { font-size: 28px; }
+    [data-theme="fresh"][data-theme] .stat-ico {
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      width: 48px; height: 48px; border-radius: 50%;
+      font-size: 22px; font-style: normal;
+      background: var(--tint-green-50); color: var(--primary);
+    }
+    [data-theme="fresh"][data-theme] .stat-card-amount .stat-ico { width: 64px; height: 64px; font-size: 28px; }
+    @media (max-width: 768px) {
+      [data-theme="fresh"][data-theme] .stat-grid { grid-template-columns: 1fr; }
+      [data-theme="fresh"][data-theme] .stat-card-amount,
+      [data-theme="fresh"][data-theme] .stat-card-merchant,
+      [data-theme="fresh"][data-theme] .stat-card-supplier { grid-column: 1; grid-row: auto; }
+      [data-theme="dark"][data-theme] .stat-grid { flex-direction: column; }
+      [data-theme="dark"][data-theme] .stat-card { border-left: none; border-top: 1px solid rgba(255, 255, 255, .06); }
+      [data-theme="dark"][data-theme] .stat-card:first-child { border-top: none; }
+    }
+
+    /* ============ 表格形态：四套各不相同（仅桌面表格；移动端仍是卡片式） ============ */
+    @media (min-width: 769px) {
+      /* dark：紧凑终端风 —— 不要横线，靠「行条比卡底亮一档 + 2px 间隙」的色阶区分；
+         表头 11px 全大写 + 0.8px 字距；悬停时该行左侧亮起 2px 主色竖线 */
+      [data-theme="dark"][data-theme] .dtable { border-collapse: separate; border-spacing: 0 2px; }
+      [data-theme="dark"][data-theme] .dtable tbody td {
+        background: var(--surface-2); border-bottom: none;
+      }
+      [data-theme="dark"][data-theme] .dtable tbody tr:hover td { background: var(--surface-3); }
+      [data-theme="dark"][data-theme] .dtable tbody tr:hover td:first-child {
+        box-shadow: inset 2px 0 0 var(--primary);
+      }
+      /* 表头用不透明底色，保证 sticky 冻结时不透出下方行内容 */
+      [data-theme="dark"][data-theme] .dtable th {
+        background: var(--card); font-size: 11px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .8px; color: var(--text-muted);
+      }
+
+      /* fresh：每行做成独立圆角条 —— 行间 6px 间隙、自身圆角 12px、悬停极淡青绿 #F0FAF9 */
+      [data-theme="fresh"][data-theme] .dtable { border-collapse: separate; border-spacing: 0 6px; }
+      [data-theme="fresh"][data-theme] .dtable tbody td {
+        background: var(--card); border-bottom: none;
+      }
+      [data-theme="fresh"][data-theme] .dtable tbody td:first-child { border-radius: 12px 0 0 12px; }
+      [data-theme="fresh"][data-theme] .dtable tbody td:last-child { border-radius: 0 12px 12px 0; }
+      [data-theme="fresh"][data-theme] .dtable tbody tr:hover td { background: #F0FAF9; }
+    }
+
+
+    /* =============================================================================
+       商家端（admin.html / supplier-dashboard.html）补充
+       ① 扩展令牌：商家端多一些橙/琥珀/灰阶色阶，这里补齐，经典版取值 = 原字面值
+       ② 表格：商家端用 table.data，与开发者端 .dtable 走同一套形态规范
+       ③ 今日数据统计卡 .home-stat：暖橙厚卡 / 深色整块面板 / 青绿扁平大圆角
+       ④ 主题入口悬浮按钮 .theme-fab（桌面端无顶栏时使用）
+       ⑤ 留白：卡片与按钮组不粘连
+       禁止：emoji 贴纸图标、彩色圆形图标块、装饰条、渐变
+       ============================================================================= */
+    :root {
+      --surface-5: #fafbfc; --surface-6: #f8f9fc; --surface-7: #f1f5f9; --surface-8: #eef0f3;
+      --border-x: #d7dce3; --text-dark: #111827; --slate-400: #cbd5e1; --c-slate: #64748b;
+      --c-orange-deep: #c2410c; --c-orange-dark: #7c2d12; --c-orange-mid: #fdba74; --c-orange-light: #ffb88c;
+      --c-amber: #f59e0b; --c-amber-400: #fbbf24; --c-amber-300: #fcd34d; --c-amber-600: #d97706;
+      --c-amber-900: #78350f; --c-amber-brown: #8a6d3b;
+      --tint-orange-200: #fed7aa; --tint-warm-100: #fff3ea; --tint-warm-200: #fffbf5; --tint-peach: #ffe8d6;
+      --c-green-500: #22c55e; --c-blue: #2563eb;
+    }
+    [data-theme="warm"] {
+      --surface-5: #FAFBFC; --surface-6: #F8F9FB; --surface-7: #F1F3F6; --surface-8: #EFF1F5;
+      --border-x: #DDE1E6; --text-dark: #16191D; --c-slate: #6E7787; --c-orange: #EE6C2E;
+      --tint-orange-200: #FBD6B6; --tint-warm-100: #FDF1E9; --tint-warm-200: #FFFBF7; --tint-peach: #FFE9DC;
+    }
+    [data-theme="dark"] {
+      --surface-5: #1F2833; --surface-6: #1D262F; --surface-7: #232D38; --surface-8: #2B3542;
+      --border-x: #2A3542; --text-dark: #F0F2F5; --slate-400: #7A8494; --c-slate: #8A94A6;
+      --c-orange-deep: #F97316; --c-orange-dark: #FDBA74; --c-orange-mid: #FDBA74; --c-orange-light: #FED7AA;
+      --c-amber: #FBBF24; --c-amber-400: #FCD34D; --c-amber-300: #FDE68A; --c-amber-600: #FBBF24;
+      --c-amber-900: #FEF3C7; --c-amber-brown: #D6BC8A;
+      --tint-orange-200: rgba(251, 146, 60, .26); --tint-warm-100: rgba(255, 148, 99, .14);
+      --tint-warm-200: rgba(255, 148, 99, .08); --tint-peach: rgba(251, 146, 60, .14);
+      --c-green-500: #4ADE80; --c-blue: #60A5FA;
+    }
+    [data-theme="fresh"] {
+      --surface-5: #F8FBFA; --surface-6: #F6F9F9; --surface-7: #F0F4F4; --surface-8: #EDF2F1;
+      --border-x: #DEE8E6; --text-dark: #121A19; --c-slate: #6E7775; --c-orange: #FF7A3D;
+      --c-orange-deep: #E06A2E; --c-orange-dark: #8A4B2A;
+      --tint-orange-200: #FBD9C6; --tint-warm-100: #FDF0EA; --tint-warm-200: #FFFAF8; --tint-peach: #FFE7DC;
+    }
+
+    /* 主题入口：右上角常驻调色盘（桌面端没有顶栏，用悬浮按钮） */
+    /* 悬浮在右下角：避免压住页面标题右侧的操作按钮（刷新 / 新增等） */
+    .theme-fab {
+      position: fixed; bottom: 24px; right: 24px; top: auto; left: auto; z-index: 120;
+      width: 40px; height: 40px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; cursor: pointer; font-family: inherit;
+      background: var(--card); color: var(--text);
+      border: var(--card-border); box-shadow: var(--card-shadow);
+      transition: transform .15s ease;
+    }
+    .theme-fab:hover { transform: translateY(-2px); }
+    /* 移动端抬高一点：避开采购商城底部的结算条（position: fixed; bottom: 0; 高约 62px） */
+    @media (max-width: 768px) { .theme-fab { bottom: 78px; right: 16px; } }
+
+
+    /* =========================================================================
+       商家端表格 table.data（9 张：菜单管理 / 抵用券 / 鼎恒币流水 / 采购订单 /
+       采购监控省钱 / 顾客储值 / 营销活动×3）：四套形态完全不同
+       classic 完全不参与（以下规则均带 [data-theme="x"] 限定）
+       禁止：竖线、强对比斑马纹、emoji 图标
+       ========================================================================= */
+    @media (min-width: 901px) {
+      /* —— 暖橙：行高 52px，1px 极淡横线，表头浅灰 13px，无下边框硬线 —— */
+      [data-theme="warm"][data-theme] table.data th,
+      [data-theme="warm"][data-theme] table.data td {
+        padding: 16px; border-bottom: 1px solid rgba(0, 0, 0, .05);
+      }
+      [data-theme="warm"][data-theme] table.data tbody tr { height: 52px; }
+      [data-theme="warm"][data-theme] table.data thead th {
+        background: var(--surface-2); color: var(--text-sub);
+        font-weight: 700; font-size: 13px; border-bottom: none;
+      }
+      [data-theme="warm"][data-theme] table.data tbody tr:hover { background: transparent; }
+
+      /* —— 深色：行高 44px，不要横线，靠极小色阶差分行（奇数卡片底 / 偶数 #1D262F）；
+             表头 11px 全大写 + 0.8px 字距；悬停整行提亮 + 左侧 2px 主色竖线 —— */
+      [data-theme="dark"][data-theme] table.data th,
+      [data-theme="dark"][data-theme] table.data td { padding: 0 16px; border-bottom: none; }
+      [data-theme="dark"][data-theme] table.data tbody tr { height: 44px; }
+      [data-theme="dark"][data-theme] table.data tbody tr:nth-child(odd) { background: var(--card); }
+      [data-theme="dark"][data-theme] table.data tbody tr:nth-child(even) { background: #1D262F; }
+      [data-theme="dark"][data-theme] table.data tbody tr:hover { background: var(--surface-2); }
+      [data-theme="dark"][data-theme] table.data tbody tr:hover td:first-child {
+        box-shadow: inset 2px 0 0 var(--primary);
+      }
+      [data-theme="dark"][data-theme] table.data thead th {
+        background: var(--card); color: var(--text-sub); font-weight: 700;
+        font-size: 11px; text-transform: uppercase; letter-spacing: .8px;
+      }
+
+      /* —— 青绿：行高 56px，每行独立圆角条（行间 6px 间隙、自身圆角 12px），
+             悬停变极淡青绿 #F0FAF9 —— */
+      [data-theme="fresh"][data-theme] table.data { border-collapse: separate; border-spacing: 0 6px; }
+      [data-theme="fresh"][data-theme] table.data th,
+      [data-theme="fresh"][data-theme] table.data td { padding: 16px; border-bottom: none; }
+      [data-theme="fresh"][data-theme] table.data tbody tr { height: 56px; }
+      [data-theme="fresh"][data-theme] table.data tbody td { background: var(--card); }
+      [data-theme="fresh"][data-theme] table.data tbody td:first-child { border-radius: 12px 0 0 12px; }
+      [data-theme="fresh"][data-theme] table.data tbody td:last-child { border-radius: 0 12px 12px 0; }
+      [data-theme="fresh"][data-theme] table.data tbody tr:hover td { background: #F0FAF9; }
+      [data-theme="fresh"][data-theme] table.data thead th {
+        background: var(--surface-2); color: var(--text-sub);
+        font-weight: 700; font-size: 13px; border-bottom: none;
+      }
+
+      /* —— 数字：全部表格等宽数字（小数点纵向对齐）；按各表实际列序把数字列右对齐
+             （纯 CSS，按 tbody id 定位，不改任何渲染逻辑） —— */
+      [data-theme]:not([data-theme="classic"]) table.data td { font-variant-numeric: tabular-nums; }
+      [data-theme]:not([data-theme="classic"]) #dishesBody td:nth-child(2),
+      [data-theme]:not([data-theme="classic"]) #couponsBody td:nth-child(1),
+      [data-theme]:not([data-theme="classic"]) #couponsBody td:nth-child(2),
+      [data-theme]:not([data-theme="classic"]) #coinHistoryBody td:nth-child(3),
+      [data-theme]:not([data-theme="classic"]) #coinHistoryBody td:nth-child(4),
+      [data-theme]:not([data-theme="classic"]) #purchaseOrdersBody td:nth-child(4),
+      [data-theme]:not([data-theme="classic"]) #purchaseOrdersBody td:nth-child(6),
+      [data-theme]:not([data-theme="classic"]) #procSavingsBody td:nth-child(2),
+      [data-theme]:not([data-theme="classic"]) #procSavingsBody td:nth-child(3),
+      [data-theme]:not([data-theme="classic"]) #procSavingsBody td:nth-child(4),
+      [data-theme]:not([data-theme="classic"]) #procSavingsBody td:nth-child(5),
+      [data-theme]:not([data-theme="classic"]) #svTbody td:nth-child(3),
+      [data-theme]:not([data-theme="classic"]) #svTbody td:nth-child(4),
+      [data-theme]:not([data-theme="classic"]) #svTbody td:nth-child(5) { text-align: right; }
+    }
+
+    /* =========================================================================
+       商家端输入框 / 下拉框：.form-input / .form-select / .si-input /
+       .filter-bar 里的 input 与 select —— 形状由 --field-* 令牌决定
+       暖橙：#F2F4F6 填充、无边框、8px、淡橙光晕
+       深色：#212B36 底、1px #2A3542、6px、等宽字体、主色发光
+       青绿：白底、1px #D5E9E7、胶囊 999px、淡青绿光晕
+       经典版：不参与
+       ========================================================================= */
+    [data-theme]:not([data-theme="classic"]) .form-input,
+    [data-theme]:not([data-theme="classic"]) .form-select,
+    [data-theme]:not([data-theme="classic"]) .si-input,
+    [data-theme]:not([data-theme="classic"]) .filter-bar input,
+    [data-theme]:not([data-theme="classic"]) .filter-bar select {
+      background: var(--field-bg);
+      border: var(--field-border);
+      border-radius: var(--field-radius);
+      padding: var(--field-pad);
+      font-family: var(--field-font);
+      color: var(--text);
+      box-shadow: none;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    [data-theme]:not([data-theme="classic"]) .form-input:focus,
+    [data-theme]:not([data-theme="classic"]) .form-select:focus,
+    [data-theme]:not([data-theme="classic"]) .si-input:focus,
+    [data-theme]:not([data-theme="classic"]) .filter-bar input:focus,
+    [data-theme]:not([data-theme="classic"]) .filter-bar select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: var(--field-focus-shadow);
+    }
+
+    /* 数字等宽：商家端所有金额 / 价格 / 数量（含采购商城、采购订单、数据统计） */
+    [data-theme]:not([data-theme="classic"]) .admin { font-variant-numeric: tabular-nums; }
+
+    /* 商家端「今日数据」统计卡 .home-stat：四套形态（禁用 emoji 贴纸，改用线性图标） */
+    /* =========================================================================
+       商家端统计卡形态：
+       ① 工作台 4 张：.home-stats / .home-stat（<b>数字 / <span>标签 / <em>备注）
+       ② 数据统计 / 采购监控：.stat-grid / .stat-card
+       暖橙 = 独立厚卡（左侧 3px 主色竖线、32px 深色数字右对齐）
+       深色 = 合并成一整块仪表盘（竖线分隔 + 顶部主色渐变线 + 数字主色发光等宽）
+       青绿 = 左大右小不对称（扁平、大圆角 24/20、极淡边框、留白更多）
+       经典版 = 不参与，保持原样
+       禁止：emoji、彩色圆形图标块、装饰条、渐变
+       ========================================================================= */
+
+    /* 极简线性图标：四套主题都显示（20px、1.5px 描边、主色、无底色） */
+    .home-stat .stat-ico-line,
+    .hg-ico {
+      display: block; color: var(--primary);
+      fill: none; stroke: currentColor; stroke-width: 1.5;
+      stroke-linecap: round; stroke-linejoin: round;
+    }
+    .home-stat .stat-ico-line { position: absolute; top: 22px; right: 22px; width: 20px; height: 20px; }
+    .hg-ico { width: 20px; height: 20px; margin: 0 auto 8px; }
+    .home-grid-item i { display: none; }
+    [data-theme]:not([data-theme="classic"]) .home-stat i { display: none; }
+
+    /* —— 暖橙：四张独立厚卡 —— */
+    [data-theme="warm"][data-theme] .home-stats,
+    [data-theme="warm"][data-theme] .stat-grid { display: grid; gap: 20px; }
+    [data-theme="warm"][data-theme] .home-stat,
+    [data-theme="warm"][data-theme] .stat-card {
+      background: var(--card); border-radius: var(--radius-card);
+      padding: 24px; gap: 10px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, .06);
+      border: none; border-left: 3px solid var(--primary);
+    }
+    [data-theme="warm"][data-theme] .home-stat b,
+    [data-theme="warm"][data-theme] .stat-card .value {
+      font-size: 32px; font-weight: 800; color: #1F2329;
+      text-align: right; font-variant-numeric: tabular-nums; line-height: 1.15;
+    }
+    [data-theme="warm"][data-theme] .home-stat span,
+    [data-theme="warm"][data-theme] .stat-card .label {
+      font-size: 12px; letter-spacing: .5px; color: var(--text-sub);
+    }
+    [data-theme="warm"][data-theme] .home-stat em { font-size: 11.5px; font-style: normal; color: var(--text-sub); }
+
+    /* —— 深色：四张合并成一整块仪表盘 —— */
+    [data-theme="dark"][data-theme] .home-stats,
+    [data-theme="dark"][data-theme] .stat-grid {
+      display: flex; gap: 0; padding: 0; overflow: hidden; position: relative;
+      background: var(--card); border-radius: var(--radius-card);
+    }
+    [data-theme="dark"][data-theme] .home-stats::before,
+    [data-theme="dark"][data-theme] .stat-grid::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; z-index: 2;
+      background: linear-gradient(90deg, transparent, var(--primary), transparent);
+    }
+    [data-theme="dark"][data-theme] .home-stat,
+    [data-theme="dark"][data-theme] .stat-card {
+      flex: 1; min-width: 0; background: transparent; box-shadow: none;
+      border: none; border-radius: 0; padding: 20px 24px; gap: 8px;
+      border-left: 1px solid rgba(255, 255, 255, .06);
+    }
+    [data-theme="dark"][data-theme] .home-stat:first-child,
+    [data-theme="dark"][data-theme] .stat-card:first-child { border-left: none; }
+    [data-theme="dark"][data-theme] .home-stat span,
+    [data-theme="dark"][data-theme] .stat-card .label {
+      font-size: 11px; letter-spacing: .5px; color: var(--text-muted);
+    }
+    [data-theme="dark"][data-theme] .home-stat b,
+    [data-theme="dark"][data-theme] .stat-card .value {
+      font-size: 30px; font-weight: 800; color: #FF9463;
+      text-align: right; font-variant-numeric: tabular-nums;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      text-shadow: 0 0 12px rgba(255, 148, 99, .25);
+    }
+    [data-theme="dark"][data-theme] .home-stat em { font-size: 11.5px; font-style: normal; color: var(--text-muted); }
+
+    /* —— 青绿：左大右小不对称（第一张跨行占左侧，其余纵向叠放右侧） —— */
+    @media (min-width: 901px) {
+      [data-theme="fresh"][data-theme] .home-stats {
+        display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px;
+      }
+      [data-theme="fresh"][data-theme] .home-stat:first-child { grid-column: 1; grid-row: span 3; }
+      [data-theme="fresh"][data-theme] .home-stat:not(:first-child) { grid-column: 2; }
+      [data-theme="fresh"][data-theme] .stat-grid:not(.proc-stat-grid) {
+        display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px;
+      }
+      [data-theme="fresh"][data-theme] .stat-grid:not(.proc-stat-grid) .stat-card:first-child { grid-column: 1; grid-row: span 2; }
+      [data-theme="fresh"][data-theme] .stat-grid:not(.proc-stat-grid) .stat-card:not(:first-child) { grid-column: 2; }
+      [data-theme="fresh"][data-theme] .proc-stat-grid { grid-template-columns: 1fr 1fr; gap: 20px; }
+    }
+    [data-theme="fresh"][data-theme] .home-stat,
+    [data-theme="fresh"][data-theme] .stat-card {
+      box-shadow: none; background: var(--card);
+      border: 1px solid #E3EDEC; border-radius: 20px; padding: 20px; gap: 8px;
+    }
+    [data-theme="fresh"][data-theme] .home-stat:first-child,
+    [data-theme="fresh"][data-theme] .stat-grid:not(.proc-stat-grid) .stat-card:first-child {
+      border-radius: 24px; padding: 32px;
+    }
+    [data-theme="fresh"][data-theme] .home-stat b,
+    [data-theme="fresh"][data-theme] .stat-card .value {
+      font-size: 26px; font-weight: 800; color: var(--primary);
+      text-align: right; font-variant-numeric: tabular-nums;
+    }
+    [data-theme="fresh"][data-theme] .home-stat:first-child b,
+    [data-theme="fresh"][data-theme] .stat-grid:not(.proc-stat-grid) .stat-card:first-child .value {
+      font-size: 40px;
+    }
+    [data-theme="fresh"][data-theme] .home-stat span,
+    [data-theme="fresh"][data-theme] .stat-card .label {
+      font-size: 12px; letter-spacing: .5px; color: var(--text-sub);
+    }
+    [data-theme="fresh"][data-theme] .home-stat em { font-size: 11.5px; font-style: normal; color: var(--text-sub); }
+
+    /* 商家端留白与按钮形状：不粘连（.admin 前缀避免影响开发者端同名类） */
+    [data-theme]:not([data-theme="classic"]) .admin .main { padding: var(--page-pad); }
+    /* .home-stats 的 gap 固定用 admin.html 基础规则的 20px，不再随主题密度变化 */
+    [data-theme]:not([data-theme="classic"]) .home-cols { gap: var(--gap); }
+    [data-theme]:not([data-theme="classic"]) .home-grid { gap: 14px; }
+    [data-theme]:not([data-theme="classic"]) .home-hero { margin-bottom: var(--gap); }
+    [data-theme]:not([data-theme="classic"]) .pane > .card + .card,
+    [data-theme]:not([data-theme="classic"]) .pane > .table-wrap + .card,
+    [data-theme]:not([data-theme="classic"]) .pane > .card + .table-wrap { margin-top: var(--gap); }
+    [data-theme]:not([data-theme="classic"]) .admin .card-head { padding: 18px 22px; border-bottom: none; }
+    [data-theme]:not([data-theme="classic"]) .btn-add,
+    [data-theme]:not([data-theme="classic"]) .btn-blue,
+    [data-theme]:not([data-theme="classic"]) .btn-red,
+    [data-theme]:not([data-theme="classic"]) .btn-orange,
+    [data-theme]:not([data-theme="classic"]) .btn-green,
+    [data-theme]:not([data-theme="classic"]) .btn-gray {
+      border-radius: var(--btn-radius); border: none; 

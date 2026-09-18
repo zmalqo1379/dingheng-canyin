@@ -2,6 +2,12 @@
 require('dotenv').config();
 const BASE = 'http://localhost:3000';
 
+// 测试账号从环境变量读取（.env），不再硬编码
+const TEST_MERCHANT_PHONE = process.env.TEST_MERCHANT_PHONE;
+const TEST_MERCHANT_PASSWORD = process.env.TEST_MERCHANT_PASSWORD;
+const DEV_ADMIN_USER = process.env.DEV_ADMIN_USER;
+const DEV_ADMIN_PASSWORD = process.env.DEV_ADMIN_PASSWORD;
+
 async function login(path, body) {
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
@@ -16,7 +22,7 @@ async function main() {
 
   // 1. 商家登录，测配送设置写入
   console.log('[1] 商家登录 + 配送设置写入/读取');
-  const mLogin = await login('/api/auth/merchant/login', { phone: '13800138001', password: '123456' });
+  const mLogin = await login('/api/auth/merchant/login', { phone: TEST_MERCHANT_PHONE, password: TEST_MERCHANT_PASSWORD });
   if (!mLogin.success) { console.log('  商家登录失败:', mLogin.message); return; }
   const mToken = mLogin.data.token;
   const shopId = mLogin.data.shopId;
@@ -54,7 +60,7 @@ async function main() {
 
   // 2. dev 登录，测订单详情接口
   console.log('[2] dev 登录 + 订单列表/详情接口');
-  const dLogin = await login('/api/auth/dev/login', { username: 'admin', password: 'dingheng2024' });
+  const dLogin = await login('/api/auth/dev/login', { username: DEV_ADMIN_USER, password: DEV_ADMIN_PASSWORD });
   if (!dLogin.success) { console.log('  dev 登录失败:', dLogin.message); return; }
   const dToken = dLogin.data.token;
   console.log('  dev 登录成功');

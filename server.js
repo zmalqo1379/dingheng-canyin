@@ -46,6 +46,9 @@ const notify = require('./utils/notify');
 const Marketing = require('./models/Marketing');
 const { computeDiscount } = require('./utils/marketingCalc');
 const entitlements = require('./utils/entitlements');
+const certification = require('./utils/certification');
+// 门店定位自动换算（文字地址 → 经纬度）：高德 Web 服务地理编码，失败不阻断业务
+const geocode = require('./utils/geocode');
 const {
   extractPublicShopId,
   requirePublicShopId,
@@ -439,6 +442,15 @@ app.get('/api/config/map', (req, res) => {
       amapSecurityCode: process.env.AMAP_SECURITY_CODE || ''
     }
   });
+});
+
+// ============ 公开支付模式查询（无鉴权，供前端演示横幅判断）============
+// payMode=mock → 各端显示「当前为演示模式」横幅；只下发模式标志，不含任何商户号/密钥信息。
+// 模式切换（开发者后台）写穿更新缓存，本接口即时反映，无需重启。
+app.get('/api/pay-mode', (req, res) => {
+  const payRuntime = require('./utils/payRuntime');
+  const payMode = payRuntime.getPayMode();
+  res.json({ success: true, data: { payMode, demo: payMode === 'mock' } });
 });
 
 // ============ 商家后台 API（requireMerchant：校验 JWT + shopId 一致） ============
@@ -871,6 +883,146 @@ app.post('/api/admin/store-info/skip', requireMerchant, async (req, res) => {
   }
 });
 
+// ============ GET /api/admin/certification/status 商家认证状态聚合视图（上线加固第一批） ============
+// 返回：认证状态（certified/status）、各项资料是否齐全（items）、手机号是否验证、缺失清单（missing）、
+//       首单直通信息（firstOrder：阈值/是否已用过）。
+// 供「下单认证判定（utils/certification.checkOrderCertGate，与下单/支付接口同口径）」
+// 和「前端引导（缺什么补什么）」共用；认证数据内嵌 Setting.certification。
+// 第二批预留项（items 中 reserved=true）：地图选点定位、营业执照 OCR、手机号验证（等 AppID），本轮不拦截已认证商家。
+app.get('/api/admin/certification/status', requireMerchant, async (req, res) => {
+  try {
+    const amount = Number(req.query.amount);
+    const data = await certification.getCertificationStatus(
+      req.shopId,
+      isFinite(amount) && amount > 0 ? amount : undefined
+    );
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ POST /api/admin/certification/submit 提交商家认证（上线加固第一批） ============
+// 入参（multipart 也可，但本轮全部走 JSON，文件由前端先 POST /api/admin/upload 上传再传 URL）：
+//   shopAddress        详细地址（必填 · 履约必需）
+//   shopLongitude      经度（**选填**，不填则由后端按 shopAddress 自动地理编码换算）
+//   shopLatitude       纬度（**选填**，同上）
+//   storeFrontPhoto    门头照 URL（必填，本轮必传；OCR/合规项后续可放宽）
+//   businessLicense    营业执照 URL（必填；OCR 自动识别本轮不做，仅占位留口子）
+// 资料齐全 → certification.status='approved'（本轮不需要人工审核，提交即认证通过）
+// 已认证（approved）的商家再调用本接口会刷新 submittedAt（重新提交），状态保持 approved；
+// 被驳回（rejected）的商家可重新提交，状态重新置 approved。
+// 【2026-09 上线加固】门店定位改为「选填 + 后端自动换算」：
+//   商家只填文字地址即可，后端调 utils/geocode.js（高德 Web 服务地理编码）换算经纬度；
+//   换算失败 **不阻断提交**（认证照常通过、经纬度保留原值不抹掉），失败原因写入
+//   Setting.certification.geoStatus / geoMessage，供后续补全。
+app.post('/api/admin/certification/submit', requireMerchant, async (req, res) => {
+  try {
+    const shopId = req.shopId;
+    const {
+      shopAddress,
+      shopLongitude,
+      shopLatitude,
+      storeFrontPhoto,
+      businessLicense
+    } = req.body || {};
+
+    // 履约必需项必填校验（详细地址：供应商按文字地址即可配送）
+    if (!shopAddress || !String(shopAddress).trim()) {
+      return res.status(400).json({ success: false, code: 'MISSING_BLOCKING', message: '请填写详细地址', field: 'shopAddress' });
+    }
+    // 合规项必填校验（门头照 / 营业执照）
+    if (!storeFrontPhoto || !String(storeFrontPhoto).trim()) {
+      return res.status(400).json({ success: false, code: 'MISSING_COMPLIANCE', message: '请上传门头照', field: 'storeFrontPhoto' });
+    }
+    if (!businessLicense || !String(businessLicense).trim()) {
+      return res.status(400).json({ success: false, code: 'MISSING_COMPLIANCE', message: '请上传营业执照', field: 'businessLicense' });
+    }
+
+    const address = String(shopAddress).trim().slice(0, 200);
+    const now = new Date();
+
+    // ---- 门店定位（经纬度）：选填。前端地图选点自带则直接用；否则按文字地址自动换算 ----
+    let lng = Number(shopLongitude);
+    let lat = Number(shopLatitude);
+    let hasLngLat = isFinite(lng) && isFinite(lat) && Math.abs(lng) <= 180 && Math.abs(lat) <= 90;
+    let geoUpdate = {};
+    let geoResult = null;
+
+    if (hasLngLat) {
+      geoUpdate = {
+        'certification.geoStatus': 'provided',
+        'certification.geoMessage': '',
+        'certification.geoFrom': address,
+        'certification.geoAttemptedAt': now
+      };
+      geoResult = { ok: true, source: 'provided', longitude: lng, latitude: lat };
+    } else {
+      const r = await geocode.geocodeAddress(address);
+      if (r.ok) {
+        lng = r.longitude;
+        lat = r.latitude;
+        hasLngLat = true;
+        geoUpdate = {
+          'certification.geoStatus': 'ok',
+          'certification.geoMessage': '',
+          'certification.geoFrom': address,
+          'certification.geoAttemptedAt': now
+        };
+        geoResult = {
+          ok: true, source: 'geocode', longitude: lng, latitude: lat,
+          formattedAddress: r.formattedAddress || '', level: r.level || ''
+        };
+      } else {
+        // 换算失败：不阻断提交，只记录状态供后续补全
+        const reason = String(r.reason || '换算失败').slice(0, 200);
+        geoUpdate = {
+          'certification.geoStatus': 'failed',
+          'certification.geoMessage': reason,
+          'certification.geoFrom': address,
+          'certification.geoAttemptedAt': now
+        };
+        geoResult = { ok: false, source: 'geocode', reason };
+        console.warn(`[certification] 门店定位自动换算失败 shopId=${shopId}：${reason}`);
+      }
+    }
+
+    const update = {
+      shopAddress: address,
+      storeFrontPhoto: String(storeFrontPhoto).trim().slice(0, 500),
+      'certification.businessLicense': String(businessLicense).trim().slice(0, 500),
+      // 提交即认证通过（本轮不做人工审核 / OCR）
+      'certification.status': 'approved',
+      'certification.submittedAt': now,
+      'certification.reviewedAt': now,
+      'certification.rejectReason': '',
+      ...geoUpdate
+    };
+    // 只有拿到有效经纬度（自带或换算成功）才写；换算失败保留库中原值，避免抹掉已有定位
+    if (hasLngLat) {
+      update.shopLongitude = lng;
+      update.shopLatitude = lat;
+    }
+
+    await Setting.findOneAndUpdate(
+      { shopId },
+      { $set: update },
+      { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true }
+    );
+
+    const data = await certification.getCertificationStatus(shopId);
+    res.json({
+      success: true,
+      message: (geoResult && geoResult.ok && geoResult.source === 'geocode')
+        ? '认证资料已提交，认证通过（门店位置已自动识别）'
+        : '认证资料已提交，认证通过',
+      data: Object.assign({}, data, { geoResult })
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // --- 商家后台修改设置（按 JWT shopId 匹配，绝不窜改他人店铺）---
 
 // 店铺装修权限（双产品线：装修属点餐线权益）
@@ -935,6 +1087,16 @@ app.put('/api/settings', requireMerchant, async (req, res) => {
     if (update.pointDeductMaxPercent !== undefined) update.pointDeductMaxPercent = Math.min(100, update.pointDeductMaxPercent);
     if (update.pointDeductEnabled !== undefined) update.pointDeductEnabled = toBool(update.pointDeductEnabled);
     if (update.pointEnabled !== undefined) update.pointEnabled = toBool(update.pointEnabled);
+    if (update.pointExpiryMode !== undefined) {
+      if (!['permanent', 'fixed'].includes(update.pointExpiryMode)) {
+        delete update.pointExpiryMode;
+      }
+    }
+    if (update.pointExpiryDays !== undefined) {
+      const d = Number(update.pointExpiryDays);
+      if (!isFinite(d) || d < 1) { delete update.pointExpiryDays; }
+      else { update.pointExpiryDays = Math.min(3650, Math.round(d)); }
+    }
     if (update.pointExchangeDishes !== undefined) {
       if (!Array.isArray(update.pointExchangeDishes)) {
         delete update.pointExchangeDishes;
@@ -984,6 +1146,40 @@ app.put('/api/settings', requireMerchant, async (req, res) => {
       if (update[k] !== undefined) update[k] = String(update[k]).slice(0, 500);
     });
 
+    // ---- 门店定位（经纬度）自动换算兜底（2026-09 上线加固）----
+    // 场景：商家只填了文字地址、没在图上选点也没填经纬度 → 后端按地址自动换算（商家不用理解经纬度）。
+    // 只在「库内原本没有定位」且「同一地址上次换算没失败过」时才发起，避免每次保存都打高德配额；
+    // 换算失败不阻断保存（经纬度留空），仅把状态写入 certification.geo* 供后续补全。
+    let geoResult = null;
+    const hasIncomingPos = update.shopLongitude != null || update.shopLatitude != null;
+    if (update.shopAddress && !hasIncomingPos) {
+      const prev = await Setting.findOne({ shopId })
+        .select('shopLongitude shopLatitude certification.geoStatus certification.geoFrom')
+        .lean();
+      const hasStoredPos = prev && prev.shopLongitude != null && prev.shopLatitude != null;
+      const certPrev = (prev && prev.certification) || {};
+      const alreadyFailedSameAddr = certPrev.geoStatus === 'failed' && certPrev.geoFrom === update.shopAddress;
+      if (!hasStoredPos && !alreadyFailedSameAddr) {
+        const r = await geocode.geocodeAddress(update.shopAddress);
+        update['certification.geoFrom'] = update.shopAddress;
+        update['certification.geoAttemptedAt'] = new Date();
+        if (r.ok) {
+          update.shopLongitude = r.longitude;
+          update.shopLatitude = r.latitude;
+          update['certification.geoStatus'] = 'ok';
+          update['certification.geoMessage'] = '';
+          geoResult = {
+            ok: true, source: 'geocode', longitude: r.longitude, latitude: r.latitude,
+            formattedAddress: r.formattedAddress || ''
+          };
+        } else {
+          update['certification.geoStatus'] = 'failed';
+          update['certification.geoMessage'] = String(r.reason || '换算失败').slice(0, 200);
+          geoResult = { ok: false, source: 'geocode', reason: r.reason || '换算失败' };
+        }
+      }
+    }
+
     // ---- 通知渠道真实对接配置：URL/密钥字符串清洗（未配置则该渠道发送时记 skipped）----
     ['notifyWebhookUrl', 'printerApiUrl', 'smsApiUrl', 'smsApiKey', 'voiceApiUrl', 'voiceApiKey',
       'wechatApiUrl', 'wechatApiKey', 'wechatTemplateId', 'wechatToUser'].forEach((k) => {
@@ -995,7 +1191,8 @@ app.put('/api/settings', requireMerchant, async (req, res) => {
       update,
       { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true }
     );
-    res.json({ success: true, data: setting });
+    // geo：本次是否触发了「地址 → 经纬度」自动换算及结果（前端用于「位置已自动识别」正反馈）
+    res.json({ success: true, data: setting, geo: geoResult });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -1157,18 +1354,31 @@ mongoose
     console.log('MongoDB 已连接:', MONGODB_URI);
     // 注意：旧的 initData() 已移除——多商家模式下，
     // 默认分类/桌台/菜品/设置都在「商家注册」时为该商家独立创建。
+    // 默认开发者账号：只从环境变量读取（DEV_ADMIN_USER / DEV_ADMIN_PASSWORD）。
+    // 未配置时不创建任何默认账号，避免弱口令上线；需要时在 .env 配置后重启即可。
     try {
-      const existingAdmin = await Admin.findOne({ username: 'admin' });
-      if (existingAdmin) {
-        console.log('默认开发者账号已存在，已跳过创建');
+      const devUser = process.env.DEV_ADMIN_USER;
+      const devPass = process.env.DEV_ADMIN_PASSWORD;
+      if (devUser && devPass) {
+        const existingAdmin = await Admin.findOne({ username: devUser });
+        if (existingAdmin) {
+          console.log(`开发者账号 ${devUser} 已存在，已跳过创建`);
+        } else {
+          await Admin.create({ username: devUser, password: devPass, name: '系统管理员' });
+          console.log(`开发者账号创建成功：${devUser}`);
+        }
       } else {
-        await Admin.create({ username: 'admin', password: 'dingheng2024', name: '系统管理员' });
-        console.log('默认开发者账号创建成功：admin / dingheng2024');
+        console.warn('[安全提醒] 未设置 DEV_ADMIN_USER / DEV_ADMIN_PASSWORD，本次启动不创建默认开发者账号；如需开发者后台账号，请在 .env 中配置后再重启。');
       }
     } catch (e) {
-      console.error('创建默认开发者账号失败：', e.message);
+      console.error('创建开发者账号失败：', e.message);
     }
     startDhCron();
+    // 支付运行时配置（支付模式 mock/wechat + 资金流模式）从 PlatformConfig 加载覆盖值；
+    // DB 异常时静默使用 dhConfig 默认值，不阻断启动
+    require('./utils/payRuntime').init().catch((e) => {
+      console.warn('[payRuntime] 支付运行时配置加载失败，使用默认值:', e.message);
+    });
     // 预置平台品类保鲜期规则（幂等，仅 supplierId=null 的全局预置；加价率已停用，仅保鲜期）
     try {
       await priceRule.seedGlobalPresets();

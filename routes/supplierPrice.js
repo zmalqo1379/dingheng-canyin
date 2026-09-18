@@ -4,7 +4,6 @@ const router = express.Router();
 const SupplyProduct = require('../models/SupplyProduct');
 const priceRuleUtil = require('../utils/priceRule');
 const freshnessCheck = require('../utils/freshnessCheck');
-const split = require('../utils/split');
 const { requireSupplier } = require('../middlewares/auth');
 
 // 全部接口需供应商登录
@@ -22,10 +21,9 @@ function isUpdatedToday(priceUpdatedAt) {
 
 // ============ GET /api/supplier/price/workbench ============
 // 供应商改价工作台：按 8 大分类分组返回当前供应商的所有商品 + 各品类保鲜期。
-// 加价分销口径：供应商只维护「供货价」costPrice；「卖价」salePrice 由平台手动填写（此处只读展示）。
-// 每个商品返回：_id、name、category、grade、unit、costPrice（供货价）、salePrice（平台卖价，只读）、
-//   priceDiff（平台加价额 = 卖价-供货价，仅供供应商了解）、priceUpdatedAt、updatedToday、
-//   freshDays（保鲜期天数）、priceFrozen
+// 加价分销口径：供应商只维护「供货价」costPrice；平台卖价/加价额属平台商业机密，一律不下发。
+// 每个商品返回：_id、name、category、grade、unit、costPrice（供货价）、
+//   priceUpdatedAt、updatedToday、freshDays（保鲜期天数）、priceFrozen
 router.get('/workbench', async (req, res) => {
   try {
     const supplierId = req.user.supplierId;
@@ -49,7 +47,6 @@ router.get('/workbench', async (req, res) => {
       const updatedToday = isUpdatedToday(p.priceUpdatedAt);
       if (updatedToday) updatedCount++;
       const supplyPrice = Number(p.costPrice) || 0;
-      const salePrice = split.resolveSalePrice(p.salePrice, p.costPrice);
       groups[tab].products.push({
         _id: String(p._id),
         name: p.name,
@@ -57,8 +54,6 @@ router.get('/workbench', async (req, res) => {
         grade: p.grade || null,
         unit: p.unit,
         costPrice: supplyPrice,          // 供货价（供应商可改）
-        salePrice,                       // 平台卖价（只读，平台手动定价）
-        priceDiff: +(salePrice - supplyPrice).toFixed(2), // 平台加价额（仅展示）
         priceUpdatedAt: p.priceUpdatedAt,
         updatedToday,
         freshDays: catRule.freshDays,
@@ -118,7 +113,6 @@ router.post('/product/:id/update', async (req, res) => {
       data: {
         _id: String(product._id),
         costPrice: product.costPrice,
-        salePrice: split.resolveSalePrice(product.salePrice, product.costPrice),
         priceUpdatedAt: product.priceUpdatedAt
       }
     });

@@ -2,19 +2,24 @@
  * 统一支付 / 分账抽象层（paymentProvider）
  *
  * 目的：上层业务（采购下单、分账、退款、过秤补差）只调用本模块暴露的方法，
- *      不感知具体支付 SDK。等微信支付商户号确定后，只需替换 provider 内部实现
- *      （服务商分账 / 电商收付通），调用方代码不变。
+ *      不感知具体支付渠道与资金流走向。
  *
- * 当前为 mock 占位实现：返回可预测的模拟结果，便于单测与联调；不发起真实资金划转。
- * 切换真实实现：把 getProvider() 返回的 provider 换成接入 wechatPay 的适配器即可。
+ * 两个运行时配置（utils/payRuntime.js，开发者后台可实时切换，立即生效）：
+ *   - 支付模式 payMode：'mock'（演示，禁止调用真实接口）/ 'wechat'（真实微信支付）
+ *   - 资金流模式 paymentFlowMode：
+ *       'supplier_first'（默认）：门店货款直接进供应商特约商户号，平台分账抽走「加价部分」
+ *         → 平台抽成远低于微信 30% 默认分账上限，无需申请高比例分账白名单
+ *       'platform_first'：货款先进平台账户，再按供货价分账给供应商
+ *         → 需微信「高比例分账」白名单批复后才可切换
+ *     金额口径不变（utils/split.js）：供货价归供应商、加价归平台；本配置只决定资金路径。
  *
  * 金额口径：对外方法参数与返回值统一用「分」（整数）。
  */
 const crypto = require('crypto');
 const split = require('./split');
+const payRuntime = require('./payRuntime');
+const wechatPay = require('./wechatPay');
 
-// 支付渠道类型：mock=占位实现；wechat_sp=微信服务商分账；wechat_ecommerce=电商收付通（预留）
-const PROVIDER_TYPE = process.env.PAY_PROVIDER || 'mock';
 const MOCK_KEY = process.env.PAY_MOCK_KEY || '';
 // 强制分账失败（仅测试分账失败 → 重试链路用）
 const MOCK_FAIL_SPLIT = String(process.env.PAY_MOCK_FAIL_SPLIT || '') === 'true';
@@ -27,7 +32,41 @@ function nowNo(prefix) {
   return `${prefix}${ts}${rand}`;
 }
 
-// ============ mock provider ============
+/**
+ * 按资金流模式解析「收款方（出资方）特约商户号」与分账接收方构造。
+ * 金额口径（utils/split.js 权威计算，本函数不改金额）：
+ *   supplier_first：钱进供应商 → 分账只把 platformShareFen 分给平台，剩余（供货价）解冻留在供应商账户
+ *   platform_first：钱进平台   → 分账只把 supplierShareFen 分给供应商，剩余（加价）解冻留在平台账户
+ */
+function buildFlowTargets(sh) {
+  const flowMode = payRuntime.getPaymentFlowMode();
+  if (flowMode === 'supplier_first') {
+    return {
+      flowMode,
+      payeeMchId: sh.supplierMchId || '',                      // 收款方 = 供应商特约商户号
+      receivers: [{                                            // 分账接收方 = 平台（服务商商户号）
+        type: 'MERCHANT_ID',
+        role: 'platform',
+        account: sh.platformMchId || '',
+        amountFen: sh.platformShareFen,
+        description: '平台加价部分'
+      }]
+    };
+  }
+  return {
+    flowMode,
+    payeeMchId: sh.platformMchId || '',                        // 收款方 = 平台（特约/服务商商户号）
+    receivers: [{                                              // 分账接收方 = 供应商
+      type: 'MERCHANT_ID',
+      role: 'supplier',
+      account: sh.supplierMchId || '',
+      amountFen: sh.supplierShareFen,
+      description: '供货价结算'
+    }]
+  };
+}
+
+// ============ mock provider（演示模式：所有交易均为模拟数据，不发起任何真实资金划转）============
 const mockProvider = {
   name: 'mock',
   isMock: true,
@@ -40,13 +79,23 @@ const mockProvider = {
   async createPayment(order) {
     const payNo = order.payNo || nowNo('PAY');
     const amountFen = Math.round(Number(order.actualPayAmount != null ? order.actualPayAmount : order.totalAmount || 0) * 100);
+    const flowMode = payRuntime.getPaymentFlowMode();
     return {
       payNo,
       channel: 'mock',
       amountFen,
       status: 'unpaid',
       // 真实实现：{ timeStamp, nonceStr, package, signType, paySign } 或 { code_url }
-      params: { mock: true, orderNo: order.orderNo, amountFen }
+      params: {
+        mock: true,
+        orderNo: order.orderNo,
+        amountFen,
+        flowMode,
+        // 资金流向说明（演示用）：supplier_first=钱进供应商账户 / platform_first=钱进平台账户
+        flowDesc: flowMode === 'supplier_first'
+          ? '货款直接进供应商特约商户账户，平台随后分账抽走加价部分'
+          : '货款先进平台账户，平台随后按供货价分账给供应商'
+      }
     };
   },
 
@@ -86,10 +135,10 @@ const mockProvider = {
   },
 
   /**
-   * 发起分账（两笔拆账：供货价 → 供应商，差价 → 平台）
+   * 发起分账（金额口径：utils/split.js 两笔拆账，本层只决定资金路径）
    * @param {object} order 采购订单
    * @param {object} [shares] 预计算的 { supplierShareFen, platformShareFen, supplierMchId, platformMchId }
-   * @returns {{splitNo, status, channelSplitOrderId, receivers, error}}
+   * @returns {{splitNo, status, channelSplitOrderId, flowMode, payeeMchId, receivers, error}}
    */
   async applyProfitSharing(order, shares) {
     const sh = shares || defaultShares(order);
@@ -97,14 +146,14 @@ const mockProvider = {
     if (MOCK_FAIL_SPLIT) {
       return { splitNo, status: 'failed', channelSplitOrderId: '', receivers: [], error: 'mock 分账失败（PAY_MOCK_FAIL_SPLIT=true）' };
     }
+    const t = buildFlowTargets(sh);
     return {
       splitNo,
       status: 'success',
       channelSplitOrderId: `MOCKSP${splitNo}`,
-      receivers: [
-        { role: 'supplier', account: sh.supplierMchId || '', amountFen: sh.supplierShareFen },
-        { role: 'platform', account: sh.platformMchId || '', amountFen: sh.platformShareFen }
-      ],
+      flowMode: t.flowMode,
+      payeeMchId: t.payeeMchId,
+      receivers: t.receivers,
       error: ''
     };
   },
@@ -162,6 +211,159 @@ const mockProvider = {
   }
 };
 
+// ============ 真实微信支付 provider（服务商模式 + 服务商分账）============
+// 演示模式（payMode='mock'）下所有方法直接拒绝 —— 防止误调真实资金接口。
+// 资金流模式由 utils/payRuntime 动态决定：
+//   supplier_first：下单 sub_mchid = 供应商特约商户号（钱进供应商），分账把加价部分分给平台；
+//   platform_first：下单 sub_mchid = 平台收款商户号（钱进平台），分账把供货价分给供应商。
+const wechatSpProvider = {
+  name: 'wechat_sp',
+  isMock: false,
+
+  _assertReal() {
+    if (payRuntime.isDemoMode()) {
+      const e = new Error('当前为演示模式（payMode=mock），已拒绝调用真实微信支付接口');
+      e.code = 'DEMO_MODE_FORBIDDEN';
+      throw e;
+    }
+    if (!wechatPay.isConfigured()) {
+      const e = new Error('微信支付未配置（缺少 WXPAY_* 环境变量），无法发起真实支付');
+      e.code = 'WXPAY_NOT_CONFIGURED';
+      throw e;
+    }
+  },
+
+  async createPayment(order) {
+    this._assertReal();
+    const flowMode = payRuntime.getPaymentFlowMode();
+    const supplierSubMchId = (order && order.supplierWechatSubMchId) || '';
+    // supplier_first 必须有钱进供应商的特约商户号（未进件订单在业务层已降级为人工分账，不应走到这里）
+    const payeeSubMchId = flowMode === 'supplier_first' ? supplierSubMchId : wechatPay.subMchId();
+    if (flowMode === 'supplier_first' && !payeeSubMchId) {
+      const e = new Error('supplier_first 模式下供应商未配置特约商户号，无法收款');
+      e.code = 'SUPPLIER_SUB_MCHID_MISSING';
+      throw e;
+    }
+    const payNo = order.payNo || nowNo('PAY');
+    const amountFen = Math.round(Number(order.actualPayAmount != null ? order.actualPayAmount : order.totalAmount || 0) * 100);
+    const resp = await wechatPay.nativePrepay(
+      {
+        outTradeNo: order.orderNo,
+        description: `鼎恒采购订单 ${order.orderNo}`,
+        amountFen,
+        attach: JSON.stringify({ payNo, orderId: String(order._id || ''), flowMode }),
+        timeExpire: undefined
+      },
+      { subMchId: payeeSubMchId, profitSharing: true } // 带分账标识：支付成功后资金冻结，可发起分账
+    );
+    return {
+      payNo,
+      channel: 'wechat_sp',
+      amountFen,
+      status: 'unpaid',
+      params: { codeUrl: resp && resp.code_url, flowMode, payeeSubMchId }
+    };
+  },
+
+  async queryPayment(payNo) {
+    this._assertReal();
+    const resp = await wechatPay.queryOrder(payNo);
+    return {
+      payNo,
+      status: resp && resp.trade_state === 'SUCCESS' ? 'paid' : 'unpaid',
+      transactionId: (resp && resp.transaction_id) || '',
+      amountFen: (resp && resp.amount && resp.amount.total) || 0
+    };
+  },
+
+  async handleCallback(payload) {
+    this._assertReal();
+    const resource = await wechatPay.verifyAndDecryptNotify(payload.headers, payload.rawBody);
+    return {
+      verified: true,
+      payNo: resource.out_trade_no || '',
+      orderNo: resource.out_trade_no || '',
+      transactionId: resource.transaction_id || '',
+      status: resource.trade_state === 'SUCCESS' ? 'paid' : 'unpaid',
+      amountFen: (resource.amount && resource.amount.total) || 0
+    };
+  },
+
+  async applyProfitSharing(order, shares) {
+    this._assertReal();
+    const sh = shares || defaultShares(order);
+    const t = buildFlowTargets(sh);
+    const splitNo = order.splitNo || nowNo('SP');
+    // 先确保接收方已添加（按出资方 sub_mchid 绑定；已存在视为成功）
+    const receiver = t.receivers[0];
+    if (receiver && receiver.account) {
+      await wechatPay.addSplitReceiver(
+        { account: receiver.account, name: '', relationType: 'SERVICE_PROVIDER' },
+        { subMchId: t.payeeMchId }
+      );
+    }
+    // 发起分账：unfreeze_unsplit=true → 只分 receiver 一笔，剩余资金自动解冻留给出资方
+    const resp = await wechatPay.requestProfitSharing(
+      {
+        transactionId: order.transactionId,
+        outOrderNo: splitNo,
+        receivers: receiver && receiver.account
+          ? [{ type: 'MERCHANT_ID', receiver_account: receiver.account, amount: receiver.amountFen, description: receiver.description }]
+          : [],
+        unfreezeUnsplit: true
+      },
+      { subMchId: t.payeeMchId }
+    );
+    return {
+      splitNo,
+      status: (resp && resp.state === 'PROCESSING') || resp ? 'success' : 'failed',
+      channelSplitOrderId: (resp && resp.order_id) || '',
+      flowMode: t.flowMode,
+      payeeMchId: t.payeeMchId,
+      receivers: t.receivers,
+      error: ''
+    };
+  },
+
+  async queryProfitSharing(order) {
+    this._assertReal();
+    const resp = await wechatPay.queryProfitSharing(
+      { outOrderNo: order.splitNo, transactionId: order.transactionId },
+      { subMchId: order.paymentFlowMode === 'supplier_first' ? (order.supplierWechatSubMchId || '') : wechatPay.subMchId() }
+    );
+    return { splitNo: order.splitNo, status: (resp && resp.state) || 'unknown', channelSplitOrderId: (resp && resp.order_id) || '', receivers: [] };
+  },
+
+  async refund(order, amountFen) {
+    this._assertReal();
+    const resp = await wechatPay.refund({
+      transactionId: order.transactionId,
+      outRefundNo: nowNo('RF'),
+      refundFen: Math.abs(Math.round(Number(amountFen) || 0)),
+      totalFen: Math.round(Number(order.actualPayAmount != null ? order.actualPayAmount : order.totalAmount || 0) * 100),
+      reason: '过秤补差退款'
+    });
+    return { refundNo: (resp && resp.out_refund_no) || '', status: 'success', amountFen: Math.abs(Math.round(Number(amountFen) || 0)) };
+  },
+
+  async compensate(order, deltaFen) {
+    this._assertReal();
+    // 真实渠道：补收走二次下单收款，退款走 refund；金额拆分同 mock（split.js 权威计算）
+    const comp = split.calcCompensation(order);
+    const dFen = (deltaFen != null) ? Math.round(Number(deltaFen)) : comp.compensateFen;
+    if (dFen === 0) {
+      return { compensateNo: '', status: 'none', compensateFen: 0, supplierFen: 0, platformFen: 0 };
+    }
+    const compensateNo = order.compensateNo || nowNo('CB');
+    if (dFen < 0) {
+      const r = await this.refund(order, -dFen);
+      return { compensateNo: r.refundNo, status: 'success', compensateFen: dFen, supplierFen: comp.compensateSupplierFen, platformFen: comp.compensatePlatformFen };
+    }
+    // 补收（dFen > 0）：真实场景需顾客二次支付，占位返回待补收标记，由人工/后续迭代接管
+    return { compensateNo, status: 'pending_collect', compensateFen: dFen, supplierFen: comp.compensateSupplierFen, platformFen: comp.compensatePlatformFen };
+  }
+};
+
 // 由订单计算默认分账份额（分）
 function defaultShares(order) {
   const r = split.calcOrderSplit(order);
@@ -173,17 +375,17 @@ function defaultShares(order) {
   };
 }
 
-// 真实 provider 占位：待商户号确定后实现（委托 utils/wechatPay）
-// const wechatProvider = { name:'wechat_sp', isMock:false, ... };
-
+// 演示模式守卫：任何代码尝试直接取真实 provider 都会拿到守卫对象（调用即拒绝）
 function getProvider() {
-  // 目前仅接入 mock；PROVIDER_TYPE 为 wechat_* 时仍回退 mock，待真实 SDK 就绪后替换
+  if (payRuntime.getPayMode() === 'wechat') {
+    return wechatSpProvider;
+  }
   return mockProvider;
 }
 
-// 便捷方法（固定使用当前 provider）
+// 便捷方法（动态取当前 provider：支付模式切换后立即走新分支，不用重启）
 const api = {
-  providerType: PROVIDER_TYPE,
+  providerType: () => getProvider().name,
   isMock: () => getProvider().isMock,
   createPayment: (order) => getProvider().createPayment(order),
   queryPayment: (payNo) => getProvider().queryPayment(payNo),
@@ -192,7 +394,9 @@ const api = {
   queryProfitSharing: (order) => getProvider().queryProfitSharing(order),
   refund: (order, amountFen) => getProvider().refund(order, amountFen),
   compensate: (order, deltaFen) => getProvider().compensate(order, deltaFen),
-  getProvider
+  getProvider,
+  // 供测试/开发者后台直接探测真实接口是否被演示模式拦截
+  assertRealProvider: () => wechatSpProvider._assertReal()
 };
 
 module.exports = api;

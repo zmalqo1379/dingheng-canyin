@@ -4,6 +4,8 @@ const CoinHistory = require('../models/CoinHistory');
 const Coupon = require('../models/Coupon');
 const MembershipOrder = require('../models/MembershipOrder');
 const AddonEntitlement = require('../models/AddonEntitlement');
+const CustomerPoint = require('../models/CustomerPoint');
+const Setting = require('../models/Setting');
 const freshnessCheck = require('./freshnessCheck');
 const wechatPay = require('./wechatPay');
 
@@ -104,6 +106,98 @@ async function expireCoupons() {
   return res.modifiedCount;
 }
 
+// ============ 3.6) 采购草稿超时软删 + 券锁超时释放（上线加固第一批） ============
+// 规则（阈值均取自 utils/dhConfig 唯一事实源）：
+//   a) 待支付草稿超过 DRAFT_ORDER_TTL_HOURS(24h) → status 置「已取消」（软删，不物理删除），
+//      同时释放该单锁定的抵用券回 unused；
+//   b) 抵用券锁定超过 COUPON_LOCK_MINUTES(30min) 仍未支付 → 释放回 unused（订单本身保留，
+//      支付时若券仍可用会重新占用，不可用则按无券重算金额）。
+async function cleanupUnpaidDrafts() {
+  const dhConfig = require('./dhConfig');
+  const PurchaseOrder = require('../models/PurchaseOrder');
+  const now = new Date();
+
+  // a) 草稿 24h 软删
+  const deadline = new Date(now.getTime() - dhConfig.DRAFT_ORDER_TTL_HOURS * 3600 * 1000);
+  const staleDrafts = await PurchaseOrder.find({
+    status: '待支付',
+    payStatus: 'unpaid',
+    createdAt: { $lt: deadline }
+  }).select('_id appliedCouponId');
+  let cancelled = 0;
+  for (const o of staleDrafts) {
+    await PurchaseOrder.updateOne(
+      { _id: o._id, status: '待支付' },
+      { $set: { status: '已取消', cancelledAt: new Date(), cancelReason: '超时未支付，系统自动取消' } }
+    );
+    cancelled++;
+    // 一并释放该单锁定的券
+    if (o.appliedCouponId) {
+      await Coupon.updateOne(
+        { _id: o.appliedCouponId, status: 'locked', lockedOrderId: String(o._id) },
+        { $set: { status: 'unused', lockedOrderId: '', lockedAt: null } }
+      );
+    }
+  }
+
+  // b) 券锁 30 分钟释放（订单保留）
+  const lockDeadline = new Date(now.getTime() - dhConfig.COUPON_LOCK_MINUTES * 60 * 1000);
+  const lockRes = await Coupon.updateMany(
+    { status: 'locked', lockedAt: { $ne: null, $lt: lockDeadline } },
+    { $set: { status: 'unused', lockedOrderId: '', lockedAt: null } }
+  );
+
+  return { cancelled, released: lockRes.modifiedCount || 0 };
+}
+
+// ============ 3.5) 顾客积分过期清零 ============
+// 仅对 pointExpiryMode='fixed' 的商家生效：
+// 遍历已过 expireAt 且 remaining>0 的批次，清零 remaining，
+// 从 cp.points 扣减（余额不为负），写 history(type='expired')
+async function clearExpiredCustomerPoints() {
+  const now = new Date();
+  // 找出所有 fixed 模式的商家
+  const fixedShops = await Setting.find({ pointExpiryMode: 'fixed' }).select('shopId').lean();
+  const shopIds = fixedShops.map(s => s.shopId);
+  if (!shopIds.length) return 0;
+
+  let totalExpired = 0;
+  for (const shopId of shopIds) {
+    // 找该店下有已过期且仍有剩余的批次的顾客积分账户
+    const cps = await CustomerPoint.find({
+      shopId,
+      batches: {
+        $elemMatch: {
+          expireAt: { $type: 'date', $lt: now },
+          remaining: { $gt: 0 }
+        }
+      }
+    });
+    for (const cp of cps) {
+      let expiredSum = 0;
+      for (const batch of cp.batches) {
+        if (batch.expireAt && new Date(batch.expireAt) < now && batch.remaining > 0) {
+          expiredSum += batch.remaining;
+          batch.remaining = 0;
+        }
+      }
+      if (expiredSum > 0) {
+        cp.points = Math.max(0, cp.points - expiredSum);
+        cp.markModified('batches');
+        cp.history.push({
+          type: 'expired',
+          amount: -expiredSum,
+          balance: cp.points,
+          note: '积分过期清零'
+        });
+        await cp.save();
+        totalExpired++;
+      }
+    }
+  }
+  return totalExpired;
+}
+
 // ============ 4) 会员购卡待支付订单超时自动取消 ============
 //   - 微信单：payExpireAt 已过仍 unpaid → 关闭微信订单并置 cancelled/closed
 //   - 现金单：creationtime 超过 CASH_PENDING_HOURS 仍 pending → 置 cancelled
@@ -152,6 +246,13 @@ async function runDailyJob() {
   const shops = await clearExpiredCoins();
   const members = await downgradeExpiredMembers();
   const coupons = await expireCoupons();
+  // 顾客积分过期清零（fixed 模式商家）
+  let expiredPoints = 0;
+  try {
+    expiredPoints = await clearExpiredCustomerPoints();
+  } catch (e) {
+    console.error('[DH Cron] 顾客积分过期清理出错:', e.message);
+  }
   // 保鲜期保护：超期提醒 → 冻结 → 3 倍自动下架
   let freshness = { alertedCount: 0, frozenCount: 0, autoOffCount: 0 };
   try {
@@ -159,7 +260,7 @@ async function runDailyJob() {
   } catch (e) {
     console.error('[DH Cron] 保鲜期检查出错:', e.message);
   }
-  console.log(`[DH Cron] 完成：清理店铺=${shops}，降级会员=${members}，过期券=${coupons}，保鲜期(提醒/冻结/下架)=${freshness.alertedCount}/${freshness.frozenCount}/${freshness.autoOffCount}`);
+  console.log(`[DH Cron] 完成：清理店铺=${shops}，降级会员=${members}，过期券=${coupons}，积分过期=${expiredPoints}，保鲜期(提醒/冻结/下架)=${freshness.alertedCount}/${freshness.frozenCount}/${freshness.autoOffCount}`);
 }
 
 // 注册定时任务
@@ -181,6 +282,17 @@ function startDhCron() {
       }
     } catch (err) {
       console.error('[DH Cron] 会员购卡超时取消出错:', err.message);
+    }
+  });
+  // 每 5 分钟：采购草稿 24h 软删（待支付→已取消）+ 券锁 30 分钟释放
+  cron.schedule('*/5 * * * *', async () => {
+    try {
+      const r = await cleanupUnpaidDrafts();
+      if (r.cancelled || r.released) {
+        console.log(`[DH Cron] 采购草稿清理：超时取消=${r.cancelled}，券锁释放=${r.released}`);
+      }
+    } catch (err) {
+      console.error('[DH Cron] 采购草稿清理出错:', err.message);
     }
   });
   // 每 10 分钟：采购订单分账失败自动重试（带重试次数上限，超过留人工介入）
@@ -227,5 +339,7 @@ module.exports = {
   runDailyJob,
   retryPurchaseSplits,
   cancelExpiredMembershipOrders,
+  cleanupUnpaidDrafts,
+  clearExpiredCustomerPoints,
   runFreshnessCheck: () => freshnessCheck.runFreshnessCheck()
 };

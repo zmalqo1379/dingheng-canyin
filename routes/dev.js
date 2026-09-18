@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 
 const ShopAccount = require('../models/ShopAccount');
 const Supplier = require('../models/Supplier');
@@ -213,7 +214,13 @@ router.get('/suppliers', async (req, res) => {
                 qualStatus: '$qualification.status',
                 qualSubmittedAt: '$qualification.submittedAt',
                 qualReviewedAt: '$qualification.reviewedAt',
-                qualRejectReason: '$qualification.rejectReason'
+                qualRejectReason: '$qualification.rejectReason',
+                // 微信进件（2026-09）：资金流 supplier_first 模式的前提
+                obStatus: '$wechatOnboarding.status',
+                obSubmittedAt: '$wechatOnboarding.submittedAt',
+                obReviewedAt: '$wechatOnboarding.reviewedAt',
+                obRejectReason: '$wechatOnboarding.rejectReason',
+                wechatSubMchId: 1
               }
             }
           ]
@@ -242,7 +249,13 @@ router.get('/suppliers', async (req, res) => {
       qualStatus: s.qualStatus || 'none',
       qualSubmittedAt: s.qualSubmittedAt || null,
       qualReviewedAt: s.qualReviewedAt || null,
-      qualRejectReason: s.qualRejectReason || ''
+      qualRejectReason: s.qualRejectReason || '',
+      // 微信进件状态（none=未提交 / pending=审核中 / approved=已通过 / rejected=被驳回）
+      obStatus: s.obStatus || 'none',
+      obSubmittedAt: s.obSubmittedAt || null,
+      obReviewedAt: s.obReviewedAt || null,
+      obRejectReason: s.obRejectReason || '',
+      wechatSubMchId: s.wechatSubMchId || ''
     }));
 
     res.json({ success: true, data, total, page, pageSize });
@@ -354,10 +367,15 @@ router.get('/suppliers/:id/detail', async (req, res) => {
         },
         products: products.map(p => {
           const costPrice = Number(p.costPrice) || 0;
+          // 【2026-09 上线加固】区分「已定价 / 待定价」：未定价（salePrice 0/null）时
+          // 卖价虽按供货价兜底展示，但前台标「待定价」并高亮，避免误读为已定价且零差价
+          const hasSalePrice = p.salePrice != null && Number(p.salePrice) > 0;
           const salePrice = split.resolveSalePrice(p.salePrice, p.costPrice);
           return {
             _id: p._id, name: p.name, category: p.category || '未分类', unit: p.unit || '个',
             costPrice, salePrice, priceDiff: +(salePrice - costPrice).toFixed(2),
+            priced: hasSalePrice,                                  // 是否已由平台定价
+            pricingStatus: hasSalePrice ? 'priced' : 'pending',     // pending=待定价（前台高亮依据）
             stock: Number(p.stock) || 0, status: p.status || '上架'
           };
         }),
@@ -507,6 +525,108 @@ router.put('/suppliers/:id/wechat-sub-mchid', async (req, res) => {
   }
 });
 
+// ============ 微信支付进件审核（2026-09，人工录入模式）============
+// 本轮不接微信真实进件 API：供应商线上提交资料（供应商端「进件中心」）→ 平台在微信商户平台
+// 代为进件 → 开发者在下面接口「approve + 录入特约商户号」或「reject + 驳回原因」。
+// 通过并录入特约商户号后，该供应商的新订单走渠道分账（supplier_first：钱进供应商，平台抽加价）。
+// GET /api/dev/suppliers/:id/wechat-onboarding 进件详情（银行账号脱敏，只露末 4 位）
+router.get('/suppliers/:id/wechat-onboarding', async (req, res) => {
+  try {
+    const supplier = await Supplier.findById(req.params.id).select('name wechatSubMchId wechatOnboarding');
+    if (!supplier) return res.status(404).json({ success: false, message: '供应商不存在' });
+    const cryptoBox = require('../utils/cryptoBox');
+    const ob = supplier.wechatOnboarding || {};
+    res.json({
+      success: true,
+      data: {
+        supplierId: supplier._id,
+        supplierName: supplier.name || '',
+        status: ob.status || 'none',
+        businessLicenseUrl: ob.businessLicenseUrl || '',
+        legalPerson: ob.legalPerson || '',
+        idCardFrontUrl: ob.idCardFrontUrl || '',
+        idCardBackUrl: ob.idCardBackUrl || '',
+        bankAccountName: ob.bankAccountName || '',
+        // 脱敏：银行账号只露末 4 位（加密落库，任何接口不回传全号）
+        bankAccountNoMasked: cryptoBox.maskBankAccount(cryptoBox.decrypt(ob.bankAccountNoEnc)),
+        bankName: ob.bankName || '',
+        bankBranch: ob.bankBranch || '',
+        contactName: ob.contactName || '',
+        contactPhone: ob.contactPhone || '',
+        category: ob.category || '',
+        address: ob.address || '',
+        submittedAt: ob.submittedAt || null,
+        reviewedAt: ob.reviewedAt || null,
+        rejectReason: ob.rejectReason || '',
+        wechatSubMchId: supplier.wechatSubMchId || ''
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PUT /api/dev/suppliers/:id/wechat-onboarding/review 进件审核
+// body: { action: 'approve', subMchId: '特约商户号' } → 状态已通过 + 录入特约商户号
+//       { action: 'reject', reason: '驳回原因' }      → 状态被驳回（供应商可改后重新提交）
+router.put('/suppliers/:id/wechat-onboarding/review', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const action = String(body.action || '').trim();
+    const supplier = await Supplier.findById(req.params.id);
+    if (!supplier) return res.status(404).json({ success: false, message: '供应商不存在' });
+
+    const obStatus = (supplier.wechatOnboarding && supplier.wechatOnboarding.status) || 'none';
+    if (!['none', 'pending', 'approved', 'rejected'].includes(obStatus)) {
+      return res.status(400).json({ success: false, message: '进件状态异常' });
+    }
+
+    if (action === 'approve') {
+      // 人工录入模式：特约商户号必填（平台在微信商户平台完成进件后拿到的 sub_mchid）
+      const subMchId = String(body.subMchId || '').trim();
+      if (!/^\d{8,20}$/.test(subMchId)) {
+        return res.status(400).json({ success: false, message: '请输入正确的微信特约商户号（8~20 位数字）' });
+      }
+      if (obStatus !== 'pending' && obStatus !== 'approved') {
+        return res.status(400).json({ success: false, message: '该供应商尚未提交进件资料，不能直接标记通过' });
+      }
+      supplier.wechatOnboarding = supplier.wechatOnboarding || {};
+      supplier.wechatOnboarding.status = 'approved';
+      supplier.wechatOnboarding.reviewedAt = new Date();
+      supplier.wechatOnboarding.rejectReason = '';
+      supplier.wechatSubMchId = subMchId;
+      await supplier.save();
+      // 日志脱敏：不打印任何证件号/银行账号
+      console.log(`[wechat-onboarding] 审核通过 supplierId=${supplier._id} subMchId=${subMchId}`);
+      return res.json({
+        success: true,
+        message: '进件已标记通过并录入特约商户号，该供应商新订单将走渠道分账',
+        data: { status: 'approved', wechatSubMchId: subMchId }
+      });
+    }
+
+    if (action === 'reject') {
+      const reason = safeReason(body);
+      if (!reason) return res.status(400).json({ success: false, message: '请填写驳回原因' });
+      supplier.wechatOnboarding = supplier.wechatOnboarding || {};
+      supplier.wechatOnboarding.status = 'rejected';
+      supplier.wechatOnboarding.reviewedAt = new Date();
+      supplier.wechatOnboarding.rejectReason = reason;
+      await supplier.save();
+      console.log(`[wechat-onboarding] 审核驳回 supplierId=${supplier._id}`);
+      return res.json({
+        success: true,
+        message: '进件已驳回，供应商可在「进件中心」修改后重新提交',
+        data: { status: 'rejected', rejectReason: reason }
+      });
+    }
+
+    return res.status(400).json({ success: false, message: 'action 只支持 approve（通过）或 reject（驳回）' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // ============ 供应商资质核验（开通接单的"一道闸门"）============
 // PUT /api/dev/suppliers/:id/qualification/approve  核验通过 → 正式开通接单
 // 前置：status=active && agreementSigned && qualification.status=pending
@@ -638,14 +758,28 @@ router.post('/todos/read', async (req, res) => {
 // GET /api/dev/config 读取平台配置
 // 说明：会员费分账配置（默认分账供应商/抽佣比例）已下线——会员费全额归平台，
 // 云分账仅用于顾客采购货款；PlatformConfig 中的历史字段不再读取、不再下发。
+// 2026-09 新增：payMode（mock 演示 / wechat 真实）与 paymentFlowMode（资金流模式）运行时读取。
 router.get('/config', async (req, res) => {
   try {
     const cfg = await PlatformConfig.getSingleton();
+    const payRuntime = require('../utils/payRuntime');
+    await payRuntime.init();
+    const wechatPay = require('../utils/wechatPay');
     res.json({
       success: true,
       data: {
         platformCompanyName: cfg.platformCompanyName || '',
-        platformCreditCode: cfg.platformCreditCode || ''
+        platformCreditCode: cfg.platformCreditCode || '',
+        // 最低加价率（卖价底线）：卖价底线 = 供货价 × (1 + 最低加价率)
+        minMarkupRate: dhConfig.resolveMinMarkupRate(cfg.minMarkupRate),
+        // 最低加价率下限（3% = 平台成本线，不能再低）；前端用于输入校验与提示
+        minMarkupRateHardFloor: dhConfig.MIN_MARKUP_RATE_HARD_FLOOR,
+        // 支付模式：mock=演示（默认，所有交易模拟）/ wechat=真实微信支付
+        payMode: payRuntime.getPayMode(),
+        // 资金流模式：supplier_first=钱进供应商（默认）/ platform_first=钱进平台（需高比例分账白名单）
+        paymentFlowMode: payRuntime.getPaymentFlowMode(),
+        // 微信支付凭证是否已配置（切换真实支付的前置条件）
+        wechatConfigured: wechatPay.isConfigured()
       }
     });
   } catch (err) {
@@ -653,24 +787,78 @@ router.get('/config', async (req, res) => {
   }
 });
 
-// PUT /api/dev/config 更新平台配置（甲方营业执照信息）
+// PUT /api/dev/config 更新平台配置（甲方营业执照信息 + 最低加价率 + 支付模式 + 资金流模式）
+// 支付模式/资金流模式通过 utils/payRuntime 写穿更新：改完立即生效，不用重启服务。
 router.put('/config', async (req, res) => {
   try {
     const body = req.body || {};
     const platformCompanyName = String(body.platformCompanyName || '').trim().slice(0, 100);
     const platformCreditCode = String(body.platformCreditCode || '').trim().slice(0, 50);
+    const setFields = { platformCompanyName, platformCreditCode };
+
+    // 最低加价率（0~1 小数）：未传则不改动；传了必须合法
+    // 下限为 3%（平台成本线，不能再低）；低于 5% 允许保存但前端会提示「利润会很薄」
+    if (body.minMarkupRate !== undefined && body.minMarkupRate !== null && body.minMarkupRate !== '') {
+      const rate = Number(body.minMarkupRate);
+      if (!isFinite(rate) || rate < 0 || rate > 1) {
+        return res.status(400).json({ success: false, message: '最低加价率须为 0~1 之间的小数（如 0.05 表示 5%）' });
+      }
+      if (rate < dhConfig.MIN_MARKUP_RATE_HARD_FLOOR) {
+        const floorPct = Math.round(dhConfig.MIN_MARKUP_RATE_HARD_FLOOR * 100);
+        return res.status(400).json({
+          success: false,
+          message: `最低加价率不得低于 ${floorPct}%（平台成本线，不能再低）`
+        });
+      }
+      setFields.minMarkupRate = rate;
+    }
+
+    // ---- 支付模式切换（mock 演示 / wechat 真实）：立即生效 ----
+    let payModeApplied = null;
+    if (body.payMode !== undefined && body.payMode !== null && body.payMode !== '') {
+      const payRuntime = require('../utils/payRuntime');
+      if (!payRuntime.PAY_MODES.includes(body.payMode)) {
+        return res.status(400).json({ success: false, message: 'payMode 只支持 mock（演示）或 wechat（真实微信支付）' });
+      }
+      if (body.payMode === 'wechat') {
+        const wechatPay = require('../utils/wechatPay');
+        if (!wechatPay.isConfigured()) {
+          return res.status(400).json({ success: false, message: '微信支付凭证未配置（缺少 WXPAY_* 环境变量），不能切换到真实支付' });
+        }
+      }
+      payModeApplied = await payRuntime.setPayMode(body.payMode);
+    }
+
+    // ---- 资金流模式切换（supplier_first / platform_first）：立即生效 ----
+    let flowModeApplied = null;
+    if (body.paymentFlowMode !== undefined && body.paymentFlowMode !== null && body.paymentFlowMode !== '') {
+      const payRuntime = require('../utils/payRuntime');
+      if (body.paymentFlowMode === 'platform_first' && !body.confirmFlowSwitch) {
+        return res.status(400).json({
+          success: false,
+          message: '切换到「钱进平台」模式需先取得微信支付高比例分账白名单，请确认后携带 confirmFlowSwitch=true 重试'
+        });
+      }
+      flowModeApplied = await payRuntime.setPaymentFlowMode(body.paymentFlowMode);
+    }
 
     const cfg = await PlatformConfig.findOneAndUpdate(
       { key: 'platform' },
-      { $set: { platformCompanyName, platformCreditCode } },
+      { $set: setFields },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
+    const payRuntime = require('../utils/payRuntime');
+    const wechatPay = require('../utils/wechatPay');
     res.json({
       success: true,
       message: '平台配置已保存',
       data: {
         platformCompanyName: cfg.platformCompanyName || '',
-        platformCreditCode: cfg.platformCreditCode || ''
+        platformCreditCode: cfg.platformCreditCode || '',
+        minMarkupRate: dhConfig.resolveMinMarkupRate(cfg.minMarkupRate),
+        payMode: payRuntime.getPayMode(),
+        paymentFlowMode: payRuntime.getPaymentFlowMode(),
+        wechatConfigured: wechatPay.isConfigured()
       }
     });
   } catch (err) {
@@ -783,12 +971,13 @@ router.delete('/suppliers/:id', async (req, res) => {
 });
 
 // ============ 定价工作台（加价分销：平台手动填写卖价）============
-// 供应商每日更新「供货价」，平台在此手动填写「卖价」；系统不设任何自动加价公式/比例/上下限。
-// 加价额 = 卖价 − 供货价，完全由平台手动决定；卖价留空/清空 = 未定价（下单时默认等于供货价）。
+// 供应商每日更新「供货价」，平台在此手动填写「卖价」；加价额 = 卖价 − 供货价，由平台手动决定。
+// 底线约束：卖价 ≥ 最低卖价 = 向上取整到分( 供货价 × (1 + 最低加价率) )，最低加价率在「系统设置」配置。
+// 卖价留空/清空 = 未定价（下单时默认等于供货价），属于「待定价」状态。
 
 // GET /api/dev/pricing 定价工作台商品列表
-// 查询参数：supplierId、category、keyword（可选）
-// 返回每个商品：供货价 costPrice / 平台卖价 salePrice / 实时差价 priceDiff / 改价时间 / 供应商名
+// 查询参数：supplierId、category、keyword、onlyUnderpriced=1（仅待定价，可选）
+// 返回每个商品：供货价 costPrice / 平台卖价 salePrice / 最低卖价 minSalePrice / 实时差价 / 改价时间 / 供应商名
 router.get('/pricing', async (req, res) => {
   try {
     const filter = {};
@@ -798,6 +987,10 @@ router.get('/pricing', async (req, res) => {
       .populate('supplierId', 'name status')
       .sort({ supplierId: 1, category: 1, name: 1 })
       .lean();
+    // 最低加价率（系统设置）
+    const cfg = await PlatformConfig.getSingleton();
+    const minMarkupRate = dhConfig.resolveMinMarkupRate(cfg.minMarkupRate);
+    const onlyUnderpriced = String(req.query.onlyUnderpriced || '') === '1';
     const keyword = String(req.query.keyword || '').trim();
     const data = products
       .filter(p => !keyword || String(p.name || '').includes(keyword))
@@ -805,6 +998,9 @@ router.get('/pricing', async (req, res) => {
         const costPrice = Number(p.costPrice) || 0;
         const hasSalePrice = p.salePrice != null && Number(p.salePrice) > 0;
         const salePrice = split.resolveSalePrice(p.salePrice, p.costPrice);
+        const minSalePrice = dhConfig.computeMinSalePrice(costPrice, minMarkupRate);
+        // 【2026-09 上线加固】后台高亮：pending=未定价（salePrice ≤ 0）/ underfloor=已定价但低于底线
+        const pricingStatus = hasSalePrice ? 'priced' : 'pending';
         return {
           _id: String(p._id),
           name: p.name,
@@ -815,13 +1011,18 @@ router.get('/pricing', async (req, res) => {
           costPrice,                    // 供货价（供应商维护）
           salePrice,                    // 平台卖价（未定价时 = 供货价）
           priced: hasSalePrice,         // 是否已由平台定价
+          pricingStatus,                // 'priced' 已定价 / 'pending' 待定价（后台高亮依据）
+          isManualPrice: !!p.isManualPrice, // 是否手动定价（一键定价跳过此商品）
+          minSalePrice,                 // 最低卖价（供货价 × (1 + 最低加价率)）
+          belowFloor: +Number(salePrice).toFixed(2) < minSalePrice, // 未定价或低于底线 → 待定价
           priceDiff: +(salePrice - costPrice).toFixed(2), // 实时差价
           priceUpdatedAt: p.priceUpdatedAt,
           priceFrozen: !!p.priceFrozen,
           status: p.status
         };
-      });
-    res.json({ success: true, data });
+      })
+      .filter(p => !onlyUnderpriced || p.belowFloor);
+    res.json({ success: true, data, minMarkupRate });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -829,12 +1030,19 @@ router.get('/pricing', async (req, res) => {
 
 // PUT /api/dev/pricing/product/:id  平台手动设置某商品卖价
 // body: { salePrice }（留空 null/'' 表示取消定价，下单时默认等于供货价）
+// 校验：卖价不得低于最低卖价 = 供货价 × (1 + 最低加价率)
 router.put('/pricing/product/:id', async (req, res) => {
   try {
     const product = await SupplyProduct.findById(req.params.id);
     if (!product) {
       return res.status(404).json({ success: false, message: '商品不存在' });
     }
+    const cfg = await PlatformConfig.getSingleton();
+    const minMarkupRate = dhConfig.resolveMinMarkupRate(cfg.minMarkupRate);
+    const costPrice = Number(product.costPrice) || 0;
+    const minSalePriceFen = dhConfig.computeMinSalePriceFen(costPrice, minMarkupRate);
+    const minSalePrice = +(minSalePriceFen / 100).toFixed(2);
+
     const raw = req.body ? req.body.salePrice : undefined;
     let salePrice = null;
     if (raw !== undefined && raw !== null && raw !== '') {
@@ -842,12 +1050,22 @@ router.put('/pricing/product/:id', async (req, res) => {
       if (!isFinite(n) || n < 0) {
         return res.status(400).json({ success: false, message: '卖价须为非负数字' });
       }
-      // 平台可自由定价，系统不设上下限（仅做非负校验）
+      // 卖价底线校验：金额统一转「分」做整数比较，不得低于 供货价 × (1 + 最低加价率)
+      if (dhConfig.toFen(n) < minSalePriceFen) {
+        const markupPercent = Math.round(minMarkupRate * 100);
+        return res.status(400).json({
+          success: false,
+          message: `卖价不能低于 ${minSalePrice.toFixed(2)} 元（供货价 ${costPrice.toFixed(2)} 元 + 平台成本底线 ${markupPercent}%）`
+        });
+      }
       salePrice = +n.toFixed(2);
     }
     product.salePrice = salePrice;
+    // 【2026-09 上线加固】手动填写或修改卖价时打上 isManualPrice=true：
+    //   一键定价（批量加价率）会跳过此标记的商品——手动定价的优先级最高，不可被覆盖；
+    //   取消定价（salePrice=null）时清空标记，允许后续一键定价正常处理。
+    product.isManualPrice = salePrice != null;
     await product.save();
-    const costPrice = Number(product.costPrice) || 0;
     const effective = split.resolveSalePrice(product.salePrice, product.costPrice);
     res.json({
       success: true,
@@ -857,12 +1075,482 @@ router.put('/pricing/product/:id', async (req, res) => {
         costPrice,
         salePrice: effective,
         priced: salePrice != null,
+        minSalePrice,
+        belowFloor: +Number(effective).toFixed(2) < minSalePrice,
         priceDiff: +(effective - costPrice).toFixed(2)
       }
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
+});
+
+// ============ 【2026-09 上线加固】一键定价（统一加价率批量定价）============
+// 背景：上线初期供应商已报几百个供货价，逐个手动填写卖价太慢；
+// 手动定价功能必须保留（重要），一键定价用于「批量打地基」+ 后续逐步手动微调。
+// 公式（utils/dhConfig.computeBulkSalePriceDetailed）：
+//   卖价 = max(供货价 × (1 + 加价率), 供货价 + 保底加价额) → 按页面的「尾数取整」选项取整
+//   【2026-09 低价商品加价上限】保底加价额上面还有一道上限：
+//   单个商品实际加价率不得超过「加价率 × 上限倍数」；超过时放弃保底、改用按比例算出的精确值
+//   （例：设 8%、上限 2 倍（16%）：0.3 元商品 → 加价 0.048 元 → 卖价 0.35 元，而不是加 0.5 元）
+// 护栏：
+//   a) 应用前预览：影响商品数、平均加价率（取整前 → 取整后）、预计毛利率
+//   b) 一键撤销：每次 apply 前保存快照到 PlatformConfig.lastBulkPricingSnapshot，可完整回滚
+//   c) 跳过手动定价的商品：isManualPrice=true 的一律不动（手动定价优先级最高）
+//   d) 成本线保护：计算出的加价率 < COST_FLOOR_RATE 时强制拉到 DEFAULT_MIN_MARKUP_RATE
+//   e) 取整保护（默认开）：取整后加价率 > 生效加价率 × 1.5 的商品放弃取整、改用精确值
+//   f) 加价上限（默认 2 倍）：保底加价额把极低价商品的加价率推过上限时，放弃保底改用比例精确值
+// 页面选项（尾数取整 roundMode/roundTail/roundGuard + 保底加价额 minMarkupAmount + 上限倍数 markupCapMultiplier）
+// 均来自「定价工作台」页面上的填写/选择，只随本次请求生效，不落库、不进后台配置；
+// 未传时按页面默认（四舍五入到角 + 取整保护开启 + 保底 0.5 元 + 上限 2 倍），服务端权威计算。
+// 注：本轮只做统一加价率；按品类差异化（蔬菜5%/肉禽8%/调料12%/酒水15%）接口位置已留好。
+
+// 工具：从 query/body 解析过滤条件（供应商 / 品类 / 指定商品 / 是否仅待定价）
+function parseBulkFilter(input) {
+  const f = {};
+  if (input.supplierId && input.supplierId !== 'all') f.supplierId = input.supplierId;
+  if (input.category && input.category !== 'all') f.category = input.category;
+  // 「仅勾选商品」范围：前端明确传 productIds 数组（空数组表示没勾选 → 不命中任何商品）
+  if (Array.isArray(input.productIds)) {
+    const ids = input.productIds
+      .map(id => String(id))
+      .filter(id => mongoose.Types.ObjectId.isValid(id));
+    f._id = { $in: ids };
+    return f;
+  }
+  if (input.onlyPending === true || input.onlyPending === '1' || input.onlyPending === 'true') {
+    // 仅未定价（salePrice ≤ 0/null）—— 一键定价最常用场景
+    f.$or = [
+      { salePrice: null },
+      { salePrice: { $exists: false } },
+      { salePrice: { $lte: 0 } }
+    ];
+  }
+  return f;
+}
+
+// 工具：判断是否强制覆盖手动定价（body.forceOverride / force 任一为真即生效）
+function parseForceOverride(input) {
+  const v = input.forceOverride;
+  return v === true || v === '1' || v === 'true';
+}
+
+// 工具：解析「定价工作台」页面选项
+//   尾数取整：roundMode / roundTail / roundGuard
+//   【2026-09 低价商品加价上限】保底加价额 minMarkupAmount（元）/ 上限倍数 markupCapMultiplier（倍）
+// 说明：选项只随本次请求生效（页面上的填写与选择），不落库、不进后台配置；
+// 一律返回对象，字段缺省由 dhConfig 的 resolve* 兜底为页面默认值。
+function parsePricingOptions(input) {
+  const src = input || {};
+  return {
+    roundMode: src.roundMode,
+    roundTail: src.roundTail,
+    roundGuard: src.roundGuard,
+    minMarkupAmount: src.minMarkupAmount,
+    markupCapMultiplier: src.markupCapMultiplier
+  };
+}
+
+// 工具：校验页面传入的「保底加价额 / 加价率上限倍数」（未传字段不校验）
+// 返回错误文案（字符串）或 null（合法）；非法值直接 400，不做静默兜底（钱相关参数必须明确报错）
+function validateMarkupRules(input) {
+  const src = input || {};
+  const has = v => v !== undefined && v !== null && v !== '';
+  if (has(src.minMarkupAmount)) {
+    const n = Number(src.minMarkupAmount);
+    if (!isFinite(n) || n < 0 || n > dhConfig.MIN_MARKUP_AMOUNT_MAX) {
+      return `保底加价额须为 0~${dhConfig.MIN_MARKUP_AMOUNT_MAX} 之间的数字（元）`;
+    }
+  }
+  if (has(src.markupCapMultiplier)) {
+    const n = Number(src.markupCapMultiplier);
+    if (!isFinite(n) || n < dhConfig.MARKUP_CAP_MULTIPLIER_MIN || n > dhConfig.MARKUP_CAP_MULTIPLIER_MAX) {
+      return `加价率上限倍数须为 ${dhConfig.MARKUP_CAP_MULTIPLIER_MIN}~${dhConfig.MARKUP_CAP_MULTIPLIER_MAX} 之间的数字（倍）`;
+    }
+  }
+  return null;
+}
+
+// 工具：拉取命中商品 + 计算每件商品的「预览结果」（不写库）
+// forceOverride=true 时不再跳过 isManualPrice=true 的商品（强制覆盖手动定价）
+// pricingOptions：页面选项（尾数取整 + 保底加价额 + 上限倍数），
+//                 缺省＝四舍五入到角 + 取整保护开启 + 保底 0.5 元 + 上限 2 倍
+async function previewBulkPricing(filter, rate, forceOverride, pricingOptions) {
+  const products = await SupplyProduct.find(filter)
+    .select('_id name category unit costPrice salePrice isManualPrice supplierId supplierName')
+    .lean();
+  const cfg = await PlatformConfig.getSingleton();
+  const minMarkupRate = dhConfig.resolveMinMarkupRate(cfg.minMarkupRate);
+  const roundOpt = dhConfig.resolveRoundOptions(pricingOptions);
+  // 【2026-09 低价商品加价上限】本次生效的保底加价额 / 上限倍数与上限加价率（页面可改，服务端权威）
+  const minMarkupAmount = dhConfig.resolveMinMarkupAmount(pricingOptions && pricingOptions.minMarkupAmount);
+  const markupCapMultiplier = dhConfig.resolveMarkupCapMultiplier(pricingOptions && pricingOptions.markupCapMultiplier);
+  const markupCapRate = +(rate * markupCapMultiplier).toFixed(4);
+
+  const items = [];
+  let affectedCount = 0;     // 一键定价会覆盖的商品数（排除手动定价）
+  let skippedManual = 0;    // 跳过的手动定价商品数
+  let overriddenManual = 0; // 被强制覆盖的手动定价商品数
+  let skippedNoCost = 0;    // 跳过的供货价 ≤ 0 商品数
+  let roundingSkippedCount = 0; // 因「取整保护/硬地板兜底」放弃取整的商品数
+  let floorDroppedCount = 0;    // 因「加价率上限」放弃保底、改用比例精确值的商品数
+  let totalCost = 0;        // 命中商品供货价合计
+  let totalSaleNew = 0;     // 一键定价后卖价合计
+  let totalSaleRaw = 0;     // 取整前卖价合计（用于对比取整放大了多少）
+  let totalSalePrev = 0;    // 改价前卖价合计（仅统计 affectedCount 集合）
+
+  for (const p of products) {
+    const cost = Number(p.costPrice) || 0;
+    const prevSale = p.salePrice != null && Number(p.salePrice) > 0 ? Number(p.salePrice) : null;
+    const isManual = !!p.isManualPrice;
+
+    if (cost <= 0) {
+      skippedNoCost += 1;
+      items.push({
+        productId: String(p._id),
+        name: p.name,
+        category: p.category || '',
+        supplierName: p.supplierName || '',
+        costPrice: cost,
+        prevSalePrice: prevSale,
+        newSalePrice: null,
+        isManualPrice: isManual,
+        action: 'skipped',
+        reason: '供货价为 0，无法定价'
+      });
+      continue;
+    }
+    // 手动定价商品：默认跳过（手动定价优先级最高）；勾选「强制覆盖」时一并重定
+    if (isManual && !forceOverride) {
+      skippedManual += 1;
+      items.push({
+        productId: String(p._id),
+        name: p.name,
+        category: p.category || '',
+        supplierName: p.supplierName || '',
+        costPrice: cost,
+        prevSalePrice: prevSale,
+        newSalePrice: null,
+        isManualPrice: true,
+        action: 'skipped',
+        reason: '手动定价的商品，一键定价不会覆盖'
+      });
+      continue;
+    }
+    // 计算新卖价（含保底 + 加价率上限 + 成本线 + 尾数取整 + 取整保护）
+    const calc = dhConfig.computeBulkSalePriceDetailed(cost, rate, minMarkupRate, pricingOptions);
+    affectedCount += 1;
+    if (isManual) overriddenManual += 1;
+    if (calc.roundingSkipped) roundingSkippedCount += 1;
+    if (calc.floorDropped) floorDroppedCount += 1;
+    totalCost += cost;
+    totalSaleNew += calc.salePrice;
+    totalSaleRaw += calc.rawSalePrice;
+    totalSalePrev += (prevSale != null ? prevSale : cost);
+    items.push({
+      productId: String(p._id),
+      name: p.name,
+      category: p.category || '',
+      supplierName: p.supplierName || '',
+      costPrice: cost,
+      prevSalePrice: prevSale,
+      newSalePrice: calc.salePrice,
+      rawSalePrice: calc.rawSalePrice,             // 取整前的精确卖价
+      isManualPrice: isManual,
+      overridesManual: isManual,        // 该商品是手动定价、本次被强制覆盖
+      action: 'update',
+      capped: !!calc.capped,           // 是否触发了成本线保护
+      roundingSkipped: !!calc.roundingSkipped, // 是否因取整保护放弃取整（改用精确价）
+      floorDropped: !!calc.floorDropped,       // 是否因加价率上限放弃保底（改用比例精确价）
+      estimatedMarkupRate: +calc.markupRate.toFixed(4),
+      estimatedMarkupAmount: calc.markupAmount,
+      minSalePrice: dhConfig.computeMinSalePrice(cost, minMarkupRate)
+    });
+  }
+
+  const averageMarkupRate = totalSaleNew > 0
+    ? +((totalSaleNew - totalCost) / Math.max(totalCost, 0.0001)).toFixed(4)
+    : 0;
+  // 取整前平均加价率：与取整后同口径（总额口径），便于一眼看出取整实际放大了多少
+  const averageMarkupRateBeforeRound = totalSaleRaw > 0
+    ? +((totalSaleRaw - totalCost) / Math.max(totalCost, 0.0001)).toFixed(4)
+    : 0;
+  const estimatedMargin = +(totalSaleNew - totalCost).toFixed(2);
+
+  return {
+    items,
+    summary: {
+      totalScanned: products.length,
+      affectedCount,
+      skippedManual,
+      overriddenManual,
+      skippedNoCost,
+      averageMarkupRate,
+      averageMarkupRateBeforeRound,
+      roundingSkippedCount,
+      estimatedMargin,
+      prevTotalSale: +totalSalePrev.toFixed(2),
+      newTotalSale: +totalSaleNew.toFixed(2),
+      roundMode: roundOpt.mode,
+      roundTail: roundOpt.tailDigit,
+      roundGuard: roundOpt.guard,
+      // 【2026-09 低价商品加价上限】本次生效的保底/上限参数与拦下的件数
+      minMarkupAmount,
+      markupCapMultiplier,
+      markupCapRate,
+      floorDroppedCount
+    }
+  };
+}
+
+// ============ POST /api/dev/pricing/bulk/preview 一键定价预览（不写库）============
+// body: { rate, supplierId?, category?, onlyPending?, productIds?, forceOverride?,
+//         roundMode?, roundTail?, roundGuard?,
+//         minMarkupAmount?, markupCapMultiplier? }（页面选项，均可选）
+// rate 范围 [0, 1]；minMarkupAmount ∈ [0, 10] 元；markupCapMultiplier ∈ [1, 10] 倍；非法值直接 400
+// forceOverride=true 时手动定价商品也会被重定（不再跳过），summary.overriddenManual 为被覆盖件数
+router.post('/pricing/bulk/preview', async (req, res) => {
+  try {
+    const rate = Number(req.body && req.body.rate);
+    if (!isFinite(rate) || rate < 0 || rate > 1) {
+      return res.status(400).json({ success: false, message: '加价率须为 0~1 之间的小数（如 0.05 表示 5%）' });
+    }
+    // 【2026-09 低价商品加价上限】页面可改的保底加价额 / 上限倍数：先校验再计算
+    const markupRuleErr = validateMarkupRules(req.body || {});
+    if (markupRuleErr) {
+      return res.status(400).json({ success: false, message: markupRuleErr });
+    }
+    const forceOverride = parseForceOverride(req.body || {});
+    const filter = parseBulkFilter(req.body || {});
+    const pricingOptions = parsePricingOptions(req.body || {});
+    const roundOpt = dhConfig.resolveRoundOptions(pricingOptions);
+    const result = await previewBulkPricing(filter, rate, forceOverride, pricingOptions);
+    const cfg = await PlatformConfig.getSingleton();
+    res.json({
+      success: true,
+      data: {
+        rate,
+        forceOverride,
+        ...result,
+        config: {
+          // 【2026-09 低价商品加价上限】本次请求实际使用的保底加价额 / 上限倍数与上限加价率
+          minMarkupAmount: result.summary.minMarkupAmount,
+          markupCapMultiplier: result.summary.markupCapMultiplier,
+          markupCapRate: result.summary.markupCapRate,
+          // 服务端默认值（页面未填时生效），供页面回显与校验口径提示
+          defaultMinMarkupAmount: dhConfig.MIN_MARKUP_AMOUNT,
+          defaultMarkupCapMultiplier: dhConfig.MARKUP_CAP_MULTIPLIER,
+          minMarkupAmountMax: dhConfig.MIN_MARKUP_AMOUNT_MAX,
+          markupCapMultiplierMin: dhConfig.MARKUP_CAP_MULTIPLIER_MIN,
+          markupCapMultiplierMax: dhConfig.MARKUP_CAP_MULTIPLIER_MAX,
+          priceRoundTail: dhConfig.PRICE_ROUND_TAIL,
+          costFloorRate: dhConfig.COST_FLOOR_RATE,
+          defaultMinMarkupRate: dhConfig.DEFAULT_MIN_MARKUP_RATE,
+          // 硬地板 = 系统设置里的最低加价率（可在开发者后台调整，下限 3%）
+          minMarkupRate: dhConfig.resolveMinMarkupRate(cfg.minMarkupRate),
+          // 【2026-09】本次请求实际使用的尾数取整选项（页面选择，不落库）
+          roundMode: roundOpt.mode,
+          roundTail: roundOpt.tailDigit,
+          roundGuard: roundOpt.guard,
+          roundText: dhConfig.roundOptionsText(roundOpt.mode, roundOpt.tailDigit),
+          roundGuardMultiplier: dhConfig.ROUND_GUARD_MULTIPLIER,
+          roundModes: dhConfig.ROUND_MODES,
+          defaultRoundMode: dhConfig.DEFAULT_ROUND_MODE
+        }
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ POST /api/dev/pricing/bulk/apply 一键定价应用（写库 + 保存快照）============
+// 流程：
+//   1) 再次预览（保证预览与应用的筛选口径一致，页面选项与预览同源同口径）
+//   2) 保存快照到 PlatformConfig.lastBulkPricingSnapshot（仅保留最近一次，供回滚）
+//   3) 批量更新 SupplyProduct：salePrice = newSalePrice、isManualPrice = false（清掉手动标记）
+//   4) 返回 { affectedCount, skippedManual, overriddenManual, appliedAt }
+// forceOverride=true 时手动定价商品也会被覆盖（快照里保留 prevIsManualPrice，回滚可原样恢复）
+// 页面选项 body：roundMode/roundTail/roundGuard + minMarkupAmount/markupCapMultiplier（与预览同源，不落库）
+router.post('/pricing/bulk/apply', async (req, res) => {
+  try {
+    const rate = Number(req.body && req.body.rate);
+    if (!isFinite(rate) || rate < 0 || rate > 1) {
+      return res.status(400).json({ success: false, message: '加价率须为 0~1 之间的小数（如 0.05 表示 5%）' });
+    }
+    // 【2026-09 低价商品加价上限】页面可改的保底加价额 / 上限倍数：先校验再计算（与预览同一口径）
+    const markupRuleErr = validateMarkupRules(req.body || {});
+    if (markupRuleErr) {
+      return res.status(400).json({ success: false, message: markupRuleErr });
+    }
+    const forceOverride = parseForceOverride(req.body || {});
+    const filter = parseBulkFilter(req.body || {});
+    const pricingOptions = parsePricingOptions(req.body || {});
+    const preview = await previewBulkPricing(filter, rate, forceOverride, pricingOptions);
+    const targets = preview.items.filter(x => x.action === 'update');
+    if (targets.length === 0) {
+      return res.json({
+        success: true,
+        message: '没有可定价的商品（全部被跳过或筛选范围为空）',
+        data: {
+          affectedCount: 0,
+          skippedManual: preview.summary.skippedManual,
+          overriddenManual: 0,
+          skippedNoCost: preview.summary.skippedNoCost,
+          appliedAt: new Date()
+        }
+      });
+    }
+    // 应用前再次校验每个新卖价不低于硬地板（防御人工改 dhConfig 后预览已过期）
+    const cfg = await PlatformConfig.getSingleton();
+    const minMarkupRate = dhConfig.resolveMinMarkupRate(cfg.minMarkupRate);
+    const appliedAt = new Date();
+    const snapshotItems = [];
+    for (const t of targets) {
+      const minSalePrice = dhConfig.computeMinSalePrice(t.costPrice, minMarkupRate);
+      if (t.newSalePrice + 0.0001 < minSalePrice) {
+        return res.status(400).json({
+          success: false,
+          message: `商品「${t.name}」新卖价 ${t.newSalePrice.toFixed(2)} 元低于硬地板 ${minSalePrice.toFixed(2)} 元，已中止应用`
+        });
+      }
+      snapshotItems.push({
+        productId: new mongoose.Types.ObjectId(t.productId),
+        prevSalePrice: t.prevSalePrice,
+        prevIsManualPrice: !!t.isManualPrice,
+        newSalePrice: t.newSalePrice,
+        newIsManualPrice: false   // 一键定价后清掉手动标记（下次手动再改会再置 true）
+      });
+    }
+
+    // 1) 保存快照（覆盖式，仅保留最近一次）
+    const snapshot = {
+      appliedAt,
+      rate,
+      affectedCount: targets.length,
+      skippedManual: preview.summary.skippedManual,
+      overriddenManual: preview.summary.overriddenManual || 0,
+      items: snapshotItems
+    };
+    await PlatformConfig.updateOne(
+      { key: 'platform' },
+      { $set: { lastBulkPricingSnapshot: snapshot } },
+      { upsert: true }
+    );
+
+    // 2) 批量更新商品：salePrice + isManualPrice
+    //    每个商品的新卖价可能不同（尾数取整），逐条写最稳；预计影响几百件，性能可接受
+    for (const t of targets) {
+      await SupplyProduct.updateOne(
+        { _id: t.productId },
+        { $set: { salePrice: t.newSalePrice, isManualPrice: false } }
+      );
+    }
+    res.json({
+      success: true,
+      message: `一键定价已应用：${targets.length} 件商品（跳过 ${preview.summary.skippedManual} 件手动定价、${preview.summary.skippedNoCost} 件供货价异常）` +
+        (snapshot.overriddenManual > 0 ? `，其中强制覆盖 ${snapshot.overriddenManual} 件手动定价` : '') +
+        (preview.summary.floorDroppedCount > 0 ? `，${preview.summary.floorDroppedCount} 件低价商品保底被加价率上限截断` : ''),
+      data: {
+        affectedCount: targets.length,
+        skippedManual: preview.summary.skippedManual,
+        overriddenManual: snapshot.overriddenManual,
+        skippedNoCost: preview.summary.skippedNoCost,
+        appliedAt,
+        rate,
+        // 【2026-09 低价商品加价上限】本次生效的保底/上限参数与拦下的件数（供页面提示与核对）
+        minMarkupAmount: preview.summary.minMarkupAmount,
+        markupCapMultiplier: preview.summary.markupCapMultiplier,
+        floorDroppedCount: preview.summary.floorDroppedCount,
+        snapshot: {
+          appliedAt: snapshot.appliedAt,
+          rate: snapshot.rate,
+          affectedCount: snapshot.affectedCount,
+          skippedManual: snapshot.skippedManual,
+          overriddenManual: snapshot.overriddenManual
+        }
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ POST /api/dev/pricing/bulk/rollback 一键定价回滚（恢复到上次 apply 前的状态）============
+// 读 PlatformConfig.lastBulkPricingSnapshot，按 items 恢复每个商品的 salePrice + isManualPrice；
+// 完成后清空 lastBulkPricingSnapshot（避免二次回滚）。
+router.post('/pricing/bulk/rollback', async (req, res) => {
+  try {
+    const cfg = await PlatformConfig.getSingleton();
+    const snap = cfg.lastBulkPricingSnapshot;
+    if (!snap || !Array.isArray(snap.items) || snap.items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: '没有可回滚的一键定价快照（最近一次未通过一键定价改价，或已被回滚过）'
+      });
+    }
+    let restoredCount = 0;
+    for (const it of snap.items) {
+      // 用 salePrice=null 表示「恢复为未定价」
+      const update = {
+        salePrice: it.prevSalePrice == null ? null : it.prevSalePrice,
+        isManualPrice: !!it.prevIsManualPrice
+      };
+      const r = await SupplyProduct.updateOne({ _id: it.productId }, { $set: update });
+      if (r.modifiedCount > 0) restoredCount += 1;
+    }
+    // 清空快照，避免二次回滚
+    await PlatformConfig.updateOne(
+      { key: 'platform' },
+      { $set: { lastBulkPricingSnapshot: null } }
+    );
+    res.json({
+      success: true,
+      message: `已回滚 ${restoredCount} 件商品到 ${snap.appliedAt ? new Date(snap.appliedAt).toLocaleString('zh-CN') : '上次一键定价'} 之前的状态`,
+      data: {
+        restoredCount,
+        appliedAt: snap.appliedAt,
+        rate: snap.rate,
+        affectedCount: snap.affectedCount,
+        skippedManual: snap.skippedManual
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ GET /api/dev/pricing/bulk/snapshot 查询最近一次一键定价快照（前端用于显示「上次定价时间」与「回滚按钮」是否可用）============
+router.get('/pricing/bulk/snapshot', async (req, res) => {
+  try {
+    const cfg = await PlatformConfig.getSingleton();
+    const snap = cfg.lastBulkPricingSnapshot || null;
+    if (!snap || !Array.isArray(snap.items) || snap.items.length === 0) {
+      return res.json({ success: true, data: null });
+    }
+    res.json({
+      success: true,
+      data: {
+        appliedAt: snap.appliedAt,
+        rate: snap.rate,
+        affectedCount: snap.affectedCount,
+        skippedManual: snap.skippedManual,
+        overriddenManual: snap.overriddenManual || 0
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ POST /api/dev/pricing/bulk/preview-by-category 品类差异化预览（接口位置预留，本轮不实现）============
+// 计划：body: { categories: [{ category: '蔬菜', rate: 0.05 }, { category: '酒水', rate: 0.15 }] }
+// 当前实现：未实现；前端不要调用。前端面板留好入口但按钮置灰、说明文字注明「下一版本」。
+router.post('/pricing/bulk/preview-by-category', async (req, res) => {
+  return res.status(501).json({
+    success: false,
+    message: '按品类差异化一键定价将在下一版本实现（本轮只做统一加价率）'
+  });
 });
 
 // ============ 得币倍率配置（品类 → 鼎恒币倍率）============
@@ -1036,6 +1724,72 @@ router.post('/split-orders/:id/retry', async (req, res) => {
     await purchaseOrdersRouter.initiateOrderSplit(order, supplier);
     await order.save();
     res.json({ success: true, message: '已发起重试', data: { splitStatus: order.splitStatus, splitRetryCount: order.splitRetryCount, splitError: order.splitError } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ 待人工分账（供应商未进件/进件未通过的降级订单）============
+// 业务背景：供应商未完成微信进件时订单不阻断——商家正常下单支付、供应商正常接单；
+// 资金划转不走渠道分账，由平台线下人工结算（全额打款给供应商 + 平台留加价部分）。
+// GET /api/dev/manual-settlements  待人工结算订单列表（默认只看未结算的，?all=1 看全部含已结算）
+router.get('/manual-settlements', async (req, res) => {
+  try {
+    const showAll = String(req.query.all || '') === '1';
+    const filter = showAll ? { manualSettlement: true } : { manualSettlement: true, splitStatus: '待人工分账' };
+    const list = await PurchaseOrder.find(filter)
+      .populate('supplierId', 'name')
+      .sort({ createdAt: -1 })
+      .limit(300)
+      .lean();
+    res.json({
+      success: true,
+      data: list.map(o => ({
+        _id: o._id,
+        orderNo: o.orderNo,
+        shopName: o.shopName || '',
+        supplierName: (o.supplierId && o.supplierId.name) || '平台直供',
+        // 金额口径不变：供货价归供应商、加价归平台（线下人工结算按此执行）
+        splitAmount: Number(o.splitAmount) || 0,
+        supplierShare: Number(o.supplierShare) || 0,
+        platformShare: Number(o.platformShare) || 0,
+        totalAmount: Number(o.totalAmount) || 0,
+        payStatus: o.payStatus || '',
+        status: o.status || '',
+        splitStatus: o.splitStatus || '',
+        manualSettleReason: o.manualSettleReason || '',
+        manualSettledAt: o.manualSettledAt || null,
+        paymentFlowMode: o.paymentFlowMode || '',
+        createdAt: o.createdAt
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/dev/manual-settlements/:id/settle  标记某订单已完成线下人工结算
+// （供应商供货价已线下打款、平台加价部分已留存 → 订单分账状态落定为「分账成功」）
+router.post('/manual-settlements/:id/settle', async (req, res) => {
+  try {
+    const order = await PurchaseOrder.findById(req.params.id);
+    if (!order) return res.status(404).json({ success: false, message: '采购订单不存在' });
+    if (order.splitStatus !== '待人工分账') {
+      return res.status(400).json({ success: false, message: `该订单当前分账状态为「${order.splitStatus}」，无需人工结算` });
+    }
+    order.splitStatus = '分账成功';
+    order.manualSettledAt = new Date();
+    order.splitAt = order.splitAt || new Date();
+    order.splitError = '';
+    order.splitLogs = order.splitLogs || [];
+    order.splitLogs.push({
+      at: new Date(),
+      action: 'manual_settle',
+      status: '分账成功',
+      message: `人工结算完成：线下打款供应商 ${order.supplierShare} / 平台留存 ${order.platformShare}`
+    });
+    await order.save();
+    res.json({ success: true, message: '已标记人工结算完成', data: { splitStatus: order.splitStatus, manualSettledAt: order.manualSettledAt } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

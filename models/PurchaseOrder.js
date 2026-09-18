@@ -141,9 +141,14 @@ const purchaseOrderSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
+  // 订单状态机（2026-09 上线加固新增「待支付」「已取消」）：
+  //   待支付（草稿，未付款，不推送供应商，24h 未付自动置已取消）
+  //   → 待确认（支付成功）→ 已确认 → 已发货 → 已收货/已完成
+  //   已取消（草稿超时软删，保留数据不物理删除）
+  // 老订单不受影响：历史数据不含新状态，列表/报表按原样返回
   status: {
     type: String,
-    enum: ['待确认', '已确认', '已发货', '已收货', '已完成'],
+    enum: ['待支付', '待确认', '已确认', '已发货', '已收货', '已完成', '已取消'],
     default: '待确认'
   },
   confirmAt: {
@@ -181,12 +186,42 @@ const purchaseOrderSchema = new mongoose.Schema({
   // ============ 云分账：状态机 ============
   // 待分账 →（发起）已发起分账 →（成功）分账成功
   //                        ↘（失败）分账失败 → 重试（splitRetryCount ++）
+  // 供应商未进件/进件未通过 →（降级）待人工分账 →（开发者后台人工结算标记）分账成功
   // 过秤差额 ≠ 0 → 补差中 → 已补差
   splitStatus: {
     type: String,
-    enum: ['待分账', '已发起分账', '分账成功', '分账失败', '补差中', '已补差'],
+    enum: ['待分账', '已发起分账', '分账成功', '分账失败', '补差中', '已补差', '待人工分账'],
     default: '待分账',
     index: true
+  },
+  // ============ 人工分账降级（供应商未进件/进件未通过时不阻断业务）============
+  // true=该订单因供应商未完成微信进件而转人工结算（线下打款给供应商 + 平台留加价部分）
+  manualSettlement: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  // 转人工结算原因（未进件 / 进件审核中 / 进件被驳回 / 未配置特约商户号）
+  manualSettleReason: {
+    type: String,
+    default: ''
+  },
+  // 开发者后台「标记已人工结算」时间
+  manualSettledAt: {
+    type: Date,
+    default: null
+  },
+  // 本单支付资金流模式快照（supplier_first=钱进供应商 / platform_first=钱进平台，utils/payRuntime）
+  paymentFlowMode: {
+    type: String,
+    enum: ['', 'supplier_first', 'platform_first'],
+    default: ''
+  },
+  // 供应商微信特约商户号快照（supplier_first 模式下本单货款的实际收款方）
+  supplierWechatSubMchId: {
+    type: String,
+    default: '',
+    trim: true
   },
   // 分账流水号（渠道分账单号，发起分账时生成）
   splitNo: {
@@ -366,6 +401,29 @@ const purchaseOrderSchema = new mongoose.Schema({
   },
   // 送达时间（拍照送达时写入，商家可在订单详情看到）
   deliveredAt: {
+    type: Date,
+    default: null
+  },
+  // ============ 供应商确认留痕（上线加固：确认订单必须电话联系商家后勾选声明） ============
+  // 供应商点「确认订单」且勾选「我已电话联系商家，确认地址可送达」后写入
+  contactConfirm: {
+    at: { type: Date, default: null },      // 确认时间
+    by: { type: String, default: '' },      // 供应商 _id
+    byName: { type: String, default: '' }   // 供应商名称
+  },
+  // ============ 草稿超时软删 ============
+  // 取消时间（24h 未支付的待支付草稿由定时任务置「已取消」时写入）
+  cancelledAt: {
+    type: Date,
+    default: null
+  },
+  // 取消原因（自动取消=超时未支付；预留人工取消）
+  cancelReason: {
+    type: String,
+    default: ''
+  },
+  // 供应商已推送时间（支付成功后推送 order_created 的幂等标记，防重复推送）
+  supplierNotifiedAt: {
     type: Date,
     default: null
   }

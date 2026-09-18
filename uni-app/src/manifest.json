@@ -19,10 +19,13 @@
     "themeLocation": "theme.json",
     "permission": {
       "scope.userLocation": {
-        "desc": "你的位置信息将用于门店推荐"
+        "desc": "你的位置信息将用于门店选址与门店推荐（在地图上标注门店位置）"
       }
     },
-    "requiredPrivateInfos": [],
+    "requiredPrivateInfos": [
+      "chooseLocation",
+      "getLocation"
+    ],
     "lazyCodeLoading": "requiredComponents"
   },
   "h5": {

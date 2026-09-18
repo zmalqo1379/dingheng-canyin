@@ -431,7 +431,7 @@ pending(待处理) ──(PUT /api/orders/:id/complete，后厨/后台)──▶
 | 10 | JWT_SECRET | 默认硬编码 `dingheng_canyin_jwt_secret_2024`（`.env` 未设置时生效） | `middlewares/auth.js:4` |
 | 11 | 币兑换路由鉴权 | `/api/coin/exchange-*` 未挂 JWT 中间件，shopId 由 body 传入 | `routes/coin.js`、`server.js` |
 | 12 | 供应商注册接口 | `POST /api/suppliers` 无鉴权（注册即 pending，依赖人工审核） | `server.js:1003` |
-| 13 | 合作关系文本 | 合作协议正文为占位文本；客服联系方式为占位（400-000-0000 / support@dingheng.com） | `supplier-dashboard.html` |
+| 13 | 合作关系文本 | 合作协议正文为占位文本；客服联系方式已改为后端 utils/serviceContact.js 读环境变量（SERVICE_PHONE / SUPPORT_EMAIL）统一下发，前端不再硬编码号码 | `supplier-dashboard.html`、`utils/serviceContact.js` |
 | 14 | 小程序 | 仅覆盖商家 4 页 + 顾客 1 页，与 Web 端重复维护；发布状态【待确认】 | `uni-app/src` |
 | 15 | 采购单"已收货"枚举 | schema 含但实际不落该状态 | `models/PurchaseOrder.js` |
 | 16 | Coupon 'expired' 状态 | 由每日定时任务写入（`expireCoupons`），但查询侧亦以 expireDate 兜底 | `utils/dhCron.js` |

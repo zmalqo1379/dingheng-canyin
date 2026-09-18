@@ -6,7 +6,10 @@ const PurchaseOrder = require('../models/PurchaseOrder');
 const SupplyProduct = require('../models/SupplyProduct');
 const PlatformConfig = require('../models/PlatformConfig');
 const split = require('../utils/split');
+const serviceContact = require('../utils/serviceContact');
 const { requireSupplier } = require('../middlewares/auth');
+// 复用采购订单的供应商脱敏视图：剔除平台卖价/平台差价/顾客实付等商业机密字段
+const { toSupplierOrderView } = require('./purchaseOrders');
 
 // 所有供应商接口均需供应商身份鉴权
 router.use(requireSupplier);
@@ -68,7 +71,10 @@ router.get('/profile', async (req, res) => {
         },
         // 甲方（平台）营业执照全称 + 统一社会信用代码（协议页甲乙双方信息栏用，开发者后台系统设置维护）
         platformCompanyName: platformCfg.platformCompanyName || '',
-        platformCreditCode: platformCfg.platformCreditCode || ''
+        platformCreditCode: platformCfg.platformCreditCode || '',
+        // 平台客服联系方式（闸门/等待页展示用），统一由 utils/serviceContact.js 从环境变量读取下发
+        servicePhone: serviceContact.getServicePhone(),
+        supportEmail: serviceContact.getSupportEmail()
       }
     });
   } catch (err) {
@@ -189,6 +195,129 @@ router.post('/agreement/sign', async (req, res) => {
   }
 });
 
+// ============ 微信支付进件（2026-09 供应商进件流程）============
+// 资金流 supplier_first 模式：门店货款直接进供应商微信特约商户号，平台分账抽走加价部分。
+// 本轮不接微信真实进件 API：供应商线上提交资料 → 平台人工在微信商户平台代为进件
+// → 开发者后台录入特约商户号并标记通过。敏感字段（银行账号）AES-256-GCM 加密存储，返回一律脱敏。
+const cryptoBox = require('../utils/cryptoBox');
+
+// 进件状态 → 前端展示文案
+const ONBOARDING_STATUS_TEXT = {
+  none: '未提交',
+  pending: '审核中',
+  approved: '已通过',
+  rejected: '被驳回'
+};
+
+// GET /api/supplier/wechat-onboarding 进件状态 + 已填资料（脱敏，银行账号只露末 4 位）
+router.get('/wechat-onboarding', async (req, res) => {
+  try {
+    const supplier = await Supplier.findById(req.user.supplierId);
+    if (!supplier) return res.status(404).json({ success: false, message: '供应商不存在' });
+    const ob = supplier.wechatOnboarding || {};
+    res.json({
+      success: true,
+      data: {
+        status: ob.status || 'none',
+        statusText: ONBOARDING_STATUS_TEXT[ob.status || 'none'],
+        businessLicenseUrl: ob.businessLicenseUrl || '',
+        legalPerson: ob.legalPerson || '',
+        idCardFrontUrl: ob.idCardFrontUrl || '',
+        idCardBackUrl: ob.idCardBackUrl || '',
+        bankAccountName: ob.bankAccountName || '',
+        // 银行账号脱敏：只返回末 4 位（明文仅加密落库，任何接口不回传全号）
+        bankAccountNoMasked: cryptoBox.maskBankAccount(cryptoBox.decrypt(ob.bankAccountNoEnc)),
+        bankName: ob.bankName || '',
+        bankBranch: ob.bankBranch || '',
+        contactName: ob.contactName || '',
+        contactPhone: ob.contactPhone || '',
+        category: ob.category || '',
+        address: ob.address || '',
+        submittedAt: ob.submittedAt || null,
+        reviewedAt: ob.reviewedAt || null,
+        rejectReason: ob.rejectReason || '',
+        // 已通过后平台配置的特约商户号（前 6 后 4 展示）
+        subMchIdMasked: supplier.wechatSubMchId
+          ? String(supplier.wechatSubMchId).slice(0, 6) + '****' + String(supplier.wechatSubMchId).slice(-4)
+          : ''
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/supplier/wechat-onboarding/submit 提交进件资料
+// 状态机：none / rejected 可提交 → pending；pending / approved 锁定不可重复提交
+router.post('/wechat-onboarding/submit', async (req, res) => {
+  try {
+    const supplier = await Supplier.findById(req.user.supplierId);
+    if (!supplier) return res.status(404).json({ success: false, message: '供应商不存在' });
+    if (supplier.status !== 'active') {
+      return res.status(400).json({ success: false, message: '供应商账号未激活，暂不能提交微信进件' });
+    }
+    const cur = (supplier.wechatOnboarding && supplier.wechatOnboarding.status) || 'none';
+    if (cur === 'pending') return res.status(400).json({ success: false, message: '进件资料审核中，请耐心等待' });
+    if (cur === 'approved') return res.status(400).json({ success: false, message: '微信进件已通过，无需重复提交' });
+
+    const b = req.body || {};
+    const required = [
+      ['businessLicenseUrl', '营业执照照片'],
+      ['legalPerson', '法人姓名'],
+      ['idCardFrontUrl', '法人身份证正面照片'],
+      ['idCardBackUrl', '法人身份证反面照片'],
+      ['bankAccountName', '银行账户户名'],
+      ['bankAccountNo', '银行账号'],
+      ['bankName', '开户银行'],
+      ['bankBranch', '开户支行'],
+      ['contactName', '联系人'],
+      ['contactPhone', '联系电话'],
+      ['category', '经营类目'],
+      ['address', '经营地址']
+    ];
+    for (const [k, label] of required) {
+      if (!b[k] || !String(b[k]).trim()) {
+        return res.status(400).json({ success: false, message: `请填写/上传：${label}` });
+      }
+    }
+    // 银行账号格式：6~32 位数字（支持对公账户长账号）
+    if (!/^\d{6,32}$/.test(String(b.bankAccountNo).trim())) {
+      return res.status(400).json({ success: false, message: '银行账号格式不正确（应为 6~32 位数字）' });
+    }
+    // 手机号格式
+    if (!/^1\d{10}$/.test(String(b.contactPhone).trim())) {
+      return res.status(400).json({ success: false, message: '联系电话格式不正确' });
+    }
+
+    supplier.wechatOnboarding = {
+      status: 'pending',
+      businessLicenseUrl: String(b.businessLicenseUrl).trim(),
+      legalPerson: String(b.legalPerson).trim().slice(0, 30),
+      idCardFrontUrl: String(b.idCardFrontUrl).trim(),
+      idCardBackUrl: String(b.idCardBackUrl).trim(),
+      bankAccountName: String(b.bankAccountName).trim().slice(0, 60),
+      // 银行账号加密存储（AES-256-GCM），库里绝不存明文
+      bankAccountNoEnc: cryptoBox.encrypt(String(b.bankAccountNo).trim()),
+      bankName: String(b.bankName).trim().slice(0, 60),
+      bankBranch: String(b.bankBranch).trim().slice(0, 100),
+      contactName: String(b.contactName).trim().slice(0, 30),
+      contactPhone: String(b.contactPhone).trim(),
+      category: String(b.category).trim().slice(0, 30),
+      address: String(b.address).trim().slice(0, 200),
+      submittedAt: new Date(),
+      reviewedAt: null,
+      rejectReason: ''
+    };
+    await supplier.save();
+
+    // 日志脱敏：不打印银行账号/身份证号明文
+    console.log(`[wechat-onboarding] 供应商提交进件 supplierId=${supplier._id} 名称=${supplier.name} 账号尾号=${cryptoBox.maskBankAccount(String(b.bankAccountNo))} IP=${clientIp(req)}`);
+    res.json({ success: true, message: '进件资料已提交，等待平台审核', data: { status: 'pending' } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // ============ GET /api/supplier/orders/pending ============
 // 今日待处理订单（"待确认"状态）数量与列表
 router.get('/orders/pending', async (req, res) => {
@@ -206,7 +335,8 @@ router.get('/orders/pending', async (req, res) => {
       success: true,
       data: {
         count: orders.length,
-        orders
+        // 供应商脱敏视图：剔除平台卖价/平台差价/加价率/顾客实付等平台商业机密字段
+        orders: orders.map(toSupplierOrderView)
       }
     });
   } catch (err) {
@@ -215,8 +345,10 @@ router.get('/orders/pending', async (req, res) => {
 });
 
 // ============ GET /api/supplier/stats 供应商控制台统计卡片 ============
-// 今日新订单数 / 待确认订单数 / 本月累计订单金额（actualPayAmount 总和）
-// 全部真实查询，严禁写死任何数字
+// 今日新订单数 / 待确认订单数 / 本月累计供货额
+// 全部真实查询，严禁写死任何数字。
+// 口径说明：金额一律按「供货口径」（supplyAmount，老数据回退 supplierShare）统计；
+// 顾客实付/卖价总额属平台商业机密，严禁在此接口下发（防止供应商反推平台毛利）。
 router.get('/stats', async (req, res) => {
   try {
     const supplierId = req.user.supplierId;
@@ -225,18 +357,19 @@ router.get('/stats', async (req, res) => {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
     const [todayNewCount, pendingCount, monthOrders] = await Promise.all([
-      // 今日新订单：今日 0 点起创建
-      PurchaseOrder.countDocuments({ supplierId, createdAt: { $gte: todayStart } }),
+      // 今日新订单：今日 0 点起创建（排除待支付草稿——未支付订单不推送、不算供应商订单）
+      PurchaseOrder.countDocuments({ supplierId, status: { $ne: '待支付' }, createdAt: { $gte: todayStart } }),
       // 待确认订单：当前 status = 待确认
       PurchaseOrder.countDocuments({ supplierId, status: '待确认' }),
-      // 本月订单：取 actualPayAmount 求和（缺失时回退 totalAmount）
-      PurchaseOrder.find({ supplierId, createdAt: { $gte: monthStart } })
-        .select('actualPayAmount totalAmount -_id')
+      // 本月订单：按供货口径求和（supplyAmount 供应商应得；老订单缺字段时回退 supplierShare）
+      // 排除待支付草稿，防止未付款订单虚增供货额
+      PurchaseOrder.find({ supplierId, status: { $ne: '待支付' }, createdAt: { $gte: monthStart } })
+        .select('supplyAmount supplierShare -_id')
         .lean()
     ]);
 
-    const monthActualPayTotal = monthOrders.reduce(
-      (s, o) => s + Number(o.actualPayAmount != null ? o.actualPayAmount : (o.totalAmount || 0)),
+    const monthSupplyTotal = monthOrders.reduce(
+      (s, o) => s + Number(o.supplyAmount != null ? o.supplyAmount : (o.supplierShare || 0)),
       0
     );
 
@@ -245,7 +378,7 @@ router.get('/stats', async (req, res) => {
       data: {
         todayNewCount,
         pendingCount,
-        monthActualPayTotal: +monthActualPayTotal.toFixed(2)
+        monthSupplyTotal: +monthSupplyTotal.toFixed(2)
       }
     });
   } catch (err) {
@@ -323,8 +456,8 @@ router.patch('/settings', saveSettingsHandler);
 
 // ============ GET /api/supplier/split 我的分账 ============
 // 加价分销（云分账）：供应商得「供货价」，平台得「差价」。返点体系已停用。
-// 金额口径：splitAmount（顾客实付）/ supplierShare（我实得）/ platformShare（平台服务费）/
-//          compensateAmount（过秤补差，正=补收，负=退款）；按确认收货时间归属月份。
+// 供应商仅可见自身应收口径：supplierShare（我实得）/ compensateSupplierShare（过秤补差，正=补收，负=退款）；
+// 平台卖价、顾客实付、平台服务费等平台商业机密字段一律不下发（防止反推平台毛利）。
 // 到账本质为微信 T+1 结算：下单即发起分账指令，不代表资金实时到账。
 router.get('/split', async (req, res) => {
   try {
@@ -341,13 +474,11 @@ router.get('/split', async (req, res) => {
 
     const summary = orders.reduce((acc, o) => {
       acc.orderCount += 1;
-      acc.splitAmount += Number(o.splitAmount) || 0;
       acc.supplierShare += Number(o.supplierShare) || 0;
-      acc.platformShare += Number(o.platformShare) || 0;
-      acc.compensateAmount += Number(o.compensateAmount) || 0;
+      acc.compensateSupplierShare += Number(o.compensateSupplierShare) || 0;
       return acc;
-    }, { orderCount: 0, splitAmount: 0, supplierShare: 0, platformShare: 0, compensateAmount: 0 });
-    ['splitAmount', 'supplierShare', 'platformShare', 'compensateAmount'].forEach(k => {
+    }, { orderCount: 0, supplierShare: 0, compensateSupplierShare: 0 });
+    ['supplierShare', 'compensateSupplierShare'].forEach(k => {
       summary[k] = +summary[k].toFixed(2);
     });
 
@@ -360,10 +491,8 @@ router.get('/split', async (req, res) => {
           _id: o._id,
           orderNo: o.orderNo,
           shopName: o.shopName || '',
-          splitAmount: Number(o.splitAmount) || 0,
           supplierShare: Number(o.supplierShare) || 0,
-          platformShare: Number(o.platformShare) || 0,
-          compensateAmount: Number(o.compensateAmount) || 0,
+          compensateSupplierShare: Number(o.compensateSupplierShare) || 0,
           splitStatus: o.splitStatus || '待分账',
           splitNo: o.splitNo || '',
           receiveAt: o.receiveAt

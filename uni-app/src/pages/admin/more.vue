@@ -18,6 +18,19 @@
       </view>
     </view>
 
+    <!-- 商家认证入口（上线加固第一批：从更多页可手动进入认证页） -->
+    <view class="card" v-if="certHint">
+      <view class="card-title">商家认证</view>
+      <view class="nav" @tap="goCert">
+        <view class="nav-ico"><text>🛡️</text></view>
+        <view class="nav-txt">
+          <text class="nav-label">店铺认证</text>
+          <text class="nav-desc">{{ certHint }}</text>
+        </view>
+        <text class="nav-arrow">›</text>
+      </view>
+    </view>
+
     <!-- 店铺设置（原首页内容，迁移至此） -->
     <view class="card">
       <view class="card-title">基础信息</view>
@@ -87,6 +100,22 @@ const form = ref({
   notifyPhone: ''
 });
 
+const certHint = ref('');
+async function loadCertStatus() {
+  try {
+    const s = await get('/admin/certification/status', {}, { showError: false });
+    if (!s) { certHint.value = ''; return; }
+    if (s.certified) {
+      certHint.value = '已认证 · 可不限额下单';
+    } else {
+      const blocking = (s.missingBlocking || []).length;
+      const skippable = (s.missingSkippable || []).length;
+      certHint.value = `未认证 · 履约 ${blocking} 项 / 合规 ${skippable} 项待补齐`;
+    }
+  } catch (e) { certHint.value = ''; }
+}
+function goCert() { uni.navigateTo({ url: '/pages/admin/cert' }); }
+
 const toggles = [
   { key: 'enableVoice', label: '语音播报', desc: '新订单后厨自动语音播报' },
   { key: 'enableBigscreen', label: '大屏弹窗', desc: '新订单大屏弹窗提示' },
@@ -129,6 +158,7 @@ onLoad(() => {
     return;
   }
   loadSettings();
+  loadCertStatus();
 });
 </script>
 

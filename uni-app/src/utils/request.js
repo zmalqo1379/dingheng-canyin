@@ -15,7 +15,7 @@
  *  3) 后端响应统一格式为 { success: true/false, data/message }。
  */
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+export const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
 export function getToken() {
   return uni.getStorageSync('token') || '';
@@ -81,7 +81,11 @@ export function request(options) {
         // 其它非 2xx
         const msg = (res.data && res.data.message) || '请求失败(' + res.statusCode + ')';
         if (showError) uni.showToast({ title: msg, icon: 'none' });
-        reject(new Error(msg));
+        // 保留原始响应体（如 CERT_REQUIRED / STOCKPILE_WARNING 的 code 与 data 供调用方分支处理）
+        const err = new Error(msg);
+        err.statusCode = res.statusCode;
+        err.body = res.data;
+        reject(err);
       },
       fail: (err) => {
         // 网络层失败（断网 / 超时 / 域名不通）
