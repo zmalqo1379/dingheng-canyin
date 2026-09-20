@@ -1,0 +1,2 @@
+# 保证 shell 脚本在 Linux 服务器上以 LF 换行检出（CRLF 会导致 bash 报 bad interpreter）
+*.sh text eol=lf
