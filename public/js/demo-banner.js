@@ -19,17 +19,23 @@
       'left:0',
       'right:0',
       'z-index:99999',
-      'background:#f59e0b',
-      'color:#fff',
+      /* 深藏青玻璃底 + 淡金字：演示提示要「看得到」而不是「晃眼睛」。
+         亮橙 + 白字大面积压顶最刺眼，深底浅字才是润眼的做法（科技风也靠这个） */
+      'background:linear-gradient(90deg, rgba(11,32,26,.97), rgba(23,59,47,.97))',
+      'color:#F5DFA8',
+      'border-bottom:1px solid rgba(212,162,76,.35)',
       'text-align:center',
-      'font-size:14px',
-      'font-weight:600',
+      'font-size:13px',
+      'font-weight:500',
       'line-height:1.5',
       'padding:8px 12px',
-      'box-shadow:0 2px 10px rgba(0,0,0,.25)',
+      'box-shadow:0 1px 6px rgba(0,0,0,.18)',
       'letter-spacing:.5px'
     ].join(';');
     document.body.appendChild(banner);
+    // 打标记：横幅是 fixed + z-index 99999，光靠 body 垫片管不到 position:fixed 的
+    // 侧栏 / 顶栏 / 悬浮按钮，需要 CSS 按 [data-demo-banner] 统一让它们避让。
+    document.documentElement.setAttribute('data-demo-banner', '1');
     // 给页面顶部留出空间，避免横幅遮挡原有头部内容（只在页面没有自行适配时加垫片）
     if (!document.getElementById('dh-demo-pad')) {
       var pad = document.createElement('div');

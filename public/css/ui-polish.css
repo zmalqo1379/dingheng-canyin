@@ -1,0 +1,190 @@
+/* ============================================================
+   通用打磨（三端共用，必须在 theme.css 之后加载）
+   1) 数字排版  2) 空状态 / 加载态  3) 顶栏毛玻璃  4) 三套主题微调
+   安全约定：classic 经典版一个像素都不改 —— 所有规则都带 :not([data-theme="classic"])。
+   ============================================================ */
+
+/* ---------- 1) 数字排版：等宽数字不抖动 + 字重层次拉开 ----------
+   生意人最盯数字。同一列数字宽度一致（tabular-nums），刷新跳数时不左右晃；
+   数字 800 字重、字距收紧，标签 500 字重、字距放开 —— 主次一眼分清。 */
+[data-theme]:not([data-theme="classic"]) .home-stat b,
+[data-theme]:not([data-theme="classic"]) .stat-card .value,
+[data-theme]:not([data-theme="classic"]) .hp-kpi-num,
+[data-theme]:not([data-theme="classic"]) .pv-kpi-num,
+[data-theme]:not([data-theme="classic"]) .pb-stat b,
+[data-theme]:not([data-theme="classic"]) .ps-stat b,
+[data-theme]:not([data-theme="classic"]) .ep-stat b,
+[data-theme]:not([data-theme="classic"]) .rp-stat b,
+[data-theme]:not([data-theme="classic"]) .st-sub b,
+[data-theme]:not([data-theme="classic"]) .lb-stat b,
+[data-theme]:not([data-theme="classic"]) .basic-card b,
+[data-theme]:not([data-theme="classic"]) .stat strong,
+[data-theme]:not([data-theme="classic"]) .kv strong,
+[data-theme]:not([data-theme="classic"]) .dtable td.strong,
+[data-theme]:not([data-theme="classic"]) .dh-metric strong,
+[data-theme]:not([data-theme="classic"]) .pt-overdue-days,
+[data-theme]:not([data-theme="classic"]) .pt-summary-entry strong {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  font-weight: 800;
+  letter-spacing: -.02em;
+}
+
+[data-theme]:not([data-theme="classic"]) .home-stat > span,
+[data-theme]:not([data-theme="classic"]) .stat-card .label {
+  font-weight: 500;
+  letter-spacing: .4px;
+}
+
+/* ---------- 2) 空状态 / 加载态：跟主题走，别再一堆灰扑扑的裸字 ---------- */
+.dh-empty-text {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 30px 14px !important;
+  color: var(--text-sub);
+  font-size: 13.5px;
+  letter-spacing: .4px;
+  text-align: center;
+}
+.dh-empty-text::before {
+  content: '';
+  display: block;
+  width: 46px; height: 46px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--row-line);
+}
+.dh-loading-text::before { animation: dh-pulse 1.25s ease-in-out infinite; }
+@keyframes dh-pulse { 0%, 100% { opacity: .4; } 50% { opacity: .9; } }
+
+/* 骨架屏：内容没来之前先占好位置，避免整页跳动 */
+.dh-skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 0%, var(--surface-3) 50%, var(--surface-2) 100%);
+  background-size: 200% 100%;
+  animation: dh-sweep 1.3s linear infinite;
+  border-radius: var(--radius-sm, 12px);
+}
+.dh-skeleton.line { height: 14px; margin: 8px 0; }
+.dh-skeleton.line.short { width: 45%; }
+.dh-skeleton.block { height: 84px; }
+@keyframes dh-sweep { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* ---------- 3) 顶栏毛玻璃：内容从顶栏下滑过时有通透感 ---------- */
+[data-theme="fresh"][data-theme] .topbar,
+[data-theme="warm"][data-theme] .topbar,
+[data-theme="dark"][data-theme] .topbar {
+  -webkit-backdrop-filter: saturate(160%) blur(12px);
+  backdrop-filter: saturate(160%) blur(12px);
+}
+[data-theme="fresh"][data-theme] .topbar { background: rgba(255, 255, 255, .82); }
+[data-theme="warm"][data-theme] .topbar { background: rgba(255, 255, 255, .84); }
+[data-theme="dark"][data-theme] .topbar { background: rgba(21, 30, 43, .82); }
+
+/* ---------- 4) 三套主题各差的「一口气」 ---------- */
+/* 暖橙：页面底换成米白暖纸色，白卡片浮在上面 —— 像好餐厅那张菜单纸 */
+/* 润眼：页面底不用纯白、也不压死 —— 一道极淡渐变做出「空气感」，大面积高亮才不刺眼 */
+[data-theme="warm"][data-theme] body {
+  background: linear-gradient(180deg, #FAF8F4 0%, #F5F0E7 100%);
+  background-attachment: fixed;
+}
+[data-theme="fresh"][data-theme] body {
+  background: linear-gradient(180deg, #F8FCFA 0%, #F0F8F5 100%);
+  background-attachment: fixed;
+}
+[data-theme="dark"][data-theme] body {
+  background: linear-gradient(180deg, #121C29 0%, #0B131C 100%);
+  background-attachment: fixed;
+}
+
+/* 深色：卡片顶沿加一丝内高光 —— 暗里也能看出层次，是深色模式显贵的关键细节 */
+[data-theme="dark"][data-theme] .home-stat,
+[data-theme="dark"][data-theme] .card,
+[data-theme="dark"][data-theme] .table-wrap,
+[data-theme="dark"][data-theme] .info-item,
+[data-theme="dark"][data-theme] .detail-stat,
+[data-theme="dark"][data-theme] .stat-card {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 2px 10px rgba(0, 0, 0, .22);
+}
+
+/* 青绿：选中胶囊加一点投影，卡片悬停轻上浮 + 淡青光晕 */
+[data-theme="fresh"][data-theme] .sidebar .nav-item.active,
+[data-theme="fresh"][data-theme] .admin .nav-item.active {
+  box-shadow: 0 2px 8px rgba(0, 160, 120, .28);
+}
+[data-theme="fresh"][data-theme] .home-stat,
+[data-theme="fresh"][data-theme] .card,
+[data-theme="fresh"][data-theme] .stat-card {
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+[data-theme="fresh"][data-theme] .home-stat:hover,
+[data-theme="fresh"][data-theme] .card:hover,
+[data-theme="fresh"][data-theme] .stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(0, 60, 55, .10);
+}
+
+/* ---------- 5) 卡片边界语言：四套主题各有各的「边缘说话方式」 ----------
+   暖橙 = 纯白无框 + 柔影浮起；深色 = 卡面色 + 顶沿内高光；青绿 = 极淡边框 + 大圆角。
+   theme.css 只给 fresh 的少数几个类接了 --card-border，这里把三端主要卡片统一接上。
+   选择器一律用双 [data-theme] 提权：否则会被各端写在后面的内联 <style> 压掉（老坑）。 */
+[data-theme][data-theme]:not([data-theme="classic"]) .card,
+[data-theme][data-theme]:not([data-theme="classic"]) .home-stat,
+[data-theme][data-theme]:not([data-theme="classic"]) .table-wrap,
+[data-theme][data-theme]:not([data-theme="classic"]) .stat-card,
+[data-theme][data-theme]:not([data-theme="classic"]) .todo-card,
+[data-theme][data-theme]:not([data-theme="classic"]) .info-item,
+[data-theme][data-theme]:not([data-theme="classic"]) .detail-stat,
+[data-theme][data-theme]:not([data-theme="classic"]) .dtable-wrap {
+  border: var(--card-border);
+}
+
+/* ---------- 6) 按钮手感：圆角统一交给主题令牌（暖橙 / 青绿 胶囊 999px，深色 6px） ---------- */
+[data-theme][data-theme]:not([data-theme="classic"]) .btn,
+[data-theme][data-theme]:not([data-theme="classic"]) .btn-primary,
+[data-theme][data-theme]:not([data-theme="classic"]) .btn-add,
+[data-theme][data-theme]:not([data-theme="classic"]) .btn-save,
+[data-theme][data-theme]:not([data-theme="classic"]) .btn-refresh,
+[data-theme][data-theme]:not([data-theme="classic"]) .btn-cart,
+[data-theme][data-theme]:not([data-theme="classic"]) .btn-ghost,
+[data-theme][data-theme]:not([data-theme="classic"]) .btn-blue,
+[data-theme][data-theme]:not([data-theme="classic"]) .btn-red,
+[data-theme][data-theme]:not([data-theme="classic"]) .btn-orange,
+[data-theme][data-theme]:not([data-theme="classic"]) .btn-gray,
+[data-theme][data-theme]:not([data-theme="classic"]) .btn-green {
+  border-radius: var(--btn-radius);
+}
+
+/* ---------- 7) 今日待办 / 快捷入口：两张卡齐平，待办多了在卡里滚 ----------
+   供应商端 .home-cols 原先写了 align-items: start（两卡一高一矮），已在原文件去掉；
+   这里三端统一兜底：栅格拉平 + 待办列 flex 撑满 —— 待办再多也不把整页撑长，
+   滚动只在待办卡里面发生，不会带着整页一起往上跑。 */
+[data-theme][data-theme]:not([data-theme="classic"]) .home-cols { align-items: stretch; }
+[data-theme][data-theme]:not([data-theme="classic"]) .home-cols > .card {
+  display: flex;
+  flex-direction: column;
+}
+#homeTodoList, #supHomeTodoList {
+  flex: 1 1 auto;
+  min-height: 0;          /* flex 子项不加这条，overflow 滚动会失效 */
+  max-height: 340px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+}
+/* 细滚动条：默认若隐若现，鼠标划过才明显 —— 不抢待办内容的注意力 */
+#homeTodoList::-webkit-scrollbar, #supHomeTodoList::-webkit-scrollbar { width: 6px; }
+#homeTodoList::-webkit-scrollbar-track, #supHomeTodoList::-webkit-scrollbar-track { background: transparent; }
+#homeTodoList::-webkit-scrollbar-thumb, #supHomeTodoList::-webkit-scrollbar-thumb {
+  background: var(--line, rgba(0, 0, 0, .14));
+  border-radius: 999px;
+}
+#homeTodoList:hover::-webkit-scrollbar-thumb, #supHomeTodoList:hover::-webkit-scrollbar-thumb {
+  background: var(--text-muted, rgba(0, 0, 0, .32));
+}
+@media (max-width: 900px) {
+  /* 手机上两张卡上下堆叠，不必再拉平；限高仍然保留，免得待办刷屏 */
+  #homeTodoList, #supHomeTodoList { max-height: 300px; }
+}

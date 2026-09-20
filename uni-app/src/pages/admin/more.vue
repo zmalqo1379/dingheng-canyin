@@ -1,5 +1,5 @@
 <template>
-  <view class="page">
+  <view class="page" :class="themeClass">
     <view class="hero">
       <view class="hero-name">{{ form.shopName || '鼎恒餐饮' }}</view>
       <view class="hero-sub">门店经营 · 菜单 / 订单 / 统计 / 店铺设置</view>
@@ -71,6 +71,22 @@
       </view>
     </view>
 
+    <!-- 界面主题：只改本机外观，不动任何业务数据（2026-09-19 新增）。
+         位置压在所有店铺设置之后、保存按钮之前 —— 第一屏是做生意的地方，
+         外观设置沉到最后，这条规矩跟网页端三端保持一致。 -->
+    <view class="card">
+      <view class="card-title">界面主题</view>
+      <view class="theme-row" v-for="t in themes" :key="t.key" @tap="pickTheme(t.key)">
+        <view class="theme-dot" :style="{ background: t.dot }"></view>
+        <view class="theme-info">
+          <text class="theme-name">{{ t.name }}</text>
+          <text class="theme-slogan">{{ t.slogan }}</text>
+        </view>
+        <text class="theme-check" v-if="t.key === curTheme">✓</text>
+      </view>
+      <view class="theme-tip">只保存在本机，不上传服务器，也不影响别人的手机</view>
+    </view>
+
     <view class="footer">
       <button class="save" :loading="saving" @tap="save">保存设置</button>
     </view>
@@ -81,6 +97,16 @@
 import { ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { get, put, getToken } from '@/utils/request.js';
+import { THEMES, setTheme, currentKey, useThemeClass } from '@/utils/theme.js';
+
+// 界面主题（本机外观设置）
+const themeClass = useThemeClass();
+const themes = THEMES;
+const curTheme = ref(currentKey());
+function pickTheme(key) {
+  setTheme(key);            // 存本机 + 同步导航栏/tabBar
+  curTheme.value = key;     // 打勾跟着走
+}
 
 const navs = [
   { ico: '📋', label: '菜单管理', desc: '分类 / 菜品 / 上下架', url: '/pages/admin/menu' },
@@ -227,15 +253,16 @@ onLoad(() => {
 }
 button::after { border: none; }
 
-/* 深色模式适配 */
-@media (prefers-color-scheme: dark) {
-  .page { background: #121212; }
-  .card { background: #1e1e1e; box-shadow: none; }
-  .row, .nav { border-color: #2a2a2a; }
-  .card-title { border-color: #2a2a2a; }
-  .nav-ico { background: #2a2a2a; }
-  .label, .nav-label { color: #e6e6e6; }
-  .input { color: #e6e6e6; }
-  .footer { background: #1e1e1e; }
+/* ===== 界面主题四选一 ===== */
+.theme-row {
+  display: flex; align-items: center; gap: 20rpx;
+  padding: 20rpx 4rpx; border-bottom: 1rpx solid $ink-100;
 }
+.theme-row:last-of-type { border-bottom: none; }
+.theme-dot { width: 36rpx; height: 36rpx; border-radius: 50%; flex-shrink: 0; }
+.theme-info { flex: 1; display: flex; flex-direction: column; gap: 4rpx; min-width: 0; }
+.theme-name { font-size: $fs-base; font-weight: $fw-semibold; color: $ink-900; }
+.theme-slogan { font-size: $fs-xs; color: $ink-500; }
+.theme-check { font-size: $fs-lg; color: $brand; font-weight: $fw-bold; }
+.theme-tip { margin-top: 16rpx; font-size: $fs-xs; color: $ink-400; line-height: 1.6; }
 </style>

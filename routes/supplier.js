@@ -3,6 +3,7 @@ const router = express.Router();
 
 const Supplier = require('../models/Supplier');
 const PurchaseOrder = require('../models/PurchaseOrder');
+const SubsidySettlement = require('../models/SubsidySettlement');
 const SupplyProduct = require('../models/SupplyProduct');
 const PlatformConfig = require('../models/PlatformConfig');
 const split = require('../utils/split');
@@ -476,9 +477,13 @@ router.get('/split', async (req, res) => {
       acc.orderCount += 1;
       acc.supplierShare += Number(o.supplierShare) || 0;
       acc.compensateSupplierShare += Number(o.compensateSupplierShare) || 0;
+      // 平台倒贴：顾客用券把加价吃光后供应商少收的部分（平台欠供应商，后续补）
+      acc.subsidyAmount += Number(o.subsidyAmount) || 0;
+      acc.subsidyPending += (o.subsidyStatus === '待补') ? (Number(o.subsidyAmount) || 0) : 0;
+      if (Number(o.subsidyAmount) > 0.005) acc.subsidyOrderCount += 1;
       return acc;
-    }, { orderCount: 0, supplierShare: 0, compensateSupplierShare: 0 });
-    ['supplierShare', 'compensateSupplierShare'].forEach(k => {
+    }, { orderCount: 0, supplierShare: 0, compensateSupplierShare: 0, subsidyAmount: 0, subsidyPending: 0, subsidyOrderCount: 0 });
+    ['supplierShare', 'compensateSupplierShare', 'subsidyAmount', 'subsidyPending'].forEach(k => {
       summary[k] = +summary[k].toFixed(2);
     });
 
@@ -493,6 +498,9 @@ router.get('/split', async (req, res) => {
           shopName: o.shopName || '',
           supplierShare: Number(o.supplierShare) || 0,
           compensateSupplierShare: Number(o.compensateSupplierShare) || 0,
+          // 倒贴明细：少收金额 + 补差状态（供应商只看得到自己少收多少，看不到顾客实付与券信息）
+          subsidyAmount: Number(o.subsidyAmount) || 0,
+          subsidyStatus: o.subsidyStatus || '无',
           splitStatus: o.splitStatus || '待分账',
           splitNo: o.splitNo || '',
           receiveAt: o.receiveAt
@@ -543,6 +551,76 @@ router.post('/onboarding/step', async (req, res) => {
       { $set: { onboardSettleSeen: true } }
     );
     res.json({ success: true, data: { step, done: true } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ GET /api/supplier/subsidy-settlements 我的平台补差结算 ============
+// 供应商视角只给两件事：
+//   1) 待收：平台当前欠我多少（哪几单少收了、合计多少）—— 明细列出，账摆明白
+//   2) 已收：历史结算单（结算单号 / 周期 / 金额 / 到账时间）—— 相当于收款凭证
+// 不给顾客实付、券面额等跟供应商无关的信息。
+router.get('/subsidy-settlements', async (req, res) => {
+  try {
+    const supplierId = req.user.supplierId;
+    const [pendingOrders, settlements] = await Promise.all([
+      PurchaseOrder.find({ supplierId, subsidyStatus: '待补', subsidyAmount: { $gt: 0.005 } })
+        .select('orderNo shopName supplyAmount supplierShare subsidyAmount receiveAt createdAt')
+        .sort({ receiveAt: 1 }).limit(200).lean(),
+      SubsidySettlement.find({ supplierId, status: '已结算' })
+        .sort({ settledAt: -1 }).limit(100).lean()
+    ]);
+
+    const supplier = await Supplier.findById(supplierId)
+      .select('name wechatOnboarding').lean();
+
+    // 收款户（结算户）：告诉供应商「平台把钱打到你哪个账户」，缺资料就提醒他去进件中心补齐
+    const cryptoBox = require('../utils/cryptoBox');
+    const ob = (supplier && supplier.wechatOnboarding) || {};
+    let accountTail = '';
+    if (ob.bankAccountNoEnc) {
+      try { accountTail = cryptoBox.maskBankAccount(cryptoBox.decrypt(ob.bankAccountNoEnc)); } catch (e) { accountTail = ''; }
+    }
+    const payee = {
+      bankName: ob.bankName || '',
+      bankAccountName: ob.bankAccountName || '',
+      bankAccountNoTail: accountTail
+    };
+    const pendingAmount = +pendingOrders.reduce((a, o) => a + (Number(o.subsidyAmount) || 0), 0).toFixed(2);
+
+    res.json({
+      success: true,
+      data: {
+        payee,
+        pending: {
+          orderCount: pendingOrders.length,
+          amount: pendingAmount,
+          orders: pendingOrders.map(o => ({
+            orderNo: o.orderNo || '',
+            shopName: o.shopName || '',
+            // 应收供货价 / 实收 / 少收（平台补）：供应商只关心这三个数
+            supplyAmount: Number(o.supplyAmount) || 0,
+            supplierShare: Number(o.supplierShare) || 0,
+            subsidyAmount: Number(o.subsidyAmount) || 0,
+            at: o.receiveAt || o.createdAt
+          }))
+        },
+        settled: {
+          totalAmount: +settlements.reduce((a, s) => a + (Number(s.amount) || 0), 0).toFixed(2),
+          list: settlements.map(s => ({
+            settleNo: s.settleNo,
+            periodType: s.periodType,
+            periodStart: s.periodStart,
+            periodEnd: s.periodEnd,
+            orderCount: s.orderCount,
+            amount: Number(s.amount) || 0,
+            settledAt: s.settledAt || s.createdAt,
+            note: s.note || ''
+          }))
+        }
+      }
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

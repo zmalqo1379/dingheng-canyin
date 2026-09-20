@@ -227,6 +227,73 @@ router.post('/', requireSupplier, async (req, res) => {
   }
 });
 
+// ============ POST /api/supply-products/batch（拍照上传商品 / 粘贴文字后一键新增）============
+// 一单一单手打太慢：识别出来的清单在这里一次性落库。
+// 规矩跟单个新增完全一样（同一道治理闸门、supplierId 只认 JWT），只是批量化。
+// 同名商品自动跳过而不是报错 —— 识别难免有重复，别为一条重复把整批拦下来。
+router.post('/batch', requireSupplier, async (req, res) => {
+  try {
+    const { items } = req.body || {};
+    if (!Array.isArray(items) || !items.length) {
+      return res.status(400).json({ success: false, message: '没有要新增的商品' });
+    }
+    if (items.length > 200) {
+      return res.status(400).json({ success: false, message: '一次最多新增 200 个商品，请分批来' });
+    }
+
+    const supplierId = req.user.supplierId;
+    const supplier = await Supplier.findById(supplierId);
+    if (!supplier) return res.status(404).json({ success: false, message: '供应商不存在' });
+    if (supplier.status !== 'active') {
+      return res.status(403).json({ success: false, message: '账号未通过审核，暂不可上架商品' });
+    }
+    if (!supplier.agreementSigned) {
+      return res.status(403).json({ success: false, message: '请先签署合作协议后再上架商品' });
+    }
+
+    // 查重底表：库里已有的名字（去空格、忽略大小写）
+    const exist = await SupplyProduct.find({ supplierId }).select('name');
+    const seen = new Set(exist.map(p => String(p.name || '').replace(/\s/g, '').toLowerCase()));
+
+    const created = [], skipped = [], failed = [];
+    for (const raw of items) {
+      const name = String((raw && raw.name) || '').trim();
+      if (!name) { failed.push({ name: '（空行）', reason: '商品名为空' }); continue; }
+      const key = name.replace(/\s/g, '').toLowerCase();
+      if (seen.has(key)) { skipped.push({ name, reason: '已经有同名商品了' }); continue; }
+      const costPrice = Number(raw && raw.costPrice);
+      if (!isFinite(costPrice) || costPrice <= 0) { failed.push({ name, reason: '还没填供货价' }); continue; }
+
+      const product = await SupplyProduct.create({
+        name,
+        category: (raw && raw.category) || '未分类',
+        unit: (raw && raw.unit) || '个',
+        costPrice: Number(costPrice),
+        marketPrice: Number(costPrice), // 已废弃字段，仅为满足历史 required
+        supplierId,
+        supplierName: supplier.name,
+        stock: (raw && raw.stock != null && isFinite(Number(raw.stock))) ? Math.max(0, Number(raw.stock)) : 0,
+        status: '上架',
+        image: (raw && raw.image) || '',
+        description: (raw && raw.description) || '',
+        grade: ['standard', 'premium'].includes(raw && raw.grade) ? raw.grade : null,
+        parentProductId: null,
+        priceUpdatedAt: new Date()
+      });
+      seen.add(key);   // 本批里再出现同名也跳过
+      created.push(toSupplierProductView(product));
+    }
+
+    res.status(201).json({
+      success: true,
+      data: { created, skipped, failed, count: created.length },
+      message: `已新增 ${created.length} 个` + (skipped.length ? `，跳过 ${skipped.length} 个同名` : '') + (failed.length ? `，${failed.length} 个缺供货价` : '')
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // ============ PUT /api/supply-products/:id ============
 // 供应商修改商品：只能改自己的商品
 router.put('/:id', requireSupplier, async (req, res) => {

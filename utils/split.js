@@ -99,12 +99,17 @@ function calcSplitFen(items, opts = {}) {
   // 供应商实得不超过顾客实付（极端券场景下保障恒等式与不为负）
   const supplierShareFen = Math.min(supplyFen, customerPayFen);
   const platformShareFen = customerPayFen - supplierShareFen;
+  // 平台倒贴额：券抵扣吃掉全部加价还不够时，供应商少收的部分。
+  // 微信分账最多只能分「顾客实付」那么多，这笔钱进不了分账指令，
+  // 只能由平台在支付链路之外补给供应商 —— 记账必须留痕，不能凭空消失。
+  const subsidyFen = Math.max(0, supplyFen - supplierShareFen);
   return {
     saleFen,
     supplyFen,
     supplierShareFen,
     platformShareFen,
     customerPayFen,
+    subsidyFen,
     diffFen: saleFen - supplyFen
   };
 }
@@ -117,7 +122,8 @@ function fenResultToYuan(r) {
     supplierShare: money.toYuan(r.supplierShareFen),
     platformShare: money.toYuan(r.platformShareFen),
     splitAmount: money.toYuan(r.customerPayFen),
-    platformAmount: money.toYuan(r.saleFen - r.supplyFen)
+    platformAmount: money.toYuan(r.saleFen - r.supplyFen),
+    subsidyAmount: money.toYuan(r.subsidyFen || 0)
   };
 }
 

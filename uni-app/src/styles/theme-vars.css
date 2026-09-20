@@ -1,0 +1,253 @@
+/* ============================================================================
+   小程序端界面主题变量层（uni-app/src/styles/theme-vars.css）
+   ----------------------------------------------------------------------------
+   为什么要单独这一层：
+   uni.scss 里的 $brand 是【编译期】SCSS 变量，编译完就是死的字面色值，运行时改不了。
+   微信小程序既不能改 document（没法像 H5 端那样 <html data-theme="xxx">），
+   也不能动态插 <style> 标签 —— 唯一可行的运行时换肤是：
+       CSS 自定义属性 var()  +  给【页面根 view】挂一个主题 class。
+
+   怎么作用到现有页面（关键技巧）：
+   uni.scss 里把颜色令牌改写成 var(--dh-xxx, 回退值)，回退值取改造前的字面色值。
+   页面里任何一行都不用改 —— 因为本项目所有 .vue 页面对色值零处做 SCSS 运算
+   （lighten / rgba($x, .5) 一条都没有，已核对），所以换成 var() 不会编译报错。
+   没挂主题 class 的页面，走的就是回退值，外观与今天完全一致。
+
+   取值来源：逐项对齐 public/theme.css 的四套令牌
+   （classic 23-177 行 / warm 179-279 / dark 282-404 / fresh 406-509），
+   避免同一个牌子在网页端和小程序端看起来像两家公司的东西。
+   圆角按小程序的尺度等比缩放（H5 的 10px ≈ 小程序 20rpx 那套换算不适用，
+   这里是按照「classic 基线 → warm 略圆 → dark 偏方 → fresh 最圆」的相对关系重排）。
+
+   挂载：<view class="page" :class="themeClass">，themeClass 由 utils/theme.js 提供。
+   用户没手动选过主题 → themeClass 为空 → 继续跟随微信官方深浅色（App.vue 媒体查询）。
+   ============================================================================ */
+
+/* ---- classic 经典版（基线：取值与小程序改造前逐项一致，选它 = 零变化）---- */
+page {
+  /* 品牌色梯度 */
+  --dh-primary: #FF6B35;        /* 主色 */
+  --dh-primary-600: #F2541E;    /* 主色-深（按压） */
+  --dh-primary-500: #FF7A4D;    /* 主色-浅（过渡） */
+  --dh-primary-400: #FF9A73;    /* 主色-更浅 */
+  --dh-primary-100: #FFF1EA;    /* 主色浅底（标签/选中） */
+  --dh-primary-50: #FFF8F4;     /* 主色超浅底 */
+
+  /* 文字层级 */
+  --dh-text: #1A1A1A;           /* 一级 */
+  --dh-text-2: #3D3D3D;         /* 二级 */
+  --dh-text-3: #7A7A7A;         /* 辅助 */
+  --dh-text-4: #9B9B9B;         /* 占位/弱提示 */
+  --dh-text-disabled: #B5B5B5;  /* 禁用 */
+
+  /* 面 / 边界 */
+  --dh-border: #E5E5E5;
+  --dh-divider: #F0F0F0;
+  --dh-bg: #F5F5F5;             /* 页面背景：取改造前 App.vue 写死的 #f5f5f5，经典版零变化 */
+  --dh-card: #FFFFFF;           /* 卡片/浮层 */
+  --dh-card-2: #F7F7F8;         /* 卡片内浅底 */
+
+  /* 圆角 / 阴影 */
+  --dh-radius-sm: 8rpx;
+  --dh-radius-md: 12rpx;
+  --dh-radius: 16rpx;
+  --dh-radius-lg: 24rpx;
+  --dh-radius-xl: 32rpx;
+  --dh-radius-full: 999rpx;
+  --dh-btn-radius: 12rpx;       /* 按钮圆角：人格的差异主要体现在这里 */
+  --dh-shadow-sm: 0 2rpx 8rpx rgba(0, 0, 0, .04);
+  --dh-shadow: 0 6rpx 20rpx rgba(0, 0, 0, .06);
+  --dh-shadow-lg: 0 12rpx 32rpx rgba(0, 0, 0, .08);
+  --dh-shadow-brand: 0 8rpx 24rpx rgba(255, 107, 53, .32);
+
+  /* 语义色：四套主题下红黄绿都必须一眼分清（硬约束），只调明暗不调色相 */
+  --dh-success: #16A34A;  --dh-success-bg: #EAF7EF;
+  --dh-warning: #F59E0B;  --dh-warning-bg: #FEF6E7;
+  --dh-danger: #EF4444;   --dh-danger-bg: #FDEEEE;
+  --dh-info: #3B82F6;
+
+  /* 后厨 KDS 专用深底令牌（pages/admin/order.vue）
+     为什么单独一套：后厨是强光 + 油烟 + 长时间盯屏的环境，深底是功能需要
+     （防眩光、省眼），不能跟其它页面一起变浅 —— 否则出餐位看不清。
+     所以四套主题下 KDS 一律深底，变的是【色相】：中性黑 / 墨绿 / 蓝黑 / 青黑，
+     连强调色都各给一个「深底上够亮」的值（accent = 主色提亮版）。
+     取值 = 改造前 order.vue 写死的字面色，选经典版 = 零变化。 */
+  --dh-kds-bg: #121212;        /* 页面底 */
+  --dh-kds-bar: #1f1f1f;       /* 顶部状态切换条 */
+  --dh-kds-card: #1e1e1e;      /* 订单卡 */
+  --dh-kds-chip: #2a2a2a;      /* 未选中的标签 / 卡片左侧条 */
+  --dh-kds-line: #2a2a2a;      /* 分隔线 */
+  --dh-kds-text: #e6e6e6;      /* 正文 */
+  --dh-kds-title: #ffffff;     /* 桌号（最醒目） */
+  --dh-kds-sub: #888888;       /* 时间 / 单价等次要信息 */
+  --dh-kds-done-bg: #3a3a3a;   /* 「已完成」按钮底 */
+  --dh-kds-done-text: #888888;
+  --dh-kds-accent: #FF9A73;    /* 深底强调色（数量 / 合计 / 新单左边条） */
+  --dh-kds-glow: rgba(255, 107, 53, .5);  /* 新单闪烁光 */
+}
+
+/* ---- warm 松墨绿：白卡浮起、柔和阴影、实心按钮；白天档口长时间盯屏 ----
+   护眼优先：绿波段（555nm 附近）是人眼最放松的区间，久看不刺眼、不眩光 */
+.theme-warm {
+  --dh-primary: #177A56;
+  --dh-primary-600: #0F5E45;
+  --dh-primary-500: #2E9E77;
+  --dh-primary-400: #A8D9C4;
+  --dh-primary-100: #DCF0E7;
+  --dh-primary-50: #EFF7F2;
+  /* 香槟金：仅点缀（会员卡高光 / 选中态），不铺面 */
+  --dh-gold: #D4A24C;
+
+  --dh-text: #26312C;
+  --dh-text-2: #333F38;
+  --dh-text-3: #4C5A52;
+  --dh-text-4: #7A877F;
+  --dh-text-disabled: #B7C0B9;
+
+  --dh-border: #E4EBE5;
+  --dh-divider: #EDF3EF;
+  --dh-bg: #F4F8F5;
+  --dh-card: #FFFFFF;
+  --dh-card-2: #FAFCFA;
+
+  --dh-radius-sm: 10rpx;
+  --dh-radius-md: 16rpx;
+  --dh-radius: 20rpx;
+  --dh-radius-lg: 28rpx;
+  --dh-radius-xl: 36rpx;
+  --dh-radius-full: 999rpx;
+  --dh-btn-radius: 20rpx;
+  --dh-shadow-sm: 0 2rpx 6rpx rgba(31, 35, 41, .05);
+  --dh-shadow: 0 8rpx 32rpx rgba(31, 35, 41, .07);
+  --dh-shadow-lg: 0 28rpx 72rpx rgba(31, 35, 41, .12);
+  --dh-shadow-brand: 0 8rpx 24rpx rgba(23, 122, 86, .30);
+
+  --dh-success: #16A34A;  --dh-success-bg: #F1FAF3;
+  --dh-warning: #F59E0B;  --dh-warning-bg: #FEF8E9;
+  --dh-danger: #EF4444;   --dh-danger-bg: #FDF1EE;
+  --dh-info: #177A56;
+
+  /* KDS 深底：墨绿调（与主色同色相，久看不刺眼） */
+  --dh-kds-bg: #0F1A15;
+  --dh-kds-bar: #16241D;
+  --dh-kds-card: #17261F;
+  --dh-kds-chip: #22332A;
+  --dh-kds-line: #26362D;
+  --dh-kds-text: #DCE6DF;
+  --dh-kds-title: #F3F8F4;
+  --dh-kds-sub: #8FA396;
+  --dh-kds-done-bg: #2A3A32;
+  --dh-kds-done-text: #8FA396;
+  /* 深底上不能用主色 #177A56（太暗看不清），用提亮版 */
+  --dh-kds-accent: #A8D9C4;
+  --dh-kds-glow: rgba(168, 217, 196, .45);
+}
+
+/* ---- dark 深色：凌晨备货 / 夜间分拣，暗光下护眼；靠色阶分层而不是阴影 ---- */
+.theme-dark {
+  --dh-primary: #FFA873;
+  --dh-primary-600: #E8804A;
+  --dh-primary-500: #FFC294;
+  --dh-primary-400: #FFD8B4;
+  --dh-primary-100: rgba(251, 146, 60, .18);
+  --dh-primary-50: rgba(251, 146, 60, .10);
+
+  --dh-text: #C6CDD6;
+  --dh-text-2: #BCC4CE;
+  --dh-text-3: #A7B0BD;
+  --dh-text-4: #8A94A6;
+  --dh-text-disabled: #6E7787;
+
+  --dh-border: #33465A;
+  --dh-divider: rgba(255, 255, 255, .08);
+  --dh-bg: #0E1620;
+  --dh-card: #1B2634;
+  --dh-card-2: #263648;
+
+  /* 小圆角、几乎不用阴影：终端手感 */
+  --dh-radius-sm: 6rpx;
+  --dh-radius-md: 10rpx;
+  --dh-radius: 12rpx;
+  --dh-radius-lg: 18rpx;
+  --dh-radius-xl: 22rpx;
+  --dh-radius-full: 999rpx;
+  --dh-btn-radius: 12rpx;
+  --dh-shadow-sm: 0 1rpx 3rpx rgba(0, 0, 0, .40);
+  --dh-shadow: 0 12rpx 36rpx rgba(0, 0, 0, .45);
+  --dh-shadow-lg: 0 36rpx 88rpx rgba(0, 0, 0, .55);
+  --dh-shadow-brand: 0 8rpx 24rpx rgba(255, 148, 99, .28);
+
+  /* 深底上的状态色必须提亮，否则黄绿会发灰看不清 */
+  --dh-success: #34D399;  --dh-success-bg: rgba(52, 211, 153, .10);
+  --dh-warning: #FBBF24;  --dh-warning-bg: rgba(251, 191, 36, .10);
+  --dh-danger: #F87171;   --dh-danger-bg: rgba(248, 113, 113, .10);
+  --dh-info: #60A5FA;
+
+  /* KDS 深底：与主题同一套冷蓝黑（后厨夜间档最舒服的一档） */
+  --dh-kds-bg: #0E1620;
+  --dh-kds-bar: #131C28;
+  --dh-kds-card: #1B2634;
+  --dh-kds-chip: #263648;
+  --dh-kds-line: #33465A;
+  --dh-kds-text: #C6CDD6;
+  --dh-kds-title: #FFFFFF;
+  --dh-kds-sub: #8A94A6;
+  --dh-kds-done-bg: #2A3B50;
+  --dh-kds-done-text: #8A94A6;
+  --dh-kds-accent: #FFD8B4;
+  --dh-kds-glow: rgba(255, 168, 115, .45);
+}
+
+/* ---- fresh 青绿：生鲜品控岗；通透轻快，大圆角 + 胶囊按钮 + 极淡边框 ---- */
+.theme-fresh {
+  --dh-primary: #00A078;
+  --dh-primary-600: #00795C;
+  --dh-primary-500: #00C9A7;
+  --dh-primary-400: #6FE3CB;
+  --dh-primary-100: #D2F2EA;
+  --dh-primary-50: #EDFAF6;
+
+  --dh-text: #37453F;
+  --dh-text-2: #3D4B45;
+  --dh-text-3: #5E6D66;
+  --dh-text-4: #8B9993;
+  --dh-text-disabled: #B7C2BD;
+
+  --dh-border: #E2EDE8;
+  --dh-divider: #EDF4F2;
+  --dh-bg: #F4FAF8;
+  --dh-card: #FCFEFD;
+  --dh-card-2: #F8FCFB;
+
+  --dh-radius-sm: 12rpx;
+  --dh-radius-md: 20rpx;
+  --dh-radius: 24rpx;
+  --dh-radius-lg: 32rpx;
+  --dh-radius-xl: 44rpx;
+  --dh-radius-full: 999rpx;
+  --dh-btn-radius: 999rpx;      /* 胶囊按钮是这主题的招牌手感 */
+  --dh-shadow-sm: 0 2rpx 6rpx rgba(0, 60, 55, .05);
+  --dh-shadow: 0 8rpx 32rpx rgba(0, 60, 55, .07);
+  --dh-shadow-lg: 0 28rpx 72rpx rgba(0, 60, 55, .12);
+  --dh-shadow-brand: 0 8rpx 24rpx rgba(0, 160, 120, .34);
+
+  --dh-success: #10B981;  --dh-success-bg: #EDFAF6;
+  --dh-warning: #F59E0B;  --dh-warning-bg: #FEFAEC;
+  --dh-danger: #EF4444;   --dh-danger-bg: #FDF3F1;
+  --dh-info: #1A88FF;
+
+  /* KDS 深底：青调黑（生鲜后厨，与青绿主题同色相） */
+  --dh-kds-bg: #0B1A16;
+  --dh-kds-bar: #12241F;
+  --dh-kds-card: #12261F;
+  --dh-kds-chip: #1B322C;
+  --dh-kds-line: #244038;
+  --dh-kds-text: #DCEDE7;
+  --dh-kds-title: #F4FBF8;
+  --dh-kds-sub: #8FA8A0;
+  --dh-kds-done-bg: #223A33;
+  --dh-kds-done-text: #8FA8A0;
+  /* 主色 #00A078 在深底上偏暗，用提亮版 */
+  --dh-kds-accent: #6FE3CB;
+  --dh-kds-glow: rgba(111, 227, 203, .45);
+}

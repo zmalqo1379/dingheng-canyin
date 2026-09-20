@@ -1,0 +1,250 @@
+
+/* =============================================================================
+   鼎恒餐饮 · 商家端「精修层」（public/theme-pro.css）
+   -----------------------------------------------------------------------------
+   定位（重要，别再跑偏）：
+     开发者端 = 已经合格的基准。商家端 = 开发者的密度 + 不占空间的精致度提升。
+     本层**不允许增加任何一寸垂直空间**：不设 aspect-ratio、不设 min-height、
+     不改 padding / gap / row-h / 字号。理由是「一目了然」比「看起来贵」重要，
+     商家是一天点几百次菜单管理和订单的人，屏幕里能装下多少条才是效率。
+
+   铁律一：经典版（classic）一个像素都不许动。
+     所以每一条规则都必须挂 [data-theme]:not([data-theme="classic"])，
+     与 public/theme.css 的做法保持一致。上一版漏了这道豁免，直接误伤经典版。
+
+   铁律二：不许出现斑马纹。
+     一行浅一行深会让人眼晕，是反人类的。横向阅读靠「悬停当前行定位」解决，
+     而不是靠给整张表刷底色。
+
+   加载位置：admin.html 内联 <style> 之后（内联在前会压过 theme.css）。
+   ============================================================================= */
+
+/* 以下变量与规则整体只作用于 warm / dark / fresh；classic 完全绕过 */
+[data-theme]:not([data-theme="classic"]) {
+  /* 阴影强度系数：深色主题下浅色投影看不见，按主题整体加深 */
+  --pro-sk-1: .04; --pro-sk-2: .06; --pro-sk-3: .10;
+
+  /* 双层投影（扩散层 + 贴地层）：比单层灰投影更有纵深，但幅度克制 */
+  --pro-sh-xs: 0 1px 2px rgba(0, 0, 0, var(--pro-sk-1));
+  --pro-sh-sm: 0 1px 3px rgba(0, 0, 0, var(--pro-sk-2)), 0 1px 2px -1px rgba(0, 0, 0, var(--pro-sk-1));
+  --pro-sh-md: 0 4px 10px -2px rgba(0, 0, 0, var(--pro-sk-2)), 0 2px 4px -2px rgba(0, 0, 0, var(--pro-sk-1));
+  --pro-ease: cubic-bezier(.4, 0, .2, 1);
+}
+[data-theme="dark"] { --pro-sk-1: .40; --pro-sk-2: .48; --pro-sk-3: .58; }
+
+/* ========== 1. 数字必备：表格对齐 ==========
+   金额、数量、日期用等宽数字，列才不会左右跳动。零成本，最见专业度。 */
+[data-theme]:not([data-theme="classic"]) .admin .stat-card .value,
+[data-theme]:not([data-theme="classic"]) .admin .home-stat b,
+[data-theme]:not([data-theme="classic"]) .admin table.data td,
+[data-theme]:not([data-theme="classic"]) .admin table.data th,
+[data-theme]:not([data-theme="classic"]) .admin .badge,
+[data-theme]:not([data-theme="classic"]) .admin .nav-badge,
+[data-theme]:not([data-theme="classic"]) .admin .money-in,
+[data-theme]:not([data-theme="classic"]) .admin .money-out {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* ========== 2. 标题收紧 ==========
+   字号越大字距越要收，这是排版的规矩。不影响布局、不占高度。 */
+[data-theme]:not([data-theme="classic"]) .admin .pane-title,
+[data-theme]:not([data-theme="classic"]) .admin .card-head h3,
+[data-theme]:not([data-theme="classic"]) .admin .modal-head h3 {
+  letter-spacing: -.02em;
+}
+[data-theme]:not([data-theme="classic"]) .admin .stat-card .value,
+[data-theme]:not([data-theme="classic"]) .admin .home-stat b {
+  letter-spacing: -.03em;
+}
+
+/* ========== 3. 表格：去掉斑马，改成「悬停定位当前行」 ==========
+   为什么比斑马好：斑马是全表恒定噪声，悬停只在你需要时出现，
+   而且首列的主色细条能帮眼睛在长表里横向拉回起点。 */
+[data-theme]:not([data-theme="classic"]) .admin table.data {
+  border-collapse: collapse;
+}
+/* 明令禁止斑马：任何地方都不要再给 .admin 的偶数行刷底色 */
+[data-theme]:not([data-theme="classic"]) .admin table.data tbody tr:nth-child(even) {
+  background: transparent;
+}
+[data-theme]:not([data-theme="classic"]) .admin table.data th,
+[data-theme]:not([data-theme="classic"]) .admin table.data td {
+  /* 行分隔线压到极淡，留出信息本身 */
+  border-bottom: 1px solid var(--tint-divider);
+}
+[data-theme]:not([data-theme="classic"]) .admin table.data tbody tr {
+  transition: background .15s var(--pro-ease);
+}
+[data-theme]:not([data-theme="classic"]) .admin table.data tbody tr:hover {
+  background: var(--tint-orange-50);
+}
+[data-theme]:not([data-theme="classic"]) .admin table.data tbody tr:hover td:first-child {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+/* 最后一行不留尾巴，卡片底边才干净 */
+[data-theme]:not([data-theme="classic"]) .admin table.data tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ========== 4. 卡片：只加质感，不加体积 ==========
+   刻意不动 padding / min-height / aspect-ratio —— 上一版就是栽在这里。 */
+[data-theme]:not([data-theme="classic"]) .admin .card,
+[data-theme]:not([data-theme="classic"]) .admin .table-wrap {
+  box-shadow: var(--pro-sh-sm);
+}
+@media (hover: hover) {
+  [data-theme]:not([data-theme="classic"]) .admin .home-stat[data-go] {
+    transition: box-shadow .25s var(--pro-ease), transform .25s var(--pro-ease);
+  }
+  [data-theme]:not([data-theme="classic"]) .admin .home-stat[data-go]:hover {
+    box-shadow: var(--pro-sh-md);
+    transform: translateY(-1px);
+  }
+}
+
+/* ========== 5. 可点击区块的指针反馈 ========== */
+[data-theme]:not([data-theme="classic"]) .admin .home-stat[data-go] { cursor: pointer; }
+
+/* ========== 6. 表单焦点环：工作时不丢焦点 ========== */
+[data-theme]:not([data-theme="classic"]) .admin .form-input:focus,
+[data-theme]:not([data-theme="classic"]) .admin .form-select:focus,
+[data-theme]:not([data-theme="classic"]) .admin textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(255, 122, 61, .15), var(--pro-sh-xs);
+}
+
+/* ========== 7. 收尾细节：滚动条 ========== */
+[data-theme]:not([data-theme="classic"]) .admin .main::-webkit-scrollbar,
+[data-theme]:not([data-theme="classic"]) .admin .modal::-webkit-scrollbar { width: 10px; height: 10px; }
+[data-theme]:not([data-theme="classic"]) .admin .main::-webkit-scrollbar-thumb,
+[data-theme]:not([data-theme="classic"]) .admin .modal::-webkit-scrollbar-thumb {
+  background: rgba(130, 140, 155, .30);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+[data-theme]:not([data-theme="classic"]) .admin .main::-webkit-scrollbar-thumb:hover { background: rgba(130, 140, 155, .48); background-clip: content-box; }
+[data-theme]:not([data-theme="classic"]) .admin .sidebar::-webkit-scrollbar { width: 6px; }
+[data-theme]:not([data-theme="classic"]) .admin .sidebar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .16); border-radius: 999px; }
+[data-theme="dark"] .admin .main::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .18); background-clip: content-box; }
+
+/* ========== 8. 选中态 ========== */
+[data-theme]:not([data-theme="classic"]) .admin ::selection { background: rgba(255, 122, 61, .22); }
+
+/* ========== 10. 手机端：按版本各自的性格来，不搞一刀切 ==========
+   这一节返工过好几轮，病根是我把「非经典版」当成了同一种审美，一刀切改成一列。
+   实际上内联 @media(max-width:900px) 里早就写好了原本的排布：
+     .home-stats { repeat(2, 1fr) }   ← 四张统计卡 = 2×2 四宫格
+     .home-grid  { repeat(4, 1fr) }   ← 快捷入口 = 4 列（8 个入口排两行）
+   经典版、暖橙原本就是这个样子，而且它就该是这个样子 —— 形态不许擅自重设计。
+
+   所以要改的只有两处（也只在这两处）：
+     ① 深色：一格一格往下叠，每张内部左边标签 / 右边数值，横向读；
+     ② 青绿：同上竖排，另外保留它「主打那张更大」的招牌。
+   快捷入口只做一件事：收紧内边距与字号，防止「采购商城」被劈成两行 ——
+   绝不收成 2 列，8 个入口会变成 4 行，那就成了上下罗列。 */
+@media (max-width: 900px) {
+  /* ① 深色：竖排 + 卡内左右读 */
+  [data-theme="dark"][data-theme] .admin .home-stats,
+  [data-theme="dark"][data-theme] .admin .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  [data-theme="dark"][data-theme] .admin .home-stat,
+  [data-theme="fresh"][data-theme] .admin .home-stat {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    column-gap: 12px;
+    padding: 14px 16px;
+    min-height: 66px;
+  }
+  [data-theme="dark"][data-theme] .admin .home-stat span,
+  [data-theme="fresh"][data-theme] .admin .home-stat span { grid-column: 1; grid-row: 1; }
+  [data-theme="dark"][data-theme] .admin .home-stat em,
+  [data-theme="fresh"][data-theme] .admin .home-stat em { grid-column: 1; grid-row: 2; }
+  [data-theme="dark"][data-theme] .admin .home-stat b,
+  [data-theme="fresh"][data-theme] .admin .home-stat b {
+    grid-column: 2; grid-row: 1 / span 2;
+    text-align: right;
+    white-space: nowrap;   /* 「¥0.00」绝不能被劈成两行 */
+    font-size: 22px;
+  }
+
+  /* ② 青绿：同样是竖排 */
+  [data-theme="fresh"][data-theme] .admin .home-stats,
+  [data-theme="fresh"][data-theme] .admin .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  /* ③ 暖橙 / 经典：保持原本的 2×2 四宫格，一个字都不动。
+     唯一的毛病是原本 24px 的大内边距在两张卡并排时会把它们挤成一坨，
+     所以这里只把「厚度」收一收 —— 形态不变，只是别互相挤。 */
+  [data-theme="warm"][data-theme] .admin .home-stats { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  [data-theme="warm"][data-theme] .admin .home-stat { padding: 14px 14px 16px; }
+  [data-theme="warm"][data-theme] .admin .home-stat b { font-size: 22px; }
+  [data-theme="warm"][data-theme] .admin .home-stat span { font-size: 11.5px; }
+
+  /* ④ 快捷入口：全版本保持原本的 4 列四宫格，8 个入口正好两行。
+     只做防折行：内边距从 18px 收到 10px、字号从 12.5 收到 12，「采购商城」一行放得下。 */
+  [data-theme]:not([data-theme="classic"]) .admin .home-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    padding: 12px;
+  }
+  [data-theme]:not([data-theme="classic"]) .admin .home-grid-item {
+    padding: 12px 4px;
+  }
+  [data-theme]:not([data-theme="classic"]) .admin .home-grid-item i,
+  [data-theme]:not([data-theme="classic"]) .admin .home-grid-item .hg-ico {
+    width: 24px; height: 24px;
+  }
+  [data-theme]:not([data-theme="classic"]) .admin .home-grid-item span {
+    font-size: 12px;
+    white-space: nowrap;   /* 「采购商城」不许再折成两行 */
+  }
+
+  /* 青绿的招牌特征要留在手机上：主打那张「今日营业额」比其它三张大一号 */
+  [data-theme="fresh"] .admin .home-stat:first-child {
+    padding: 20px 18px;
+    min-height: 92px;
+  }
+  [data-theme="fresh"] .admin .home-stat:first-child b {
+    font-size: 32px;
+    color: var(--primary);
+  }
+}
+/* ========== 9. 信息密度：只减不加 ==========
+   theme.css 给暖橙的 --page-pad 是 28 / 32 / 44（底部 44 偏厚），
+   开发者端用它没问题；商家端是要反复上下翻 pick 单的地方，
+   垂直留白要还给内容，所以这里在桌面端收紧，手机端维持内联的 16px 不动。
+   注意：这条是「减少」留白，不是膨胀 —— 方向不能搞反。 */
+@media (min-width: 1024px) {
+  [data-theme]:not([data-theme="classic"]) .admin .main {
+    padding: 20px 24px 28px;
+  }
+}
+
+/* ========== 11. 横幅那句话「可点」的暗示 ==========
+   它本身就是去采购商城的入口（和下面几张数据卡一个路子），
+   所以只给「能点」的感觉：手指光标 + 底色加深 + 按下去回弹。
+   刻意不做成凸起按钮 —— 一句话就该是一句话的样子。 */
+[data-theme]:not([data-theme="classic"]) .admin .home-hero .home-tip {
+  cursor: pointer;
+  transition: background .18s var(--pro-ease), box-shadow .18s var(--pro-ease), transform .18s var(--pro-ease);
+}
+[data-theme]:not([data-theme="classic"]) .admin .home-hero .home-tip:hover {
+  background: rgba(255, 255, 255, .26);
+  border-color: rgba(255, 255, 255, .44);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .14);
+}
+[data-theme]:not([data-theme="classic"]) .admin .home-hero .home-tip:active { transform: scale(.99); }
+[data-theme]:not([data-theme="classic"]) .admin .home-hero .home-tip:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, .85);
+  outline-offset: 2px;
+}

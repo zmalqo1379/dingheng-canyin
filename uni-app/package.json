@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev:mp-weixin": "uni -p mp-weixin",
-    "build:mp-weixin": "uni build -p mp-weixin",
+    "build:mp-weixin": "uni build -p mp-weixin && node scripts/strip-lazy-code-loading.js",
     "dev:h5": "uni",
     "build:h5": "uni build",
     "gen:icons": "node scripts/gen-icons.cjs"

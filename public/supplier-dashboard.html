@@ -4,26 +4,25 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>供应商控制台 - 鼎恒餐饮</title>
+  <!-- 主题系统接入（第 2 类）：与商家端 / 开发者端共用同一套 theme.css。
+       link 放在内联 <style> 之前，让本页自己的样式优先级更高、外观主导权仍在本页手里；
+       theme.css 只提供变量 + .admin / [data-page="dev"] 作用域的组件样式，
+       没有一条裸的 body / 全局元素规则，所以不会反向改乱本页现有外观。 -->
+  <link rel="stylesheet" href="/theme.css">
+  <script>
+    /* 主题预加载：必须在页面渲染前把 data-theme 写到 <html>，
+       否则会先按默认色画一遍再跳变（肉眼可见闪一下）。
+       默认 classic（出厂默认 = 经典版）；与商家端共用钥匙 dhAdminTheme —— 同一浏览器内两端主题保持一致。 */
+    try {
+      var _t = localStorage.getItem('dhAdminTheme') || 'classic';
+      document.documentElement.setAttribute('data-theme', _t);
+    } catch (e) { /* 隐私模式读不到 localStorage，就退回 theme.css 的 classic 基线 */ }
+  </script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    :root {
-      --nav: #1f2937;
-      --nav-2: #111827;
-      --accent: #ff6b35;
-      --accent-2: #ff8e53;
-      --green: #16a34a;
-      --gray: #9ca3af;
-      --red: #ef4444;
-      --bg: #f5f6fa;
-      --line: #e5e7eb;
-      /* 统一设计规范 token */
-      --radius-sm: 8px;
-      --radius: 12px;
-      --radius-lg: 16px;
-      --shadow-sm: 0 1px 3px rgba(0, 0, 0, .05);
-      --shadow: 0 4px 14px rgba(0, 0, 0, .06);
-      --shadow-lg: 0 12px 32px rgba(0, 0, 0, .12);
-    }
+    /* 颜色 / 圆角 / 阴影令牌全部交给 theme.css（四套主题各一套，随 data-theme 联动）。
+       这里原本写死 11 个老令牌，等于把主题系统挡在门外 —— 已整块移除。
+       注意：本页另有 500 余处写死 hex 不在此列，那是第 4 类「清理写死色」的活，留到后面单独做。 */
     body {
       font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
       background: var(--bg);
@@ -71,12 +70,30 @@
       transition: background .2s;
     }
     .topbar .logout:hover { background: var(--accent); }
+    /* 「返回」不是危险动作，配色弱化，与「退出登录」区分开 */
+    .topbar .logout.is-back {
+      background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.28);
+    }
+
+    /* 主题入口：照搬商家端 / 开发者端 —— 用 theme.css 的 .theme-icon-btn + 🎨 emoji，
+       本页一条颜色样式都不写。踩过的坑记在这里：
+       theme.css 742 有 [data-theme="warm"] .topbar .theme-icon-btn 的浅色适配，
+       而本页 <style> 加载在 theme.css 之后、优先级更高 —— 一旦自己写死 color:#fff，
+       暖橙 / 青绿（顶栏转浅色）下就成了白底白图标，按钮整个看不见。
+       图标用彩色 emoji 而不是单色 SVG：深浅背景都看得清。 */
+    @media (max-width: 768px) {
+      .topbar { padding: 0 12px; }
+      .topbar .who { display: none; }   /* 顶栏挤就把问候语收起来，而不是把按钮挪走 */
+    }
 
     /* ============ 布局 ============ */
-    .layout { display: flex; align-items: flex-start; }
+    /* 电脑端：左栏与右栏各自独立滚动，且都撑满到视口底部（与商家端一致）。
+       原来只给 min-height，内容一多侧栏背景 / 边框就只画到一半，底部小字还会溢出边框。 */
+    .layout { display: flex; align-items: stretch; }
     .sidebar {
       width: 220px;
-      min-height: calc(100vh - 60px);
+      height: calc(100vh - 60px);
+      overflow-y: auto;
       background: linear-gradient(180deg, var(--nav), var(--nav-2));
       color: #cbd5e1;
       position: sticky; top: 60px;
@@ -110,6 +127,32 @@
       border-left-color: var(--accent);
       font-weight: 600;
     }
+    /* 侧栏「一键退出登录」：与「数据统计 / 进件中心 / 我的分账」等导航项完全同尺寸、同排版
+       （继承 .nav-item 的 padding 13px 14px、14px 字号、18px 图标），只在文字色上用红色区分离开动作。
+       上一版做成实心大红块 + 加大图标，用户反馈「太突兀、比其他项大一圈」—— 已改回同尺寸。
+       往下留一行间距与上方导航项隔开；位置在「数据统计」正下方、底部小字上方（见 HTML）。 */
+    .nav-logout {
+      /* 与上方「数据统计」拉开一行间距（用户要求「空出一格」），并比导航项再靠左一点点 */
+      margin: 22px 10px 0;
+      padding-left: 10px;
+      color: #f87171; font-weight: 600;
+      background: transparent;
+      border-left-color: transparent;
+    }
+    .nav-logout:hover { background: rgba(239, 68, 68, .16); color: #fff; }
+    /* 侧栏分组：十几项平铺在一起，找哪个是哪一个得一个个读，眼睛累。
+       按"每天要办的 / 要打理的 / 钱的事 / 账号的事"切开，跟商家端一致的横线 + 小标题。 */
+    .nav-divider {
+      height: 1px; margin: 10px 14px;
+      background: rgba(255,255,255,.10);
+    }
+    .nav-group-title {
+      padding: 12px 14px 6px;
+      font-size: 11px;
+      color: #94a3b8;              /* 比导航项淡、比背景亮：色弱也能看清是一层小标题 */
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
     .nav-tip {
       padding: 14px 16px;
       font-size: 11px; color: #6b7280;
@@ -119,6 +162,8 @@
     /* ============ 内容区 ============ */
     .main {
       flex: 1; min-width: 0;
+      height: calc(100vh - 60px);
+      overflow-y: auto;   /* 右栏独立滚动：鼠标在右侧滚，左栏不动 */
       padding: 26px;
       max-width: 1100px;
       margin: 0 auto;
@@ -156,7 +201,12 @@
       border-top: 4px solid var(--accent);
     }
     .stat-card .label { font-size: 14px; color: #6b7280; margin-bottom: 10px; }
-    .stat-card .value { font-size: clamp(18px, 4.5vw, 40px); font-weight: 800; color: var(--accent); line-height: 1.1; word-break: break-all; overflow-wrap: break-word; }
+    /* 同上：break-all 会把长数字从中间切断，人读不懂，改成不允许词内断行 */
+    /* 同上：整数段一行、小数段可掉到第二行右侧，绝不溢出卡片 */
+    .stat-card .value { font-size: clamp(18px, 4.5vw, 40px); font-weight: 800; color: var(--accent); line-height: 1.1; text-align: right; word-break: keep-all; overflow-wrap: normal; }
+    .stat-card .value .int, .stat-card .value .dec { white-space: nowrap; }
+    .stat-card .value .dec { display: inline-block; }
+    .stat-card .value .unit { display: block; font-size: .5em; font-weight: 700; opacity: .72; margin-top: 2px; }
     .stat-card .value small { font-size: 16px; font-weight: 600; }
 
     /* 通知设置卡片 */
@@ -267,6 +317,34 @@
     .pw-table tr.done-row { background: #f0fdf4; }
     .pw-table tr.under-cost { background: #fef2f2; }
     .pw-table tr.under-cost .pw-price-input { border-color: #ef4444; background: #fef2f2; }
+    /* 当前正在改的这一行：左侧橙色竖条 + 一层极淡的橙雾。
+       靠色相（橙）而不是靠压暗背景来区分，色弱也能一眼看到"我在这一行"。
+       竖条用 inset 阴影画，不会把表格撑变形。 */
+    .pw-table tr.pw-row-active {
+      background: rgba(255,107,53,.14);
+      /* 整行微微放大并提层，从表格里"浮"出来：既有手感，商品名也跟着被抬起来，
+         一天改几百个价时眼睛能牢牢锁住"我在这一行"，不容易串行改错 */
+      transform: scale(1.012);
+      position: relative; z-index: 3;
+      transition: transform .12s ease, background .12s ease;
+    }
+    .pw-table tr.pw-row-active td {
+      background: rgba(255,107,53,.14);
+      /* 上下各压一条橙线，把这一行的边界描出来（比单纯加深底色更像"凸起"） */
+      box-shadow: inset 0 1px 0 rgba(249,115,22,.45), inset 0 -1px 0 rgba(249,115,22,.45);
+    }
+    .pw-table tr.pw-row-active td:first-child {
+      box-shadow: inset 3px 0 0 var(--accent), inset 0 1px 0 rgba(249,115,22,.45), inset 0 -1px 0 rgba(249,115,22,.45);
+    }
+    .pw-table tr.pw-row-active .pw-price-input { border-color: var(--accent); border-width: 2px; }
+    .pw-table tr.pw-row-active .pw-name-cell .nm { font-size: 14.5px; font-weight: 800; color: #c2410c; }
+    .pw-table tr.pw-row-active .pw-name-cell div:last-child { color: #b45309 !important; }
+    /* ↵ 提示只跟当前行走：只有正在改的那一行的按钮带 (↵)，
+       其余行保持干净 —— 满屏括号反而看不清哪个能用 */
+    .pw-table tr.pw-row-active .pw-act-btn.save::after { content: " (↵)"; font-weight: 600; }
+    /* 沿用：写全称 Shift+↵，不用 ⇧ 符号 —— 那个上箭头容易被当成上下键的上，看岔了 */
+    .pw-table tr.pw-row-active .pw-act-btn.carry::after { content: " (Shift+↵)"; font-weight: 600; }
+    .pw-table tr.pw-row-active .pw-act-btn:disabled::after { content: ""; }
     .pw-name-cell { display: flex; flex-direction: column; gap: 2px; }
     .pw-name-cell .nm { font-weight: 600; color: #1f2937; }
     .pw-grade-tag {
@@ -280,6 +358,142 @@
       border-radius: 6px; font-size: 13px; text-align: right;
     }
     .pw-price-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(255,107,53,.15); }
+    /* 选中哪一段（元 / 角分），底色就得跟着走：默认蓝底在色弱眼里不够醒目，
+       换成品牌橙，一眼看清自己选中的是哪半截数字 */
+    .pw-price-input::selection { background: rgba(255,107,53,.40); color: #1f2937; }
+    /* 改价防错：与上一次价格比，涨跌越大越醒目。手滑多打一位数（3.5 → 35）当场变红，
+       而不是等结算时才发现亏了 —— 供应商天天改价，这是给他买的保险。 */
+    .pw-price-cell { display: flex; align-items: center; gap: 6px; }
+    .pw-delta { font-size: 11px; font-weight: 700; color: #9ca3af; min-width: 42px; }
+    .pw-delta.warn { color: #ea580c; }
+    .pw-delta.danger { color: #dc2626; }
+    .pw-delta.done { color: #16a34a; font-weight: 600; }
+    .pw-price-input.warn { border-color: #f59e0b; background: #fffbeb; }
+    .pw-price-input.danger { border-color: #ef4444; background: #fef2f2; }
+    /* 改了还没回车 = 没存。虚线框 + "未存"小红牌，回头扫一眼就知道哪几笔还欠一下回车 */
+    .pw-price-input.dirty { border-style: dashed; border-color: var(--accent); background: #fffbeb; }
+    /* 通用提示条（工单 24h 提示等也在用，别删） */
+    .pw-keyboard-tip {
+      font-size: 12px; color: #6b7280; margin-bottom: 8px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .pw-keyboard-tip kbd {
+      font-family: inherit; font-size: 11px; padding: 1px 6px; border-radius: 4px;
+      border: 1px solid var(--line); background: #f9fafb; color: #374151; font-weight: 600;
+    }
+    .pw-unsaved {
+      display: none; font-size: 10.5px; font-weight: 700; color: #fff;
+      background: #ea580c; padding: 1px 5px; border-radius: 4px; white-space: nowrap;
+    }
+    .pw-unsaved.show { display: inline-block; }
+    /* ===== 操作说明：给供应商看的，不是给开发看的 =====
+       三行结构：先一句人话讲清"怎么干"，再列键位，最后给一个真实例子。
+       键帽用深底白字，在任何主题、任何视力下都看得清。 */
+    .pw-guide {
+      background: linear-gradient(135deg, #fff7ed, #fff1e7);
+      border: 1px solid #fed7aa; border-radius: 10px;
+      padding: 11px 14px; margin-bottom: 12px;
+    }
+    .pw-guide-lead {
+      font-size: 13.5px; font-weight: 700; color: #7c2d12;
+      display: flex; align-items: center; gap: 7px; margin-bottom: 9px; line-height: 1.5;
+    }
+    .pw-guide-lead .step {
+      background: var(--accent); color: #fff; font-size: 11.5px; font-weight: 700;
+      padding: 2px 8px; border-radius: 999px;
+    }
+    .pw-guide-lead .arrow { color: #f97316; font-weight: 700; }
+    .pw-keys { display: flex; flex-wrap: wrap; gap: 7px 16px; }
+    .pw-key-item { display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: #7c2d12; }
+    .pw-key-item kbd {
+      font-family: inherit; font-size: 11.5px; font-weight: 700; color: #fff;
+      background: linear-gradient(180deg, #4b5563, #1f2937);
+      padding: 2px 7px; border-radius: 5px; white-space: nowrap;
+      box-shadow: 0 1px 0 rgba(0,0,0,.4);
+    }
+    .pw-guide-eg {
+      margin-top: 9px; padding-top: 8px; border-top: 1px dashed #fed7aa;
+      font-size: 12px; color: #92400e; line-height: 1.85;
+    }
+    .pw-guide-eg .num {
+      font-weight: 700; color: #7c2d12; background: rgba(255,255,255,.8);
+      border: 1px solid #fed7aa; border-radius: 4px; padding: 0 4px;
+    }
+    .pw-guide-eg .hi { color: #c2410c; font-weight: 700; }
+    /* ============ 客服工单（售后争议闭环） ============
+       供应商天天被「少件/不新鲜」的电话追着跑，工单把这些纠纷收进系统：
+       带图有据、24h 必须响应、谈不拢自动转平台 —— 谁对谁错有记录，不用靠嗓门。
+       配色一律用半透明底色（rgba），深色主题下也不会刺眼。 */
+    .tk-summary { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+    /* 统计卡可点：老板下意识就会点「待受理」想看是哪几单 —— 那就让它真的能点，点了就筛 */
+    .tk-sum-card {
+      flex: 1; min-width: 92px; background: var(--card); border: 1px solid var(--line);
+      border-radius: 10px; padding: 10px 12px; cursor: pointer; user-select: none;
+      transition: box-shadow .15s, transform .1s;
+    }
+    .tk-sum-card:hover { box-shadow: var(--shadow); }
+    .tk-sum-card:active { transform: translateY(1px); }
+    .tk-sum-card.active { border-color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+    .tk-sum-card .label { font-size: 12px; color: var(--text-sub); }
+    .tk-sum-card .value { font-size: 20px; font-weight: 700; margin-top: 2px; }
+    .tk-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .tk-chip {
+      font-size: 12px; padding: 5px 12px; border-radius: 999px; cursor: pointer;
+      border: 1px solid var(--line); background: var(--card); color: var(--text);
+    }
+    .tk-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+    /* 整张卡片可点开详情：要给方案，总得先把问题看清楚（图、描述、经过） */
+    .tk-card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+      padding: 14px 16px; margin-bottom: 12px; cursor: pointer;
+      transition: box-shadow .15s;
+    }
+    .tk-card:hover { box-shadow: var(--shadow); }
+    /* 紧急单与已升级单靠左侧色条区分，扫一眼就知道先处理谁 */
+    .tk-card.urgent { border-left: 4px solid #ef4444; }
+    .tk-card.intervened { border-left: 4px solid #dc2626; background: rgba(220, 38, 38, .04); }
+    .tk-card.done { opacity: .92; }
+    .tk-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+    .tk-no { font-weight: 700; font-size: 13px; color: var(--text); }
+    .tk-badge { font-size: 11px; padding: 2px 9px; border-radius: 999px; font-weight: 600; }
+    .tk-badge.type { background: rgba(107, 114, 128, .12); color: var(--text-2); }
+    .tk-badge.urgent { background: rgba(239, 68, 68, .12); color: var(--c-red-700); }
+    .tk-meta { font-size: 12px; color: var(--text-sub); margin-bottom: 6px; }
+    .tk-desc { font-size: 13px; color: var(--text); line-height: 1.6; margin-bottom: 8px; }
+    .tk-imgs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+    .tk-imgs img { width: 62px; height: 62px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
+    .tk-items { font-size: 12px; color: var(--text-2); background: rgba(107, 114, 128, .06); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
+    .tk-due { font-size: 12px; color: var(--c-amber-700); margin-bottom: 8px; font-weight: 600; }
+    .tk-due.soon { color: var(--c-orange); }
+    .tk-due.over { color: var(--c-red); }
+    .tk-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .tk-btn { font-size: 12px; padding: 6px 14px; border-radius: 8px; cursor: pointer; border: 1px solid var(--line); background: var(--card); color: var(--text); font-weight: 600; }
+    .tk-btn:hover { filter: brightness(.97); }
+    .tk-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+    .tk-btn.danger { background: rgba(220, 38, 38, .08); border-color: #fca5a5; color: var(--c-red-700); }
+    .tk-btn:disabled { background: var(--surface-3); color: var(--text-sub); cursor: not-allowed; }
+    .tk-logs { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; }
+    .tk-log { font-size: 12px; color: var(--text-sub); line-height: 1.7; }
+    .tk-log b { color: var(--text); }
+    .tk-empty { text-align: center; color: var(--text-sub); font-size: 13px; padding: 30px 0; }
+    .tk-resolve { font-size: 12px; background: rgba(22, 163, 74, .08); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; color: var(--c-green-700); }
+    /* 深色主题：上面这批语义色（红/琥珀/绿）本是为白底调的，压在深色卡片上会发暗看不清，
+       这里逐条提亮 —— 任何一套主题下，工单里的字都必须看得清，没有例外。 */
+    html[data-theme="dark"] .tk-badge.urgent { color: #fca5a5; }
+    html[data-theme="dark"] .tk-due { color: #fbbf24; }
+    html[data-theme="dark"] .tk-due.soon { color: #fb923c; }
+    html[data-theme="dark"] .tk-due.over { color: #f87171; }
+    html[data-theme="dark"] .tk-resolve { color: #86efac; }
+    html[data-theme="dark"] .tk-btn.danger { color: #fca5a5; border-color: #b91c1c; }
+    /* 统计卡上的大数字同理：用令牌色，深色主题下逐条提亮，别让关键数字发暗 */
+    .tk-v-todo { color: var(--c-orange); }
+    .tk-v-doing { color: var(--c-blue-600); }
+    .tk-v-inter { color: var(--c-red); }
+    .tk-v-done { color: var(--c-green); }
+    html[data-theme="dark"] .tk-v-todo { color: #fb923c; }
+    html[data-theme="dark"] .tk-v-doing { color: #93c5fd; }
+    html[data-theme="dark"] .tk-v-inter { color: #f87171; }
+    html[data-theme="dark"] .tk-v-done { color: #86efac; }
     .pw-suggest { font-size: 12px; color: #16a34a; font-weight: 600; }
     .pw-profit { font-size: 12px; color: #6b7280; }
     .pw-profit.neg { color: #ef4444; font-weight: 600; }
@@ -424,6 +638,9 @@
       border: none; cursor: pointer;
       font-size: 14px; font-weight: 600;
       transition: opacity .15s, transform .1s;
+      /* 行动按钮必须一眼看见：基类原先没写 background / color，等于吃浏览器默认灰底黑字，
+         在暖橙 / 深色 / 青绿下淡得直接融进卡片。这里给品牌主色实心，四套主题都醒目。 */
+      background: var(--primary); color: #fff;
     }
     .btn:disabled { opacity: .5; cursor: not-allowed; }
     .btn-primary {
@@ -431,12 +648,65 @@
       color: #fff;
     }
     .btn-primary:hover:not(:disabled) { opacity: .92; }
-    .btn-ghost {
-      background: #fff; color: #6b7280;
-      border: 1px solid var(--line);
+    /* ★ 连改两轮都没效果的真正原因 —— theme.css 722 行有条：
+         [data-theme]:not([data-theme="classic"]) .btn { background: var(--surface-3); }
+       它把暖橙 / 深色 / 青绿三套主题里【所有 .btn】的背景刷成极浅灰（--surface-3），
+       特异性 (0,3,0)。本页的 .btn 是 (0,1,0)、.home-todo-item .btn 是 (0,2,0)，全被它压过 ——
+       于是待办「去改价 / 去处理」变成浅灰底 + 白字，整颗按钮隐形（用户原话：直接就是白色的）。
+       经典版恰好不在 :not() 范围内，所以只有经典版没事 —— 和反馈完全对得上。
+       修法：加 html[data-theme] 前缀把特异性抬到 (0,3,1)，把主色实心抢回来。 */
+    html[data-theme]:not([data-theme="classic"]) .btn,
+    html[data-theme]:not([data-theme="classic"]) .home-todo-item .btn {
+      background: var(--primary); color: #fff; border: none;
     }
+    /* 主色偏亮的两套主题，白字压不住（dark #FF9463 浅橙 / fresh #00B8A9 亮青）→ 改深字。
+       用 :not() 排除描边类按钮，它们本就是白底深字，不能被这条改坏。 */
+    html[data-theme="dark"][data-theme] .btn:not(.btn-ghost):not(.btn-green):not(.btn-red),
+    html[data-theme="dark"][data-theme] .home-todo-item .btn { color: #6b2d0c; }
+    html[data-theme="fresh"][data-theme] .btn:not(.btn-ghost):not(.btn-green):not(.btn-red),
+    html[data-theme="fresh"][data-theme] .home-todo-item .btn { color: #003d38; }
+    /* ★ 松墨绿按钮要有自己的「人种」特征，不许和经典版一个模子：
+       经典版 = 平面实心橙 + 小圆角（利落直给）；
+       松墨绿 = 墨绿渐变 + 全圆角胶囊 + 冷色投影（干净、有档次）。
+       白字压渐变浅端 #177A56 是 5.3:1、深端 #0F5E45 是 8.4:1，正文标准达标。
+       特异性 (0,3,1)/(0,4,1)，且写在 481 行修复块之后 —— 平局靠后者胜，稳压上面的实心规则。 */
+    html[data-theme="warm"][data-theme] .btn,
+    html[data-theme="warm"][data-theme] .home-todo-item .btn {
+      background: linear-gradient(135deg, #177A56, #0F5E45);
+      color: #fff;
+      border-radius: 999px;
+      padding: 7px 18px;
+      box-shadow: 0 3px 10px rgba(23, 122, 86, .30);
+      transition: box-shadow .18s ease, filter .18s ease, transform .12s ease;
+    }
+    html[data-theme="warm"][data-theme] .btn:hover {
+      filter: brightness(1.05);
+      box-shadow: 0 5px 14px rgba(23, 122, 86, .38);
+    }
+    html[data-theme="warm"][data-theme] .btn:active { transform: scale(.96); filter: brightness(.98); box-shadow: 0 2px 6px rgba(23, 122, 86, .28); }
+    /* 松墨绿的描边类按钮也做出人种差异：胶囊，不跟经典版的直角描边混同 */
+    html[data-theme="warm"][data-theme] .btn-ghost,
+    html[data-theme="warm"][data-theme] .btn-green,
+    html[data-theme="warm"][data-theme] .btn-red {
+      border-radius: 999px;
+    }
+    /* 描边类按钮保持白底深字 + 边框：theme.css 870 / 1447 给非经典主题的按钮加了 border:none，
+       同样要这条才抢得回来 */
+    html[data-theme]:not([data-theme="classic"]) .btn-ghost { background: #fff; color: #374151; border: 1.5px solid #9ca3af; }
+    html[data-theme]:not([data-theme="classic"]) .btn-green { background: #fff; color: #15803d; border: 1.5px solid #15803d; }
+    html[data-theme]:not([data-theme="classic"]) .btn-red { background: #fff; color: #dc2626; border: 1.5px solid #dc2626; }
+    /* 白底描边按钮（编辑 / 下架）：边框不能再用 var(--line) ——
+       暖橙 --border:#EBEDF0、青绿 #D6E6E1 淡到看不见边界，等于没有按钮。
+       固定用中灰描边 + 深色粗字，深底浅底卡片上都立得住。 */
+    .btn-ghost {
+      background: #fff; color: #374151; font-weight: 700;
+      border: 1.5px solid #9ca3af;
+    }
+    /* 上架 / 删除：原来写 color:#fff，可深色主题把 --green 换成 #34D399、--red 换成 #FF7A7A
+       （theme.css 330/331），白字压在浅绿 / 浅红上就是隐形。
+       改成白底深字深边：不管哪套主题、卡片是深是浅，都清清楚楚。 */
     .btn-green {
-      background: var(--green); color: #fff;
+      background: #fff; color: #15803d; font-weight: 700; border: 1.5px solid #15803d;
     }
 
     .empty-tip {
@@ -518,7 +788,73 @@
       transition: opacity .15s;
     }
     .btn-add-product:hover { opacity: .92; }
-    .btn-red { background: var(--red); color: #fff; }
+    /* 「拍照上传商品」走描边款：跟主按钮并排时，主次一眼分得开 */
+    .btn-add-product.ghost {
+      background: #fff; color: var(--accent);
+      border: 1.5px solid var(--accent); box-shadow: none;
+    }
+    .btn-add-product.ghost:hover { background: #fff7ed; }
+
+    /* ===== 拍照上传商品 =====
+       一天录几十个商品，一件件手打太慢。拍照 / 粘贴 → 清单 → 改改删删 → 一键新增。 */
+    .ai-drop {
+      border: 2px dashed var(--line); border-radius: 12px; padding: 20px 16px;
+      text-align: center; cursor: pointer; background: #fafafa;
+      transition: border-color .15s, background .15s;
+    }
+    .ai-drop:hover { border-color: var(--accent); background: #fff7ed; }
+    .ai-drop .big { font-size: 30px; line-height: 1; }
+    .ai-drop .t1 { font-weight: 700; color: #374151; margin-top: 8px; font-size: 13.5px; }
+    .ai-drop .t2 { font-size: 12px; color: #9ca3af; margin-top: 4px; line-height: 1.6; }
+    .ai-preview { display: block; max-width: 100%; max-height: 190px; border-radius: 10px; margin: 10px auto 0; }
+    .ai-or {
+      display: flex; align-items: center; gap: 10px;
+      margin: 16px 0 10px; color: #9ca3af; font-size: 12px;
+    }
+    .ai-or::before, .ai-or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+    .ai-textarea {
+      width: 100%; min-height: 90px; box-sizing: border-box;
+      border: 1px solid var(--line); border-radius: 10px; padding: 10px;
+      font-size: 13px; font-family: inherit; resize: vertical;
+    }
+    .ai-textarea:focus { outline: none; border-color: var(--accent); }
+    .ai-loading { text-align: center; padding: 30px 0; color: #6b7280; font-size: 13px; }
+    .ai-spin {
+      display: inline-block; width: 26px; height: 26px; border-radius: 50%;
+      border: 3px solid #fed7aa; border-top-color: var(--accent);
+      animation: aiSpin .8s linear infinite;
+    }
+    @keyframes aiSpin { to { transform: rotate(360deg); } }
+    .ai-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .ai-tbl th {
+      text-align: left; font-size: 12px; color: #6b7280; font-weight: 600;
+      padding: 6px 4px; border-bottom: 1px solid var(--line); white-space: nowrap;
+    }
+    .ai-tbl td { padding: 4px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+    .ai-tbl input, .ai-tbl select {
+      width: 100%; box-sizing: border-box; border: 1px solid var(--line);
+      border-radius: 7px; padding: 6px 7px; font-size: 13px; font-family: inherit; background: #fff;
+    }
+    .ai-tbl input:focus, .ai-tbl select:focus { outline: none; border-color: var(--accent); }
+    /* 没把握的行：整行铺一层淡黄，提醒核对一眼，别把错价录进去 */
+    .ai-tbl tr.low td { background: #fffbeb; }
+    .ai-low-tag {
+      font-size: 10.5px; color: #92400e; background: #fef3c7; border: 1px solid #fcd34d;
+      border-radius: 4px; padding: 0 5px; margin-left: 4px; white-space: nowrap;
+    }
+    .ai-del {
+      border: none; background: #fff; color: #dc2626; font-weight: 700;
+      cursor: pointer; padding: 4px 8px; border-radius: 6px; font-size: 13px;
+    }
+    .ai-del:hover { background: #fee2e2; }
+    .ai-sum { font-size: 12.5px; color: #6b7280; line-height: 1.7; }
+    .ai-result {
+      margin-top: 10px; border-radius: 10px; background: #f0fdf4;
+      border: 1px solid #bbf7d0; padding: 10px 12px; font-size: 12.5px; color: #166534; line-height: 1.8;
+    }
+    .ai-result.warn { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+    /* 删除同理：白底深红字 + 深红描边，不再依赖会被主题换浅的 --red */
+    .btn-red { background: #fff; color: #dc2626; font-weight: 700; border: 1.5px solid #dc2626; }
     .badge.on { background: #dcfce7; color: #166534; }
     .badge.off { background: #f3f4f6; color: #6b7280; }
     .prod-name .nm { font-weight: 600; color: #1f2937; }
@@ -566,6 +902,20 @@
     .modal-body { padding: 20px 24px 4px; }
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     .form-item { margin-bottom: 16px; }
+    /* 商品图片上传框：大方块 + 虚线，手指点得中；有图时铺满显示 */
+    .prod-img-row { display: flex; gap: 12px; align-items: flex-start; }
+    .prod-img-box {
+      width: 98px; height: 98px; flex: 0 0 auto; border-radius: 10px;
+      border: 2px dashed var(--line); background: #fafafa; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; overflow: hidden;
+      text-align: center; color: #9ca3af; font-size: 12px; line-height: 1.4;
+      transition: border-color .15s, background .15s, color .15s;
+    }
+    .prod-img-box:hover { border-color: var(--accent); background: #fff7ed; color: var(--accent); }
+    .prod-img-box img { width: 100%; height: 100%; object-fit: cover; }
+    .prod-img-side { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+    .prod-img-btns { display: flex; gap: 8px; }
+    .prod-img-tip { font-size: 11.5px; color: #9ca3af; min-height: 16px; }
     .form-item label {
       display: block;
       font-size: 13px; color: #374151; font-weight: 600;
@@ -755,6 +1105,28 @@
         min-height: calc(100vh - 60px);
       }
       .sidebar.open { transform: translateX(0); }
+      /* 手机端：右栏整页一起滚（符合手指习惯），但左栏抽屉必须自己滚。
+         ★ 坑（2026-09-18 用户实测 bug）：上一版把 .sidebar 和 .main 一起设成
+           overflow-y: visible —— 抽屉内容超出视口后没有任何滚动容器，
+           手指在抽屉上滑动，滚的却是背后的页面，供应商永远滑不到底部的「退出登录」。
+           现在右栏照旧整页滚，抽屉单独做成滚动容器 + contain 阻断滚动穿透。 */
+      .main { height: auto; overflow-y: visible; }
+      .sidebar {
+        height: calc(100vh - 60px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;   /* 抽屉滚到头不再带动后面的页面 */
+      }
+      /* 「退出登录」常驻抽屉底部：菜单多长都看得见，不用滑到底
+         （底色跟侧栏走：青绿白侧栏下不能露出一块深蓝底 —— 用 --sidebar-bg） */
+      .sidebar .nav-item.nav-logout {
+        position: sticky; bottom: 0; z-index: 2;
+        background: var(--sidebar-bg, var(--nav));
+        color: #E11D48;
+        font-weight: 600;
+      }
+      /* 抽屉打开时锁住页面滚动：注意力锁在抽屉里，滑不到右边去 */
+      body.nav-open { overflow: hidden; }
       .main { padding: 14px; max-width: 100%; }
       .welcome { padding: 24px 22px; }
       .welcome h2 { font-size: 20px; }
@@ -1414,10 +1786,36 @@
     .home-stat:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
     .home-stat:active { transform: scale(.97); }
     .home-stat i { font-style: normal; font-size: 20px; }
-    .home-stat b { font-size: clamp(16px, 2.5vw, 22px); font-weight: 800; line-height: 1.2; word-break: break-all; overflow-wrap: break-word; }
-    .home-stat span { font-size: 12.5px; color: #6b7280; }
+    /* 数字必须一眼读懂：整数部分绝不能从中间断开。
+       原先的 word-break:break-all 会把「¥1,234,567.89」切成两三段，人就读不懂了 —— 这是硬伤。
+       数值本身保持完整（overflow-wrap:normal 不允许词内断行），
+       靠 JS 侧折算成「万/亿」把数字变短，单位再独占一行（.unit）。 */
+    /* 金额：整数段与小数段拆开 —— 整数段绝不断行（人只读得懂一行的数），
+       卡片太窄时小数段整体掉到第二行，并靠 text-align:right 落到右侧（.dec）。
+       数字绝不溢出卡片：宽度不够先缩小字号（见下方 @media 900px 的 clamp）。 */
+    /* 统计数字：先把基准字号给足（大小优先），要不要下调交给 JS 实测决定（见 fitStatNumbers）。
+       之前用 clamp(22px, 2.6vw, 30px) 只能按视口猜 —— 同排的「0」和「¥1,234,567.89」长度差十几倍，
+       一个猜测值必然「要么嫌小、要么溢出」，所以改规矩：不溢出就不缩，真溢出才逐步缩到位。
+       另外必须用 html[data-theme] 前缀压过 theme.css 1354（warm 32px）/ 1388（dark 30px）这两个**写死值** ——
+       手机上 2 列窄框放不下这么大的金额串，会被 .home-stat 的 overflow:hidden 裁掉一截。 */
+    html[data-theme] .home-stat b,
+    html[data-theme] .stat-card .value {
+      font-size: 32px; font-weight: 800; line-height: 1.2; text-align: right;
+      word-break: keep-all; overflow-wrap: normal;
+    }
+    .home-stat b .int, .home-stat b .dec { white-space: nowrap; }
+    .home-stat b .dec { display: inline-block; }
+    .home-stat b .unit { display: block; font-size: .58em; font-weight: 700; opacity: .72; margin-top: 2px; letter-spacing: .02em; }
+    /* ★ 只命中「标签」这一层（> 直接子元素）。fmtBigMoney 生成的 .int/.dec 也是 span，
+       之前不加 > 时金额数字被这条规则刷成 12.5px 灰字 —— 这就是「蚂蚁字」的真凶：
+       0 / 23 用 textContent 渲染是大字，凡走 fmtBigMoney 的金额全变蚂蚁。 */
+    .home-stat > span { font-size: 12.5px; color: #6b7280; }
+    /* 保险带：数字段强制跟 b 本体同字号同色，任何后代 span 规则都压不过它 */
+    .home-stat b .int, .home-stat b .dec { font-size: inherit; color: inherit; }
     .home-stat em { font-style: normal; font-size: 11.5px; font-weight: 700; }
-    .home-cols { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; align-items: start; }
+    .home-cols { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; }
+    /* 注意：这里不能写 align-items: start —— 写了「今日待办」就不会跟右边「快捷入口」同高，
+       两张卡一高一矮很难看。默认 stretch + 待办内部滚动，才是两张齐平的效果。 */
     .home-todo-item {
       display: flex; align-items: center; gap: 12px;
       padding: 12px 14px; border: 1px solid var(--line);
@@ -1465,6 +1863,50 @@
       .stat-bars { gap: 6px; }
       .stat-bar-val, .stat-bar-sub { font-size: 10px; }
     }
+    /* 手机竖屏统计卡：四套主题形态不同，不是一律单列 ——
+         经典 / 暖橙：保持 2×2 四宫格；
+         深色：上下罗列，一框一行（2×2 会把卡压成竖长条，长数字竖着排＝反人类）；
+         青绿：也上下罗列，但第一个框放大作主指标，不是等分罗列。
+       两个坑都记在这里：
+       (1) 选择器写成 [data-theme="x"][data-theme]（与 theme.css 754 同一手法），
+           否则压不过 theme.css 的主题视觉层，手机上会退回 2×2；
+       (2) 首页四框是 .home-stats，数据统计页四框是 .stat-grid —— 两个都要覆盖。
+           上一轮只写了 .home-stats，深色主题在数据统计页仍是左右罗列。 */
+    @media (max-width: 900px) {
+      /* 金额自适应缩小：宁可字小，也绝不能溢出卡片边框。
+         dark 下必须写成 [data-theme="dark"][data-theme]，否则压不过 theme.css 1388 写死的 30px。 */
+      /* 手机上同样只定「起始基准」，实际字号由 JS 实测下调：2 列窄框从 26px 起 */
+      html[data-theme] .home-stat b,
+      html[data-theme] .stat-card .value { font-size: 26px; }
+      [data-theme="dark"][data-theme] .home-stat b,
+      [data-theme="dark"][data-theme] .stat-card .value { text-align: right; }
+
+      /* 深色 · 手机端：上下罗列，一框一行。
+         ★ 真正的坑（前几轮改不动的原因）：theme.css 1366 把 dark 的 .home-stats
+           改成了 display:flex 横排（桌面上四张并成一整块仪表盘）。
+           对 flex 容器来说 grid-template-columns 是无效属性 —— 所以我一直改列数，
+           界面纹丝不动。竖排必须改 flex-direction: column。 */
+      [data-theme="dark"][data-theme] .home-stats,
+      [data-theme="dark"][data-theme] .stat-grid {
+        flex-direction: column; gap: 0;
+      }
+      /* 竖排后分隔线从「左边框」改成「下边框」，最后一张不画线 */
+      [data-theme="dark"][data-theme] .home-stat,
+      [data-theme="dark"][data-theme] .stat-card {
+        flex: none; width: 100%; border-left: none;
+        border-bottom: 1px solid rgba(255, 255, 255, .06);
+      }
+      [data-theme="dark"][data-theme] .home-stat:last-child,
+      [data-theme="dark"][data-theme] .stat-card:last-child { border-bottom: none; }
+
+      /* 青绿 · 手机端：也上下罗列，第一框放大作主指标
+         （theme.css 1398 的不对称布局写在 min-width:901px 里，手机上不生效） */
+      [data-theme="fresh"][data-theme] .home-stats,
+      [data-theme="fresh"][data-theme] .stat-grid { grid-template-columns: 1fr; }
+      [data-theme="fresh"][data-theme] .home-stat:first-child { padding: 22px 20px; border-width: 2px; border-color: var(--primary); }
+      [data-theme="fresh"][data-theme] .home-stat:first-child b { font-size: clamp(22px, 6vw, 30px); }
+      [data-theme="fresh"][data-theme] .home-stat:first-child i { font-size: 24px; }
+    }
 
     /* ============ 数据统计 ============ */
     .stats-note {
@@ -1483,8 +1925,14 @@
     .stat-bar-sub { font-size: 11px; color: #9ca3af; white-space: nowrap; }
     .stats-sec-title { display: flex; align-items: center; justify-content: space-between; font-size: 14.5px; font-weight: 700; color: #374151; }
   </style>
+  <!-- 通用打磨（数字排版 / 空状态 / 顶栏毛玻璃 / 卡片边界 / 按钮手感）
+       ★ 必须放在本页内联 <style> 之后：本项目各端内联样式权重高、写在后面，
+         打磨规则如果挂在 theme.css 旁边会被内联样式直接压掉（老坑）。 -->
+  <link rel="stylesheet" href="/css/ui-polish.css">
 </head>
-<body>
+<!-- class="supplier" 是 theme.css 里预留的作用域：已有 3 条演示横幅避让规则（.supplier .sidebar / .main / .topbar）
+     一直挂着没生效，就是因为本页此前没加这个 class。 -->
+<body class="supplier">
 
   <!-- 顶部导航栏 -->
   <div class="topbar">
@@ -1495,6 +1943,9 @@
     <div style="display:flex; align-items:center; gap:14px;">
       <span class="who">您好，<span id="supplierName">供应商</span></span>
       <button class="logout" id="logoutBtn">退出登录</button>
+      <!-- 主题入口：跟商家端、开发者端一致放在顶栏右上角，且在「返回 / 退出登录」右边。
+           之前把它挪到右下角悬浮，与另外两端不统一 —— 已按用户要求改回顶栏。 -->
+      <button type="button" class="theme-icon-btn" id="themeFab" title="界面主题" aria-label="界面主题">🎨</button>
     </div>
   </div>
 
@@ -1513,17 +1964,51 @@
     <!-- 侧边栏 -->
     <aside class="sidebar" id="sidebar">
       <nav class="nav">
+        <!-- ★ 侧栏分组：十几项平铺，找哪个是哪一个得一行行读，眼睛累。
+             按供应商一天的真实动线切成四段，重要的放最上面：
+             每天要办 → 商品与接单 → 结算与数据 → 账号与设置 -->
+
+        <!-- ① 每天要办：开门就要用的四个，全部置顶 -->
+        <div class="nav-group-title">每天要办</div>
         <div class="nav-item active" data-tab="home"><span class="icon">🏠</span> 工作台</div>
         <div class="nav-item" data-tab="orders" id="navOrders"><span class="icon">📦</span> 待处理订单<span class="nav-badge" id="navOrdersBadge" style="display:none;">0</span></div>
         <div class="nav-item" data-tab="price"><span class="icon">💹</span> 今日改价</div>
         <div class="nav-item" data-tab="sort"><span class="icon">⚖️</span> 分拣过秤</div>
+
+        <!-- ② 商品与接单：把生意铺开的事 -->
+        <div class="nav-divider"></div>
+        <div class="nav-group-title">商品与接单</div>
         <div class="nav-item" data-tab="products"><span class="icon">📋</span> 商品管理</div>
         <div class="nav-item" data-tab="qualify" id="navQualify"><span class="icon">🪪</span> 开通接单<span class="nav-badge" id="navQualifyBadge" style="display:none;">待办</span></div>
         <div class="nav-item" data-tab="deliver"><span class="icon">🚚</span> 配送单</div>
-        <div class="nav-item" data-tab="notify"><span class="icon">🔔</span> 通知设置</div>
+        <!-- 售后处理：商家收货发现问题在这里提，供应商 24h 内必须响应，超时自动转平台。
+             图标用内联 SVG（项目硬约束：禁止 emoji 图标）。 -->
+        <div class="nav-item" data-tab="service" id="navService">
+          <span class="icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span>
+          售后处理<span class="nav-badge" id="navServiceBadge" style="display:none;">0</span>
+        </div>
+
+        <!-- ③ 结算与数据：赚了多少、钱到哪了 -->
+        <div class="nav-divider"></div>
+        <div class="nav-group-title">结算与数据</div>
         <div class="nav-item" data-tab="split"><span class="icon">🧾</span> 我的分账</div>
-        <div class="nav-item" data-tab="onboarding" id="navOnboarding"><span class="icon">🏦</span> 进件中心<span class="nav-badge" id="navOnboardingBadge" style="display:none;">待办</span></div>
+        <!-- 补差结算：顾客用券的订单，券的成本按合作协议由平台承担，这部分货款走补差流程与货款一同结算。
+             它既不是平台额外给的好处（那是施舍化，把该给的货款说成恩惠，脸皮厚且假），
+             也不是供应商吃了亏（那是焦虑化，天天提醒人家有一笔钱没到）。
+             它就是合作里约定好的一种结算方式 —— 所以措辞一律中性客观：补差 / 已补差 / 随结算周期结清。
+             菜单上不挂金额、不挂红点：一笔消不掉的账天天挂在他眼前，谁看了都不舒服。 -->
+        <div class="nav-item" data-tab="subsidy"><span class="icon">🧾</span> 补差结算</div>
         <div class="nav-item" data-tab="stats"><span class="icon">📊</span> 数据统计</div>
+
+        <!-- ④ 账号与设置：不常用，收在最后 -->
+        <div class="nav-divider"></div>
+        <div class="nav-group-title">账号与设置</div>
+        <div class="nav-item" data-tab="notify"><span class="icon">🔔</span> 通知设置</div>
+        <div class="nav-item" data-tab="onboarding" id="navOnboarding"><span class="icon">🏦</span> 进件中心<span class="nav-badge" id="navOnboardingBadge" style="display:none;">待办</span></div>
+        <!-- 一键退出登录：放在「账号与设置」最后一格、底部小字上方 —— 供应商扫一眼就能看到。
+             （原先塞在小字下面、贴着侧栏最底边，既超出可视区又淡到看不见。）
+             右上角那个是「小返回」（回上一层），只有停在初始页时才等于退出登录。 -->
+        <div class="nav-item nav-logout" id="navLogoutBtn"><span class="icon">🚪</span> 退出登录</div>
       </nav>
       <div class="nav-tip">鼎恒供应链 · 供应商接单后台</div>
     </aside>
@@ -1545,10 +2030,11 @@
         </div>
 
         <div class="home-stats">
+          <!-- 首位放「本月实得分账」：供应商打开工作台第一眼应看到赚了多少（2026-09-18 用户拍板） -->
+          <div class="home-stat" data-go="split" title="查看我的分账"><i>🧾</i><b id="shMonthShare">¥0.00</b><span>本月实得分账</span><em style="color:#16a34a;">收入</em></div>
           <div class="home-stat" data-go="orders" title="去确认订单"><i>📦</i><b id="shPending">0</b><span>待确认订单</span><em style="color:#ef4444;">接单</em></div>
           <div class="home-stat" data-go="price" title="去今日改价"><i>💹</i><b id="shPricePending">0</b><span>待改价商品</span><em style="color:#f59e0b;">改价</em></div>
           <div class="home-stat" data-go="sort" title="去分拣过秤"><i>⚖️</i><b id="shSort">0</b><span>待分拣发货</span><em style="color:#f59e0b;">履约</em></div>
-          <div class="home-stat" data-go="split" title="查看我的分账"><i>🧾</i><b id="shMonthShare">¥0.00</b><span>本月实得分账</span><em style="color:#16a34a;">收入</em></div>
         </div>
 
         <div class="home-cols">
@@ -1559,18 +2045,57 @@
           <div class="card">
             <div class="card-head"><h3>⚡ 快捷入口</h3></div>
             <div style="padding: 16px 22px 20px;">
+              <!-- 快捷入口图标：与商家端同一套极简线性 SVG（主色、无底色、描边 currentColor）。
+                   原来的 emoji `<i>` 被 theme.css 的 .home-grid-item i { display:none } 隐藏了，
+                   等于新主题下图标是空的 —— 这里补齐，风格跟商家端一致。 -->
               <div class="home-grid">
-                <div class="home-grid-item" data-go="orders"><i>📦</i><span>待处理订单</span></div>
-                <div class="home-grid-item" data-go="price"><i>💹</i><span>今日改价</span></div>
-                <div class="home-grid-item" data-go="sort"><i>⚖️</i><span>分拣过秤</span></div>
-                <div class="home-grid-item" data-go="products"><i>📋</i><span>商品管理</span></div>
-                <div class="home-grid-item" data-go="deliver"><i>🚚</i><span>配送单</span></div>
-                <div class="home-grid-item" data-go="split"><i>🧾</i><span>我的分账</span></div>
-                <div class="home-grid-item" data-go="notify"><i>🔔</i><span>通知设置</span></div>
-                <div class="home-grid-item" data-go="stats"><i>📊</i><span>数据统计</span></div>
+                <div class="home-grid-item" data-go="orders">
+                  <svg class="hg-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l8-4 8 4v8l-8 4-8-4z"></path><path d="M4 8l8 4 8-4"></path><path d="M12 12v8"></path></svg>
+                  <span>待处理订单</span>
+                </div>
+                <div class="home-grid-item" data-go="price">
+                  <svg class="hg-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.5 3.5H20V11l-8.5 8.5a1.5 1.5 0 0 1-2.1 0L3.5 13.6a1.5 1.5 0 0 1 0-2.1z"></path><circle cx="16.8" cy="7.2" r="1.2"></circle></svg>
+                  <span>今日改价</span>
+                </div>
+                <div class="home-grid-item" data-go="sort">
+                  <svg class="hg-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v13"></path><path d="M7 20h10"></path><path d="M6 9h12"></path><path d="M6 9l-2.4 5h4.8L6 9z"></path><path d="M18 9l-2.4 5h4.8L18 9z"></path></svg>
+                  <span>分拣过秤</span>
+                </div>
+                <div class="home-grid-item" data-go="products">
+                  <svg class="hg-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>
+                  <span>商品管理</span>
+                </div>
+                <div class="home-grid-item" data-go="deliver">
+                  <svg class="hg-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="13" height="9" rx="1.5"></rect><path d="M15 11h4l3 3v2h-7"></path><circle cx="6" cy="18" r="1.6"></circle><circle cx="18" cy="18" r="1.6"></circle></svg>
+                  <span>配送单</span>
+                </div>
+                <div class="home-grid-item" data-go="split">
+                  <svg class="hg-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"></path><path d="M9 8h6"></path><path d="M9 12h6"></path></svg>
+                  <span>我的分账</span>
+                </div>
+                <div class="home-grid-item" data-go="notify">
+                  <svg class="hg-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 15V10a6 6 0 1 0-12 0v5l-2 3h16l-2-3z"></path><path d="M10.5 21h3"></path></svg>
+                  <span>通知设置</span>
+                </div>
+                <div class="home-grid-item" data-go="stats">
+                  <svg class="hg-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16"></path><path d="M7 20V12"></path><path d="M12 20V6"></path><path d="M17 20v-6"></path></svg>
+                  <span>数据统计</span>
+                </div>
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- 界面主题：以前供应商端只有右上角调色盘能换主题，
+             现在跟商家端、开发者端一样在工作台给一块显眼入口（2026-09-18 老板要求）。
+             位置同样压在「今日待办 + 快捷入口」下面：先做生意，外观设置沉到最后。 -->
+        <div class="theme-section">
+          <div class="theme-section-head">
+            <span class="t-title">🎨 界面主题</span>
+            <span class="t-sub">只影响当前浏览器，不上传服务器，不影响其他账号</span>
+            <button type="button" class="t-open" id="supThemeOpenBtn">打开主题面板</button>
+          </div>
+          <div class="theme-grid" id="supHomeThemeGrid"></div>
         </div>
 
         <div class="card" style="margin-top:14px;">
@@ -1672,6 +2197,30 @@
         </div>
       </section>
 
+      <!-- 2.5 售后处理（售后争议闭环：商家提交 → 我处理 → 谈不拢转平台裁决） -->
+      <section class="pane" id="pane-service">
+        <div class="pane-title">售后处理</div>
+        <!-- 四张统计卡都能点：点哪个就筛哪个状态（再点一次取消）。
+             老板的本能操作就是「点待受理 → 看是哪几单」，顺着本能做才叫好用。 -->
+        <div class="tk-summary">
+          <div class="tk-sum-card" data-status="待受理"><div class="label">待受理</div><div class="value tk-v-todo" id="tkTodo">0</div></div>
+          <div class="tk-sum-card" data-status="处理中"><div class="label">处理中</div><div class="value tk-v-doing" id="tkDoing">0</div></div>
+          <div class="tk-sum-card" data-status="平台介入中"><div class="label">平台介入中</div><div class="value tk-v-inter" id="tkIntervene">0</div></div>
+          <div class="tk-sum-card" data-status="已完成"><div class="label">已完成</div><div class="value tk-v-done" id="tkDone">0</div></div>
+        </div>
+        <div class="tk-filters" id="tkFilters">
+          <div class="tk-chip active" data-status="">全部</div>
+          <div class="tk-chip" data-status="待受理">待受理</div>
+          <div class="tk-chip" data-status="处理中">处理中</div>
+          <div class="tk-chip" data-status="待商家确认">待商家确认</div>
+          <div class="tk-chip" data-status="平台介入中">平台介入中</div>
+          <div class="tk-chip" data-status="已完成">已完成</div>
+        </div>
+        <!-- 提示：24h 内不响应会自动转平台，既保护商家也倒逼响应 -->
+        <div class="pw-keyboard-tip" style="margin-bottom:10px;">工单需在 24 小时内受理，超时自动转平台介入并计入服务记录</div>
+        <div id="tkList"><div class="tk-empty">工单加载中...</div></div>
+      </section>
+
       <!-- 2. 今日改价工作台 -->
       <section class="pane" id="pane-price">
         <div class="pane-title">💹 今日改价工作台</div>
@@ -1687,6 +2236,10 @@
             <div class="value"><span id="pwPending">0</span> 个</div>
           </div>
           <div class="pw-sum-tip">填写今日供货价 → 一键沿用昨日价 / 更新 → 确认后解除保鲜期提醒</div>
+          <!-- 天天改价是供应商最重的活（蔬菜每天必改），而价格真正变动的往往只有几个。
+               原来「沿用」只能一个分类一个分类点（8 类 = 8 次点击 + 8 个确认弹窗），
+               这里给一个跨分类总入口：价格没变的日子，一点就完事。 -->
+          <button class="pw-carryall-btn" id="pwCarryAllGlobal" style="margin-left:auto;" disabled>全部沿用昨日价</button>
         </div>
 
         <!-- 保鲜期提醒横幅（超期未更新时显示） -->
@@ -1714,6 +2267,8 @@
 
         <div class="product-toolbar">
           <button class="btn-add-product" id="addProductBtn">＋ 新增商品</button>
+          <!-- 拍照上传商品：品类表/报价单拍一张，识别成清单，改改就能整批新增 -->
+          <button class="btn-add-product ghost" id="aiProductBtn">📷 拍照上传商品</button>
         </div>
         <div class="table-wrap">
           <table class="order-table">
@@ -1864,6 +2419,9 @@
           <div class="report-sub">这是您本月通过平台卖出的货，平台自动分账给您（微信 T+1 到账）</div>
         </div>
 
+        <!-- 补差提示：只有顾客用券、产生了补差的月份才显示，正常月份不出现 -->
+        <div id="splitSubsidyTip" class="split-notice" style="display:none;"></div>
+
         <div class="section-title">分账明细</div>
         <div class="table-wrap">
           <table class="order-table">
@@ -1871,7 +2429,7 @@
               <tr>
                 <th>订单号</th>
                 <th>商家</th>
-                <th>我应得金额（供货价）</th>
+                <th>供货金额</th>
                 <th>时间</th>
                 <th>分账状态</th>
               </tr>
@@ -1882,6 +2440,92 @@
           </table>
         </div>
         <p class="split-foot-note">下单即发起分账指令，实际到账为微信 T+1 结算；过秤数量有差异时会自动按供货价补差（补收或退款）。</p>
+
+        <!-- 补差结算：明细与结算凭证已独立到「补差结算」栏目，这里只留入口，避免同一笔钱两处维护 -->
+        <div class="section-title" style="margin-top:18px;">补差结算</div>
+        <div class="split-notice" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;line-height:1.8;">
+          <span>顾客用券的订单，券的成本按合作协议由平台承担，这部分货款走补差流程与您的货款一同结算。每一笔补差的明细与结算进度，在左侧 <b>「🧾 补差结算」</b> 栏目查看。</span>
+          <button class="btn btn-primary" id="gotoSubsidyBtn" style="padding:4px 14px;font-size:13px;">查看补差结算</button>
+        </div>
+      </section>
+
+      <!-- 补差结算（独立栏目） -->
+      <!-- 口径原则：这是合作协议里定好的结算方式 —— 不是平台做好事，也不是供应商吃亏。
+           措辞必须中性客观、不卑不亢：
+             不叫「补贴」→ 把该结的货款说成恩惠，等于自己往脸上贴金，合作方一眼看穿，反而恶心；
+             不叫「少收 / 欠 / 待补」→ 天天提醒人家有一笔钱悬着，那是添堵。
+           正确说法平实得像一份对账单：这是您应得的货款，走了补差流程，随结算周期结清。 -->
+      <section class="pane" id="pane-subsidy">
+        <div class="pane-title">🧾 补差结算</div>
+        <div class="split-notice" style="line-height:1.9;">
+          按合作协议，顾客使用优惠券的订单，<b>券的成本由平台承担</b>。<br>
+          这部分货款通过<b>补差流程</b>与您的货款一同结算 —— 补的是<b>您应得的货款</b>，按当日供货价计算，一分不少，逐笔可查。
+        </div>
+
+        <!-- 三笔账：结算中的 / 本期补差 / 已结清 -->
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin:0 0 18px;">
+          <div class="report-hero split-hero" style="flex:1;min-width:190px;">
+            <div class="report-label">随货款结算中</div>
+            <div class="report-amount">¥<span id="subsPendingAmount">0.00</span></div>
+            <div class="report-sub"><span id="subsPendingCount">0</span> 笔，按结算周期结清</div>
+          </div>
+          <div class="report-hero split-hero" style="flex:1;min-width:190px;">
+            <div class="report-label">本期补差</div>
+            <div class="report-amount">¥<span id="subsMonthAmount">0.00</span></div>
+            <div class="report-sub">券订单补差合计</div>
+          </div>
+          <div class="report-hero split-hero" style="flex:1;min-width:190px;">
+            <div class="report-label">已结清</div>
+            <div class="report-amount" style="color:var(--green,#16a34a);">¥<span id="subsSettledAmount">0.00</span></div>
+            <div class="report-sub">共 <span id="subsSettledCount">0</span> 笔已结清</div>
+          </div>
+        </div>
+
+        <div class="section-title">一、结算中的补差（逐笔可查）</div>
+        <div class="table-wrap">
+          <table class="order-table">
+            <thead>
+              <tr>
+                <th>订单号</th>
+                <th>商家</th>
+                <th>供货价</th>
+                <th>分账到手</th>
+                <th>补差</th>
+                <th>收货时间</th>
+              </tr>
+            </thead>
+            <tbody id="subsPendingTbody">
+              <tr><td colspan="6" class="no-data">加载中...</td></tr>
+            </tbody>
+            <tfoot id="subsPendingFoot" style="display:none;">
+              <tr style="font-weight:700;">
+                <td colspan="4" style="text-align:right;">合计</td>
+                <td id="subsPendingFootAmount">0.00</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <p class="split-foot-note">「供货价」按您当日供货价计算，「分账到手」是该单实际分账金额，两者差额走<b>补差流程</b>结算 —— 这是您应得的货款，随结算周期一并结清，结清后自动转入下方「已结清」。</p>
+
+        <div class="section-title" style="margin-top:20px;">二、已结清的补差（结算凭证）</div>
+        <div class="table-wrap">
+          <table class="order-table">
+            <thead>
+              <tr>
+                <th>结算单号</th>
+                <th>结算周期</th>
+                <th>单数</th>
+                <th>结算金额</th>
+                <th>到账时间</th>
+              </tr>
+            </thead>
+            <tbody id="subsSettledTbody">
+              <tr><td colspan="5" class="no-data">加载中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="split-foot-note" id="subsPayeeNote"></p>
       </section>
 
       <!-- 合作结算（返点月结）已随返点体系下线；货款分账改由「我的分账」栏目查看 -->
@@ -1962,6 +2606,73 @@
   </div>
 
   <div class="toast" id="toast"></div>
+
+  <!-- 客服工单：给出处理方案（受理后给商家一个明确交代） -->
+  <div class="modal-scrim" id="tkResolveModal">
+    <div class="modal-box" style="max-width:460px;">
+      <div class="modal-head">
+        <h3>给出处理方案</h3>
+        <button class="modal-close" id="tkResolveClose" title="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-item">
+          <label>处理方式<span class="req">*</span></label>
+          <select id="tkResolveAction">
+            <option value="补发">补发</option>
+            <option value="换货">换货</option>
+            <option value="退款">退款</option>
+            <option value="折让">折让（下次订单抵扣）</option>
+            <option value="已解释">已解释说明（不涉及金额）</option>
+          </select>
+        </div>
+        <div class="form-item">
+          <label>金额（元）</label>
+          <input type="number" id="tkResolveAmount" min="0" step="0.01" placeholder="退款或折让金额，不涉及则留空">
+        </div>
+        <div class="form-item">
+          <label>说明<span class="req">*</span></label>
+          <textarea id="tkResolveNote" maxlength="500" placeholder="如：已核实为运输挤压导致，下次配送随单补发 8 斤" style="width:100%;min-height:80px;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;font-family:inherit;resize:vertical;"></textarea>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" id="tkResolveCancel">取消</button>
+        <button class="btn btn-primary" id="tkResolveOk">提交方案</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 客服工单：回复 / 驳回 / 转平台（三者共用，标题与按钮文案按场景切换） -->
+  <div class="modal-scrim" id="tkNoteModal">
+    <div class="modal-box" style="max-width:440px;">
+      <div class="modal-head">
+        <h3 id="tkNoteTitle">回复</h3>
+        <button class="modal-close" id="tkNoteClose" title="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-item">
+          <label id="tkNoteLabel">内容<span class="req">*</span></label>
+          <textarea id="tkNoteText" maxlength="500" style="width:100%;min-height:100px;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;font-family:inherit;resize:vertical;"></textarea>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" id="tkNoteCancel">取消</button>
+        <button class="btn btn-primary" id="tkNoteOk">提交</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 客服工单：详情（要给方案 / 回复，总得先把问题看清楚：大图 + 完整描述 + 全部处理记录）。
+       底部直接放操作按钮 —— 看完就办，不用退回列表再找一遍。 -->
+  <div class="modal-scrim" id="tkDetailModal">
+    <div class="modal-box" style="max-width:600px;">
+      <div class="modal-head">
+        <h3 id="tkDetailTitle">工单详情</h3>
+        <button class="modal-close" id="tkDetailClose" title="关闭">✕</button>
+      </div>
+      <div class="modal-body" id="tkDetailBody" style="max-height:62vh;overflow:auto;font-size:13px;line-height:1.8;color:var(--text-2);"></div>
+      <div class="modal-foot" id="tkDetailFoot"></div>
+    </div>
+  </div>
 
   <!-- 打印隐藏容器（80mm 小票 / 50mm 标签，@media print 时可见） -->
   <div id="printArea"></div>
@@ -2064,10 +2775,27 @@
             <label>库存<span class="req">*</span></label>
             <input type="number" id="prodStock" min="0" step="1" placeholder="非负整数">
           </div>
-          <div class="form-item">
-            <label>图片链接（选填）</label>
-            <input type="text" id="prodImage" maxlength="300" placeholder="http://...">
+        </div>
+        <!-- 商品图片：以前这里只有一个"图片链接"输入框，供应商手里根本没有链接可填，
+             等于这个功能不存在。改成点一下就拍照/选图，手机上直接调起相册和相机；
+             手填链接作为兜底留在旁边。 -->
+        <div class="form-item">
+          <label>商品图片（选填 · 有图的商品在采购商城里更好卖）</label>
+          <div class="prod-img-row">
+            <div class="prod-img-box" id="prodImgBox" title="点击上传商品图片">
+              <img id="prodImgPreview" alt="" style="display:none;">
+              <span class="prod-img-ph" id="prodImgPh">📷<br>点这里上传</span>
+            </div>
+            <div class="prod-img-side">
+              <input type="text" id="prodImage" maxlength="300" placeholder="也可直接粘贴图片链接">
+              <div class="prod-img-btns">
+                <button type="button" class="btn btn-ghost" id="prodImgPickBtn">选择图片</button>
+                <button type="button" class="btn btn-ghost" id="prodImgClearBtn">清除</button>
+              </div>
+              <div class="prod-img-tip" id="prodImgTip"></div>
+            </div>
           </div>
+          <input type="file" id="prodImgFile" accept="image/*" hidden>
         </div>
         <div class="form-item">
           <label>关联主品（精品档关联其实惠档主品，采购商城相邻展示）</label>
@@ -2081,6 +2809,71 @@
       <div class="modal-foot">
         <button class="btn btn-ghost" id="prodCancelBtn">取消</button>
         <button class="btn btn-primary" id="prodSaveBtn">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 拍照上传商品 =====
+       一件一件新增太慢：品类表 / 报价单拍一张（或者把报价单文字粘进来），
+       识别成清单 → 这儿改、那儿删、还能手动加 → 一键整批新增。
+       识别出来的每一行都能改，绝不是"认出来是什么就是什么"的黑盒。 -->
+  <div class="modal-scrim" id="aiProductModal">
+    <div class="modal-box" style="max-width: 720px;">
+      <div class="modal-head">
+        <h3>📷 拍照上传商品</h3>
+        <button class="modal-close" id="aiProductClose" title="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- 第一步：给素材（拍照 / 选图 / 粘贴文字） -->
+        <div id="aiStepInput">
+          <div class="ai-drop" id="aiDrop">
+            <div class="big">📷</div>
+            <div class="t1">点这里拍照，或选一张品类表的照片</div>
+            <div class="t2">手写的、打印的报价单、Excel 截图都认得<br>镜头正对着拍、别太远，认得更准</div>
+          </div>
+          <img class="ai-preview" id="aiPreview" style="display:none;" alt="">
+          <input type="file" id="aiFile" accept="image/*" hidden>
+
+          <div class="ai-or">或者</div>
+          <div class="form-item">
+            <label>把报价单的文字直接粘进来（微信里收到的最省事）</label>
+            <textarea class="ai-textarea" id="aiText" placeholder="例如：&#10;五花肉  28.5 元/斤&#10;土豆    2.3 元/斤&#10;鸡蛋    220 元/箱"></textarea>
+          </div>
+        </div>
+
+        <!-- 识别中 -->
+        <div class="ai-loading" id="aiLoading" style="display:none;">
+          <span class="ai-spin"></span>
+          <div style="margin-top:12px;">正在识别，请稍等几秒…</div>
+        </div>
+
+        <!-- 第二步：核对清单 -->
+        <div id="aiStepList" style="display:none;">
+          <div class="ai-sum" id="aiSum"></div>
+          <div style="overflow-x:auto;margin-top:8px;">
+            <table class="ai-tbl">
+              <thead>
+                <tr>
+                  <th style="width:32px;"><input type="checkbox" id="aiAll" checked title="全选 / 全不选"></th>
+                  <th>商品名</th>
+                  <th style="width:120px;">品类</th>
+                  <th style="width:84px;">单位</th>
+                  <th style="width:96px;">供货价（必填）</th>
+                  <th style="width:78px;">库存</th>
+                  <th style="width:32px;"></th>
+                </tr>
+              </thead>
+              <tbody id="aiTbody"></tbody>
+            </table>
+          </div>
+          <button class="btn btn-ghost" id="aiAddRowBtn" type="button" style="margin-top:10px;">＋ 再加一行</button>
+          <div class="ai-result" id="aiResult" style="display:none;"></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" id="aiAgainBtn" type="button" style="display:none;">重新识别</button>
+        <button class="btn btn-ghost" id="aiCancelBtn">取消</button>
+        <button class="btn btn-primary" id="aiGoBtn">开始识别</button>
       </div>
     </div>
   </div>
@@ -2132,6 +2925,48 @@
     }
 
     const $ = (id) => document.getElementById(id);
+
+    // 统计卡金额：精确到分（两位小数 + 千分位），绝不折算。
+    // 曾经自作主张折算成「万」，几千块显示成 0.3 万，反而更难读 —— 已按用户要求回退为精确值。
+    // 数字不再被 CSS 从中间切断（word-break 已改 keep-all），长数字靠字号自适应缩小，绝不拆行。
+    // 注意：本页已有一个 fmtMoney（表格在用，toFixed(2) 无千分位），这个是统计卡专用，不覆盖它。
+    function fmtBigMoney(n, sign) {
+      var v = Number(n) || 0;
+      var s = v < 0 ? '−' : (sign ? '+' : '');
+      var t = Math.abs(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      var d = t.lastIndexOf('.');
+      // 拆成整数段 / 小数段：整数段绝不断行（人只读得懂一行的数）；
+      // 卡片太窄时小数段整体掉到第二行并右对齐（CSS 里 .dec + text-align:right）。
+      return '<span class="int">' + s + '¥' + t.slice(0, d) + '</span><span class="dec">' + t.slice(d) + '</span>';
+    }
+
+    // ===== 统计数字自适应：不溢出就不缩，真溢出才逐步缩 =====
+    // 规矩（用户定的）：大小放第一位，正常情况一律不缩小；
+    // 数字变长、快要顶到卡片边框时，才按 1px 一档往下调，调到刚好放得下就停。
+    // clamp(vw) 只能按视口宽度猜长度 —— 同一排里「0」和「¥1,234,567.89」长度差十几倍，
+    // 一个猜测值必然「要么嫌小、要么溢出」，所以改成渲染后实测再决定。
+    const FIT_MIN = 20;   // 缩到这个字号就停 —— 用户定的：可以缩，但不许缩成蚂蚁
+    function fitNum(el, base) {
+      if (!el || !el.clientWidth) return;
+      let size = base;
+      el.style.fontSize = size + 'px';
+      // 逐个像素往下试探：内容宽度一旦塞得进容器就停手
+      while (el.scrollWidth > el.clientWidth + 1 && size > FIT_MIN) {
+        size -= 1;
+        el.style.fontSize = size + 'px';
+      }
+    }
+    function fitStatNumbers() {
+      const base = window.innerWidth <= 900 ? 26 : 32;
+      document.querySelectorAll('.home-stat b, .stat-card .value').forEach(function (el) {
+        fitNum(el, base);
+      });
+    }
+    window.addEventListener('resize', function () {
+      clearTimeout(window._fitT);
+      window._fitT = setTimeout(fitStatNumbers, 150);
+    });
+
     function toast(msg, isErr) {
       const el = $('toast');
       el.textContent = msg;
@@ -2233,7 +3068,7 @@
           ${contactBlock}
         `);
         $('gateRefreshBtn').onclick = loadProfile;
-        $('gateLogoutBtn').onclick = () => $('logoutBtn').click();
+        $('gateLogoutBtn').onclick = () => doLogout();
         return;
       }
 
@@ -2247,7 +3082,7 @@
           <button class="gate-btn" style="background:#9ca3af;" id="gateLogoutBtn">退出登录</button>
           ${contactBlock}
         `);
-        $('gateLogoutBtn').onclick = () => $('logoutBtn').click();
+        $('gateLogoutBtn').onclick = () => doLogout();
         return;
       }
 
@@ -2265,7 +3100,7 @@
           <button class="gate-btn" style="background:#9ca3af;" id="gateLogoutBtn">退出登录</button>
           ${contactBlock}
         `);
-        $('gateLogoutBtn').onclick = () => $('logoutBtn').click();
+        $('gateLogoutBtn').onclick = () => doLogout();
         return;
       }
 
@@ -3029,9 +3864,11 @@
       }
     }
 
-    // 图片点击放大（简易灯箱）
+    // 图片点击放大：统一走三端通用灯箱（Esc / 空格 / 回车 / 右键 / 点任意处都能退回），
+    // 不再各写一套半截的放大 —— 以前那种点了退不回去，只能刷新页面。
     function showImageLightbox(url) {
       if (!url) return;
+      if (typeof window.openImageLightbox === 'function') { window.openImageLightbox(url); return; }
       let lb = $('qualLightbox');
       if (!lb) {
         lb = document.createElement('div');
@@ -3057,22 +3894,326 @@
     }
 
     // 侧边栏导航
-    function switchTab(tab) {
+    // 页面层级栈：右上角按钮是「小返回」—— 不在初始页时回上一层，停在初始页才等于退出登录。
+    // 初始页 = 工作台（home）。
+    const _tabStack = ['home'];
+    function updateBackBtn() {
+      const canBack = _tabStack.length > 1;
+      const b = $('logoutBtn');
+      b.textContent = canBack ? '返回' : '退出登录';
+      b.classList.toggle('is-back', canBack);
+    }
+    function goBack() {
+      if (_tabStack.length <= 1) { doLogout(); return; }   // 已在初始页 → 退出登录
+      _tabStack.pop();
+      switchTab(_tabStack[_tabStack.length - 1], true);
+    }
+    // isBack=true 表示这是回退动作，不再入栈 —— 否则栈越堆越深，永远退不回初始页
+    // ============ 客服工单（售后争议闭环） ============
+    // 商家收货发现问题 → 提工单（带图凭证）→ 供应商 24h 内受理并给方案 → 商家确认闭环；
+    // 谈不拢或超时自动转平台裁决。每个动作都留痕，谁说得清谁占理 —— 不再靠嗓门大小定责。
+    let _tkList = [];
+    let _tkFilter = '';
+    let _tkCurId = '';      // 当前操作的工单 id
+    let _tkNoteMode = '';   // reply | reject | escalate
+
+    const TK_TONE = {
+      '待受理': ['rgba(234,88,12,.10)', '#c2410c'],
+      '处理中': ['rgba(37,99,235,.10)', '#1d4ed8'],
+      '待商家确认': ['rgba(109,40,217,.10)', '#6d28d9'],
+      '已完成': ['rgba(22,163,74,.10)', '#15803d'],
+      '已驳回': ['rgba(107,114,128,.12)', '#6b7280'],
+      '已撤销': ['rgba(107,114,128,.12)', '#6b7280'],
+      '平台介入中': ['rgba(220,38,38,.10)', '#b91c1c']
+    };
+    const TK_TERMINAL = ['已完成', '已驳回', '已撤销'];
+    // 排序权重：待办在前、已闭环在后
+    const TK_ORDER = { '待受理': 0, '平台介入中': 1, '处理中': 2, '待商家确认': 3, '已完成': 4, '已驳回': 5, '已撤销': 6 };
+
+    async function loadServiceTickets() {
+      const res = await api('/api/service-tickets/supplier');
+      if (!res.success) {
+        $('tkList').innerHTML = '<div class="tk-empty">工单加载失败</div>';
+        return;
+      }
+      _tkList = (res.data && res.data.list) || [];
+      updateServiceBadge((res.data && res.data.pendingCount) || 0);
+      renderServiceTickets();
+    }
+
+    // 侧栏红点：有待办就要让供应商一眼看见（超时会转平台并计入服务记录）
+    function updateServiceBadge(n) {
+      const b = $('navServiceBadge');
+      if (!b) return;
+      b.textContent = n;
+      b.style.display = n > 0 ? '' : 'none';
+    }
+
+    function renderServiceTickets() {
+      const all = _tkList || [];
+      const cnt = (s) => all.filter(t => t.status === s).length;
+      $('tkTodo').textContent = cnt('待受理');
+      $('tkDoing').textContent = cnt('处理中');
+      $('tkIntervene').textContent = all.filter(t => t.platformIntervened && !TK_TERMINAL.includes(t.status)).length;
+      $('tkDone').textContent = cnt('已完成');
+
+      let list = _tkFilter ? all.filter(t => t.status === _tkFilter) : all.slice();
+      // 紧急优先、待办优先、新的优先
+      list.sort((a, b) => {
+        const ua = a.priority === '紧急', ub = b.priority === '紧急';
+        if (ua !== ub) return ua ? -1 : 1;
+        const oa = TK_ORDER[a.status] ?? 9, ob = TK_ORDER[b.status] ?? 9;
+        if (oa !== ob) return oa - ob;
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      });
+
+      const wrap = $('tkList');
+      if (!list.length) {
+        wrap.innerHTML = '<div class="tk-empty">暂无工单' + (_tkFilter ? '（该状态下）' : '') + '</div>';
+        return;
+      }
+      wrap.innerHTML = list.map(tkCardHtml).join('');
+      wrap.querySelectorAll('[data-act]').forEach(btn => {
+        // 点按钮别冒泡到卡片，否则「受理」会顺带弹出详情，很烦
+        btn.onclick = (e) => { e.stopPropagation(); handleTicketAction(btn.dataset.act, btn.dataset.id); };
+      });
+      // 点卡片任意空白处 → 打开详情。要给方案 / 回复，总得先把问题看清楚
+      wrap.querySelectorAll('.tk-card').forEach(card => {
+        card.onclick = () => openTkDetail(card.dataset.id);
+      });
+      syncTkChips();
+    }
+
+    function tkCardHtml(t) {
+      const terminal = TK_TERMINAL.includes(t.status);
+      const cls = ['tk-card'];
+      if (t.priority === '紧急') cls.push('urgent');
+      if (t.platformIntervened && !terminal) cls.push('intervened');
+      if (terminal) cls.push('done');
+
+      // 受理倒计时：不到 6 小时标橙，已超时标红并说明后果
+      let dueHtml = '';
+      if (t.status === '待受理' && t.dueAt) {
+        const ms = new Date(t.dueAt) - Date.now();
+        const h = Math.floor(ms / 3600000);
+        const m = Math.floor((ms % 3600000) / 60000);
+        if (ms <= 0) dueHtml = '<div class="tk-due over">已超时，将自动转平台介入</div>';
+        else if (h < 6) dueHtml = `<div class="tk-due soon">距自动转平台介入还剩 ${h} 小时${m ? ' ' + m + ' 分' : ''}</div>`;
+        else dueHtml = `<div class="tk-due">距自动转平台介入还剩 ${h} 小时</div>`;
+      }
+
+      const imgs = (t.images || []).length
+        ? `<div class="tk-imgs">${t.images.map(u => `<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="凭证"></a>`).join('')}</div>`
+        : '';
+
+      const items = (t.items || []).length
+        ? `<div class="tk-items">${t.items.map(i =>
+            `${esc(i.name)}${i.issueQuantity > 0
+              ? `（问题 ${i.issueQuantity}${esc(i.unit || '')}／共 ${i.quantity}${esc(i.unit || '')}）`
+              : ` ×${i.quantity}${esc(i.unit || '')}`}`).join('；')}</div>`
+        : '';
+
+      // 已给方案高亮展示：商家确认前双方都能看到，避免"你说给过、我说没给"
+      const resolveHtml = (t.resolution && t.resolution.action)
+        ? `<div class="tk-resolve">处理方案：${esc(t.resolution.action)}${t.resolution.amount > 0 ? ` ¥${Number(t.resolution.amount).toFixed(2)}` : ''}${t.resolution.note ? '｜' + esc(t.resolution.note) : ''}</div>`
+        : '';
+
+      const logs = (t.logs || []).slice(-3).map(l =>
+        `<div class="tk-log">${fmtTime(l.at)} <b>${esc(l.byName || '')}</b> ${esc(l.action || '')}${l.note ? '：' + esc(l.note) : ''}</div>`
+      ).join('');
+      const logsHtml = (t.logs || []).length
+        ? `<div class="tk-logs">${logs}${(t.logs.length > 3) ? `<div class="tk-log">…共 ${t.logs.length} 条记录</div>` : ''}</div>`
+        : '';
+
+      const ratingHtml = t.rating
+        ? `<div class="tk-meta">商家评价：${t.rating}/5 分${t.ratingNote ? '｜' + esc(t.ratingNote) : ''}</div>`
+        : '';
+
+      return `
+        <div class="${cls.join(' ')}" data-id="${t._id}">
+          <div class="tk-head">
+            <span class="tk-no">${esc(t.ticketNo)}</span>
+            <span class="tk-badge type">${esc(t.type)}</span>
+            ${tkStatusBadge(t.status)}
+            ${t.priority === '紧急' ? '<span class="tk-badge urgent">紧急</span>' : ''}
+          </div>
+          <div class="tk-meta">订单 ${esc(t.orderNo || '—')}｜${esc(t.shopName || '商家')}｜${fmtTime(t.createdAt)}</div>
+          <div style="font-size:13px;font-weight:600;color:#1f2937;margin-bottom:6px;">${esc(t.title || '')}</div>
+          <div class="tk-desc">${esc(t.description || '')}</div>
+          ${imgs}
+          ${items}
+          ${dueHtml}
+          ${resolveHtml}
+          ${ratingHtml}
+          ${tkActionButtons(t)}
+          ${logsHtml}
+        </div>
+      `;
+    }
+
+    function tkStatusBadge(s) {
+      const tone = TK_TONE[s] || ['rgba(107,114,128,.12)', '#6b7280'];
+      return `<span class="tk-badge" style="background:${tone[0]};color:${tone[1]};">${esc(s)}</span>`;
+    }
+
+    function tkActionButtons(t) {
+      const b = [];
+      if (t.status === '待受理') {
+        b.push(`<button class="tk-btn primary" data-act="accept" data-id="${t._id}">受理</button>`);
+        b.push(`<button class="tk-btn danger" data-act="reject" data-id="${t._id}">驳回</button>`);
+      }
+      if (t.status === '处理中' || t.status === '平台介入中') {
+        b.push(`<button class="tk-btn primary" data-act="resolve" data-id="${t._id}">给出方案</button>`);
+      }
+      if (!TK_TERMINAL.includes(t.status)) {
+        b.push(`<button class="tk-btn" data-act="reply" data-id="${t._id}">回复</button>`);
+        if (!t.platformIntervened) {
+          b.push(`<button class="tk-btn" data-act="escalate" data-id="${t._id}">转平台介入</button>`);
+        }
+      }
+      return b.length ? `<div class="tk-actions">${b.join('')}</div>` : '';
+    }
+
+    async function handleTicketAction(act, id) {
+      _tkCurId = id;
+      if (act === 'accept') {
+        const note = prompt('受理备注（可留空，如：已联系商家核实，确为运输挤压）');
+        const res = await api(`/api/service-tickets/${id}/accept`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ note: note || '' })
+        });
+        if (res.success) { toast('已受理，请尽快给出处理方案'); loadServiceTickets(); }
+        else toast(res.message || '操作失败', true);
+      } else if (act === 'resolve') {
+        openTkResolve(id);
+      } else {
+        openTkNote(act === 'escalate' ? 'escalate' : (act === 'reject' ? 'reject' : 'reply'), id);
+      }
+    }
+
+    function openTkResolve(id) {
+      _tkCurId = id;
+      $('tkResolveAmount').value = '';
+      $('tkResolveNote').value = '';
+      $('tkResolveModal').classList.add('show');
+    }
+
+    function openTkNote(mode, id) {
+      _tkCurId = id;
+      _tkNoteMode = mode;
+      const cfg = ({
+        reply: ['回复工单', '回复内容', '发送'],
+        reject: ['驳回工单', '驳回理由（必填，商家与平台都能看到）', '确认驳回'],
+        escalate: ['申请平台介入', '说明情况（便于平台快速裁决）', '提交申请']
+      })[mode] || ['回复工单', '内容', '提交'];
+      $('tkNoteTitle').textContent = cfg[0];
+      $('tkNoteLabel').innerHTML = cfg[1] + '<span class="req">*</span>';
+      $('tkNoteOk').textContent = cfg[2];
+      $('tkNoteText').value = '';
+      $('tkNoteModal').classList.add('show');
+    }
+
+    // 点卡片 → 详情：图（可点开看大图）、完整描述、涉事商品、全部处理记录一次摆出来。
+    // 以前只能看到列表里那点摘要，要"给方案"却不知道到底出了什么事 —— 现在看完直接在底部办。
+    function openTkDetail(id) {
+      const t = _tkList.find(x => String(x._id) === String(id));
+      if (!t) { toast('未找到该工单', true); return; }
+      _tkCurId = id;
+      $('tkDetailTitle').textContent = '工单 ' + t.ticketNo;
+
+      const imgs = (t.images || []).length
+        ? `<div class="tk-imgs">${t.images.map(u =>
+            `<a href="${esc(u)}" target="_blank" rel="noopener" title="点击看大图"><img src="${esc(u)}" alt="凭证"></a>`).join('')}</div>`
+        : '<div class="tk-meta">商家未上传凭证图片</div>';
+
+      const items = (t.items || []).length
+        ? `<div class="tk-items">${t.items.map(i =>
+            `${esc(i.name)}${i.issueQuantity > 0
+              ? `（问题 ${i.issueQuantity}${esc(i.unit || '')}／共 ${i.quantity}${esc(i.unit || '')}）`
+              : ` ×${i.quantity}${esc(i.unit || '')}`}`).join('；')}</div>`
+        : '';
+
+      const logs = (t.logs || []).length
+        ? t.logs.map(l =>
+            `<div class="tk-log">${fmtTime(l.at)} <b>${esc(l.byName || '')}</b> ${esc(l.action || '')}${l.to ? `（${esc(l.from || '')} → ${esc(l.to)}）` : ''}${l.note ? '<br>' + esc(l.note) : ''}</div>`
+          ).join('')
+        : '<div class="tk-log">暂无处理记录</div>';
+
+      const due = (t.status === '待受理' && t.dueAt)
+        ? (new Date(t.dueAt) - Date.now() <= 0
+            ? '<div class="tk-due over">已超时，将自动转平台介入</div>'
+            : `<div class="tk-due">距自动转平台介入还剩 ${Math.floor((new Date(t.dueAt) - Date.now()) / 3600000)} 小时</div>`)
+        : '';
+
+      $('tkDetailBody').innerHTML = `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+          ${tkStatusBadge(t.status)}<span class="tk-badge type">${esc(t.type)}</span>
+          ${t.priority === '紧急' ? '<span class="tk-badge urgent">紧急</span>' : ''}
+        </div>
+        <div class="tk-meta">订单 ${esc(t.orderNo || '—')}｜${esc(t.shopName || '商家')}｜提交于 ${fmtTime(t.createdAt)}</div>
+        <div style="font-weight:700;color:var(--text);margin:6px 0;">${esc(t.title || '')}</div>
+        <div class="tk-desc">${esc(t.description || '')}</div>
+        ${due}
+        <div class="tk-meta" style="margin-bottom:6px;">凭证图片（点击看大图）</div>
+        ${imgs}
+        ${items}
+        ${(t.resolution && t.resolution.action)
+          ? `<div class="tk-resolve">处理方案：${esc(t.resolution.action)}${t.resolution.amount > 0 ? ' ¥' + Number(t.resolution.amount).toFixed(2) : ''}${t.resolution.note ? '｜' + esc(t.resolution.note) : ''}</div>`
+          : ''}
+        ${t.rating ? `<div class="tk-meta">商家评价：${t.rating}/5 分${t.ratingNote ? '｜' + esc(t.ratingNote) : ''}</div>` : ''}
+        <div style="margin-top:14px;font-weight:700;color:var(--text);">处理记录（${(t.logs || []).length} 条）</div>
+        ${logs}
+      `;
+
+      const btns = [];
+      if (t.status === '待受理') {
+        btns.push('<button class="btn btn-primary" data-dact="accept">受理</button>');
+        btns.push('<button class="btn btn-red" data-dact="reject">驳回</button>');
+      }
+      if (t.status === '处理中' || t.status === '平台介入中') {
+        btns.push('<button class="btn btn-primary" data-dact="resolve">给出方案</button>');
+      }
+      if (!TK_TERMINAL.includes(t.status)) {
+        btns.push('<button class="btn btn-ghost" data-dact="reply">回复</button>');
+        if (!t.platformIntervened) btns.push('<button class="btn btn-ghost" data-dact="escalate">转平台介入</button>');
+      }
+      const foot = $('tkDetailFoot');
+      foot.innerHTML = btns.join('');
+      foot.querySelectorAll('[data-dact]').forEach(b => {
+        b.onclick = () => {
+          $('tkDetailModal').classList.remove('show');
+          handleTicketAction(b.dataset.dact, id);
+        };
+      });
+      $('tkDetailModal').classList.add('show');
+    }
+
+    function switchTab(tab, isBack) {
+      if (!isBack && _tabStack[_tabStack.length - 1] !== tab) _tabStack.push(tab);
+      updateBackBtn();
       document.querySelectorAll('.nav-item').forEach(x => x.classList.toggle('active', x.dataset.tab === tab));
       document.querySelectorAll('.pane').forEach(x => x.classList.toggle('active', x.id === 'pane-' + tab));
       closeSidebar();
       if (tab === 'home') loadHome();
       if (tab === 'orders') loadOrders();
+      if (tab === 'service') loadServiceTickets();
       if (tab === 'price') loadPriceWorkbench();
       if (tab === 'products') loadProducts();
       if (tab === 'qualify' && _gateProfile) renderQualifyPane(_gateProfile);
       if (tab === 'notify') loadNotifySettings();
       if (tab === 'split') loadSplit();
+      // 补差结算：钱的账单独成栏目，每一笔都要看得见
+      if (tab === 'subsidy') loadSubsidyCenter();
       if (tab === 'sort') loadSortOrders();
       if (tab === 'deliver') loadDeliverOrders();
       if (tab === 'stats') loadStats();
     }
-    document.querySelectorAll('.nav-item').forEach(t => t.onclick = () => switchTab(t.dataset.tab));
+    // 排除侧栏底部的「一键退出登录」：它不是导航项，点它不该切换面板
+    document.querySelectorAll('.nav-item').forEach(t => { if (t.id !== 'navLogoutBtn') t.onclick = () => switchTab(t.dataset.tab); });
+
+    // 「数据统计」页的补差入口 → 直接跳到「补差结算」栏目（钱的事只有一个入口，避免多处口径打架）
+    if ($('gotoSubsidyBtn')) $('gotoSubsidyBtn').onclick = () => switchTab('subsidy');
 
     // 工作台卡片/快捷入口点击跳转
     document.querySelectorAll('#pane-home [data-go]').forEach(el => {
@@ -3141,7 +4282,8 @@
       $('shPending').textContent = String(pending);
       $('shPricePending').textContent = String(pricePending);
       $('shSort').textContent = String(toSort + toDeliver);
-      $('shMonthShare').textContent = '¥' + monthShare.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
+      $('shMonthShare').innerHTML = fmtBigMoney(monthShare);
+      fitStatNumbers();  // 四框渲染完立刻量一次：不溢出就用大字，溢出才逐档缩小
 
       const todos = [];
       if (pending > 0) todos.push({ dot: 'red', text: `${pending} 笔订单待确认`, sub: '尽快确认，商家在等你接单', go: 'orders', btn: '去接单' });
@@ -3250,19 +4392,27 @@
       guide.style.display = (!hasProducts && localStorage.getItem(key) !== '1') ? 'flex' : 'none';
     }
 
-    function openSidebar() { $('sidebar').classList.add('open'); $('scrim').classList.add('show'); }
-    function closeSidebar() { $('sidebar').classList.remove('open'); $('scrim').classList.remove('show'); }
+    // 抽屉开合同时给 body 加/去 nav-open：锁住背后页面的滚动（手机上不然会滚到右边去）
+    function openSidebar() { $('sidebar').classList.add('open'); $('scrim').classList.add('show'); document.body.classList.add('nav-open'); }
+    function closeSidebar() { $('sidebar').classList.remove('open'); $('scrim').classList.remove('show'); document.body.classList.remove('nav-open'); }
     // 汉堡按钮开合切换：菜单开着时再点即收起
     $('menuToggle').onclick = () => ($('sidebar').classList.contains('open') ? closeSidebar() : openSidebar());
     $('scrim').onclick = closeSidebar;
 
     // 退出登录
-    $('logoutBtn').onclick = () => {
+    // 一键退出登录：清掉本地登录态回登录页。
+    // 引导页（gate）与侧栏底部都直接调它 —— 不要走 logoutBtn.click()，
+    // 那个按钮现在是「小返回」，在深层页面点它只会返回上一层，不会真的退出。
+    function doLogout() {
       localStorage.removeItem('supplierToken');
       localStorage.removeItem('supplierId');
       localStorage.removeItem('supplierName');
       location.href = '/supplier-login.html';
-    };
+    }
+    // 右上角：小返回。只有停在初始页（工作台）时，它的语义才是退出登录。
+    $('logoutBtn').onclick = () => goBack();
+    // 侧栏最底部：一键退出登录，任何时候点了就是退出
+    $('navLogoutBtn').onclick = () => doLogout();
 
     // ============ 订单列表 ============
     let allOrders = [];        // 全部订单（已按 supplierId 过滤）
@@ -3291,6 +4441,7 @@
       $('todayNewCount').textContent = todayNew;
       $('pendingCount').textContent = c['待确认'];
       $('monthPayTotal').textContent = monthPay.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
+      fitStatNumbers();
 
       // 欢迎语
       const pending = c['待确认'];
@@ -3334,12 +4485,21 @@
       }
       act += ` <button class="btn btn-ghost" data-act="print" data-id="${esc(String(o._id))}" title="打印小票（80mm）">🖨️ 打印小票</button>`;
 
+      // 补差标（中性客观）：顾客用券的订单，券的成本按协议由平台承担，这部分货款走补差流程结算。
+      // 不写「补贴」—— 那是把该结的货款说成施舍，等于往自己脸上贴金，懂行的人看了只觉得假；
+      // 也不写「少收 / 待补」—— 那是天天提醒人家钱没到，添堵。
+      // 就一行平实的「补差 x.xx」，结清后变「补差已结」。一件正常事，用正常的语气说就够了。
+      const subAmt = Number(o.subsidyAmount) || 0;
+      const subsidyTag = subAmt > 0.005
+        ? `<div style="font-size:12px;font-weight:700;color:#2563eb;">${o.subsidyStatus === '已补' ? '补差已结' : '补差'} ${subAmt.toFixed(2)}</div>`
+        : '';
+
       return `
         <tr class="${rowClass}">
           <td class="mono" data-label="订单号" title="${esc(o.orderNo || '')}">…${esc(orderNoTail)}</td>
           <td data-label="商家名称">${shopName}</td>
           <td class="summary" data-label="商品摘要" title="${esc(summary)}">${esc(summary)} ${anomalyTag}</td>
-          <td class="pay" data-label="供货金额">${fmtMoney(o.supplyAmount)}</td>
+          <td class="pay" data-label="供货金额">${fmtMoney(o.supplyAmount)}${subsidyTag}</td>
           <td data-label="状态"><span class="badge ${sCls}">${esc(o.status)}</span></td>
           <td data-label="下单时间">${fmtTime(o.createdAt)}</td>
           <td class="act">${act}</td>
@@ -3796,6 +4956,74 @@
       toast('秤配置已保存');
     };
 
+    // ============ 客服工单：弹窗与筛选 ============
+    $('tkResolveClose').onclick = () => $('tkResolveModal').classList.remove('show');
+    $('tkResolveCancel').onclick = () => $('tkResolveModal').classList.remove('show');
+    $('tkResolveOk').onclick = async () => {
+      const action = $('tkResolveAction').value;
+      const amount = Number($('tkResolveAmount').value || 0);
+      const note = $('tkResolveNote').value.trim();
+      if (!note) { toast('请填写处理说明（商家与平台都要看得到依据）', true); return; }
+      const res = await api(`/api/service-tickets/${_tkCurId}/resolve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, amount, note })
+      });
+      if (res.success) {
+        $('tkResolveModal').classList.remove('show');
+        toast('方案已提交，等待商家确认');
+        loadServiceTickets();
+      } else toast(res.message || '提交失败', true);
+    };
+
+    $('tkNoteClose').onclick = () => $('tkNoteModal').classList.remove('show');
+    $('tkNoteCancel').onclick = () => $('tkNoteModal').classList.remove('show');
+    $('tkNoteOk').onclick = async () => {
+      const text = $('tkNoteText').value.trim();
+      if (!text) { toast('内容不能为空', true); return; }
+      // 回复 / 驳回 / 转平台三个动作共用弹窗，仅接口与报文不同
+      const map = {
+        reply: ['/reply', { note: text }],
+        reject: ['/reject', { reason: text }],
+        escalate: ['/escalate', { reason: text }]
+      };
+      const [suffix, body] = map[_tkNoteMode] || map.reply;
+      const res = await api(`/api/service-tickets/${_tkCurId}${suffix}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (res.success) {
+        $('tkNoteModal').classList.remove('show');
+        toast(_tkNoteMode === 'reject' ? '已驳回' : (_tkNoteMode === 'escalate' ? '已转平台介入' : '回复已发送'));
+        loadServiceTickets();
+      } else toast(res.message || '操作失败', true);
+    };
+
+    // 统计卡与筛选条共用同一份筛选状态：点哪边，两边一起高亮，不会出现"两个选中态"打架
+    function syncTkChips() {
+      document.querySelectorAll('.tk-sum-card').forEach(c => c.classList.toggle('active', !!c.dataset.status && c.dataset.status === _tkFilter));
+      $('tkFilters').querySelectorAll('.tk-chip').forEach(c => c.classList.toggle('active', (c.dataset.status || '') === _tkFilter));
+    }
+    $('tkFilters').querySelectorAll('.tk-chip').forEach(chip => {
+      chip.onclick = () => {
+        _tkFilter = chip.dataset.status;
+        renderServiceTickets();
+      };
+    });
+    // 统计卡可点：点「待受理」就给我看待受理那几单，再点一次取消筛选
+    document.querySelectorAll('.tk-sum-card').forEach(card => {
+      card.onclick = () => {
+        const st = card.dataset.status || '';
+        _tkFilter = (_tkFilter === st) ? '' : st;
+        renderServiceTickets();
+      };
+    });
+    $('tkDetailClose').onclick = () => $('tkDetailModal').classList.remove('show');
+    $('tkDetailModal').onclick = (e) => { if (e.target === $('tkDetailModal')) $('tkDetailModal').classList.remove('show'); };
+    // 进页面就拉一次：不点进栏目也能在侧栏看到待办红点
+    loadServiceTickets();
+
     // 分拣订单列表（今日已确认订单，按 sorted 分待/已分拣）
     let _sortOrders = [];
     let _sortFilter = '待分拣';
@@ -4085,6 +5313,27 @@
       const s = d.summary || {};
       $('splitSupplyAmount').textContent = Number(s.supplierShare || 0).toFixed(2);
 
+      // 补差提示：只有真发生补差的月份才显示，正常月份不打扰。
+      // 措辞中性客观 —— 这是合作协议里定好的结算方式，既不是平台的恩惠，也不是供应商的亏损。
+      // 说「补差」「随结算周期结清」就好：不邀功（不叫补贴），也不添堵（不叫少收 / 待补）。
+      const subsidyAll = Number(s.subsidyAmount || 0);
+      const subsidyPending = Number(s.subsidyPending || 0);
+      const subsidyOrders = Number(s.subsidyOrderCount || 0);
+      const tipEl = $('splitSubsidyTip');
+      if (tipEl) {
+        if (subsidyAll > 0.005) {
+          tipEl.style.display = '';
+          tipEl.innerHTML = `本月有 <b>${subsidyOrders}</b> 单使用优惠券，相关货款按补差流程结算，合计 `
+            + `<b>¥${subsidyAll.toFixed(2)}</b>`
+            + (subsidyPending > 0.005
+              ? `，其中 <b>¥${subsidyPending.toFixed(2)}</b> 随本期结算一并结清。`
+              : `，已全部结清。`);
+        } else {
+          tipEl.style.display = 'none';
+          tipEl.innerHTML = '';
+        }
+      }
+
       const rows = d.records || [];
       if (rows.length === 0) {
         $('splitTbody').innerHTML = `<tr><td colspan="5" class="no-data">「${esc(month)}」暂无分账记录</td></tr>`;
@@ -4092,16 +5341,119 @@
       }
       $('splitTbody').innerHTML = rows.map(r => {
         const comp = Number(r.compensateSupplierShare || 0);
+        const got = Number(r.supplierShare || 0);
+        const gap = Number(r.subsidyAmount || 0);
         const badge = { '分账成功': 's-done', '分账失败': 's-pending', '补差中': 's-pending', '已补差': 's-done' }[r.splitStatus] || 's-pending';
+        // 正常单：只显示一个供货金额数字，不打扰。
+        // 有补差的单（顾客用券）：货款 / 其中补差 两行写清楚，措辞中性 ——
+        // 这是结算流程里正常的一环，不是平台给的好处，也不是他亏的钱。
+        // 顾客实付、用了什么券，跟供应商无关，一律不显示。
+        const amountCell = gap > 0.005
+          ? `<div>货款 <b>${(got + comp + gap).toFixed(2)}</b></div>
+             <div style="color:#2563eb;font-size:12px;">其中补差 ${gap.toFixed(2)}</div>`
+          : `<b>${got.toFixed(2)}</b>`;
+        const subsidyBadge = gap > 0.005
+          ? `<span class="badge" style="margin-left:4px;${r.subsidyStatus === '已补' ? 'background:#dcfce7;color:#166534;' : 'background:#e0f2fe;color:#075985;'}">${r.subsidyStatus === '已补' ? '已补差' : '补差中'}</span>`
+          : '';
         return `
         <tr>
           <td class="mono" data-label="订单号">${esc(r.orderNo || '—')}</td>
           <td data-label="商家">${esc(r.shopName || '—')}</td>
-          <td class="pay" data-label="我应得金额">${fmtMoney(r.supplierShare)}</td>
+          <td class="pay" data-label="供货金额">${amountCell}</td>
           <td data-label="时间">${fmtTime(r.receiveAt)}</td>
-          <td data-label="状态"><span class="badge ${badge}">${esc(r.splitStatus || '待分账')}</span>${comp ? `<span class="badge" style="margin-left:4px;${comp < 0 ? 'background:#fee2e2;color:#b91c1c;' : 'background:#dcfce7;color:#166534;'}">补差${comp < 0 ? '-' : '+'}${Math.abs(comp).toFixed(2)}</span>` : ''}</td>
+          <td data-label="状态"><span class="badge ${badge}">${esc(r.splitStatus || '待分账')}</span>${comp ? `<span class="badge" style="margin-left:4px;${comp < 0 ? 'background:#fee2e2;color:#b91c1c;' : 'background:#dcfce7;color:#166534;'}">补差${comp < 0 ? '-' : '+'}${Math.abs(comp).toFixed(2)}</span>` : ''}${subsidyBadge}</td>
         </tr>`;
       }).join('');
+
+      // 分账刷新时顺带刷新「补差结算」，保证补差金额与结清状态同步
+      await loadSubsidyCenter();
+    }
+
+    // ============ 补差结算栏目（左侧独立栏目，数据来自 /api/supplier/subsidy-settlements）============
+    // 账要记到分，话要说得平 —— 三条铁律：
+    //   ① 每一笔都逐单列出（订单号 / 供货价 / 分账到手 / 补差），金额精确到分，不汇总了事
+    //   ② 结算中 与 已结清 分开：两条账各自清楚，不允许混着看
+    //   ③ 措辞中性客观：就说「补差」，既不写成「平台补贴」（邀功，把履约说成施舍），
+    //      也不写成「少收 / 欠 / 待补」（添堵，天天提醒人家钱没到）；顾客实付、券面额等无关信息一律不显示
+    async function loadSubsidyCenter() {
+      const pendingTbody = $('subsPendingTbody');
+      const settledTbody = $('subsSettledTbody');
+      const pendingFoot = $('subsPendingFoot');
+      if (!pendingTbody || !settledTbody) return;
+      if (pendingFoot) pendingFoot.style.display = 'none';
+      pendingTbody.innerHTML = '<tr><td colspan="6" class="no-data">加载中...</td></tr>';
+      settledTbody.innerHTML = '<tr><td colspan="5" class="no-data">加载中...</td></tr>';
+
+      const res = await api('/api/supplier/subsidy-settlements');
+      if (!res.success || !res.data) {
+        const msg = esc(res.message || '加载失败');
+        pendingTbody.innerHTML = `<tr><td colspan="6" class="no-data">${msg}</td></tr>`;
+        settledTbody.innerHTML = `<tr><td colspan="5" class="no-data">${msg}</td></tr>`;
+        return;
+      }
+      const d = res.data;
+      const pend = d.pending || { orderCount: 0, amount: 0, orders: [] };
+      const settled = d.settled || { totalAmount: 0, list: [] };
+
+      // ---- 顶部三笔账：结算中 / 本期补差 / 已结清 ----
+      $('subsPendingAmount').textContent = Number(pend.amount || 0).toFixed(2);
+      $('subsPendingCount').textContent = String(pend.orderCount);
+      $('subsSettledAmount').textContent = Number(settled.totalAmount || 0).toFixed(2);
+      $('subsSettledCount').textContent = String(settled.list.length);
+
+      // ---- 一、结算中的补差（逐单，带合计行）----
+      if (pend.orders.length) {
+        pendingTbody.innerHTML = pend.orders.map(o => `
+          <tr>
+            <td class="mono" data-label="订单号">${esc(o.orderNo || '—')}</td>
+            <td data-label="商家">${esc(o.shopName || '—')}</td>
+            <td data-label="供货价">${Number(o.supplyAmount || 0).toFixed(2)}</td>
+            <td data-label="分账到手">${Number(o.supplierShare || 0).toFixed(2)}</td>
+            <td data-label="补差" style="font-weight:700;">${Number(o.subsidyAmount || 0).toFixed(2)}</td>
+            <td data-label="收货时间">${fmtTime(o.at)}</td>
+          </tr>`).join('');
+        if (pendingFoot) {
+          pendingFoot.style.display = '';
+          $('subsPendingFootAmount').textContent = Number(pend.amount || 0).toFixed(2);
+        }
+      } else {
+        pendingTbody.innerHTML = '<tr><td colspan="6" class="no-data">当前没有结算中的补差 —— 您的货款均已按供货价结清</td></tr>';
+      }
+
+      // ---- 二、已结清的补差（结算凭证）----
+      settledTbody.innerHTML = settled.list.length ? settled.list.map(s => `
+        <tr>
+          <td class="mono" data-label="结算单号">${esc(s.settleNo || '—')}</td>
+          <td data-label="结算周期">${esc(s.periodType || '')}${s.periodStart && s.periodEnd ? `<div style="font-size:11px;color:var(--text-muted);">${fmtTime(s.periodStart).slice(0, 10)} ~ ${fmtTime(s.periodEnd).slice(0, 10)}</div>` : ''}</td>
+          <td data-label="单数">${s.orderCount}</td>
+          <td data-label="结算金额" style="font-weight:700;color:#16a34a;">${Number(s.amount || 0).toFixed(2)}</td>
+          <td data-label="到账时间">${fmtTime(s.settledAt)}</td>
+        </tr>`).join('')
+        : `<tr><td colspan="5" class="no-data">${settled.totalAmount > 0 ? '暂无结算单' : '暂无已结清的补差'}</td></tr>`;
+
+      // ---- 结算账户：补差款结到哪个账户，写清楚方便核对 ----
+      const payee = d.payee || {};
+      const payeeNote = $('subsPayeeNote');
+      if (payeeNote) {
+        payeeNote.innerHTML = payee.bankAccountName
+          ? `补差款结算至：<b>${esc(payee.bankName || '')} ${esc(payee.bankAccountName)} ${esc(payee.bankAccountNoTail || '')}</b>
+             （如需变更，请在「进件中心」更新结算户资料）`
+          : `提示：补差款将结算到您的结算账户，请到左侧「🏦 进件中心」确认银行卡号与户名已填写完整。`;
+      }
+
+      // ---- 本期补差：当月券订单走补差流程结算的货款合计（这是他应得的货款，不是平台额外给的）----
+      const nowM = new Date();
+      const thisMonth = `${nowM.getFullYear()}-${String(nowM.getMonth() + 1).padStart(2, '0')}`;
+      try {
+        const ms = await api('/api/supplier/split?month=' + encodeURIComponent(thisMonth));
+        const sm = (ms && ms.data && ms.data.summary) || {};
+        $('subsMonthAmount').textContent = Number(sm.subsidyAmount || 0).toFixed(2);
+      } catch (e) {
+        // 本月汇总取不到不影响「发放中 / 已到账」两条主账，置 0.00 即可
+        $('subsMonthAmount').textContent = '0.00';
+      }
+      // 刻意不往侧栏挂金额红点：这就是一笔正常的结算流程，不是谁欠谁。
+      // 天天在人家菜单上挂一笔消不掉的账，换谁都不舒服 —— 账记在栏目里，他什么时候想看什么时候看。
     }
 
     // 当前月份字符串 YYYY-MM（「我的分账」默认查询月份）
@@ -4146,8 +5498,9 @@
         });
         const cur = perMonth[perMonth.length - 1];
         $('stMonthOrders').textContent = String(cur.orderCount);
-        $('stMonthShare').textContent = '¥' + cur.supplierShare.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        $('stMonthComp').textContent = (cur.compensate >= 0 ? '+' : '−') + Math.abs(cur.compensate).toFixed(2);
+        $('stMonthShare').innerHTML = fmtBigMoney(cur.supplierShare);
+        $('stMonthComp').innerHTML = fmtBigMoney(cur.compensate, true);
+      fitStatNumbers();
 
         const orders = (ordersRes.success && Array.isArray(ordersRes.data)) ? ordersRes.data : [];
         const todayStr = now.toDateString();
@@ -4237,6 +5590,39 @@
     let _pwActiveTab = null;  // 当前选中的分类标签
     // 改价表行级输入态缓存：productId → { costInput, priceInput, suggested, cost }
     let _pwDrafts = {};
+    // 只有键盘跳进来的这一次聚焦才全选；鼠标点进来是局部微调，不能整段吃掉
+    let _pwSelectOnFocus = false;
+
+    // ===== 改价操作说明（给供应商看的人话版）=====
+    // 三行结构：一句人话讲清怎么干 → 键位 → 真实例子。写得像说明书会没人看，
+    // 所以直接拿 30.05 这个真价格举例子，看一遍就会。
+    const PW_GUIDE_HTML = `
+      <div class="pw-guide">
+        <div class="pw-guide-lead">
+          <span class="step">1 点进价格框</span>
+          <span class="arrow">→</span>
+          <span class="step">2 直接打新价</span>
+          <span class="arrow">→</span>
+          <span class="step">3 按回车</span>
+          <span style="font-weight:400;color:#9a3412;">（存好，自动跳下一个）</span>
+        </div>
+        <div class="pw-keys">
+          <span class="pw-key-item"><kbd>Enter</kbd>改了价就存新价；<b>没改价就是"沿用昨天"</b></span>
+          <span class="pw-key-item"><kbd>Shift</kbd>+<kbd>Enter</kbd>改错了，一键回到昨天的价</span>
+          <span class="pw-key-item"><kbd>←</kbd>只改「元」</span>
+          <span class="pw-key-item"><kbd>→</kbd>只改「角分」</span>
+          <span class="pw-key-item"><kbd>↑</kbd><kbd>↓</kbd>换上一个 / 下一个商品</span>
+          <span class="pw-key-item"><kbd>Ctrl</kbd>+<kbd>↑</kbd><kbd>↓</kbd>加减 1 毛（加按 <kbd>Shift</kbd> = 1 块）</span>
+          <span class="pw-key-item"><kbd>Esc</kbd>打错了，还原成原来的价</span>
+        </div>
+        <div class="pw-guide-eg">
+          例子：光标进到 <span class="num">30.05</span>，整段自动选中，直接打 <span class="num">31.5</span> 就变成 31.50，回车存好并跳下一个。<br>
+          只想改零头？按一下 <span class="hi">→</span>，就只选中后面的 <span class="num">05</span>，打 <span class="num">25</span>，就是 <span class="num">30.25</span>；按 <span class="hi">←</span> 则只选中前面的 <span class="num">30</span>。<br>
+          价格跟昨天一样？<span class="hi">什么都不用打，直接按回车</span>，就是"沿用昨天"，一笔算改完。<br>
+          万一手滑改错了？按 <span class="hi">Shift + Enter</span>，一键回到昨天的价。
+        </div>
+      </div>
+    `;
 
     async function loadPriceWorkbench() {
       const wrap = $('pwGroup');
@@ -4264,7 +5650,7 @@
       const banner = $('pwFreshBanner');
       if (frozenCount > 0) {
         banner.className = 'pw-fresh-banner frozen';
-        banner.innerHTML = `⚠️ 有 <b>${frozenCount}</b> 个商品因超过保鲜期未更新供货价已被冻结（商家端显示"价格更新中"，不可下单）。请尽快更新供货价或确认供货价不变以解冻。`;
+        banner.innerHTML = `⚠️ 有 <b>${frozenCount}</b> 个商品因超过保鲜期未更新供货价已被冻结（商家端显示"价格更新中"，不可下单）。请尽快更新供货价或确认供货价沿用即可解冻。`;
         banner.style.display = 'flex';
       } else {
         banner.style.display = 'none';
@@ -4307,9 +5693,10 @@
         <div class="pw-group-head">
           <div class="pw-group-title">${esc(group.tab)}（共 ${group.products.length} 个）</div>
           <button class="pw-carryall-btn" id="pwCarryAll" ${allDone ? 'disabled' : ''}>
-            ${allDone ? '本类已全部更新' : '本类一键确认（供货价不变）'}
+            ${allDone ? '本类已全部更新' : '本类一键确认（供货价沿用）'}
           </button>
         </div>
+        ${PW_GUIDE_HTML}
         <table class="pw-table">
           <thead>
             <tr>
@@ -4323,7 +5710,8 @@
       `;
       for (const p of group.products) {
         // 草稿态：供应商只维护「供货价」
-        _pwDrafts[p._id] = { cost: p.costPrice };
+        // base = 进页面时的价格（也就是上一次的价格），输入时拿它算涨跌，防手滑输错
+        _pwDrafts[p._id] = { cost: p.costPrice, base: Number(p.costPrice) || 0 };
         const gradeTag = p.grade === 'standard'
           ? `<span class="pw-grade-tag standard">实惠</span>`
           : (p.grade === 'premium' ? `<span class="pw-grade-tag premium">精品</span>` : '');
@@ -4340,13 +5728,18 @@
               </div>
             </td>
             <td data-label="今日供货价">
-              <input type="number" class="pw-price-input" data-pid="${esc(p._id)}" data-field="cost"
-                value="${Number(p.costPrice).toFixed(2)}" min="0" step="0.01">
+              <div class="pw-price-cell">
+                <input type="text" inputmode="decimal" autocomplete="off" class="pw-price-input"
+                  data-pid="${esc(p._id)}" data-field="cost"
+                  value="${Number(p.costPrice).toFixed(2)}">
+                <span class="pw-delta" id="pwDelta-${esc(p._id)}"></span>
+                <span class="pw-unsaved" id="pwUnsaved-${esc(p._id)}">未存</span>
+              </div>
             </td>
             <td data-label="状态">${statusChip}</td>
             <td data-label="操作">
               <button class="pw-act-btn save" data-act="save" data-pid="${esc(p._id)}">更新供货价</button>
-              <button class="pw-act-btn carry" data-act="carry" data-pid="${esc(p._id)}" ${p.updatedToday ? 'disabled' : ''}>不变</button>
+              <button class="pw-act-btn carry" data-act="carry" data-pid="${esc(p._id)}" ${p.updatedToday ? 'disabled' : ''}>沿用</button>
             </td>
           </tr>
         `;
@@ -4358,10 +5751,25 @@
       wrap.querySelectorAll('.pw-price-input').forEach(inp => {
         inp.oninput = () => {
           const pid = inp.dataset.pid;
+          // 换成 type=text 后数字得自己把关：只留数字和一个小数点，角分最多两位
+          pwSanitizeInput(inp);
           const val = parseFloat(inp.value);
           const d = _pwDrafts[pid];
           if (d && !isNaN(val)) d.cost = val;
+          // 实时涨跌：手滑多打一位数当场标红，别等结算才发现
+          paintPwDelta(inp);
+          pwMarkDirty(inp);
         };
+        // 全套键盘操作：回车存、左右选元/角分、上下换商品、Ctrl+上下微调、Esc 反悔
+        inp.onkeydown = (e) => pwOnKeyDown(e, inp);
+        // 键盘跳进来（回车/上下键）→ 整段全选，直接覆写旧价；
+        // 鼠标点进来 → 光标正常落位，想改哪一位就改哪一位。
+        inp.onfocus = () => { pwSetActiveRow(inp, true); if (_pwSelectOnFocus) { pwSelectAll(inp); _pwSelectOnFocus = false; } };
+        inp.onblur = () => pwSetActiveRow(inp, false);
+        // 鼠标按下就取消"待全选"标志：点一下是局部微调，双击下面单独处理
+        inp.onmousedown = () => { _pwSelectOnFocus = false; };
+        // 双击 = 全选，跟键盘进入一样（浏览器默认双击只选一个词，"30.05" 会被拆开）
+        inp.ondblclick = () => pwSelectAll(inp);
       });
       // 绑定操作按钮
       wrap.querySelectorAll('.pw-act-btn[data-act]').forEach(btn => {
@@ -4370,30 +5778,107 @@
       // 本类一键沿用
       const carryAllBtn = $('pwCarryAll');
       if (carryAllBtn) carryAllBtn.onclick = () => handlePwCarryAll(group.tab);
+      // 跨分类「全部沿用昨日价」
+      const globalBtn = $('pwCarryAllGlobal');
+      if (globalBtn) globalBtn.onclick = () => handlePwCarryAllGlobal();
+      pwSyncCounts();
     }
 
-    // 单品更新供货价 / 确认不变
-    async function handlePwAction(act, pid) {
+    // 正在提交的商品：一路回车时防止同一个商品被重复提交
+    const _pwSaving = new Set();
+
+    // 单品更新供货价 / 确认沿用
+    // ★ 关键减负：成功后不再 loadPriceWorkbench() 全量重载 —— 那会重建整张表、丢焦点，
+    //   200 个蔬菜就要等 200 次刷新，流水线根本跑不起来。改成原地更新这一行 + 焦点自动跳下一个。
+    async function handlePwAction(act, pid, fromInput) {
       const draft = _pwDrafts[pid];
+      if (_pwSaving.has(pid)) return;
+      const prod = findPwProduct(pid);
+      // 回滚快照：乐观推进万一失败，得能把这一行原样还回去
+      const snap = { updatedToday: prod ? prod.updatedToday : false, costPrice: prod ? prod.costPrice : null };
+
       if (act === 'save') {
         if (!draft || draft.cost == null) { toast('请填写供货价', true); return; }
-        const res = await api('/api/supplier/price/product/' + pid + '/update', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ costPrice: draft.cost })
-        });
-        if (res.success) { toast('供货价已更新'); loadPriceWorkbench(); }
-        else toast(res.message || '更新失败', true);
+        // 统一成两位小数再存：31.5 存进去就是 31.50，别让"角分"位飘着
+        draft.cost = Math.round((Number(draft.cost) || 0) * 100) / 100;
+        if (fromInput) fromInput.value = draft.cost.toFixed(2);
+        // 价格压根没动、今天也已经确认过 → 再发一次请求纯属白等，直接跳下一个
+        if (prod && prod.updatedToday && Math.abs(draft.cost - (Number(prod.costPrice) || 0)) < 1e-9) {
+          pwClearDirty(fromInput);
+          pwFocusNextPending(fromInput);
+          return;
+        }
+        _pwSaving.add(pid);
+        // ★ 速度关键：不等网络。先在本地记成"已改好"并立刻把焦点交到下一个，
+        //   请求在后面自己飞。以前每笔都要等一个来回（几十到几百毫秒），
+        //   一天几百笔就是几分钟的干等；失败了我再把这一行拉回来标红。
+        pwMarkRowDone(pid);
+        pwFocusNextPending(fromInput);
+        try {
+          const res = await api('/api/supplier/price/product/' + pid + '/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ costPrice: draft.cost })
+          });
+          if (res.success) {
+            if (draft) draft.base = Number(draft.cost) || 0;  // 新价成为下一次对比的基准
+          } else {
+            pwRollbackRow(pid, fromInput, snap, res.message || '更新失败');
+          }
+        } catch (err) {
+          pwRollbackRow(pid, fromInput, snap, '网络异常，这笔没存上');
+        } finally { _pwSaving.delete(pid); }
       } else if (act === 'carry') {
-        const res = await api('/api/supplier/price/product/' + pid + '/carry-over', { method: 'POST' });
-        if (res.success) { toast('已确认供货价不变'); loadPriceWorkbench(); }
-        else toast(res.message || '操作失败', true);
+        // 今天已经沿用过了 → 不用再麻烦服务端
+        if (prod && prod.updatedToday && !(fromInput && pwIsDirty(fromInput))) {
+          pwClearDirty(fromInput);
+          pwFocusNextPending(fromInput);
+          return;
+        }
+        _pwSaving.add(pid);
+        pwMarkRowDone(pid);
+        pwFocusNextPending(fromInput);
+        try {
+          const res = await api('/api/supplier/price/product/' + pid + '/carry-over', { method: 'POST' });
+          if (res.success) {
+            // 沿用走的是"昨天的价"：把框里可能打歪的数刷回真正的价，别让界面和库里对不上
+            const p2 = findPwProduct(pid);
+            if (fromInput && p2) {
+              fromInput.value = Number(p2.costPrice).toFixed(2);
+              if (draft) draft.cost = Number(p2.costPrice) || 0;
+              pwClearDirty(fromInput);
+            }
+          } else {
+            pwRollbackRow(pid, fromInput, snap, res.message || '操作失败');
+          }
+        } catch (err) {
+          pwRollbackRow(pid, fromInput, snap, '网络异常，这笔没存上');
+        } finally { _pwSaving.delete(pid); }
       }
     }
 
-    // 分类一键确认（供货价不变）
+    // 乐观推进失败：把这一行原样还回去，标红、并把焦点拉回来。
+    // 改的是钱，绝不能"看着像存了其实没存"
+    function pwRollbackRow(pid, fromInput, snap, msg) {
+      const p = findPwProduct(pid);
+      if (p) { p.updatedToday = snap.updatedToday; p.costPrice = snap.costPrice; }
+      const row = $('pwRow-' + pid);
+      if (row) {
+        row.classList.remove('done-row');
+        row.classList.add('frozen-row');
+        const chip = row.querySelector('.pw-status-chip');
+        if (chip) { chip.className = 'pw-status-chip frozen'; chip.textContent = '没存上·重按回车'; }
+        const carryBtn = row.querySelector('.pw-act-btn.carry');
+        if (carryBtn) carryBtn.disabled = false;
+      }
+      pwSyncCounts();
+      toast(msg || '没存上，请重按回车', true);
+      if (fromInput) { pwMarkDirty(fromInput); pwGoTo(fromInput); }
+    }
+
+    // 分类一键确认（供货价沿用）
     async function handlePwCarryAll(tab) {
-      if (!confirm(`确认将【${tab}】分类下所有未更新商品确认为「今日供货价不变」？`)) return;
+      if (!confirm(`确认将【${tab}】分类下所有未更新商品确认为「今日供货价沿用」？`)) return;
       const res = await api('/api/supplier/price/category/' + encodeURIComponent(tab) + '/carry-over', { method: 'POST' });
       if (res.success) {
         toast(`已沿用 ${res.data.updated} 个商品`);
@@ -4401,6 +5886,302 @@
       } else {
         toast(res.message || '操作失败', true);
       }
+    }
+
+    // 跨分类全部沿用：价格没变的日子，一次点击收工（不必 8 个分类各点一次）
+    async function handlePwCarryAllGlobal() {
+      const pending = Number(($('pwPending') || {}).textContent) || 0;
+      if (pending === 0) { toast('今日已全部更新，无需沿用'); return; }
+      if (!confirm(`确认将全部 ${pending} 个未更新商品确认为「今日供货价沿用昨日」？\n\n价格不变，仅刷新更新时间、解除保鲜期冻结。`)) return;
+      const res = await api('/api/supplier/price/all/carry-over', { method: 'POST' });
+      if (res.success) {
+        toast(`已沿用 ${res.data.updated} 个商品`);
+        loadPriceWorkbench();
+      } else {
+        toast(res.message || '操作失败', true);
+      }
+    }
+
+    // ===== 改价工作台·就地刷新辅助（不重载整表，保住焦点与滚动位置）=====
+
+    function findPwProduct(pid) {
+      if (!_pwData) return null;
+      for (const g of _pwData.groups) {
+        const p = g.products.find(x => x._id === pid);
+        if (p) return p;
+      }
+      return null;
+    }
+
+    // 实时涨跌：与「上一次的价格」比，幅度越大越醒目。
+    // 供应商一天改几百个价，3.5 打成 35 这种错，只能靠当场标红拦住。
+    function paintPwDelta(inp) {
+      const pid = inp.dataset.pid;
+      const d = _pwDrafts[pid];
+      const el = $('pwDelta-' + pid);
+      if (!d || !el) return;
+      const base = Number(d.base) || 0;
+      const val = parseFloat(inp.value);
+      inp.classList.remove('warn', 'danger');
+      if (!isFinite(val) || base <= 0) { el.textContent = ''; el.className = 'pw-delta'; return; }
+      const r = (val - base) / base;
+      const pct = Math.round(r * 100);
+      el.textContent = (pct > 0 ? '+' : '') + pct + '%';
+      const big = Math.abs(r) >= 0.3, mid = Math.abs(r) >= 0.15;
+      el.className = 'pw-delta' + (big ? ' danger' : (mid ? ' warn' : ''));
+      if (big) inp.classList.add('danger');
+      else if (mid) inp.classList.add('warn');
+    }
+
+    // 就地标记某一行「今日已更新」：只改这一行，不动 DOM 结构、不重新拉数据
+    function pwMarkRowDone(pid) {
+      const p = findPwProduct(pid);
+      const draft = _pwDrafts[pid];
+      if (p) {
+        p.updatedToday = true;
+        p.priceFrozen = false;
+        if (draft && draft.cost != null) p.costPrice = draft.cost;
+      }
+      const row = $('pwRow-' + pid);
+      if (row) {
+        row.classList.remove('frozen-row');
+        row.classList.add('done-row');
+        const chip = row.querySelector('.pw-status-chip');
+        if (chip) { chip.className = 'pw-status-chip done'; chip.textContent = '今日已更新'; }
+        const carryBtn = row.querySelector('.pw-act-btn.carry');
+        if (carryBtn) carryBtn.disabled = true;
+        const inp = row.querySelector('.pw-price-input');
+        if (inp) { inp.classList.remove('warn', 'danger'); inp.classList.remove('dirty'); }
+        const unsaved = $('pwUnsaved-' + pid);
+        if (unsaved) unsaved.classList.remove('show');
+        const delta = $('pwDelta-' + pid);
+        if (delta) { delta.textContent = '已存'; delta.className = 'pw-delta done'; }
+      }
+      pwSyncCounts();
+    }
+
+    // 顶部三块统计 + 分类标签进度 + 两个批量按钮，全部就地刷新
+    function pwSyncCounts() {
+      if (!_pwData) return;
+      let updated = 0, total = 0;
+      for (const g of _pwData.groups) {
+        for (const p of g.products) { total++; if (p.updatedToday) updated++; }
+      }
+      const pending = total - updated;
+      $('pwUpdated').textContent = updated;
+      $('pwTotal').textContent = total;
+      $('pwPending').textContent = pending;
+      const globalBtn = $('pwCarryAllGlobal');
+      if (globalBtn) globalBtn.disabled = pending === 0;
+      $('pwTabs').querySelectorAll('.pw-tab').forEach(el => {
+        const g = _pwData.groups.find(x => x.tab === el.dataset.tab);
+        if (!g) return;
+        const done = g.products.filter(p => p.updatedToday).length;
+        const cnt = el.querySelector('.cnt');
+        if (cnt) cnt.textContent = `${done}/${g.products.length}`;
+        if (el.dataset.tab === _pwActiveTab) {
+          const btn = $('pwCarryAll');
+          if (btn) {
+            const allDone = done === g.products.length;
+            btn.disabled = allDone;
+            btn.textContent = allDone ? '本类已全部更新' : '本类一键确认（供货价沿用）';
+          }
+        }
+      });
+    }
+
+    // ===== 键盘改价：让供应商的手一整天都不用离开键盘 =====
+    // 分工只有一句话：Enter 负责"存"，其它键只负责"走"和"选"。
+    // 移动一律不保存 —— 保存只有一个键，规则单一，才不会误存冤枉价。
+
+    // 输入框只许出现数字和一个小数点，角分最多两位。
+    // type=number 换成 text 就是为了能自己控选中区间，代价是校验得自己写。
+    function pwSanitizeInput(inp) {
+      const raw = inp.value;
+      let v = raw.replace(/[^\d.]/g, '');
+      const first = v.indexOf('.');
+      if (first !== -1) {
+        // 只留第一个小数点，且小数点后最多两位
+        v = v.slice(0, first + 1) + v.slice(first + 1).replace(/\./g, '');
+        v = v.slice(0, first + 3);
+      }
+      if (v === raw) return;
+      const pos = inp.selectionStart || 0;
+      inp.value = v;
+      const np = Math.max(0, Math.min(v.length, pos - (raw.length - v.length)));
+      try { inp.setSelectionRange(np, np); } catch (e) { /* 忽略 */ }
+    }
+
+    function pwSelectAll(inp) {
+      try { inp.setSelectionRange(0, inp.value.length); } catch (e) { /* 忽略 */ }
+    }
+
+    // 分段选中：'left' = 小数点前的元，'right' = 小数点后的角分，'all' = 整段
+    function pwSelectSegment(inp, seg) {
+      const v = inp.value;
+      const dot = v.indexOf('.');
+      try {
+        if (seg === 'all') { inp.setSelectionRange(0, v.length); return; }
+        if (dot === -1) {
+          // 价里没小数点：左 = 全选，右 = 光标挪到末尾，接着打 .50 也行
+          if (seg === 'left') inp.setSelectionRange(0, v.length);
+          else inp.setSelectionRange(v.length, v.length);
+          return;
+        }
+        if (seg === 'left') inp.setSelectionRange(0, dot);
+        else inp.setSelectionRange(dot + 1, v.length);
+      } catch (e) { /* 忽略 */ }
+    }
+
+    // 当前选中的是哪一段 —— 用来实现"再按一次同一个键就回到全选"
+    function pwCurrentSegment(inp) {
+      const v = inp.value;
+      const dot = v.indexOf('.');
+      const s = inp.selectionStart, e = inp.selectionEnd;
+      if (s === 0 && e === v.length && v.length) return 'all';
+      if (dot !== -1 && s === 0 && e === dot) return 'left';
+      if (dot !== -1 && s === dot + 1 && e === v.length) return 'right';
+      return null;
+    }
+
+    // 与"已经存进系统的价"比，不一样就是还没存。跳走前给他留个"未存"牌
+    function pwIsDirty(inp) {
+      const p = findPwProduct(inp.dataset.pid);
+      if (!p) return false;
+      const cur = parseFloat(inp.value);
+      const saved = Number(p.costPrice);
+      if (isNaN(cur)) return false;
+      return Math.abs(cur - saved) > 1e-9;
+    }
+
+    function pwMarkDirty(inp) {
+      const dirty = pwIsDirty(inp);
+      inp.classList.toggle('dirty', dirty);
+      const tag = $('pwUnsaved-' + inp.dataset.pid);
+      if (tag) tag.classList.toggle('show', dirty);
+    }
+
+    function pwClearDirty(inp) {
+      if (!inp) return;
+      inp.classList.remove('dirty');
+      const tag = $('pwUnsaved-' + inp.dataset.pid);
+      if (tag) tag.classList.remove('show');
+    }
+
+    function pwSetActiveRow(inp, on) {
+      const row = inp.closest('tr');
+      if (row) row.classList.toggle('pw-row-active', !!on);
+    }
+
+    // 把焦点交给某个输入框：键盘跳过去的都整段全选，必要时才滚动。
+    // ★ 速度关键之二：原来是 smooth 平滑滚动，一段动画要几百毫秒，
+    //   一路回车时动画排队、手已经打到下一行了画面还在滚。
+    //   改成"只在行不在视野里才滚，且瞬间到位"。
+    function pwGoTo(inp) {
+      if (!inp) return;
+      _pwSelectOnFocus = true;
+      inp.focus();
+      const r = inp.getBoundingClientRect();
+      const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+      if (r.top < 90 || r.bottom > vh - 24) {
+        inp.scrollIntoView({ block: 'center', behavior: 'auto' });
+      }
+    }
+
+    function pwAllInputs() {
+      return Array.from(document.querySelectorAll('.pw-price-input'));
+    }
+
+    // ↑↓：按表格顺序换上一条 / 下一条（含已经改过的，方便回头改）。
+    // 不循环 —— 转一圈回来最容易让人以为还没改到。
+    function pwMoveRow(fromInput, dir) {
+      const inputs = pwAllInputs();
+      const idx = inputs.indexOf(fromInput);
+      const next = inputs[idx + dir];
+      if (!next) {
+        toast(dir > 0 ? '已经是最后一行了' : '已经是第一行了');
+        return;
+      }
+      pwGoTo(next);
+    }
+
+    // Ctrl + ↑↓ 微调：默认 1 毛，按住 Shift 是 1 块。
+    // 微调是低频动作，放组合键里，不占主位。
+    function pwNudge(inp, dir, big) {
+      const step = big ? 1 : 0.1;
+      const cur = parseFloat(inp.value);
+      const base = isNaN(cur) ? 0 : cur;
+      const nv = Math.max(0, Math.round((base + dir * step) * 100) / 100);
+      inp.value = nv.toFixed(2);
+      const d = _pwDrafts[inp.dataset.pid];
+      if (d) d.cost = nv;
+      paintPwDelta(inp);
+      pwMarkDirty(inp);
+      pwSelectAll(inp);
+    }
+
+    // Esc：反悔，还原成进入时的价
+    function pwRevert(inp) {
+      const d = _pwDrafts[inp.dataset.pid];
+      const origin = d ? Number(d.base) || 0 : 0;
+      inp.value = origin.toFixed(2);
+      if (d) d.cost = origin;
+      inp.classList.remove('warn', 'danger');
+      const delta = $('pwDelta-' + inp.dataset.pid);
+      if (delta) { delta.textContent = ''; delta.className = 'pw-delta'; }
+      pwMarkDirty(inp);
+      pwSelectAll(inp);
+    }
+
+    function pwOnKeyDown(e, inp) {
+      const key = e.key;
+      // Tab 也是键盘导航，跟回车一样整段全选（鼠标点进来才不做全选）
+      if (key === 'Tab') { _pwSelectOnFocus = true; return; }
+      // Enter：价没动 = 沿用昨天（跟 Shift+Enter 一个效果，不用记两个键）；
+      //        价动了 = 存新价。所以"沿用"根本不用重新打一遍昨天的价，直接回车就行。
+      // Shift+Enter：不管框里打成什么样，一律回到昨天的价 —— 手滑改错了用它反悔。
+      if (key === 'Enter') {
+        e.preventDefault();
+        const act = (e.shiftKey || !pwIsDirty(inp)) ? 'carry' : 'save';
+        handlePwAction(act, inp.dataset.pid, inp);
+        return;
+      }
+      // ←→：只选「元」或只选「角分」，再按一次同一个键回到全选
+      if (key === 'ArrowLeft' || key === 'ArrowRight') {
+        e.preventDefault();
+        const want = key === 'ArrowLeft' ? 'left' : 'right';
+        pwSelectSegment(inp, pwCurrentSegment(inp) === want ? 'all' : want);
+        return;
+      }
+      // ↑↓：换上一个 / 下一个商品（Ctrl / Shift 组合留给微调）
+      if (key === 'ArrowUp' || key === 'ArrowDown') {
+        e.preventDefault();
+        if (e.ctrlKey || e.altKey) { pwNudge(inp, key === 'ArrowUp' ? 1 : -1, e.shiftKey); return; }
+        pwMoveRow(inp, key === 'ArrowUp' ? -1 : 1);
+        return;
+      }
+      if (key === 'Escape') {
+        e.preventDefault();
+        pwRevert(inp);
+        return;
+      }
+    }
+
+    // 焦点接力：保存成功后自动落到下一个「还没更新」的输入框并全选 —— 一路回车改完整类。
+    // 跳过条件加上"且没有未保存的改动"：否则上下移动改了一半的行，会被流水线反复绕回来。
+    function pwFocusNextPending(fromInput) {
+      const inputs = pwAllInputs();
+      if (!inputs.length) return;
+      let idx = fromInput ? inputs.indexOf(fromInput) : -1;
+      for (let i = 1; i <= inputs.length; i++) {
+        const next = inputs[(idx + i) % inputs.length];
+        const p = findPwProduct(next.dataset.pid);
+        if (p && !p.updatedToday && !pwIsDirty(next)) {
+          pwGoTo(next);
+          return;
+        }
+      }
+      toast('本类已全部更新');
     }
 
     // ============ 商品管理 ============
@@ -4499,6 +6280,8 @@
         $('prodImage').value = p.image || '';
         $('prodDesc').value = p.description || '';
         if (p.parentProductId) parentSel.value = String(p.parentProductId);
+        renderProdImg(p.image || '');
+        $('prodImgTip').textContent = '';
       } else {
         $('productModalTitle').textContent = '新增商品';
         $('prodId').value = '';
@@ -4511,6 +6294,8 @@
         $('prodImage').value = '';
         $('prodDesc').value = '';
         parentSel.value = '';
+        renderProdImg('');
+        $('prodImgTip').textContent = '';
       }
       $('productModal').classList.add('show');
       setTimeout(() => $('prodName').focus(), 50);
@@ -4521,6 +6306,302 @@
     $('productModalClose').onclick = closeProductModal;
     $('prodCancelBtn').onclick = closeProductModal;
     $('productModal').addEventListener('click', (e) => { if (e.target.id === 'productModal') closeProductModal(); });
+
+    // ===== 商品图片上传 =====
+    // 上传接口后端早就有了（/api/supplier/upload，资质照片就在用），
+    // 缺的只是"让供应商能点一下把图传上来"这一步。
+    function renderProdImg(url) {
+      const img = $('prodImgPreview'), ph = $('prodImgPh');
+      if (url) { img.src = url; img.style.display = 'block'; ph.style.display = 'none'; }
+      else { img.removeAttribute('src'); img.style.display = 'none'; ph.style.display = 'block'; }
+    }
+
+    async function uploadProductImage(file) {
+      if (!file) return;
+      if (!/^image\//.test(file.type)) { toast('请选择图片文件', true); return; }
+      if (file.size > 5 * 1024 * 1024) { toast('图片不能超过 5MB', true); return; }
+      const tip = $('prodImgTip');
+      tip.textContent = '上传中…';
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await api('/api/supplier/upload', { method: 'POST', body: fd });
+        if (res.success && res.data && res.data.url) {
+          $('prodImage').value = res.data.url;
+          renderProdImg(res.data.url);
+          tip.textContent = '已上传，保存后生效';
+        } else {
+          tip.textContent = '';
+          toast(res.message || '上传失败', true);
+        }
+      } catch (e) {
+        tip.textContent = '';
+        toast('上传失败，请重试', true);
+      }
+    }
+
+    $('prodImgBox').onclick = () => $('prodImgFile').click();
+    $('prodImgPickBtn').onclick = () => $('prodImgFile').click();
+    $('prodImgFile').onchange = () => {
+      const f = $('prodImgFile').files && $('prodImgFile').files[0];
+      if (f) uploadProductImage(f);
+      $('prodImgFile').value = '';   // 清空，方便同一张图改完再选一次
+    };
+    $('prodImgClearBtn').onclick = () => {
+      $('prodImage').value = ''; renderProdImg(''); $('prodImgTip').textContent = '';
+    };
+    // 手填链接时也实时出图，让他确认填对了
+    $('prodImage').oninput = () => renderProdImg($('prodImage').value.trim());
+
+    // ===== 拍照上传商品 =====
+    // 一件一件新增太慢：品类表/报价单拍一张（或把文字粘进来）→ 识别成清单 →
+    // 这儿改、那儿删、还能手动加 → 一键整批新增。
+    // 核心立场：识别出来的每一行都能改，绝不做"认出来是什么就是什么"的黑盒。
+    let _aiItems = [];     // 识别结果清单（改什么都在内存里，最后整体提交）
+    let _aiImage = '';     // 当前照片（压缩后的 dataUrl）
+    let _aiOn = {};        // 勾选状态：下标 → 是否要新增
+    let _aiStep = 'input'; // input / loading / list
+
+    // 照片压到长边 1280 再传：原动辄好几 MB，传得慢、识别也贵；压完几十 KB 照样认得清
+    function aiCompress(file) {
+      return new Promise((resolve) => {
+        const fr = new FileReader();
+        fr.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            const max = 1280;
+            let w = img.width, h = img.height;
+            if (w > h && w > max) { h = Math.round(h * max / w); w = max; }
+            else if (h >= w && h > max) { w = Math.round(w * max / h); h = max; }
+            const cv = document.createElement('canvas');
+            cv.width = w; cv.height = h;
+            cv.getContext('2d').drawImage(img, 0, 0, w, h);
+            resolve(cv.toDataURL('image/jpeg', 0.82));
+          };
+          img.onerror = () => resolve(null);
+          img.src = fr.result;
+        };
+        fr.onerror = () => resolve(null);
+        fr.readAsDataURL(file);
+      });
+    }
+
+    function aiSetStep(step) {
+      _aiStep = step;
+      $('aiStepInput').style.display = step === 'input' ? '' : 'none';
+      $('aiStepList').style.display = step === 'list' ? '' : 'none';
+      $('aiLoading').style.display = step === 'loading' ? '' : 'none';
+      $('aiAgainBtn').style.display = step === 'list' ? '' : 'none';
+      const btn = $('aiGoBtn');
+      btn.textContent = step === 'list' ? '一键新增' : (step === 'loading' ? '识别中…' : '开始识别');
+      btn.disabled = step === 'loading';
+      if (step === 'list') aiUpdateBtn();
+    }
+
+    function aiUpdateBtn() {
+      if (_aiStep !== 'list') return;
+      const n = _aiItems.filter((it, i) => _aiOn[i] !== false).length;
+      const btn = $('aiGoBtn');
+      btn.textContent = n ? `一键新增这 ${n} 个` : '一键新增';
+      btn.disabled = !n;
+    }
+
+    function aiRenderList() {
+      const tb = $('aiTbody');
+      if (!_aiItems.length) {
+        tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#9ca3af;padding:18px 0;">没认出来条目 —— 点「重新识别」再来一次，或者点下面「再加一行」自己填</td></tr>';
+        $('aiSum').textContent = '';
+        aiUpdateBtn();
+        return;
+      }
+      tb.innerHTML = _aiItems.map((it, i) => `
+        <tr class="${it.confidence === 'low' ? 'low' : ''}">
+          <td><input type="checkbox" class="ai-chk" data-i="${i}" ${_aiOn[i] !== false ? 'checked' : ''}></td>
+          <td>
+            <input class="ai-f" data-i="${i}" data-k="name" value="${esc(it.name || '')}" placeholder="商品名">
+            ${it.confidence === 'low' ? '<span class="ai-low-tag">请核对</span>' : ''}
+          </td>
+          <td>
+            <select class="ai-f" data-i="${i}" data-k="category">
+              ${PRODUCT_CATEGORIES.map(c => `<option value="${esc(c)}" ${c === it.category ? 'selected' : ''}>${esc(c)}</option>`).join('')}
+            </select>
+          </td>
+          <td><input class="ai-f" data-i="${i}" data-k="unit" value="${esc(it.unit || '')}" placeholder="斤"></td>
+          <td><input class="ai-f" data-i="${i}" data-k="price" type="number" step="0.01" min="0" value="${it.price == null ? '' : it.price}" placeholder="必填"></td>
+          <td><input class="ai-f" data-i="${i}" data-k="stock" type="number" step="1" min="0" value="${it.stock == null ? '' : it.stock}"></td>
+          <td><button class="ai-del" data-i="${i}" title="删掉这一行">✕</button></td>
+        </tr>
+      `).join('');
+      const low = _aiItems.filter(x => x.confidence === 'low').length;
+      $('aiSum').innerHTML = `认出 <b>${_aiItems.length}</b> 个`
+        + (low ? `，其中 <b style="color:#92400e;">${low}</b> 个没太大把握（黄底那几行），麻烦核一眼` : '')
+        + '。不要的把勾去掉或点 ✕，少了点下面「再加一行」，<b>价格缺的补上</b>就能一键新增。';
+      aiUpdateBtn();
+    }
+
+    // 表格里的改动实时回写内存（改一行算一行，不用"保存草稿"这种多余动作）
+    $('aiTbody').addEventListener('input', (e) => {
+      const t = e.target;
+      if (!t.classList || !t.classList.contains('ai-f')) return;
+      const i = Number(t.dataset.i), k = t.dataset.k;
+      if (!_aiItems[i]) return;
+      if (k === 'price' || k === 'stock') {
+        _aiItems[i][k] = (t.value === '' ? null : Number(t.value));
+        if (k === 'price') aiUpdateBtn();
+      } else {
+        _aiItems[i][k] = t.value;
+      }
+    });
+    $('aiTbody').addEventListener('change', (e) => {
+      const t = e.target;
+      if (!t.classList) return;
+      if (t.classList.contains('ai-chk')) { _aiOn[Number(t.dataset.i)] = t.checked; aiUpdateBtn(); return; }
+      if (t.classList.contains('ai-f')) {
+        const i = Number(t.dataset.i);
+        if (_aiItems[i]) _aiItems[i][t.dataset.k] = t.value;
+      }
+    });
+    $('aiTbody').addEventListener('click', (e) => {
+      const b = e.target.closest && e.target.closest('.ai-del');
+      if (!b) return;
+      _aiItems.splice(Number(b.dataset.i), 1);
+      _aiOn = {};
+      aiRenderList();
+    });
+    $('aiAll').onchange = () => {
+      const on = $('aiAll').checked;
+      _aiItems.forEach((_, i) => { _aiOn[i] = on; });
+      document.querySelectorAll('#aiTbody .ai-chk').forEach(c => { c.checked = on; });
+      aiUpdateBtn();
+    };
+
+    async function aiRecognize() {
+      const txt = $('aiText').value.trim();
+      if (!_aiImage && !txt) { toast('先拍张照，或者把报价单文字粘进来', true); return; }
+      aiSetStep('loading');
+      try {
+        const res = await api('/api/ai/parse-products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: _aiImage || null, text: txt || null })
+        });
+        if (!res.success) { toast(res.message || '识别失败', true); aiSetStep('input'); return; }
+        _aiItems = (res.data && res.data.items) || [];
+        _aiOn = {};
+        $('aiResult').style.display = 'none';
+        aiSetStep('list');
+        aiRenderList();
+        if (!_aiItems.length) toast(res.message || '没认出条目来，把镜头拉近拍清楚点再试', true);
+      } catch (err) {
+        toast('识别失败，请重试', true);
+        aiSetStep('input');
+      }
+    }
+
+    async function aiSubmit() {
+      const items = [];
+      _aiItems.forEach((it, i) => {
+        if (_aiOn[i] === false) return;
+        const name = String(it.name || '').trim();
+        if (!name) return;
+        items.push({
+          name,
+          category: it.category || '其他',
+          unit: it.unit || '个',
+          costPrice: (it.price == null ? null : Number(it.price)),
+          stock: (it.stock == null ? 0 : Number(it.stock))
+        });
+      });
+      if (!items.length) { toast('还没勾选要新增的商品', true); return; }
+
+      const btn = $('aiGoBtn');
+      btn.disabled = true; btn.textContent = '正在新增…';
+      try {
+        const res = await api('/api/supply-products/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items })
+        });
+        if (!res.success) { toast(res.message || '新增失败', true); aiSetStep('list'); return; }
+        const d = res.data || {};
+        // 成功的移出表格，没成的留在表里继续改 —— 不让他重拍一次
+        const okNames = new Set((d.created || []).map(p => String(p.name || '').replace(/\s/g, '').toLowerCase()));
+        _aiItems = _aiItems.filter((it, i) => {
+          if (_aiOn[i] === false) return true;
+          return !okNames.has(String(it.name || '').replace(/\s/g, '').toLowerCase());
+        });
+        _aiOn = {};
+        const box = $('aiResult');
+        let html = `✅ 已新增 <b>${d.count || 0}</b> 个商品`;
+        if ((d.skipped || []).length) {
+          html += `；<b>${d.skipped.length}</b> 个重名的已跳过（${d.skipped.slice(0, 3).map(s => esc(s.name)).join('、')}${(d.skipped.length > 3 ? ' 等' : '')}）`;
+        }
+        if ((d.failed || []).length) {
+          html += `<br>还有 <b>${d.failed.length}</b> 个没加上（多半是没填供货价），已经留在上面的表里 —— 补上价再点一次就行。`;
+        }
+        box.className = 'ai-result' + ((d.failed || []).length ? ' warn' : '');
+        box.innerHTML = html;
+        box.style.display = '';
+        aiRenderList();
+        loadProducts();   // 列表立刻刷新，新商品直接看得见
+        if (!_aiItems.length) { $('aiGoBtn').textContent = '全部完成'; $('aiGoBtn').disabled = true; }
+      } catch (err) {
+        toast('新增失败，请重试', true);
+        aiSetStep('list');
+      }
+    }
+
+    function aiOpenModal() {
+      _aiItems = []; _aiImage = ''; _aiOn = {};
+      $('aiText').value = '';
+      $('aiPreview').style.display = 'none';
+      $('aiPreview').removeAttribute('src');
+      $('aiResult').style.display = 'none';
+      $('aiDrop').querySelector('.t1').textContent = '点这里拍照，或选一张品类表的照片';
+      aiSetStep('input');
+      $('aiProductModal').classList.add('show');
+    }
+    function aiCloseModal() { $('aiProductModal').classList.remove('show'); }
+
+    $('aiProductBtn').onclick = async () => {
+      // 识别服务没开通就别让他点进去白等一趟
+      try {
+        const st = await api('/api/ai/status');
+        if (st.success && st.data && st.data.enabled === false) {
+          toast('拍照识别还没开通，请联系平台开通', true);
+          return;
+        }
+      } catch (e) { /* 状态拉不到也先进去，识别时会给明确提示 */ }
+      aiOpenModal();
+    };
+    $('aiProductClose').onclick = aiCloseModal;
+    $('aiCancelBtn').onclick = aiCloseModal;
+    $('aiProductModal').addEventListener('click', (e) => { if (e.target.id === 'aiProductModal') aiCloseModal(); });
+
+    $('aiDrop').onclick = () => $('aiFile').click();
+    $('aiFile').onchange = async () => {
+      const f = $('aiFile').files && $('aiFile').files[0];
+      $('aiFile').value = '';
+      if (!f) return;
+      if (!/^image\//.test(f.type)) { toast('请选择图片', true); return; }
+      $('aiDrop').querySelector('.t1').textContent = '照片处理中…';
+      const dataUrl = await aiCompress(f);
+      if (!dataUrl) { $('aiDrop').querySelector('.t1').textContent = '点这里拍照，或选一张品类表的照片'; toast('这张图读不出来，换一张试试', true); return; }
+      _aiImage = dataUrl;
+      const pv = $('aiPreview');
+      pv.src = dataUrl; pv.style.display = 'block';
+      $('aiDrop').querySelector('.t1').textContent = '已选好，正在识别…';
+      aiRecognize();   // 选完就自动识别，省一次点击
+    };
+    $('aiAddRowBtn').onclick = () => {
+      _aiItems.push({ name: '', category: PRODUCT_CATEGORIES[0], unit: '', price: null, stock: null, confidence: 'high' });
+      _aiOn = {};
+      aiRenderList();
+      const rows = document.querySelectorAll('#aiTbody tr input[data-k="name"]');
+      if (rows.length) rows[rows.length - 1].focus();
+    };
+    $('aiAgainBtn').onclick = () => { $('aiResult').style.display = 'none'; aiSetStep('input'); };
+    $('aiGoBtn').onclick = () => { if (_aiStep === 'list') aiSubmit(); else aiRecognize(); };
 
     // 保存（新增 / 编辑），带表单校验
     $('prodSaveBtn').onclick = async () => {
@@ -4594,6 +6675,8 @@
     loadProfile();
     loadHome();
     loadOrders();
+    // 一进控制台就拉一次补差概览（栏目里的数据随时是准的，菜单上则干干净净不挂数字）
+    loadSubsidyCenter();
     loadWechatOnboarding();
     loadSupOnboarding();
     pollNewOrders();
@@ -4627,5 +6710,101 @@
   </script>
   <!-- 演示模式横幅（payMode=mock 时顶部显示橙色提示，切真实支付后自动消失） -->
   <script src="/js/demo-banner.js"></script>
+  <!-- 横向滚动条常驻：宽表不必滚到最底下才能左右拖 -->
+  <script src="/js/sticky-scroll.js"></script>
+  <!-- 图片灯箱：点图放大，Esc / 空格 / 回车 / 减号 / 右键 / 点任意处 都能退回 -->
+  <script src="/js/img-lightbox.js"></script>
+  <!-- 按钮字色按实际背景自动取黑/白：换主题也不会出现「浅得看不见 / 深得看不见」 -->
+  <script src="/js/btn-contrast.js"></script>
+  <!-- 侧栏图标统一：emoji → 线性图标，跟随主题色（currentColor 描边） -->
+  <script src="/js/nav-icons.js"></script>
+<!-- 界面主题弹窗：选择只存本机 localStorage，不上传服务器、不动任何业务数据。
+     与商家端共用同一把钥匙 dhAdminTheme —— 同一个浏览器里两端主题保持一致。 -->
+<div class="theme-modal" id="themeModal">
+  <div class="theme-mask" id="themeMask"></div>
+  <div class="theme-panel">
+    <div class="theme-head">
+      <div>
+        <h3>界面主题</h3>
+        <p>四套主题只改这块屏幕的外观，不动任何业务数据；选择保存在本机浏览器，不会上传服务器，也不影响其他账号。</p>
+      </div>
+      <button class="theme-close" id="themeClose" title="关闭">✕</button>
+    </div>
+    <div class="theme-grid" id="themeModalGrid"></div>
+  </div>
+</div>
+
+<script>
+  // ============ 界面主题（本地外观设置，不上传服务器） ============
+  // 卡片数据与商家端逐一对照。这是刻意的重复：两端共用 theme.css 同一批令牌，
+  // 色块（swatches）必须跟令牌取值同步，否则弹窗里看到的颜色和点下去的效果对不上。
+  (function () {
+    var KEY = 'dhAdminTheme';
+    var THEMES = [
+      { key: 'classic', name: '经典版', slogan: '走了很远，也别忘了出发的样子。',
+        swatches: ['#f5f6fa', '#ffffff', '#ff6b35', '#1f2937', '#e5e7eb'] },
+      { key: 'warm', name: '松墨绿', slogan: '盯一天，眼睛也不累。',
+        swatches: ['#F4F8F5', '#FFFFFF', '#177A56', '#1F2937', '#E5E9F0'] },
+      { key: 'dark', name: '深色', slogan: '夜深了，数字还在替你守着生意。',
+        swatches: ['#0F1419', '#182029', '#FF9463', '#E3E6EA', '#2A3542'] },
+      { key: 'fresh', name: '青绿', slogan: '新鲜，是这行最贵的品质。',
+        swatches: ['#F4F7F7', '#FFFFFF', '#00B8A9', '#1F2329', '#FF7A3D'] }
+    ];
+    var $ = function (id) { return document.getElementById(id); };
+
+    function currentTheme() {
+      var t = document.documentElement.getAttribute('data-theme');
+      for (var i = 0; i < THEMES.length; i++) if (THEMES[i].key === t) return t;
+      return 'classic';   // 兜底与 head 里的预加载保持一致：读不到就用出厂默认（经典版）
+    }
+    function applyTheme(key) {
+      var hit = null;
+      for (var i = 0; i < THEMES.length; i++) if (THEMES[i].key === key) hit = THEMES[i];
+      if (!hit) return;
+      document.documentElement.setAttribute('data-theme', hit.key);
+      try { localStorage.setItem(KEY, hit.key); } catch (e) { /* 隐私模式忽略 */ }
+      render();
+      if ($('themeFab')) $('themeFab').title = '界面主题：' + hit.name;
+    }
+    function render() {
+      var cur = currentTheme();
+      var html = '';
+      for (var i = 0; i < THEMES.length; i++) {
+        var t = THEMES[i];
+        var dots = '';
+        for (var j = 0; j < t.swatches.length; j++) dots += '<i style="background:' + t.swatches[j] + '"></i>';
+        html += '<button type="button" class="theme-card' + (t.key === cur ? ' is-active' : '') + '" data-theme-key="' + t.key + '">'
+          + '<div class="tc-top"><span class="tc-name">' + t.name + '</span>'
+          + (t.key === 'classic' ? '<span class="tc-default">默认</span>' : '')
+          + '<span class="tc-flag">当前在用</span></div>'
+          + '<div class="tc-slogan">' + t.slogan + '</div>'
+          + '<div class="theme-swatches">' + dots + '</div></button>';
+      }
+      // 两个入口共用同一套卡片：右上角弹窗里的 grid + 工作台「界面主题」区块的 grid。
+      // 两个入口永远同步——在其中一个点选中，另一个立刻跟着变（render 会整体重画）。
+      var ids = ['themeModalGrid', 'supHomeThemeGrid'];
+      for (var h = 0; h < ids.length; h++) {
+        var host = $(ids[h]);
+        if (!host) continue;
+        host.innerHTML = html;
+        var cards = host.querySelectorAll('.theme-card');
+        for (var k = 0; k < cards.length; k++) {
+          cards[k].onclick = function () { applyTheme(this.getAttribute('data-theme-key')); };
+        }
+      }
+    }
+    function openPanel() { var m = $('themeModal'); if (m) m.classList.add('show'); }
+    function closePanel() { var m = $('themeModal'); if (m) m.classList.remove('show'); }
+
+    if ($('themeFab')) $('themeFab').onclick = openPanel;
+    if ($('themeClose')) $('themeClose').onclick = closePanel;
+    if ($('themeMask')) $('themeMask').onclick = closePanel;
+    // 入口 2：工作台「界面主题」区块里的「打开主题面板」
+    if ($('supThemeOpenBtn')) $('supThemeOpenBtn').onclick = openPanel;
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePanel(); });
+    render();
+  })();
+</script>
+
 </body>
 </html>

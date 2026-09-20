@@ -185,6 +185,40 @@ router.post('/category/:category/carry-over', async (req, res) => {
   }
 });
 
+// ============ POST /api/supplier/price/all/carry-over ============
+// 全部一键沿用：把该供应商名下所有「今日未改价」的商品沿用供货价（跨分类，一次请求搞定）。
+// 为什么需要它：供应商天天改价、蔬菜尤其每天必改，而价格真正变动的往往只有少数几个。
+// 原本只有 /category/:category/carry-over，8 大分类就要点 8 次 + 确认 8 次 —— 天天如此是纯折磨。
+// 语义与单品沿用一致：只刷新 priceUpdatedAt，不动价格，解除保鲜期冻结。
+router.post('/all/carry-over', async (req, res) => {
+  try {
+    const supplierId = req.user.supplierId;
+    const all = await SupplyProduct.find({ supplierId }).lean();
+    const now = new Date();
+    const ids = all.filter(p => !isUpdatedToday(p.priceUpdatedAt)).map(p => p._id);
+    if (ids.length === 0) {
+      return res.json({ success: true, data: { updated: 0, message: '今日已全部更新，无需沿用' } });
+    }
+    const result = await SupplyProduct.updateMany(
+      { _id: { $in: ids } },
+      {
+        $set: {
+          priceUpdatedAt: now,
+          priceFrozen: false,
+          priceFrozenAt: null,
+          freshnessAlertedAt: null
+        }
+      }
+    );
+    res.json({
+      success: true,
+      data: { updated: result.modifiedCount, total: ids.length }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // ============ GET /api/supplier/price/freshness-alerts ============
 // 保鲜期保护提醒：返回当前供应商触发保鲜期保护的商品（提醒阶段 + 冻结阶段）
 router.get('/freshness-alerts', async (req, res) => {

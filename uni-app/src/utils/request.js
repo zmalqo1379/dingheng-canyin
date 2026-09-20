@@ -15,7 +15,10 @@
  *  3) 后端响应统一格式为 { success: true/false, data/message }。
  */
 
-export const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+// 2026-09-19：默认地址由 localhost 改为 127.0.0.1。
+// 原因：微信开发者工具的模拟器里，'localhost' 常常解析不到本机后端（表现为请求一直挂起、
+// 页面永远显示「加载中…」），而 127.0.0.1 稳定可达。两者指向同一个本机服务。
+export const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:3000/api';
 
 export function getToken() {
   return uni.getStorageSync('token') || '';
@@ -33,7 +36,9 @@ export function request(options) {
     data = {},
     header = {},
     showError = true,
-    raw = false
+    raw = false,
+    // 默认 15 秒够普通接口用；拍照识别这类要等大模型的接口可单独传更大的 timeout
+    timeout = 15000
   } = options;
 
   return new Promise((resolve, reject) => {
@@ -51,7 +56,7 @@ export function request(options) {
       method,
       data,
       header: finalHeader,
-      timeout: 15000,
+      timeout,
       success: (res) => {
         // 401 未授权：清 token 跳登录
         if (res.statusCode === 401) {

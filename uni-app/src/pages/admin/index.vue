@@ -1,5 +1,5 @@
 <template>
-  <view class="page">
+  <view class="page" :class="themeClass">
     <!-- 顶部：店铺 + 采购线档位 + 鼎恒币 -->
     <view class="hero">
       <view class="deco deco-1"></view>
@@ -119,6 +119,11 @@
 import { ref } from 'vue';
 import { onLoad, onShow, onPullDownRefresh } from '@dcloudio/uni-app';
 import { get, getToken, getShopId } from '@/utils/request.js';
+// 界面主题：根 view 上挂 class（.theme-warm / .theme-dark / .theme-fresh），
+// 整套 CSS 变量由 src/styles/theme-vars.css 提供，页面样式一行都不用改。
+import { useThemeClass } from '@/utils/theme.js';
+
+const themeClass = useThemeClass();
 
 const PURCHASE_NAME = { free: '采购免费版', plus: '采购省钱卡', pro: '采购省钱卡Pro' };
 
@@ -309,15 +314,11 @@ onPullDownRefresh(async () => {
 .foot-tip { text-align: center; font-size: $fs-sm; color: $ink-300; margin-top: 10rpx; }
 button::after { border: none; }
 
-@media (prefers-color-scheme: dark) {
-  .page { background: #121212; }
-  .card, .quick { background: #1e1e1e; box-shadow: none; }
-  .quick-ico { background: #2a2a2a; }
-  .card-head, .ls-item, .fc-item, .sr-item { border-color: #2a2a2a; }
-  .card-title, .ls-name, .fc-name, .sr-name { color: #e6e6e6; }
-  .quick-txt { color: #bbb; }
-  .btn.ghost { background: #2a2119; }
-  .locked-mask { background: #241c15; border-color: #4a3524; }
-  .locked-title { color: #e6e6e6; }
-}
+/* ★ 已删（2026-09-19）：原先这里手写了一整块 @media (prefers-color-scheme: dark)，
+   逐个改 .card / .card-title / .locked-mask 的深色。
+   问题：它只认系统深色，不认用户的选择 —— 用户选了经典版，系统偏偏是深色，
+   就会变成「黑背景 + 旧橙色宝贝姆 victim 半残混合inolol而且改一处漏一处。
+   现在由 .theme-dark（挂在本页根 view 上）统一接管，文字/边框/品牌色一整套都齐，
+   而且「没手动选过主题时才跟随系统」的规则由 src/utils/theme.js 统一说了算。
+   ⚠️ 其余 8 个页面里还留着同款手写深色块，等它们接入主题层时按同样方式删掉。 */
 </style>

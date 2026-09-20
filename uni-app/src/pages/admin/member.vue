@@ -1,5 +1,5 @@
 <template>
-  <view class="page">
+  <view class="page" :class="themeClass">
     <!-- 余额 -->
     <view class="wallet">
       <view class="wallet-deco deco-1"></view>
@@ -28,6 +28,19 @@
           <text class="line-state" :class="{ off: !posActive }">{{ posExpireText }}</text>
         </view>
         <view class="line-desc">扫码点餐 · 满减 · 报表 · 高级装修</view>
+      </view>
+    </view>
+
+    <!-- 门店经营入口（2026-09-19 补）：菜单 / 订单 / 统计 / 店铺设置 / 界面主题都在里面。
+         之前只能从采购 tab 首页四宫格进，老板验收时没找到 —— 现在在我的 tab 也给一个。 -->
+    <view class="line-card" @tap="goMore">
+      <view class="line-ico">🏪</view>
+      <view class="line-main">
+        <view class="line-head">
+          <text class="line-name">门店经营</text>
+          <text class="line-state">菜单 / 订单 / 统计 ›</text>
+        </view>
+        <view class="line-desc">店铺设置、界面主题切换也在这里</view>
       </view>
     </view>
 
@@ -125,6 +138,11 @@
 import { ref, computed } from 'vue';
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { get, post, getToken, getShopId } from '@/utils/request.js';
+// 界面主题：根 view 上挂 class（整套 CSS 变量在 src/styles/theme-vars.css）
+import { useThemeClass } from '@/utils/theme.js';
+
+const themeClass = useThemeClass();
+
 
 const LEVEL_NAME = {
   basic: '点餐免费版', advanced: '点餐进阶版', premium: '点餐尊享版',
@@ -245,6 +263,10 @@ function confirmDo(title, content) {
   return new Promise((resolve) => {
     uni.showModal({ title, content, success: (r) => resolve(!!r.confirm), fail: () => resolve(false) });
   });
+}
+
+function goMore() {
+  uni.navigateTo({ url: '/pages/admin/more' });
 }
 
 async function exchangeMembership(level, line) {
@@ -429,16 +451,5 @@ onShow(() => { load(); });
 }
 button::after { border: none; }
 
-@media (prefers-color-scheme: dark) {
-  .page { background: #121212; }
-  .line-card, .card, .foot-btn { background: #1e1e1e; box-shadow: none; }
-  .line-ico { background: #2a2a2a; }
-  .line-ico.pos { background: #1f2a38; }
-  .card-title, .ex-row { border-color: #2a2a2a; }
-  .line-name, .ex-name { color: #e6e6e6; }
-  .sheet { background: #1e1e1e; }
-  .sheet-title { color: #e6e6e6; }
-  .qty-btn { background: #2a2a2a; color: #ddd; }
-  .qty-input { color: #e6e6e6; border-color: #2a2a2a; }
-}
+/* ★ 手写深色块已删（职责交给 .theme-dark），见 src/utils/theme.js */
 </style>

@@ -73,7 +73,7 @@ if (MERCHANT_TOKEN) {
   document.getElementById('adminPage').classList.add('show');
   // 响应 URL hash：从预览返回时自动定位到装修栏目
   const h = location.hash.replace('#', '');
-  const initTab = (h && ['home','mall','smartReplenish','purchase','procurement','dishes','tables','orders','stats','decorate','settings','member','coin','points','storedvalue','marketing'].includes(h)) ? h : 'home';
+  const initTab = (h && ['home','brain','mall','smartReplenish','purchase','procurement','aftersale','dishes','tables','orders','stats','decorate','settings','member','coin','points','storedvalue','marketing'].includes(h)) ? h : 'home';
   // 延迟到当前脚本执行完再切换：避免 switchTab 在脚本顶层执行时，
   // 访问到尚未初始化的模块级变量（如 _obData）导致 TDZ 报错
   setTimeout(() => {
@@ -107,12 +107,46 @@ function runTabLoader(tab) {
   else if (tab === 'mall') loadMall();
   else if (tab === 'purchase') loadPurchaseOrders();
   else if (tab === 'procurement') loadProcurement();
+  else if (tab === 'brain') loadPurchaseBrain();
+  else if (tab === 'aftersale') loadMerchantTickets();
   else if (tab === 'points') loadPoints();
   else if (tab === 'storedvalue') loadStoredValue();
   else if (tab === 'marketing') loadMarketing();
 }
 
+/* ============ 顶栏右侧「小后退 / 退出登录」 ============
+   不在起始页（工作台）时按钮显示「返回」，按访问轨迹一步一步往回退（小后退，不是一步跳回首页）；
+   退回到工作台后按钮自动变成「退出登录」，再点这一下才真的退出。
+   「退出登录」同时保留在左侧栏目页底部。 */
+const _tabHistory = [];
+let _curTab = 'home';
+function updateTopBackBtn() {
+  const btn = document.getElementById('topBackBtn');
+  if (!btn) return;
+  if (_curTab === 'home') { btn.textContent = '退出登录'; btn.title = '退出商家后台，回到登录页'; }
+  else { btn.textContent = '返回'; btn.title = '返回上一页'; }
+}
+function goBackOrLogout() {
+  if (_curTab === 'home') { // 已经退到起始页：这一下就是退出登录
+    const l = document.getElementById('logoutBtn');
+    if (l) l.click();
+    return;
+  }
+  const prev = _tabHistory.pop() || 'home';
+  _curTab = prev; // 先置为上一页，避免 switchTab 又把刚退出来的这页压回历史
+  switchTab(prev);
+  updateTopBackBtn();
+}
+window.goBackOrLogout = goBackOrLogout;
+
 function switchTab(tab) {
+  // 记录访问轨迹，供顶栏「小后退」逐步回退
+  if (tab !== _curTab) {
+    _tabHistory.push(_curTab);
+    if (_tabHistory.length > 30) _tabHistory.shift();
+    _curTab = tab;
+    updateTopBackBtn();
+  }
   document.querySelectorAll('.nav-item').forEach(x => x.classList.toggle('active', x.dataset.tab === tab));
   document.querySelectorAll('.pane').forEach(x => x.classList.toggle('active', x.id === 'pane-' + tab));
   closeSidebar();
@@ -129,7 +163,7 @@ function switchTab(tab) {
 }
 
 // 登录后后台静默预加载全部栏目（串行 + 间隔，避免并发压垮后端），让首次点击也秒开
-const _preloadOrder = ['home', 'mall', 'smartReplenish', 'purchase', 'procurement', 'dishes', 'tables', 'orders', 'stats', 'decorate', 'settings', 'member', 'coin', 'points', 'storedvalue', 'marketing'];
+const _preloadOrder = ['home', 'brain', 'mall', 'smartReplenish', 'purchase', 'procurement', 'aftersale', 'dishes', 'tables', 'orders', 'stats', 'decorate', 'settings', 'member', 'coin', 'points', 'storedvalue', 'marketing'];
 function preloadAllTabs() {
   let i = 0;
   function next() {
@@ -149,12 +183,14 @@ document.querySelectorAll('.nav-item').forEach(t => t.onclick = () => switchTab(
    门面/热身区：问候 + 今日数据 + 待办直达 + 高倍率品类激励。
    内部使用引导，非宣传页。任一数据源失败不阻塞其他区块。 */
 const _homeTips = [
-  '库存告急的菜品今天就补上，别让顾客失望而归',
-  '下单前看看「得币攻略」，高倍率品类得币更多',
-  '收到货记得确认收货，返的鼎恒币能免费兑换会员',
-  '每天看一眼待办，生意好坏心里有数',
-  '采购会员快到期？鼎恒币余额够就能免费续',
-  '今天还没下单？去商城逛逛今日高倍率品类',
+  // 短句，长度跟原来那一句差不多；第一句是主推：采购是生意的主线，
+  // 「比市场批发价更低」是最直白的下单理由。
+  '今天还没下单？商城价比市场批发价更低',
+  '同样的菜，商城采购更省，还返鼎恒币',
+  '库存告急的菜今天补上，别让客人空跑',
+  '下单前看「得币攻略」，高倍率品类得币更多',
+  '收货记得确认，返的鼎恒币能免费兑会员',
+  '采购会员快到期？鼎恒币够就能免费续',
 ];
 function _homeGreetWord() {
   const h = new Date().getHours();
@@ -184,11 +220,18 @@ async function loadHome() {
     const week = ['日', '一', '二', '三', '四', '五', '六'][now.getDay()];
     dateEl.textContent = `${now.getFullYear()} 年 ${now.getMonth() + 1} 月 ${now.getDate()} 日 · 星期${week}`;
   }
+  // 整句话就是入口：写完文案后这一框直接可点（和下面那几张数据卡一个路子）
   const tipEl = $('homeTip');
-  if (tipEl) tipEl.textContent = '💡 ' + _homeTips[Math.floor(Math.random() * _homeTips.length)];
+  if (tipEl) {
+    tipEl.textContent = '💡 ' + _homeTips[Math.floor(Math.random() * _homeTips.length)];
+    tipEl.onclick = () => switchTab(tipEl.dataset.go);
+    tipEl.onkeydown = e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); switchTab(tipEl.dataset.go); }
+    };
+  }
 
-  // 2) 并行拉取：采购订单（今日额+待办）、低库存、会员状态、品类倍率
-  const [poRes, lowRes, coinRes, multRes] = await Promise.all([
+  // 2) 并行拉取：采购订单（今日额+待办）、低库存、会员状态、品类倍率、扫码点餐订单（今日营业额）、常购清单
+  const [poRes, lowRes, coinRes, multRes, ordRes, rebuyRes] = await Promise.all([
     api('/api/purchase-orders').catch(() => null),
     api('/api/admin/low-stock-dishes?limit=6').catch(() => null),
     api(`/api/coin/status/${SHOP_ID}`).catch(() => null),
@@ -197,33 +240,98 @@ async function loadHome() {
       try { _homeCoinMapRes = await api('/api/coin/category-multipliers'); } catch (e) { return null; }
       return _homeCoinMapRes;
     })(),
+    api('/api/orders').catch(() => null),
+    api('/api/purchase-orders/frequently-bought?days=60&limit=8').catch(() => null),
   ]);
 
-  // 3) 今日数据卡：今日采购额/单数 + 较昨日趋势
+  // 3) 今日数据卡
+  //    主打位放「赚了多少」——扫码点餐的今日营业额。采购额是"花了多少"，只配当成本参考，
+  //    不配占最大最醒目的位置：商家打开后台第一眼，该看到这套系统给他带来了什么。
   const orders = (poRes && poRes.data) || [];
+  const scanOrders = (ordRes && ordRes.data) || [];
+  const coinData = (coinRes && coinRes.success && coinRes.data) || {};
   const today0 = _startOfDay(new Date());
   const today24 = new Date(today0.getTime() + 86400000);
   const yst0 = new Date(today0); yst0.setDate(yst0.getDate() - 1);
   const inRange = (o, from, to) => { const t = new Date(o.createdAt); return t >= from && t < to; };
   const todayOrders = orders.filter(o => inRange(o, today0, today24));
   const ystOrders = orders.filter(o => inRange(o, yst0, today0));
-  const sumAmt = (arr) => arr.reduce((s, o) => s + Number(o.totalAmount || 0), 0);
-  const todayAmt = sumAmt(todayOrders), ystAmt = sumAmt(ystOrders);
-  const setTrend = (id, nowV, ystV) => {
+  // 两套订单的金额字段名不一样，必须分开取：
+  //   采购订单 PurchaseOrder → totalAmount（卖价总额）
+  //   扫码点餐 Order         → totalPrice（Order 表里没有 totalAmount 这个字段，
+  //                            以前两个表共用同一个求和函数，导致今日营业额恒为 ¥0.00）
+  const sumPurchaseAmt = (arr) => arr.reduce((s, o) => s + Number(o.totalAmount || 0), 0);
+  const sumRevenue = (arr) => arr.reduce((s, o) => s + Number(o.totalPrice || 0), 0);
+  const todayAmt = sumPurchaseAmt(todayOrders), ystAmt = sumPurchaseAmt(ystOrders);
+  // 营业额 = 今天的全部扫码点餐订单，不区分状态。
+  //   这一行返工过一次：曾经只算 status === 'completed'，可订单创建后默认就是 pending，
+  //   必须手动调 /api/orders/:id/complete 才会变成 completed —— 商家要是没点「完成」，
+  //   营业额就永远是 0，老板会以为今天一单没做。
+  //   官方后台统计 /api/admin/merchant-stats 算的同样是全部订单，这里必须跟它对齐。
+  const todayRevenue = sumRevenue(scanOrders.filter(o => inRange(o, today0, today24)));
+  const ystRevenue = sumRevenue(scanOrders.filter(o => inRange(o, yst0, today0)));
+  const scanOn = scanOrders.length > 0; // 用过扫码点餐 → 主打位给营业额
+  const money = (n) => '¥' + Number(n || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // 这一行绝不允许留空 —— 老板看到某张卡底下空空如也，只会以为系统坏了。
+  // 所以「算不出百分比」的两种情况都得有话说：
+  //   zeroText  ：昨天是 0，但今天有数 → 直说昨天是 0
+  //   emptyText ：今天和昨天都是 0     → 直说今天还没开单
+  const setTrend = (id, nowV, ystV, zeroText, emptyText) => {
     const tr = $(id); if (!tr) return;
     if (!ystV) {
-      tr.textContent = nowV > 0 ? '今日开张' : '';
-      tr.className = nowV > 0 ? 'up' : '';
+      if (nowV > 0) {
+        tr.textContent = zeroText || '昨日无数据';
+        tr.className = 'up';
+      } else {
+        tr.textContent = emptyText || '今日暂无数据';
+        tr.className = '';
+      }
       return;
     }
     const pct = Math.round(((nowV - ystV) / ystV) * 100);
     tr.textContent = pct >= 0 ? `较昨日 +${pct}%` : `较昨日 ${pct}%`;
     tr.className = pct >= 0 ? 'up' : 'down';
   };
-  const amtEl = $('hsTodayAmount'); if (amtEl) amtEl.textContent = '¥' + todayAmt.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
+  // 主打卡：有扫码点餐 → 今日营业额；还没用 → 鼎恒币余额（"得到什么"，不是"花掉多少"）
+  const mainCard = $('hsMainCard'), mainVal = $('hsTodayAmount'), mainLabel = $('hsMainLabel');
+  if (mainCard && mainVal && mainLabel) {
+    if (scanOn) {
+      mainVal.textContent = money(todayRevenue);
+      mainLabel.textContent = '今日营业额';
+      mainCard.setAttribute('data-go', 'orders');
+      mainCard.title = '查看扫码点餐订单';
+      setTrend('hsAmountTrend', todayRevenue, ystRevenue, `昨日 ${money(0)}`, '今日暂无订单');
+    } else {
+      mainVal.textContent = String(Number(coinData.dinghengCoin ?? 0));
+      mainLabel.textContent = '鼎恒币余额';
+      mainCard.setAttribute('data-go', 'coin');
+      mainCard.title = '去鼎恒币中心';
+      const tr = $('hsAmountTrend');
+      if (tr) { tr.textContent = '开通扫码点餐看每日营收'; tr.className = ''; }
+    }
+  }
   const cntEl = $('hsTodayOrders'); if (cntEl) cntEl.textContent = String(todayOrders.length);
-  setTrend('hsAmountTrend', todayAmt, ystAmt);
-  setTrend('hsOrdersTrend', todayOrders.length, ystOrders.length);
+  setTrend('hsOrdersTrend', todayOrders.length, ystOrders.length, '昨日 0 单', '今日暂无采购');
+
+  // 末位卡跟着主打卡联动，保证这两张卡永远不会显示同一个数字
+  const tailCard = $('hsTailCard'), tailVal = $('hsCoin'), tailLabel = $('hsTailLabel'), tailHint = $('hsCoinHint');
+  if (tailCard && tailVal && tailLabel) {
+    if (scanOn) {
+      tailVal.textContent = String(Number(coinData.dinghengCoin ?? 0));
+      tailLabel.textContent = '鼎恒币余额';
+      tailCard.setAttribute('data-go', 'coin');
+      tailCard.title = '去鼎恒币中心';
+      if (tailHint) { tailHint.textContent = '可兑换会员'; tailHint.style.color = 'var(--c-amber-600)'; }
+    } else {
+      tailVal.textContent = money(todayAmt);
+      tailLabel.textContent = '今日采购额';
+      tailCard.setAttribute('data-go', 'procurement');
+      tailCard.title = '查看采购监控';
+      if (tailHint) tailHint.style.color = '';
+      // ystAmt 以前算出来了却一直没用上：花了多少钱同样要看比昨天多还是少
+      setTrend('hsCoinHint', todayAmt, ystAmt, `昨日 ${money(0)}`, '今日暂无采购');
+    }
+  }
 
   // 4) 待办清单：待收货 > 库存告急 > 待确认 > 会员临期
   const shipping = orders.filter(o => o.status === '已发货');
@@ -231,9 +339,14 @@ async function loadHome() {
   const lowData = (lowRes && lowRes.success && lowRes.data) || {};
   const lowItems = (lowData.hasBom && lowData.items) || [];
   const urgent = lowItems.filter(x => x.portionsLeft <= 5);
-  const coinData = (coinRes && coinRes.success && coinRes.data) || {};
-  const coinEl = $('hsCoin'); if (coinEl) coinEl.textContent = String(Number(coinData.dinghengCoin ?? 0));
   const todoEl = $('hsTodoCount'); if (todoEl) todoEl.textContent = String(shipping.length + pending.length);
+  // 光一个「待处理 3」看不出该干什么，把构成写明：到底是要收货，还是要催供应商接单
+  const todoHint = $('hsTodoHint');
+  if (todoHint) {
+    todoHint.textContent = (shipping.length || pending.length)
+      ? `待收货 ${shipping.length} · 待确认 ${pending.length}`
+      : '暂无待处理';
+  }
 
   let expiringDays = null;
   if (coinData.purchaseActive !== false && coinData.purchaseExpire) {
@@ -241,10 +354,32 @@ async function loadHome() {
     if (days > 0 && days <= 30) expiringDays = days;
   }
 
+  // 库存告急条：摆在四张数据卡正下方。以前它只藏在「今日待办」里的一行字，
+  // 还排在「待收货」后面 —— 可老板掏手机最急着看的恰恰是「哪个菜要断货」。
+  const alertEl = $('homeStockAlert');
+  if (alertEl) {
+    const pick = urgent.length ? urgent : lowItems;
+    if (!pick.length) {
+      alertEl.style.display = 'none';
+    } else {
+      const isUrgent = urgent.length > 0;
+      alertEl.style.display = 'flex';
+      alertEl.className = 'home-stock-alert' + (isUrgent ? '' : ' warn');
+      const names = pick.slice(0, 2).map(x => `${esc(x.dishName)} 仅可做 ${x.portionsLeft} 份`).join(' · ');
+      alertEl.innerHTML =
+        `<span class="hsa-icon">${isUrgent ? '⚠️' : '🟡'}</span>` +
+        `<span class="hsa-text">${isUrgent ? '快断货了' : '原料偏低'}：${pick.length} 道菜` +
+        `<small>${names}${pick.length > 2 ? ' 等' : ''}</small></span>` +
+        `<button class="btn" type="button">去补货</button>`;
+      const goBtn = alertEl.querySelector('button');
+      if (goBtn) goBtn.onclick = () => switchTab('mall');
+    }
+  }
+
   const todos = [];
   if (shipping.length) todos.push({ tone: 'red', text: `${shipping.length} 笔订单已发货，核对重量后确认收货、坐等返币`, sub: '待收货', btn: '确认收货', tab: 'purchase' });
-  if (urgent.length) todos.push({ tone: 'red', text: `${urgent.length} 道菜库存告急（${urgent.slice(0, 2).map(x => x.dishName).join('、')}${urgent.length > 2 ? ' 等' : ''}）`, sub: '库存告急', btn: '去补货', tab: 'mall' });
-  else if (lowItems.length) todos.push({ tone: 'orange', text: `${lowItems.length} 道菜原料偏低，酌情补货`, sub: '库存偏低', btn: '去补货', tab: 'mall' });
+  // 库存告急提到「数据卡正下方」的显眼条里（见下）。这里如果再列一遍，
+  // 同一件事会在首页上下出现两次，反而让人看不清到底哪件最急。
   if (pending.length) todos.push({ tone: 'orange', text: `${pending.length} 笔订单已提交，等待供应商接单确认`, sub: '待确认', btn: '去查看', tab: 'purchase' });
   if (expiringDays !== null) todos.push({ tone: 'orange', text: `采购管家会员剩 ${expiringDays} 天到期，鼎恒币余额够可免费续`, sub: '会员临期', btn: '去续费', tab: 'member' });
 
@@ -278,6 +413,149 @@ async function loadHome() {
         return `<span class="home-coin-tag ${mult > 1 ? '' : 'mult1'}">${esc(cat)} <b>${mult} 倍得币</b></span>`;
       }).join('');
     }
+  }
+
+  // 6) 常购清单（再来一单）：最近买过的按供应商归堆，勾一勾就能复购
+  renderRebuy((rebuyRes && rebuyRes.success && rebuyRes.data) || null);
+}
+
+/* ---------- 常购清单「再来一单」 ----------
+   数据来自 GET /api/purchase-orders/frequently-bought：后端已按供应商聚合好最近真正买成的商品
+   （排除待支付草稿、已取消、已下架商品）。这里只管呈现和下单，绝不重新算一遍聚合 ——
+   一旦前后端两套算法，口径迟早对不上，到时候谁都不知道该信哪个数。
+
+   下单有两道实实在在的关，绕不开，必须处理好：
+     ① 起送价：后端会直接拒，前端先算好、把差额写在按钮上，别让老板点了才报错
+     ② 囤货保护：超量时后端返回 409 + code=STOCKPILE_WARNING，要问过老板再带 force=true 重发 */
+let _rebuyGroups = [];
+
+function renderRebuy(data) {
+  const card = $('homeRebuyCard'), box = $('homeRebuyList');
+  if (!card || !box) return;
+  const groups = (data && data.groups) || [];
+  _rebuyGroups = groups;
+  // 没有采购历史就整块收起，不拿空卡片占地方
+  if (!groups.length) { card.style.display = 'none'; return; }
+  card.style.display = '';
+
+  box.innerHTML = groups.map(g => {
+    const items = (g.items || []).map(it => `
+        <span class="rebuy-item${g.orderable ? '' : ' locked'}" data-sid="${esc(g.supplierId)}" data-pid="${esc(it.productId)}"
+              data-price="${Number(it.price || 0)}">
+          <span class="nm">${esc(it.name)}</span>
+          <span class="pr">¥${Number(it.price || 0).toFixed(2)}${esc(it.unit ? '/' + it.unit : '')}</span>
+          <span class="tm">买过 ${Number(it.times || 0)} 次</span>
+          <input class="rebuy-qty" type="number" min="1" step="1" value="${Number(it.lastQty || 1)}">
+        </span>`).join('');
+    return `
+      <div class="rebuy-group" data-sid="${esc(g.supplierId)}">
+        <div class="rebuy-head">
+          <span class="rebuy-sup">${esc(g.supplierName)}</span>
+          <span class="rebuy-min">起送 ¥${Number(g.minOrderAmount || 0).toFixed(2)}</span>
+        </div>
+        <div class="rebuy-items">${items}</div>
+        <div class="rebuy-bar">
+          <span class="rebuy-sum">未选择</span>
+          <button type="button" class="rebuy-btn" disabled>${g.orderable ? '再来一单' : '该供应商暂不可下单'}</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  // 点标签切换选中；数量框只在选中后才出现，默认带出「上次买了多少」
+  box.querySelectorAll('.rebuy-item').forEach(el => {
+    if (el.classList.contains('locked')) return;
+    el.onclick = (e) => {
+      if (e.target.classList.contains('rebuy-qty')) return;
+      el.classList.toggle('on');
+      refreshRebuyBar(el.dataset.sid);
+    };
+  });
+  box.querySelectorAll('.rebuy-qty').forEach(inp => {
+    inp.onclick = (e) => e.stopPropagation();
+    inp.oninput = () => refreshRebuyBar(inp.closest('.rebuy-group').dataset.sid);
+  });
+  box.querySelectorAll('.rebuy-btn').forEach(btn => {
+    btn.onclick = () => submitRebuy(btn.closest('.rebuy-group').dataset.sid);
+  });
+}
+
+// 收集某个供应商组里勾中的商品（含数量与单价）
+function collectRebuy(group) {
+  const picked = [];
+  group.querySelectorAll('.rebuy-item.on').forEach(el => {
+    const qty = Math.max(1, parseInt(el.querySelector('.rebuy-qty').value, 10) || 1);
+    picked.push({ productId: el.dataset.pid, quantity: qty, price: Number(el.dataset.price || 0) });
+  });
+  return picked;
+}
+
+// 重算「已选 N 项 · 合计 ¥X」，并把起送价差额直接写在按钮上
+function refreshRebuyBar(sid) {
+  const group = document.querySelector(`.rebuy-group[data-sid="${sid}"]`);
+  if (!group) return;
+  const g = _rebuyGroups.find(x => String(x.supplierId) === String(sid));
+  const sumEl = group.querySelector('.rebuy-sum');
+  const btn = group.querySelector('.rebuy-btn');
+  if (!g || !g.orderable) {
+    sumEl.textContent = '未选择';
+    btn.disabled = true;
+    btn.textContent = '该供应商暂不可下单';
+    return;
+  }
+  const picked = collectRebuy(group);
+  if (!picked.length) {
+    sumEl.textContent = '未选择';
+    btn.disabled = true;
+    btn.textContent = '再来一单';
+    return;
+  }
+  const amount = picked.reduce((s, i) => s + i.price * i.qty, 0);
+  const min = Number(g.minOrderAmount || 0);
+  const short = min - amount;
+  sumEl.textContent = `已选 ${picked.length} 项 · 合计 ¥${amount.toFixed(2)}`;
+  // 不够起送价就把差额写在按钮上：让老板一眼知道还得加多少，而不是点了才被后端打回来
+  btn.disabled = short > 0;
+  btn.textContent = short > 0 ? `还差 ¥${short.toFixed(2)} 起送` : '再来一单';
+}
+
+async function submitRebuy(sid) {
+  const group = document.querySelector(`.rebuy-group[data-sid="${sid}"]`);
+  if (!group) return;
+  const picked = collectRebuy(group);
+  if (!picked.length) { toast('先勾选要复购的商品'); return; }
+  const items = picked.map(({ productId, quantity }) => ({ productId, quantity }));
+  const btn = group.querySelector('.rebuy-btn');
+  const oldText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '提交中…';
+  try {
+    const body = (extra) => JSON.stringify(Object.assign({ supplierId: sid, items }, extra));
+    const post = (extra) => api('/api/purchase-orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: body(extra)
+    });
+    let res = await post({});
+    // 囤货保护：后端 409 + STOCKPILE_WARNING。必须让老板自己拍板，
+    // 不能悄悄替他 force 掉 —— 那是替商家做决策，回头出了问题算谁的。
+    if (res && res.code === 'STOCKPILE_WARNING') {
+      const warn = ((res.data || {}).stockpileWarnings || []).map(w =>
+        `${w.name}：本次 ${w.quantity}，近 7 日共 ${w.history7DayTotal}（达 ${w.ratio} 倍）`).join('\n');
+      const drop = ((res.data || {}).priceDropWarnings || []).map(w =>
+        `${w.name}：本次单价 ¥${w.unitPrice}，低于近 7 日均价 ¥${w.avg7Day}（跌 ${w.dropRatio}%）`).join('\n');
+      const msg = [warn, drop].filter(Boolean).join('\n');
+      if (!confirm(`这批货比平时买得多或便宜得反常，请确认：\n\n${msg}\n\n确定仍要下单吗？`)) return;
+      res = await post({ force: true });
+    }
+    if (res && res.success) {
+      toast('已下单，去采购订单付款');
+      switchTab('purchase');
+      return;
+    }
+    toast((res && res.message) || '下单失败', true);
+  } finally {
+    btn.disabled = false;
+    refreshRebuyBar(sid);   // 恢复按钮文案（该显示差额还是「再来一单」，交给同一处逻辑算）
   }
 }
 
@@ -421,6 +699,8 @@ function closeSidebar() { $('sidebar').classList.remove('open'); $('scrim').clas
 // 汉堡按钮开合切换：菜单开着时再点即收起
 $('menuToggle').onclick = () => ($('sidebar').classList.contains('open') ? closeSidebar() : openSidebar());
 $('scrim').onclick = closeSidebar;
+if ($('topBackBtn')) $('topBackBtn').onclick = goBackOrLogout;
+updateTopBackBtn();
 
 /* ===================== 新手开张引导（开张四步曲） =====================
    菜品 / 装修：后端查库实时判定；预览 / 逛商城：动作上报标记。
@@ -1017,7 +1297,7 @@ async function loadCategories() {
   return categories;
 }
 
-// 菜单管理：低库存菜品提醒（缺货即补货触点；无配方/库存数据时隐藏，不打扰）
+// 菜单管理：低库存菜品提醒（缺货即补货触点；无用料/库存数据时隐藏，不打扰）
 async function loadLowStockBanner() {
   const banner = $('lowStockBanner');
   if (!banner) return;
@@ -1074,7 +1354,7 @@ async function loadDishes() {
         <td><span class="badge ${d.isAvailable ? 'b-green' : 'b-gray'}">${d.isAvailable ? '上架' : '下架'}</span></td>
         <td>
           <div class="row-actions">
-            <button class="btn btn-green" data-act="bom" data-dish="${esc(d.name)}">配方</button>
+            <button class="btn btn-green" data-act="bom" data-dish="${esc(d.name)}">用料</button>
             <button class="btn btn-blue" data-act="edit" data-id="${esc(d._id)}">编辑</button>
             <button class="btn ${d.isAvailable ? 'btn-gray' : 'btn-orange'}" data-act="toggle" data-id="${esc(d._id)}" data-avail="${d.isAvailable ? 0 : 1}">${d.isAvailable ? '下架' : '上架'}</button>
             <button class="btn btn-red" data-act="del" data-id="${esc(d._id)}">删除</button>
@@ -1109,7 +1389,7 @@ async function loadDishes() {
           </div>
         </div>
         <div class="dcm-actions">
-          <button class="btn btn-green" data-act="bom" data-dish="${esc(d.name)}">配方</button>
+          <button class="btn btn-green" data-act="bom" data-dish="${esc(d.name)}">用料</button>
           <button class="btn btn-blue" data-act="edit" data-id="${esc(d._id)}">编辑</button>
           <button class="btn ${d.isAvailable ? 'btn-gray' : 'btn-orange'}" data-act="toggle" data-id="${esc(d._id)}" data-avail="${d.isAvailable ? 0 : 1}">${d.isAvailable ? '下架' : '上架'}</button>
           <button class="btn btn-red" data-act="del" data-id="${esc(d._id)}">删除</button>
@@ -1170,7 +1450,10 @@ $('dishCancelBtn').onclick = closeDishModal;
 function closeDishModal() { $('dishModal').classList.remove('show'); }
 $('dishModal').addEventListener('click', (e) => { if (e.target.id === 'dishModal') closeDishModal(); });
 
-/* ---------- 菜品食材配方（BOM）管理 ---------- */
+/* ---------- 菜品用料（BOM）管理 ----------
+   对外一律叫「用料」：它记的是"这道菜每份用哪些食材、各用多少"，
+   用途是自动扣库存、反算可售份数、缺货提醒。
+   别叫「配方」—— 那是人家的立身之本，我们不碰，也别让老板误会我们在要他的方子。 */
 let _bomDishName = '';
 let _bomItems = [];
 let _bomAllProducts = [];
@@ -1192,7 +1475,7 @@ async function openBomModal(dishName) {
   }
   renderBomProductSelect();
 
-  // 加载该菜品已有配方
+  // 加载该菜品已配置的用料
   try {
     const res = await api('/api/admin/bom');
     const list = res.data || [];
@@ -1266,7 +1549,7 @@ async function saveBom() {
     body: JSON.stringify({ dishName: _bomDishName, items })
   });
   if (res.success) {
-    toast('配方已保存');
+    toast('用料已保存');
     closeBomModal();
   } else {
     toast(res.message || '保存失败', true);
@@ -1379,6 +1662,264 @@ $('dishSaveBtn').onclick = async () => {
   } else {
     toast(res.message || '保存失败', true);
   }
+};
+
+/* ===================== 拍照上传菜单 ===================== */
+/* 一份纸质菜单几十道菜，一道一道手打太慢。拍照（或把菜单文字粘进来）→ 识别成清单 →
+   这儿改、那儿删、还能手动加 → 一键整批新增。
+   立场：识别出来的每一行都能改，绝不做"认出来是什么就是什么"的黑盒。 */
+let _aiDishItems = [];     // 识别结果清单（改什么都在内存里，最后整体提交）
+let _aiDishImage = '';     // 当前照片（压缩后的 dataUrl）
+let _aiDishOn = {};        // 勾选状态：下标 → 是否要新增
+let _aiDishStep = 'input'; // input / loading / list
+
+// 菜单照片压到长边 1280 再传：原图动辄好几 MB，传得慢、识别也贵；
+// 又不能压太小（比菜品图上传的 800 大），字糊了就认不出来菜名了。
+function aiDishCompress(file) {
+  return new Promise((resolve) => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const max = 1280;
+        let w = img.width, h = img.height;
+        if (w > h && w > max) { h = Math.round(h * max / w); w = max; }
+        else if (h >= w && h > max) { w = Math.round(w * max / h); h = max; }
+        const cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        cv.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(cv.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = () => resolve(null);
+      img.src = fr.result;
+    };
+    fr.onerror = () => resolve(null);
+    fr.readAsDataURL(file);
+  });
+}
+
+// 分类下拉：优先用商家自己建的那套（跟「新增菜品」弹窗保持一致），没建就给一套常用中式菜单分类
+function aiDishCatOptions(sel) {
+  let list = (categories && categories.length)
+    ? categories.map(c => String(c.name || '').trim()).filter(Boolean)
+    : [];
+  if (!list.length) list = ['热菜', '凉菜', '主食', '汤羹', '饮品', '小吃', '其他'];
+  if (sel && list.indexOf(sel) === -1) list = [sel].concat(list);   // 模型认出的分类不在列表里也能显示
+  return list.map(c => `<option value="${esc(c)}" ${c === sel ? 'selected' : ''}>${esc(c)}</option>`).join('');
+}
+
+function aiDishSetStep(step) {
+  _aiDishStep = step;
+  $('aiDishStepInput').style.display = step === 'input' ? '' : 'none';
+  $('aiDishStepList').style.display = step === 'list' ? '' : 'none';
+  $('aiDishLoading').style.display = step === 'loading' ? '' : 'none';
+  $('aiDishAgainBtn').style.display = step === 'list' ? '' : 'none';
+  const btn = $('aiDishGoBtn');
+  btn.textContent = step === 'list' ? '一键新增' : (step === 'loading' ? '识别中…' : '开始识别');
+  btn.disabled = step === 'loading';
+  if (step === 'list') aiDishUpdateBtn();
+}
+
+function aiDishUpdateBtn() {
+  if (_aiDishStep !== 'list') return;
+  const n = _aiDishItems.filter((it, i) => _aiDishOn[i] !== false).length;
+  const btn = $('aiDishGoBtn');
+  btn.textContent = n ? `一键新增这 ${n} 道` : '一键新增';
+  btn.disabled = !n;
+}
+
+function aiDishRenderList() {
+  const tb = $('aiDishTbody');
+  if (!_aiDishItems.length) {
+    tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:18px 0;">没认出来菜品 —— 点「重新识别」再来一次，或者点下面「再加一行」自己填</td></tr>';
+    $('aiDishSum').textContent = '';
+    aiDishUpdateBtn();
+    return;
+  }
+  tb.innerHTML = _aiDishItems.map((it, i) => `
+    <tr class="${it.confidence === 'low' ? 'low' : ''}">
+      <td><input type="checkbox" class="ai-chk" data-i="${i}" ${_aiDishOn[i] !== false ? 'checked' : ''}></td>
+      <td>
+        <input class="ai-f" data-i="${i}" data-k="name" value="${esc(it.name || '')}" placeholder="菜名">
+        ${it.confidence === 'low' ? '<span class="ai-low-tag">请核对</span>' : ''}
+      </td>
+      <td>
+        <select class="ai-f" data-i="${i}" data-k="category">${aiDishCatOptions(it.category)}</select>
+      </td>
+      <td><input class="ai-f" data-i="${i}" data-k="price" type="number" step="0.01" min="0" value="${it.price == null ? '' : it.price}" placeholder="必填"></td>
+      <td><button class="ai-del" data-i="${i}" title="删掉这一行">✕</button></td>
+    </tr>
+  `).join('');
+  const low = _aiDishItems.filter(x => x.confidence === 'low').length;
+  $('aiDishSum').innerHTML = `认出 <b>${_aiDishItems.length}</b> 道菜`
+    + (low ? `，其中 <b style="color:#92400e;">${low}</b> 道没太大把握（黄底那几行），麻烦核一眼` : '')
+    + '。不要的把勾去掉或点 ✕，少了点下面「再加一行」，<b>价格缺的补上</b>就能一键新增。';
+  aiDishUpdateBtn();
+}
+
+// 表格里的改动实时回写内存（改一行算一行，不用"保存草稿"这种多余动作）
+$('aiDishTbody').addEventListener('input', (e) => {
+  const t = e.target;
+  if (!t.classList || !t.classList.contains('ai-f')) return;
+  const i = Number(t.dataset.i), k = t.dataset.k;
+  if (!_aiDishItems[i]) return;
+  if (k === 'price') {
+    _aiDishItems[i][k] = (t.value === '' ? null : Number(t.value));
+    aiDishUpdateBtn();
+  } else {
+    _aiDishItems[i][k] = t.value;
+  }
+});
+$('aiDishTbody').addEventListener('change', (e) => {
+  const t = e.target;
+  if (!t.classList) return;
+  if (t.classList.contains('ai-chk')) { _aiDishOn[Number(t.dataset.i)] = t.checked; aiDishUpdateBtn(); return; }
+  if (t.classList.contains('ai-f')) {
+    const i = Number(t.dataset.i);
+    if (_aiDishItems[i]) _aiDishItems[i][t.dataset.k] = t.value;
+  }
+});
+$('aiDishTbody').addEventListener('click', (e) => {
+  const b = e.target.closest && e.target.closest('.ai-del');
+  if (!b) return;
+  _aiDishItems.splice(Number(b.dataset.i), 1);
+  _aiDishOn = {};
+  aiDishRenderList();
+});
+$('aiDishAll').onchange = () => {
+  const on = $('aiDishAll').checked;
+  _aiDishItems.forEach((_, i) => { _aiDishOn[i] = on; });
+  document.querySelectorAll('#aiDishTbody .ai-chk').forEach(c => { c.checked = on; });
+  aiDishUpdateBtn();
+};
+$('aiDishAddRowBtn').onclick = () => {
+  _aiDishItems.push({ name: '', price: null, category: (categories && categories[0] && categories[0].name) || '热菜', confidence: 'low' });
+  _aiDishOn = {};
+  aiDishRenderList();
+  const rows = document.querySelectorAll('#aiDishTbody .ai-f[data-k="name"]');
+  if (rows.length) rows[rows.length - 1].focus();
+};
+
+async function aiDishRecognize() {
+  const txt = $('aiDishText').value.trim();
+  if (!_aiDishImage && !txt) { toast('先拍张照，或者把菜单文字粘进来', true); return; }
+  aiDishSetStep('loading');
+  try {
+    const res = await api('/api/ai/parse-dishes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: _aiDishImage || null, text: txt || null })
+    });
+    if (!res.success) { toast(res.message || '识别失败', true); aiDishSetStep('input'); return; }
+    _aiDishItems = (res.data && res.data.items) || [];
+    _aiDishOn = {};
+    $('aiDishResult').style.display = 'none';
+    aiDishSetStep('list');
+    aiDishRenderList();
+    if (!_aiDishItems.length) toast(res.message || '没认出菜品来，把镜头拉近拍清楚点再试', true);
+  } catch (err) {
+    toast('识别失败，请重试', true);
+    aiDishSetStep('input');
+  }
+}
+
+async function aiDishSubmit() {
+  const items = [];
+  _aiDishItems.forEach((it, i) => {
+    if (_aiDishOn[i] === false) return;
+    const name = String(it.name || '').trim();
+    if (!name) return;
+    items.push({
+      name,
+      category: it.category || '其他',
+      price: (it.price == null ? null : Number(it.price)),
+      description: it.description || ''
+    });
+  });
+  if (!items.length) { toast('还没勾选要新增的菜品', true); return; }
+
+  const btn = $('aiDishGoBtn');
+  btn.disabled = true; btn.textContent = '正在新增…';
+  try {
+    const res = await api('/api/admin/dishes/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items })
+    });
+    if (!res.success) { toast(res.message || '新增失败', true); aiDishSetStep('list'); return; }
+    const d = res.data || {};
+    // 成功的移出表格，没成的留在表里继续改 —— 不让他重拍一次
+    const okNames = new Set((d.created || []).map(x => String(x.name || '').replace(/\s/g, '').toLowerCase()));
+    _aiDishItems = _aiDishItems.filter((it, i) => {
+      if (_aiDishOn[i] === false) return true;
+      return !okNames.has(String(it.name || '').replace(/\s/g, '').toLowerCase());
+    });
+    _aiDishOn = {};
+    const box = $('aiDishResult');
+    let html = `✅ 已新增 <b>${d.count || 0}</b> 道菜`;
+    if ((d.skipped || []).length) {
+      html += `；<b>${d.skipped.length}</b> 道重名的已跳过（${d.skipped.slice(0, 3).map(s => esc(s.name)).join('、')}${(d.skipped.length > 3 ? ' 等' : '')}）`;
+    }
+    if ((d.failed || []).length) {
+      html += `<br>还有 <b>${d.failed.length}</b> 道没加上（多半是没填价格），已经留在上面的表里 —— 补上价再点一次就行。`;
+    }
+    box.className = 'ai-result' + ((d.failed || []).length ? ' warn' : '');
+    box.innerHTML = html;
+    box.style.display = '';
+    aiDishRenderList();
+    loadDishes();   // 列表立刻刷新，新菜直接看得见
+    if (!_aiDishItems.length) { $('aiDishGoBtn').textContent = '全部完成'; $('aiDishGoBtn').disabled = true; }
+  } catch (err) {
+    toast('新增失败，请重试', true);
+    aiDishSetStep('list');
+  }
+}
+
+async function aiDishOpenModal() {
+  _aiDishItems = []; _aiDishImage = ''; _aiDishOn = {};
+  $('aiDishText').value = '';
+  $('aiDishPreview').style.display = 'none';
+  $('aiDishPreview').removeAttribute('src');
+  $('aiDishResult').style.display = 'none';
+  $('aiDishDrop').querySelector('.t1').textContent = '点这里拍照，或选一张菜单的照片';
+  try { await loadCategories(); } catch (e) { /* 分类拉不到就用备选列表，不挡他 */ }
+  aiDishSetStep('input');
+  $('aiDishModal').classList.add('show');
+}
+function aiDishCloseModal() { $('aiDishModal').classList.remove('show'); }
+
+$('aiDishBtn').onclick = async () => {
+  // 识别服务没开通就别让他点进去白等一趟
+  try {
+    const st = await api('/api/ai/status');
+    if (st.success && st.data && st.data.enabled === false) {
+      toast('拍照识别还没开通，请联系平台开通', true);
+      return;
+    }
+  } catch (e) { /* 状态拉不到也先进去，识别时会给明确提示 */ }
+  aiDishOpenModal();
+};
+$('aiDishClose').onclick = aiDishCloseModal;
+$('aiDishCancelBtn').onclick = aiDishCloseModal;
+$('aiDishModal').addEventListener('click', (e) => { if (e.target.id === 'aiDishModal') aiDishCloseModal(); });
+$('aiDishAgainBtn').onclick = () => aiDishSetStep('input');
+$('aiDishGoBtn').onclick = () => { _aiDishStep === 'list' ? aiDishSubmit() : aiDishRecognize(); };
+
+$('aiDishDrop').onclick = () => $('aiDishFile').click();
+$('aiDishFile').onchange = async () => {
+  const f = $('aiDishFile').files && $('aiDishFile').files[0];
+  $('aiDishFile').value = '';
+  if (!f) return;
+  if (!/^image\//.test(f.type)) { toast('请选择图片', true); return; }
+  const t1 = $('aiDishDrop').querySelector('.t1');
+  t1.textContent = '照片处理中…';
+  const dataUrl = await aiDishCompress(f);
+  if (!dataUrl) { t1.textContent = '点这里拍照，或选一张菜单的照片'; toast('这张图读不出来，换一张试试', true); return; }
+  _aiDishImage = dataUrl;
+  const pv = $('aiDishPreview');
+  pv.src = dataUrl; pv.style.display = 'block';
+  t1.textContent = '已选好，正在识别…';
+  aiDishRecognize();   // 选完就自动识别，省一次点击
 };
 
 async function toggleDish(id, makeAvailable) {
@@ -2787,6 +3328,7 @@ async function exchangeCoupon(couponType) {
   if (res.success) {
     toast('兑换成功！');
     loadCoinCenter();
+    refreshMallCoupons(); // 兑了新券立刻同步到采购商城——这是让他兴奋的事，别让他在结算时找不到券
   } else {
     toast(res.message || '兑换失败', true);
   }
@@ -3325,7 +3867,9 @@ let _mallCategory = 'all';    // 当前分类筛选
 let _mallCart = [];           // 当前店铺采购车 [{ productId, name, unit, quantity, unitPrice, category, coinMultiplier }]
 let _mallPendingQty = {};     // 商品卡片「本次拟加入数量」映射 productId → N（与采购车数量解耦，加入后重置为 1）
 let _mallCoupons = [];        // 当前商家可用抵用券（status=unused 且未过期）
-let _mallMemberLevel = 'basic'; // 当前商家会员等级（用于横幅差异化文案）
+let _mallMemberLevel = 'basic'; // 当前商家点餐线等级（用于横幅差异化文案；注意不是采购档位）
+let _mallPurchaseLevel = 'free'; // 采购线【生效】档位（free/plus/pro）—— 决定返币率
+let _mallCoinRate = 0.5;         // 后端下发的真实返币率（币/元），与后端发币口径同源
 let _mallSearchKey = '';      // 店铺列表搜索关键词
 let _mallStoreCat = 'all';    // 店铺列表品类筛选标签
 let _mallSearchTimer = null;  // 搜索防抖计时器（300ms）
@@ -3351,6 +3895,35 @@ function storeMinOrder(s) {
   const v = Number(s && s.minOrderAmount);
   return v > 0 ? v : 300;
 }
+
+// ============ 重量换算：给老板一个「斤」============
+// 餐饮老板过脑子用的是斤，不是克 —— 「25000 克」没人有概念，「50 斤」一眼就懂。
+// 买东西越不用动脑子，下单越顺，这里把换算直接摆在他眼前。
+// 规则：
+//   ① 只认明确重量单位（g / 克 / kg / 公斤 / 斤）；桶 / 瓶 / 袋 / 个 / 棵 / 条这些没重量的不瞎猜；
+//   ② 单位里没重量时，再试着从商品名里找（如「东北大米10kg」→ 一袋就是 20 斤）；
+//   ③ 液体（L / ml）不换算 —— 升和斤不是一回事，标了反而误导人。
+function parseGrams(text) {
+  const m = String(text || '').match(/(\d+(?:\.\d+)?)\s*(kg|千克|公斤|g|克|斤)/i);
+  if (!m) return null;
+  const num = parseFloat(m[1]);
+  const u = String(m[2]).toLowerCase();
+  if (u === '斤') return num * 500;
+  if (u === 'kg' || u === '千克' || u === '公斤') return num * 1000;
+  return num; // g / 克
+}
+
+// 数量 × 单位 → 「≈ XX 斤」；换算不出来就返回空串（宁可不显示，也不瞎写）
+function jinText(qty, unit, name) {
+  const g = parseGrams(unit);
+  const grams = (g != null) ? g : parseGrams(name);
+  if (grams == null) return '';
+  const total = grams * (Number(qty) || 0);
+  if (!(total > 0)) return '';
+  const jin = total / 500;
+  const txt = Math.abs(jin - Math.round(jin)) < 0.05 ? String(Math.round(jin)) : jin.toFixed(1);
+  return `<span class="jin-tag">≈ ${txt} 斤</span>`;
+}
 // 券是否可用（未使用 + 未过期）
 function couponUsable(c) {
   return c && c.status === 'unused' && c.expireDate && new Date(c.expireDate) > new Date();
@@ -3360,7 +3933,11 @@ function couponUsable(c) {
 let _mallLoaded = false;
 async function loadMall(force = false) {
   // 已加载过则直接复用缓存，秒开（商品/供应商数据量较大，避免重复请求）
-  if (_mallLoaded && !force) return;
+  // 但券资产必须后台补拉一次：老板刚在币中心兑的券，回到商城马上就得能用
+  if (_mallLoaded && !force) {
+    refreshMallCoupons();
+    return;
+  }
   try {
     const [supRes, prodRes, statusRes] = await Promise.all([
       api('/api/suppliers'),
@@ -3371,6 +3948,12 @@ async function loadMall(force = false) {
     _mallAllProducts = (prodRes.data || []).filter(p => p && p.name);
     _mallCoupons = ((statusRes.data && statusRes.data.coupons) || []).filter(couponUsable);
     _mallMemberLevel = (statusRes.data && statusRes.data.memberLevel) || 'basic';
+    // 返币率一律以后端下发的 coinRate 为准：后端发币用的就是它。
+    // ★ 不能用点餐线 memberLevel 去查 COIN_RATE（表键是采购线 free/plus/pro，查不到会永远显示 0.5）
+    _mallPurchaseLevel = (statusRes.data && statusRes.data.purchase && statusRes.data.purchase.level) || 'free';
+    _mallCoinRate = Number(statusRes.data && statusRes.data.coinRate) > 0
+      ? Number(statusRes.data.coinRate)
+      : (COIN_RATE[_mallPurchaseLevel] ?? 0.5);
     _mallCurrentStore = null;
     _mallCart = [];
     _mallPendingQty = {};
@@ -3387,6 +3970,20 @@ async function loadMall(force = false) {
     console.error(e);
     toast('加载采购商城失败', true);
   }
+}
+
+// 后台补拉券资产（不阻塞渲染）：兑了新券 / 用掉一张券后，采购车下拉必须立刻跟上。
+// 券列表有变化才重渲染，避免每次进商城都闪一下。
+async function refreshMallCoupons() {
+  try {
+    const st = await api(`/api/coin/status/${SHOP_ID}`);
+    const next = ((st.data && st.data.coupons) || []).filter(couponUsable);
+    const changed = next.length !== _mallCoupons.length ||
+      next.some(c => !_mallCoupons.some(o => o._id === c._id));
+    if (!changed) return;
+    _mallCoupons = next;
+    if (_mallCart.length) renderCart();
+  } catch (e) { /* 静默失败：下次进商城还会再拉 */ }
 }
 
 // 本月采购已得鼎恒币 + 从未采购空状态引导卡（引导卡可关闭，localStorage 按店铺记忆）
@@ -3411,8 +4008,10 @@ async function renderMallProgressGuide() {
       // 动态展示当前采购线档位的实际得币率（免费版 0.5 / 省钱卡·Pro 1.0）
       const rateEl = $('mpRate');
       if (rateEl) {
-        const rate = COIN_RATE[_mallMemberLevel] ?? 0.5;
-        rateEl.textContent = `当前 1 元 = ${rate} 鼎恒币 · `;
+        // 显示后端真实发币率 + 生效档位，老板一眼能看出自己的会员权益有没有生效
+        const rate = _mallCoinRate > 0 ? _mallCoinRate : (COIN_RATE[_mallPurchaseLevel] ?? 0.5);
+        const lvlName = LEVEL_NAME[_mallPurchaseLevel] || '采购免费版';
+        rateEl.textContent = `当前 1 元 = ${rate} 鼎恒币（${lvlName}） · `;
       }
     }
     // 空状态引导：从未采购且未手动关闭时展示；有采购记录后自动消失
@@ -3747,7 +4346,7 @@ function renderStoreProducts() {
         <div class="product-img">${p.image ? `<img src="${esc(p.image)}" alt="" onerror="this.parentElement.innerHTML='📦'">` : '📦'}</div>
         <div class="product-body">
           <div class="product-name">${esc(p.name)}${gradeTag}</div>
-          <div class="product-category">规格：${esc(unit)}${p.category ? ' · ' + esc(p.category) : ''}</div>
+          <div class="product-category">规格：${esc(unit)}${jinText(1, unit, p.name)}${p.category ? ' · ' + esc(p.category) : ''}</div>
           ${coinBadge}
           <div class="product-price">¥${Number(p.salePrice != null ? p.salePrice : p.unitPrice).toFixed(2)}<small> 售价</small></div>
           ${desc}
@@ -3924,9 +4523,35 @@ function renderCart() {
         renderCart();
       };
     });
+    // 有可用券但没选用 → 选择框亮起来（呼吸光晕 + 一句提醒），选中后自动熄灭
+    const eligibleList = groupList.filter(g => subtotal >= g.minOrder);
+    const remind = eligibleList.length > 0 && !_mallSelectedCouponId;
+    [$('cartCouponSection'), $('mCartCouponSection')].forEach(el => {
+      if (!el) return;
+      el.classList.toggle('coupon-glow', remind);
+      let tip = el.querySelector('.coupon-glow-tip');
+      if (remind) {
+        if (!tip) {
+          tip = document.createElement('div');
+          tip.className = 'coupon-glow-tip';
+          el.appendChild(tip);
+        }
+        const best = eligibleList.sort((a, b) => b.faceValue - a.faceValue)[0];
+        tip.textContent = `💡 这单有 ¥${best.faceValue} 券能用，选上立省 ¥${best.faceValue}`;
+      } else if (tip) {
+        tip.remove();
+      }
+    });
   } else {
     _setDisplayAll(['cartCouponSection', 'mCartCouponSection'], 'none');
     [couponSelect, mCouponSelect].forEach(sel => { if (sel) sel.onchange = null; });
+    // 无券可展示时同步清掉光晕与提醒
+    [$('cartCouponSection'), $('mCartCouponSection')].forEach(el => {
+      if (!el) return;
+      el.classList.remove('coupon-glow');
+      const tip = el.querySelector('.coupon-glow-tip');
+      if (tip) tip.remove();
+    });
   }
 
   // 折扣与实付（按共享选中态计算）
@@ -3936,13 +4561,24 @@ function renderCart() {
     if (opt) discount = Number(opt.getAttribute('data-face') || 0);
   }
   const actual = Math.max(0, subtotal - discount);
-  _setDisplayAll(['cartDiscountRow', 'mCartDiscountRow'], discount > 0 ? 'flex' : 'none');
-  _setTextAll(['cartDiscount', 'mCartDiscount'], discount.toFixed(2));
-  _setTextAll(['cartTotal', 'mCartTotal'], actual.toFixed(2));
+  // 用券时的价格心理对比：应付金额（原价）划掉变灰 → 实付金额放大加粗 + 「已省 ¥X」小标。
+  // 抵扣行不再单独展示（和划线对比重复）；不用券时一切照旧。
+  if (discount > 0) {
+    _setTextAll(['cartTotal', 'mCartTotal'], subtotal.toFixed(2));          // 应付 = 原价（将被划掉）
+    [$('cartOldRow'), $('mCartOldRow')].forEach(el => { if (el) el.classList.add('is-strike'); });
+    _setDisplayAll(['cartActualRow', 'mCartActualRow'], 'flex');
+    _setTextAll(['cartActual', 'mCartActual'], actual.toFixed(2));
+    _setTextAll(['cartSaveTag', 'mCartSaveTag'], `已省 ¥${Math.round(discount)}`);
+  } else {
+    _setTextAll(['cartTotal', 'mCartTotal'], actual.toFixed(2));
+    [$('cartOldRow'), $('mCartOldRow')].forEach(el => { if (el) el.classList.remove('is-strike'); });
+    _setDisplayAll(['cartActualRow', 'mCartActualRow'], 'none');
+  }
+  _setDisplayAll(['cartDiscountRow', 'mCartDiscountRow'], 'none');
 
   // 预估鼎恒币：按实付金额计算，券抵扣额按各行金额占比分摊到各行
   // 与后端 confirm-receive 发币口径完全一致：每行实付金额 × 会员返币率 × 品类倍率，汇总后向下取整
-  const coinRate = COIN_RATE[_mallMemberLevel] ?? 0.5;
+  const coinRate = _mallCoinRate > 0 ? _mallCoinRate : (COIN_RATE[_mallPurchaseLevel] ?? 0.5);
   const payRatio = subtotal > 0 ? (actual / subtotal) : 0;
   const lineWeighted = _mallCart.map(c => {
     const lineAmt = c.quantity * c.unitPrice;
@@ -3965,7 +4601,7 @@ function renderCart() {
     <div class="cart-item">
       <div class="cart-item-info">
         <div class="cart-item-name">${esc(c.name)}</div>
-        <div class="cart-item-meta">${c.quantity} ${esc(c.unit)} × ¥${Number(c.unitPrice).toFixed(2)}</div>
+        <div class="cart-item-meta">${c.quantity} ${esc(c.unit)} × ¥${Number(c.unitPrice).toFixed(2)}${jinText(c.quantity, c.unit, c.name)}</div>
         <div class="cart-item-coin">🪙 预计可得 ${lineCoin} 鼎恒币</div>
       </div>
       <div class="cart-item-price">¥${lineAmt.toFixed(2)}</div>
@@ -4190,10 +4826,7 @@ async function submitMallOrder() {
   closeMallCartDrawer();
   backToStoreList();
   // 提交后刷新可用券缓存（用掉了一张）
-  try {
-    const st = await api(`/api/coin/status/${SHOP_ID}`);
-    _mallCoupons = ((st.data && st.data.coupons) || []).filter(couponUsable);
-  } catch (e) { /* ignore */ }
+  refreshMallCoupons();
   switchTab('purchase'); // 跳转到采购订单查看
 }
 // 桌面端提交按钮绑定
@@ -4249,18 +4882,38 @@ async function loadPurchaseOrders() {
     const itemsText = (o.items || []).slice(0, 2).map(itemLine).join('，') + (o.items?.length > 2 ? '…' : '');
     const bc = badgeCls[o.status] || 'b-gray';
     const sortTag = o.sorted ? '<span class="badge b-green" style="margin-left:4px;font-size:11px;">已分拣</span>' : '';
-    const actionHtml = o.status === '已发货'
+    const baseActionHtml = o.status === '已发货'
       ? `<button class="btn btn-orange" data-id="${o._id}">确认收货</button>`
       : (o.status === '待支付'
         ? `<button class="btn btn-blue" data-pay="${o._id}">去支付</button>`
         : (o.status === '已完成' ? `<span style="color:#16a34a;">✓ 已返 ${o.rewardCoin || 0} DH</span>` : '—'));
+    // 收货后（含已发货）发现问题可申请售后：把纠纷收进工单，别只在电话里扯
+    const ticketBtn = ['已发货', '已收货', '已完成'].includes(o.status)
+      ? `<button class="btn btn-gray" data-ticket="${o._id}" style="margin-left:6px;">申请售后</button>`
+      : '';
+    const actionHtml = baseActionHtml + ticketBtn;
+
+    // 金额单元格：总额（用券时划掉）+ 券（一行，红字）+ 实付（加粗）。
+    // 券只留一行：有券名就用券名（如「采购抵用券减200元」），没有才退回「券抵扣 -¥200」，
+    // 不重复写两遍金额，免得一屏两个数字看着乱。实付才是真正要付的钱，必须最显眼。
+    const totalAmtD = Number(o.totalAmount || 0);
+    const discountD = Number(o.discountAmount || 0);
+    const actualPayD = Number(o.actualPayAmount || totalAmtD);
+    const couponObj = (o.appliedCouponId && typeof o.appliedCouponId === 'object') ? o.appliedCouponId : null;
+    const couponNameD = couponObj ? (couponObj.name || '') : '';
+    const couponLineD = couponNameD ? esc(couponNameD) : `券抵扣 -¥${discountD.toFixed(2)}`;
+    const amountCell = discountD > 0
+      ? `<div style="font-size:12px;color:#9ca3af;text-decoration:line-through;">总额 ¥${totalAmtD.toFixed(2)}</div>
+         <div style="font-size:12px;font-weight:600;color:var(--red,#dc2626);">${couponLineD}</div>
+         <div style="font-weight:700;color:var(--accent);font-size:14px;">实付 ¥${actualPayD.toFixed(2)}</div>`
+      : `<div style="font-weight:700;color:var(--accent);font-size:14px;">实付 ¥${actualPayD.toFixed(2)}</div>`;
 
     return `
       <tr>
         <td><b>${esc(o.orderNo || o._id)}</b><br><small style="color:#9ca3af;">${fmtTime(o.createdAt)}</small></td>
         <td>${esc(supplierName)}${noticeHtml}</td>
         <td title="${esc((o.items || []).map(i => `${i.name}×${i.quantity}${i.actualWeight ? '（实称' + i.actualWeight + 'kg）' : ''}`).join('，'))}">${itemsText}</td>
-        <td>¥${Number(o.totalAmount).toFixed(2)}</td>
+        <td>${amountCell}</td>
         <td><span class="badge ${bc}">${o.status}</span>${sortTag}</td>
         <td>${o.status === '已完成' ? (o.rewardCoin || 0) + ' DH' : '—'}</td>
         <td>${actionHtml}</td>
@@ -4285,15 +4938,24 @@ async function loadPurchaseOrders() {
       const discount = Number(o.discountAmount || 0);
       const actualPay = Number(o.actualPayAmount || totalAmt);
       const rewardCoin = o.rewardCoin || 0;
+      // 券只留一行：有券名用券名，无券名再退回「券抵扣 -¥X」，不重复显示金额
+      const couponObjM = (o.appliedCouponId && typeof o.appliedCouponId === 'object') ? o.appliedCouponId : null;
+      const couponNameM = couponObjM ? (couponObjM.name || '') : '';
+      const couponLineM = couponNameM ? esc(couponNameM) : `券抵扣 -¥${discount.toFixed(2)}`;
       // 已分拣则实付按实称重算，标注提示
       const weighedCount = (o.items || []).filter(i => i.weighed).length;
       const sortedTip = weighedCount > 0 ? `<span class="pcard-amount"><small style="color:#b45309;">${weighedCount}项已实称</small></span>` : '';
       // 卡片操作按钮：待支付显示「去支付」，已发货显示「确认收货」，已完成显示返币，其他状态显示占位
-      const actionHtml = o.status === '已发货'
+      const baseActionHtml = o.status === '已发货'
         ? `<button class="btn btn-orange" data-id="${o._id}">确认收货</button>`
         : (o.status === '待支付'
           ? `<button class="btn btn-blue" data-pay="${o._id}">去支付</button>`
           : (o.status === '已完成' ? `<span class="pcard-coin-done">✓ 已返 ${rewardCoin} DH</span>` : ''));
+      // 收货后（含已发货）发现问题可申请售后
+      const ticketBtn = ['已发货', '已收货', '已完成'].includes(o.status)
+        ? `<button class="btn btn-gray" data-ticket="${o._id}">申请售后</button>`
+        : '';
+      const actionHtml = baseActionHtml + ticketBtn;
       return `
         <div class="pcard">
           <div class="pcard-head">
@@ -4308,7 +4970,7 @@ async function loadPurchaseOrders() {
           <div class="pcard-items">${itemsSummary || '无商品'}</div>
           <div class="pcard-amounts">
             <span class="pcard-amount">总额 <b>¥${totalAmt.toFixed(2)}</b></span>
-            ${discount > 0 ? `<span class="pcard-amount discount">券抵扣 <b>-¥${discount.toFixed(2)}</b></span>` : ''}
+            ${discount > 0 ? `<span class="pcard-amount discount" style="color:var(--red,#dc2626);">${couponLineM}</span>` : ''}
             <span class="pcard-amount pay">实付 <b>¥${actualPay.toFixed(2)}</b></span>
             ${o.status === '已完成' ? `<span class="pcard-amount coin">返币 <b>${rewardCoin} DH</b></span>` : ''}
             ${sortedTip}
@@ -4359,6 +5021,13 @@ async function loadPurchaseOrders() {
   body.querySelectorAll('button[data-pay]').forEach(btn => { btn.onclick = () => payHandler(btn); });
   if (cardList) {
     cardList.querySelectorAll('button[data-pay]').forEach(btn => { btn.onclick = () => payHandler(btn); });
+  }
+
+  // 绑定「申请售后」：收货后发现少件 / 不新鲜，从订单直接开工单（带图凭证，供应商 24h 内受理）
+  const ticketHandler = (btn) => { if (typeof window.openTicketModal === 'function') window.openTicketModal(btn.dataset.ticket); };
+  body.querySelectorAll('button[data-ticket]').forEach(btn => { btn.onclick = () => ticketHandler(btn); });
+  if (cardList) {
+    cardList.querySelectorAll('button[data-ticket]').forEach(btn => { btn.onclick = () => ticketHandler(btn); });
   }
 }
 
@@ -4552,7 +5221,7 @@ function renderSmartReplenish() {
   } else if (forecast.length) {
     groupBySupplier(forecast).forEach((g) => { html += renderSrTable(g, 'forecast'); });
   } else {
-    html += `<div class="empty" style="margin-bottom:24px;">暂无销量数据或未配置菜品配方，无法预测</div>`;
+    html += `<div class="empty" style="margin-bottom:24px;">暂无销量数据或未配置菜品用料，无法预测</div>`;
   }
 
   html += `<div class="sr-section-title">🔔 补货提醒（采购频率 + 库存预警）</div>`;
@@ -5495,3 +6164,485 @@ $('mktSaveBtn').onclick = async () => {
     btn.disabled = false; btn.textContent = '保存';
   }
 };
+
+/* ============ 售后工单（商家端）============
+   收货发现少件 / 不新鲜 / 规格不符 → 从订单直接开工单（带图凭证）→ 供应商 24h 内受理并给方案
+   → 我确认闭环；谈不拢或超时自动转平台裁决。
+   以前遇到这种事只能打电话扯皮、没有凭据，现在每一步都留痕，谁说得清谁占理。 */
+let _tkMerchantList = [];
+let _tkMerchantFilter = '';
+let _tkOrderCache = [];   // 可申请售后的订单（已发货 / 已收货 / 已完成）
+let _tkImages = [];       // 本次提交的凭证图片 URL
+
+const TK_TONE_M = {
+  '待受理': ['rgba(234,88,12,.10)', '#c2410c'],
+  '处理中': ['rgba(37,99,235,.10)', '#1d4ed8'],
+  '待商家确认': ['rgba(109,40,217,.10)', '#6d28d9'],
+  '已完成': ['rgba(22,163,74,.10)', '#15803d'],
+  '已驳回': ['rgba(107,114,128,.12)', '#6b7280'],
+  '已撤销': ['rgba(107,114,128,.12)', '#6b7280'],
+  '平台介入中': ['rgba(220,38,38,.10)', '#b91c1c']
+};
+const TK_TERMINAL_M = ['已完成', '已驳回', '已撤销'];
+
+async function loadMerchantTickets() {
+  const box = document.getElementById('tkMerchantList');
+  if (box) box.innerHTML = '<div style="text-align:center;color:var(--text-3);padding:24px;">加载中...</div>';
+  const res = await api('/api/service-tickets/merchant');
+  if (!res.success) {
+    if (box) box.innerHTML = '<div style="text-align:center;color:#dc2626;padding:24px;">工单加载失败</div>';
+    return;
+  }
+  _tkMerchantList = (res.data && res.data.list) || [];
+  // 红点只在「待我确认」时亮：供应商给了方案、等老板拍板 —— 这是真正需要他动手的时刻。
+  // 等供应商受理的阶段（待受理 / 处理中）不亮：提交之后他要的是安心等，不是被数字追着看。
+  updateMerchantTicketBadge((res.data && res.data.waitingConfirm) || 0);
+  renderMerchantTickets();
+}
+
+// 侧栏红点：只在「待我确认」（供应商已给方案、等老板拍板）时亮。
+// 老板的注意力要留给采购和门店经营 —— 等供应商办事的阶段不打扰他。
+function updateMerchantTicketBadge(n) {
+  const b = document.getElementById('navAftersaleBadge');
+  if (!b) return;
+  b.textContent = n;
+  b.style.display = n > 0 ? '' : 'none';
+}
+
+function renderMerchantTickets() {
+  const box = document.getElementById('tkMerchantList');
+  if (!box) return;
+  let list = _tkMerchantFilter
+    ? _tkMerchantList.filter(t => t.status === _tkMerchantFilter)
+    : _tkMerchantList.slice();
+  if (!list.length) {
+    box.innerHTML = '<div style="text-align:center;color:var(--text-3);padding:24px;">暂无售后申请'
+      + (_tkMerchantFilter ? '（该状态下）' : '，收货后可在「采购订单」里点「申请售后」') + '</div>';
+    return;
+  }
+  box.innerHTML = list.map(tkMerchantCardHtml).join('');
+  box.querySelectorAll('[data-mact]').forEach(btn => {
+    btn.onclick = () => handleMerchantTicketAction(btn.dataset.mact, btn.dataset.mid);
+  });
+}
+
+function tkMerchantCardHtml(t) {
+  const tone = TK_TONE_M[t.status] || ['rgba(107,114,128,.12)', '#6b7280'];
+  const terminal = TK_TERMINAL_M.includes(t.status);
+  const imgs = (t.images || []).length
+    ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;">${t.images.map(u =>
+        `<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid var(--border);"></a>`).join('')}</div>`
+    : '';
+  const items = (t.items || []).length
+    ? `<div style="font-size:12px;color:#4b5563;background:rgba(107,114,128,.06);border-radius:8px;padding:8px 10px;margin:8px 0;">${t.items.map(i =>
+        `${esc(i.name)}${i.issueQuantity > 0 ? `（问题 ${i.issueQuantity}${esc(i.unit || '')}）` : ''}`).join('；')}</div>`
+    : '';
+  // 供应商给的方案高亮展示：确认之前双方所见一致，避免各说各话
+  const resolveHtml = (t.resolution && t.resolution.action)
+    ? `<div style="font-size:12px;background:rgba(22,163,74,.08);border-radius:8px;padding:8px 10px;margin:8px 0;color:#15803d;">供应商方案：${esc(t.resolution.action)}${t.resolution.amount > 0 ? ` ¥${Number(t.resolution.amount).toFixed(2)}` : ''}${t.resolution.note ? '｜' + esc(t.resolution.note) : ''}</div>`
+    : '';
+  let dueHtml = '';
+  if (t.status === '待受理' && t.dueAt) {
+    const ms = new Date(t.dueAt) - Date.now();
+    const h = Math.floor(ms / 3600000);
+    dueHtml = ms <= 0
+      ? '<div style="font-size:12px;color:#dc2626;font-weight:600;">已超时，将自动转平台介入</div>'
+      : `<div style="font-size:12px;color:#b45309;">供应商需在 ${h} 小时内受理，超时自动转平台</div>`;
+  }
+  const logs = (t.logs || []).slice(-3).map(l =>
+    `<div style="font-size:12px;color:var(--text-3);line-height:1.7;">${fmtTime(l.at)} <b style="color:#374151;">${esc(l.byName || '')}</b> ${esc(l.action || '')}${l.note ? '：' + esc(l.note) : ''}</div>`
+  ).join('');
+  const ratingHtml = t.rating ? `<div style="font-size:12px;color:var(--text-3);">我的评价：${t.rating}/5</div>` : '';
+
+  return `
+    <div style="border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:12px;${(t.platformIntervened && !terminal) ? 'border-left:4px solid #dc2626;' : ''}">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+        <b style="font-size:13px;color:#374151;">${esc(t.ticketNo)}</b>
+        <span style="font-size:11px;padding:2px 9px;border-radius:999px;background:rgba(107,114,128,.12);color:#4b5563;">${esc(t.type)}</span>
+        <span style="font-size:11px;padding:2px 9px;border-radius:999px;background:${tone[0]};color:${tone[1]};font-weight:600;">${esc(t.status)}</span>
+        ${t.priority === '紧急' ? '<span style="font-size:11px;padding:2px 9px;border-radius:999px;background:rgba(239,68,68,.12);color:#b91c1c;">紧急</span>' : ''}
+      </div>
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:6px;">订单 ${esc(t.orderNo || '—')}｜${esc(t.supplierName || '供应商')}｜${fmtTime(t.createdAt)}</div>
+      <div style="font-size:13px;font-weight:600;color:#1f2937;margin-bottom:6px;">${esc(t.title || '')}</div>
+      <div style="font-size:13px;color:#4b5563;line-height:1.6;">${esc(t.description || '')}</div>
+      ${imgs}${items}${dueHtml}${resolveHtml}${ratingHtml}
+      ${tkMerchantButtons(t)}
+      ${(t.logs || []).length ? `<div style="margin-top:10px;border-top:1px dashed var(--border);padding-top:8px;">${logs}${(t.logs.length > 3) ? `<div style="font-size:12px;color:var(--text-3);">…共 ${t.logs.length} 条记录</div>` : ''}</div>` : ''}
+    </div>
+  `;
+}
+
+function tkMerchantButtons(t) {
+  const b = [];
+  if (t.status === '待商家确认') {
+    b.push(`<button class="btn btn-orange" data-mact="confirm" data-mid="${t._id}">确认解决</button>`);
+  }
+  if (!TK_TERMINAL_M.includes(t.status)) {
+    b.push(`<button class="btn btn-gray" data-mact="reply" data-mid="${t._id}">补充说明</button>`);
+    if (t.status === '待受理') b.push(`<button class="btn btn-gray" data-mact="cancel" data-mid="${t._id}">撤销</button>`);
+    if (!t.platformIntervened) b.push(`<button class="btn btn-gray" data-mact="escalate" data-mid="${t._id}">申请平台介入</button>`);
+  }
+  if (t.status === '已完成' && !t.rating) {
+    b.push(`<button class="btn btn-blue" data-mact="rate" data-mid="${t._id}">评价</button>`);
+  }
+  return b.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">${b.join('')}</div>` : '';
+}
+
+async function handleMerchantTicketAction(act, id) {
+  const post = async (suffix, body) => api(`/api/service-tickets/${id}${suffix}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body || {})
+  });
+  if (act === 'confirm') {
+    if (!confirm('确认供应商的处理方案已解决问题？确认后工单闭环。')) return;
+    const r = await post('/confirm');
+    if (r.success) { toast('已确认，工单闭环'); loadMerchantTickets(); } else toast(r.message || '操作失败', true);
+  } else if (act === 'cancel') {
+    if (!confirm('撤销该工单？仅供应商受理前可撤销。')) return;
+    const r = await post('/cancel');
+    if (r.success) { toast('已撤销'); loadMerchantTickets(); } else toast(r.message || '操作失败', true);
+  } else if (act === 'reply') {
+    const note = prompt('补充说明（供应商可见）');
+    if (!note) return;
+    const r = await post('/reply', { note });
+    if (r.success) { toast('已发送'); loadMerchantTickets(); } else toast(r.message || '发送失败', true);
+  } else if (act === 'escalate') {
+    const reason = prompt('请说明情况（便于平台快速裁决）');
+    if (!reason) return;
+    const r = await post('/escalate', { reason });
+    if (r.success) { toast('已转平台介入，请等待裁决'); loadMerchantTickets(); } else toast(r.message || '操作失败', true);
+  } else if (act === 'rate') {
+    const s = prompt('请给本次处理打分（1-5，5 分最满意）');
+    const rating = Math.round(Number(s));
+    if (!(rating >= 1 && rating <= 5)) { toast('请输入 1-5 的数字', true); return; }
+    const r = await post('/rate', { rating });
+    if (r.success) { toast('感谢评价'); loadMerchantTickets(); } else toast(r.message || '提交失败', true);
+  }
+}
+
+// ===== 提交工单弹窗 =====
+
+// 草稿：填到一半被关掉、或误点到外面，都不至于前功尽弃 —— 再打开原样还在。
+// 工单得写清楚来龙去脉，一段字打半天，丢了谁都窝火。
+let _tkDraft = { orderId: '', type: '', desc: '', expect: '', claimAmount: '', priority: '', images: [], items: {} };
+
+function saveTkDraft() {
+  const g = (id) => document.getElementById(id);
+  if (!g('tkOrderSelect')) return;
+  _tkDraft.orderId = g('tkOrderSelect').value || '';
+  _tkDraft.type = g('tkType').value || '';
+  _tkDraft.desc = g('tkDesc').value || '';
+  _tkDraft.expect = g('tkExpect').value || '';
+  _tkDraft.claimAmount = g('tkClaimAmount').value || '';
+  _tkDraft.priority = g('tkPriority').value || '';
+  _tkDraft.images = (_tkImages || []).slice();
+  const items = {};
+  document.querySelectorAll('.tk-item-cb').forEach(cb => {
+    const q = document.querySelector('.tk-item-qty[data-idx="' + cb.dataset.idx + '"]');
+    items[cb.dataset.idx] = { on: cb.checked, qty: q ? q.value : '' };
+  });
+  _tkDraft.items = items;
+}
+
+function clearTkDraft() {
+  _tkDraft = { orderId: '', type: '', desc: '', expect: '', claimAmount: '', priority: '', images: [], items: {} };
+  _tkImages = [];
+}
+
+function renderTkImgPreview() {
+  const pv = document.getElementById('tkImgPreview');
+  if (!pv) return;
+  pv.innerHTML = (_tkImages || []).map(u =>
+    `<img src="${esc(u)}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">`).join('');
+}
+
+async function openTicketModal(orderId) {
+  const res = await api('/api/purchase-orders');
+  _tkOrderCache = ((res && res.data) || []).filter(o => ['已发货', '已收货', '已完成'].includes(o.status));
+  if (!_tkOrderCache.length) {
+    toast('暂无可申请售后的订单（收货后即可提交）', true);
+    return;
+  }
+  const sel = document.getElementById('tkOrderSelect');
+  sel.innerHTML = _tkOrderCache.map(o => {
+    const supName = (o.supplierId && typeof o.supplierId === 'object' && o.supplierId.name) ? o.supplierId.name : '供应商';
+    return `<option value="${o._id}">${esc(o.orderNo || o._id)}｜${esc(supName)}｜¥${Number(o.totalAmount || 0).toFixed(2)}</option>`;
+  }).join('');
+  // 从订单行点进来用该订单；否则沿用草稿里上次选的
+  const want = orderId || _tkDraft.orderId || '';
+  if (want) sel.value = want;
+  document.getElementById('tkType').value = _tkDraft.type || '品质问题';
+  document.getElementById('tkDesc').value = _tkDraft.desc || '';
+  document.getElementById('tkExpect').value = _tkDraft.expect || '仅反馈';
+  document.getElementById('tkClaimAmount').value = _tkDraft.claimAmount || '';
+  document.getElementById('tkPriority').value = _tkDraft.priority || '普通';
+  _tkImages = (_tkDraft.images || []).slice();
+  renderTkImgPreview();
+  renderTicketItems(_tkDraft.items);
+  loadTkCredit();
+  document.getElementById('ticketModal').classList.add('show');
+}
+window.openTicketModal = openTicketModal;
+
+// 打开弹窗就亮出"我的售后信誉"：动手前让人心里有数，也把规矩说在前面
+async function loadTkCredit() {
+  const box = document.getElementById('tkCreditTip');
+  if (!box) return;
+  box.textContent = '售后信誉加载中...';
+  try {
+    const res = await api('/api/service-tickets/credit');
+    if (!res.success || !res.data) { box.textContent = ''; return; }
+    const c = res.data;
+    const tone = c.level === '良好' ? 'var(--c-green-700)' : (c.level === '需注意' ? 'var(--c-amber-700)' : 'var(--c-red-700)');
+    box.innerHTML = `我的售后信誉：<b style="color:${tone};">${esc(c.level)}</b>`
+      + `（近 30 天 ${c.recentTickets}/${c.recentOrders} 单，${c.rate}%）`
+      + (c.badTickets > 0 ? `，其中 ${c.badTickets} 单被判定不成立` : '')
+      + '<br>售后是给真出问题的单用的：请附凭证图片并写清经过。'
+      + '无凭证、经核实的无理申请会被驳回并计入信誉，过多将限制提交。';
+  } catch (e) { box.textContent = ''; }
+}
+
+// 勾选问题商品：只揪出问题的那几行，不用整单重填（saved 用于恢复草稿里的勾选与问题量）
+function renderTicketItems(saved) {
+  const box = document.getElementById('tkItemList');
+  if (!box) return;
+  const oid = document.getElementById('tkOrderSelect').value;
+  const o = _tkOrderCache.find(x => String(x._id) === String(oid));
+  if (!o || !(o.items || []).length) {
+    box.innerHTML = '<div style="color:var(--text-3);">该订单无商品明细，可按整单问题提交</div>';
+    return;
+  }
+  box.innerHTML = o.items.map((i, idx) => {
+    const sv = (saved && saved[idx]) || {};
+    const on = !!sv.on;
+    return `
+    <label style="display:flex;align-items:center;gap:8px;padding:4px 2px;">
+      <input type="checkbox" class="tk-item-cb" data-idx="${idx}"${on ? ' checked' : ''}>
+      <span style="flex:1;">${esc(i.name)} × ${i.quantity}</span>
+      <input type="number" class="tk-item-qty" data-idx="${idx}" min="0" step="0.01" placeholder="问题量"
+        value="${esc(sv.qty || '')}"
+        style="width:78px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;"${on ? '' : ' disabled'}>
+    </label>`;
+  }).join('');
+  box.querySelectorAll('.tk-item-cb').forEach(cb => {
+    cb.onchange = () => {
+      const q = box.querySelector('.tk-item-qty[data-idx="' + cb.dataset.idx + '"]');
+      if (q) q.disabled = !cb.checked;
+      saveTkDraft();
+    };
+  });
+  box.querySelectorAll('.tk-item-qty').forEach(q => { q.oninput = saveTkDraft; });
+}
+if (document.getElementById('tkOrderSelect')) {
+  document.getElementById('tkOrderSelect').onchange = () => { renderTicketItems(); saveTkDraft(); };
+}
+// 任何一处改动都记进草稿：关掉再开，内容还在
+['tkType', 'tkDesc', 'tkExpect', 'tkClaimAmount', 'tkPriority'].forEach(id => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('change', saveTkDraft);
+  el.addEventListener('input', saveTkDraft);
+});
+
+// 凭证图片：复用菜品图那套压缩 + 上传（有图才好判定，尤其是品质问题）
+if (document.getElementById('tkImages')) {
+  document.getElementById('tkImages').onchange = async (e) => {
+    const files = Array.from(e.target.files || []).slice(0, 6);
+    for (const f of files) {
+      if (_tkImages.length >= 6) break;
+      try {
+        const dataUrl = await compressImage(f);
+        const blob = await (await fetch(dataUrl)).blob();
+        const fd = new FormData();
+        fd.append('file', blob, 'ticket_' + Date.now() + '.jpg');
+        const up = await api('/api/admin/upload', { method: 'POST', body: fd });
+        if (up.success && up.data && up.data.url) _tkImages.push(up.data.url);
+      } catch (err) { /* 单张失败不阻断其余图片 */ }
+    }
+    renderTkImgPreview();
+    saveTkDraft();
+    e.target.value = '';
+  };
+}
+
+if (document.getElementById('tkSaveBtn')) {
+  document.getElementById('tkSaveBtn').onclick = async () => {
+    const orderId = document.getElementById('tkOrderSelect').value;
+    const type = document.getElementById('tkType').value;
+    const desc = document.getElementById('tkDesc').value.trim();
+    const expectAction = document.getElementById('tkExpect').value;
+    const claimAmount = Number(document.getElementById('tkClaimAmount').value || 0);
+    const priority = document.getElementById('tkPriority').value;
+    if (!orderId) { toast('请选择订单', true); return; }
+    if (!desc) { toast('请描述具体问题（便于供应商核实）', true); return; }
+
+    const o = _tkOrderCache.find(x => String(x._id) === String(orderId));
+    const items = [];
+    document.querySelectorAll('.tk-item-cb').forEach(cb => {
+      if (!cb.checked) return;
+      const idx = Number(cb.dataset.idx);
+      const i = (o && o.items) ? o.items[idx] : null;
+      if (!i) return;
+      const qtyEl = document.querySelector('.tk-item-qty[data-idx="' + idx + '"]');
+      items.push({ productId: i.productId, issueQuantity: Number((qtyEl && qtyEl.value) || 0) });
+    });
+
+    const btn = document.getElementById('tkSaveBtn');
+    btn.disabled = true; btn.textContent = '提交中...';
+    try {
+      const res = await api('/api/service-tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, type, description: desc, images: _tkImages, items, expectAction, claimAmount, priority })
+      });
+      if (res.success) {
+        clearTkDraft();   // 提交成功就清掉草稿，免得下次打开还挂着上次的内容
+        document.getElementById('ticketModal').classList.remove('show');
+        toast('售后申请已提交（' + res.data.ticketNo + '），供应商 24 小时内受理，可随时回来查看进展');
+        if (typeof switchTab === 'function') switchTab('aftersale');
+        else loadMerchantTickets();
+      } else toast(res.message || '提交失败', true);
+    } finally {
+      btn.disabled = false; btn.textContent = '提交申请';
+    }
+  };
+}
+
+function closeTicketModal() {
+  saveTkDraft();   // 关了也留着，下次打开原样接着填
+  document.getElementById('ticketModal').classList.remove('show');
+}
+if (document.getElementById('tkCloseBtn')) document.getElementById('tkCloseBtn').onclick = closeTicketModal;
+if (document.getElementById('tkCancelBtn')) document.getElementById('tkCancelBtn').onclick = closeTicketModal;
+if (document.getElementById('ticketModal')) {
+  document.getElementById('ticketModal').addEventListener('click', (e) => {
+    // ★ 表单类弹窗点遮罩【不】关闭：写了一半，鼠标一歪点到外面就全没了，太坑人。
+    //   要关请点「取消」或右上角 ×（关了也保留草稿）。这里只轻轻晃一下，提示"我还在"。
+    if (e.target.id === 'ticketModal') {
+      const box = document.querySelector('#ticketModal .modal');
+      if (box) {
+        box.classList.remove('tk-nudge');
+        void box.offsetWidth;   // 强制重排，连点也能再触发动画
+        box.classList.add('tk-nudge');
+        setTimeout(() => box.classList.remove('tk-nudge'), 450);
+      }
+    }
+  });
+}
+
+/* ============ 采购大脑（一屏看清采购这本账）============
+   老板每天真正想看的就是四件事：花了多少、省了多少、攒了多少币、今天要办什么。
+   这些数字原本散在采购订单 / 采购监控 / 币中心 / 智能补货四个地方，
+   要来回点四五次才拼得出全貌 —— 这里由后端一次算好，打开就是答案。
+   口径纪律：算不出来的（比如没有平台参考价）宁可空着，绝不编一个数字出来。 */
+async function loadPurchaseBrain() {
+  const ids = ['brainStats', 'brainTodo', 'brainAlerts', 'brainSuppliers'];
+  try {
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '<div style="text-align:center;color:var(--text-3);padding:18px;">加载中...</div>';
+    });
+    const res = await api('/api/admin/purchase-brain/overview');
+    if (!res.success) throw new Error(res.message || '加载失败');
+    renderPurchaseBrain(res.data || {});
+  } catch (e) {
+    const el = document.getElementById('brainStats');
+    if (el) el.innerHTML = '<div style="text-align:center;color:#dc2626;padding:18px;">采购大脑加载失败：' + esc(e.message) + '</div>';
+  }
+}
+
+// 金额千分位：老板扫一眼就知道是几千还是几万
+const brainNum = (v) => (Number(v) || 0).toLocaleString('zh-CN');
+
+function renderPurchaseBrain(d) {
+  const month = d.month || {}, saving = d.saving || {}, coin = d.coin || {};
+  const todo = d.todo || {}, alerts = d.alerts || {};
+
+  const upEl = document.getElementById('brainUpdated');
+  if (upEl && d.updatedAt) {
+    const t = new Date(d.updatedAt);
+    upEl.textContent = '更新于 ' + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
+  }
+
+  // ---- 1) 四张统计卡 ----
+  let momHtml = '<div class="proc-mom flat">上月无采购</div>';
+  if (month.momRatio != null) {
+    const up = month.momRatio > 0;
+    momHtml = '<div class="proc-mom ' + (up ? 'up' : 'down') + '">环比 ' + (up ? '↑' : '↓') + ' ' + Math.abs(month.momRatio) + '%</div>';
+  }
+  const brainCard = (cls, label, value, sub) =>
+    '<div class="stat-card ' + cls + '"><div class="label">' + label + '</div><div class="value">' + value + '</div>' + sub + '</div>';
+  const statsEl = document.getElementById('brainStats');
+  if (statsEl) {
+    statsEl.innerHTML =
+      brainCard('orange', '本月采购额', '¥' + brainNum(month.spent), momHtml)
+      + brainCard('green', '本月省钱', saving.hasData ? '¥' + brainNum(saving.monthSaved) : '—',
+        saving.hasData ? '<div class="proc-mom flat">对比平台参考价省下的</div>' : '<div class="proc-mom flat">暂无参考价，算不出省钱</div>')
+      + brainCard('', '鼎恒币', brainNum(coin.balance) + '<small> 枚</small>',
+        '<div class="proc-mom flat">本月到手 +' + brainNum(coin.monthEarned) + '</div>')
+      + brainCard(todo.total ? 'alert-red' : 'alert-green', '今天要办', brainNum(todo.total) + '<small> 项</small>',
+        todo.total ? '<div class="proc-mom up">点右边按钮直接去办</div>' : '<div class="proc-mom flat">都办完了</div>');
+  }
+
+  // ---- 2) 今天要办：只列真正需要老板动手的，每条给一个直达按钮 ----
+  const rows = [];
+  if (todo.unpaid) rows.push({ n: todo.unpaid, text: '单待付款（24 小时未付会自动取消）', tab: 'purchase', btn: '去付款' });
+  if (todo.toReceive) rows.push({ n: todo.toReceive, text: '单在路上，到货后要收货', tab: 'purchase', btn: '去收货' });
+  if (todo.ticketConfirm) rows.push({ n: todo.ticketConfirm, text: '单售后供应商已给方案，等您拍板', tab: 'aftersale', btn: '去确认' });
+  const todoEl = document.getElementById('brainTodo');
+  if (todoEl) {
+    todoEl.innerHTML = rows.length
+      ? rows.map(r =>
+        '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--line);">'
+        + '<b style="font-size:18px;color:var(--accent);">' + r.n + '</b>'
+        + '<span style="flex:1;min-width:140px;font-size:13px;color:var(--text-2);">' + r.text + '</span>'
+        + '<button class="btn btn-orange" onclick="switchTab(\'' + r.tab + '\')">' + r.btn + '</button>'
+        + '</div>').join('')
+      : '<div style="text-align:center;color:var(--text-3);padding:20px 0;">今天没有要办的事，安心做生意</div>';
+  }
+
+  // ---- 3) 价格提醒：谁买贵了、贵了多少 ----
+  const alertEl = document.getElementById('brainAlerts');
+  if (alertEl) {
+    const list = alerts.expensive || [];
+    alertEl.innerHTML = list.length
+      ? list.map(x =>
+        '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-bottom:1px dashed var(--line);font-size:13px;">'
+        + '<b style="color:var(--text);">' + esc(x.name) + '</b>'
+        + '<span style="color:var(--text-2);">采购价 ¥' + brainNum(x.unitPrice) + '</span>'
+        + '<span style="color:var(--text-3);">参考价 ¥' + brainNum(x.refPrice) + '</span>'
+        + '<span style="font-weight:600;color:' + (x.level === 'danger' ? 'var(--red)' : 'var(--accent)') + ';">'
+        + (x.level === 'danger' ? '明显高于参考价 ' : '高于参考价 ') + x.overRatio + '%</span>'
+        + '</div>').join('')
+        + '<div style="font-size:12px;color:var(--text-3);margin-top:8px;">参考价来自平台比价，仅供参考；采购监控里有完整价格曲线</div>'
+      : '<div style="text-align:center;color:var(--text-3);padding:20px 0;">本月没有买贵的记录</div>';
+  }
+
+  // ---- 4) 这个月的钱给了谁 ----
+  const supEl = document.getElementById('brainSuppliers');
+  if (supEl) {
+    const list = d.suppliers || [];
+    supEl.innerHTML = list.length
+      ? list.map(s =>
+        '<div style="margin-bottom:10px;">'
+        + '<div style="display:flex;justify-content:space-between;gap:10px;font-size:13px;margin-bottom:4px;">'
+        + '<span style="color:var(--text);">' + esc(s.name) + '</span>'
+        + '<span style="color:var(--text-2);">¥' + brainNum(s.amount) + ' · ' + s.ratio + '%</span>'
+        + '</div>'
+        + '<div style="height:8px;border-radius:999px;background:var(--surface-3);overflow:hidden;">'
+        + '<div style="height:100%;width:' + Math.max(2, s.ratio) + '%;background:var(--accent);border-radius:999px;"></div>'
+        + '</div></div>').join('')
+      : '<div style="text-align:center;color:var(--text-3);padding:20px 0;">本月还没有已收货的采购</div>';
+  }
+}
+
+// 状态筛选
+document.querySelectorAll('#tkMerchantFilters .filter-tab').forEach(chip => {
+  chip.onclick = () => {
+    document.querySelectorAll('#tkMerchantFilters .filter-tab').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    _tkMerchantFilter = chip.dataset.status;
+    renderMerchantTickets();
+  };
+});

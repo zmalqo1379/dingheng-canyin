@@ -16,9 +16,10 @@
    禁止：emoji/彩色圆形图标块、卡片底部彩色装饰条、按钮渐变。
    ============================================================================= */
 /* ======THEME-TOKENS-START=====
-       界面主题令牌（四套）：classic 经典版 / warm 暖橙（默认）/ dark 深色 / fresh 青绿
+       界面主题令牌（四套）：classic 经典版（出厂默认）/ warm 松墨绿 / dark 深色 / fresh 青绿
        用法：所有页面样式一律引用 var(--token)，本区块保留原始字面色值不再参与批量替换。
-       classic 取值与改造前逐项一致 —— 选择「经典版」时外观零变化。
+       classic = 出厂默认，基线令牌与改造前逐项一致（骨架 / 配色 / 间距一个不动）；
+       质感增强走「经典版进化层」——只补阴影层次、微交互、侧栏细节，不碰形态。
        切换：<html data-theme="xxx">，由右上角调色盘或总览「界面主题」区块写入 localStorage。 */
     :root {
       /* ---- classic 经典版（基线令牌，取值等同改造前，请勿随手改动） ---- */
@@ -112,6 +113,12 @@
       --card-pad: 28px 26px;
       --section-gap: 22px;
       --btn-radius: 9px;
+      /* 手感令牌（第 3 批）：--btn-dur 过渡时长 / --btn-ease 曲线 / --btn-lift 悬浮抬升 /
+         --btn-glow 主按钮光晕。classic 是基线：不位移、无光晕（质感由「经典版进化层」另给） */
+      --btn-dur: .18s;
+      --btn-ease: ease;
+      --btn-lift: 0px;
+      --btn-glow: 0 0 0 0 rgba(0, 0, 0, 0);
       --radius-card: 16px;
       --card-shadow: 0 4px 14px rgba(0, 0, 0, .06);
       --num-size: clamp(18px, 4.5vw, 40px);
@@ -144,6 +151,12 @@
       --sidebar-active-bg: rgba(255, 107, 53, .15);
       --sidebar-active-color: #fff;
       --sidebar-tip-color: var(--text-sub);
+      /* 侧栏强色（品牌名 / 退出登录文字）+ 内嵌底色（退出登录按钮）+ sticky 打底色
+         classic 取值 = 原写死值，逐项保持一致 */
+      --sidebar-strong-color: #fff;
+      --sidebar-fill: rgba(255, 255, 255, .08);
+      --sidebar-fill-hover: rgba(255, 255, 255, .16);
+      --sidebar-sticky-bg: var(--nav-2);
       --card-border: none;
       --btn-primary-bg: linear-gradient(135deg, var(--accent), var(--accent-2));
       --btn-primary-color: #fff;
@@ -169,132 +182,167 @@
       --p-45: rgba(255, 107, 53, .45); --p-50: rgba(255, 107, 53, .50); --p-55: rgba(255, 107, 53, .55);
     }
 
-    /* ---- warm 暖橙（出厂默认）---- */
+    /* ---- warm 松墨绿（key 沿用 warm，已保存的偏好不受影响；出厂默认已交回经典版）----
+       主色 = 松绿 #177A56：色相 158°，与经典版橙（17°）、青绿（168°）拉开
+       （青绿是「亮翠绿 + 白侧栏」的轻快版，松墨绿是「深墨绿侧栏」的沉稳版，一深一浅一眼可分）。
+       ★ 为什么是绿 —— 默认版的第一诉求是护眼，好看排第二：
+           ① 人眼明视函数峰值在 555nm，正是绿波段：看绿时睫状肌最放松、调节负担最小；
+           ② 蓝光波长短、散射强，大面积铺开就是眩光和眼疲劳的来源（上一版墨绿被否就栽在这）；
+           ③ 绿色的饱和度天生偏低，同样面积不像蓝 / 橙那样「跳」，久看不晃眼；
+           ④ 深墨绿侧栏吸掉大部分反射光，长时间盯屏的亮度负担最小。
+       ★ 金只做点缀（侧栏选中字 / 侧栏顶线），绝不铺面 —— 铺面就会回到「像粑粑」。 */
     [data-theme="warm"] {
-      --bg: #F7F8FA;
+      --bg: #F4F8F5;
       --card: #FFFFFF;
-      --primary: #FF7A3D;
-      --primary-2: #FF9E6B;
+      --primary: #177A56;
+      --primary-2: #0F5E45;
+      /* 文字一律走 --accent：#0E6B4E 压白底是 6.5:1（正文标准 4.5:1，余量充足）。
+         --accent 在其余主题里本就是 var(--primary) 的别名，改它对三套主题零影响。 */
+      --accent: #0E6B4E;
+      --accent-2: #0F5E45;
+      /* 香槟金：仅点缀，不参与大面积铺色。墨绿 + 金是会所 / 私行那一路的沉稳高级感 */
+      --gold: #D4A24C;
       --teal: #14B8A6;
-      --blue-base: #1A88FF;
-      --text: #1F2329;
-      --border: #EBEDF0;
-      --text-2: #34383F;
-      --text-3: #4C5057;
-      --text-slate: #4C5057;
-      --text-sub: #70747B;
-      --text-muted: #A0A4AA;
-      --text-faint: #B7BBC1;
-      --text-slate-400: #9AA0A7;
-      --text-pale: #C2C6CB;
-      --border-strong: #D6D9DD;
-      --surface-2: #FAFBFC;
-      --surface-3: #F3F4F6;
-      --surface-4: #FCFCFD;
-      --tint-red-100: #FDE9E7;
-      --tint-red-200: #FBD6D2;
-      --tint-red-50: #FEF5F4;
-      --tint-green-100: #E1F6E9;
-      --tint-green-50: #F2FBF6;
-      --tint-amber-100: #FDF2D9;
-      --tint-amber-200: #FBE4AA;
-      --tint-amber-50: #FFFBEF;
-      --tint-blue-100: #E5EDFB;
-      --tint-blue-200: #D0DEFA;
-      --tint-blue-50: #F3F7FE;
-      --tint-sky-50: #F2F9FE;
-      --tint-sky-200: #C8E5F8;
-      --tint-purple-100: #EEEBFC;
-      --tint-orange-100: #FFEBDC;
-      --tint-orange-50: #FFF7EF;
-      --tint-orange-25: #FFF8F3;
-      --tint-warm-50: #FFF7F1;
-      --tint-warm-hover: #FFFAF6;
-      --tint-row: #F8F9FB;
-      --tint-divider: #F1F2F5;
-      --tint-head-hover: #EFF2F7;
-      --tint-page-alt: #F2F7FE;
-      --radius-sm: 10px;
-      --radius: 14px;
-      --radius-lg: 16px;
-      --shadow-sm: 0 1px 3px rgba(31, 35, 41, .05);
-      --shadow: 0 4px 16px rgba(31, 35, 41, .07);
-      --shadow-lg: 0 14px 36px rgba(31, 35, 41, .12);
+      --blue-base: #2E9E7B;
+      --text: #26312C;
+      --border: #E4EBE5;
+      --text-2: #333F38;
+      --text-3: #414E46;
+      --text-slate: #414E46;
+      --text-sub: #4C5A52;
+      --text-muted: #7A877F;
+      --text-faint: #A0ABA3;
+      --text-slate-400: #77847C;
+      --text-pale: #B7C0B9;
+      --border-strong: #CCD6CE;
+      --surface-2: #FAFCFA;
+      --surface-3: #F1F6F2;
+      --surface-4: #FDFFFE;
+      /* 语义色（亏损红 / 盈利绿 / 警示琥珀）保持色相不变：冷底上反而更分得清 */
+      --tint-red-100: #FBDFD8;
+      --tint-red-200: #F6C3B9;
+      --tint-red-50: #FDF1EE;
+      --tint-green-100: #DFF2E4;
+      --tint-green-50: #F1FAF3;
+      --tint-amber-100: #FBEBCB;
+      --tint-amber-200: #F7D89B;
+      --tint-amber-50: #FEF8E9;
+      /* 主色系 tint 跟随松绿（淡到几乎看不出色相，只留一点绿意 —— 大面积淡底最忌讳带色） */
+      --tint-blue-100: #DCF0E7;
+      --tint-blue-200: #BFDFCF;
+      --tint-blue-50: #EFF7F2;
+      --tint-sky-50: #EEF6F2;
+      --tint-sky-200: #BFE0D2;
+      --tint-purple-100: #EDE9FB;
+      --tint-orange-100: #DEF0E6;
+      --tint-orange-50: #EFF7F2;
+      --tint-orange-25: #F7FBF9;
+      --tint-warm-50: #F2F7F4;
+      --tint-warm-hover: #FAFDFB;
+      --tint-row: #F7FAF8;
+      --tint-divider: #EDF3EF;
+      --tint-head-hover: #F1F6F3;
+      --tint-page-alt: #F4F8F5;
+      /* 外形升级：圆角整体比经典版（8 / 12 / 16）再放大一档 —— 圆角是最直观的辨识点，
+         不依赖辨色，色弱也能一眼看出和经典版是两个版本 */
+      --radius-sm: 12px;
+      --radius: 18px;
+      --radius-lg: 26px;
+      /* 投影改墨绿（rgba(20,46,38)）：冷蓝投影会让白卡边缘泛蓝，久看发花；墨绿投影贴着纸感，最润 */
+      --shadow-sm: 0 1px 2px rgba(20, 46, 38, .05);
+      --shadow: 0 2px 6px rgba(20, 46, 38, .05), 0 12px 28px rgba(20, 46, 38, .07);
+      --shadow-lg: 0 4px 12px rgba(20, 46, 38, .07), 0 24px 56px rgba(20, 46, 38, .14);
 
-      /* 布局令牌（design/warm.png 设计稿规范值） */
+      /* 布局令牌：留白比经典版（18 / 22 / 26）再松一档 —— 留白就是贵 */
       /* 信息密度：宽松舒适 */
-      --gap: 20px;
+      --gap: 22px;
       --row-h: 52px;
-      --section-gap: 28px;
-      --page-pad: 28px 32px 44px;
-      --card-pad: 24px;
-      --btn-radius: 10px;
-      --radius-card: 16px;
-      --card-shadow: 0 2px 12px rgba(0, 0, 0, .06);
-      --num-size: 32px;
-      --num-color: var(--text);
+      --section-gap: 32px;
+      --page-pad: 32px 36px 52px;
+      --card-pad: 30px 28px;
+      /* 按钮走胶囊：和经典版的 9px 方角一眼可分 */
+      --btn-radius: 999px;
+      /* 手感：.18s、悬浮上浮 1px + 主色光晕（人格表） */
+      --btn-dur: .18s;
+      --btn-ease: ease;
+      --btn-lift: 1px;
+      --btn-glow: 0 6px 16px rgba(23, 122, 86, .34);
+      --radius-card: 22px;
+      /* 双层柔和阴影：近处一层压边、远处一层托起，卡片才浮得起来（经典版是单层） */
+      --card-shadow: 0 1px 2px rgba(20, 46, 38, .04), 0 10px 30px rgba(20, 46, 38, .07);
+      --num-size: clamp(22px, 5vw, 44px);
+      /* 大数字走 --accent（松绿 6.5:1）：够读又不晃眼 */
+      --num-color: var(--accent);
       --border-w: 0px;
       --row-pad: 16px 16px;
       /* 表格 / 表单令牌 */
       --row-line: rgba(0, 0, 0, .05);
       --row-loss: rgba(255, 77, 79, .06);
-      --row-unpriced: rgba(255, 169, 64, .06);
-      /* 暖橙输入框：浅灰填充、无边框、8px 圆角、聚焦主色边框 + 淡橙光晕 */
-      --field-bg: #F2F4F6;
+      --row-unpriced: rgba(23, 122, 86, .10);
+      /* 输入框：极浅绿灰填充、无边框、14px 大圆角、聚焦松绿光晕（光晕只 3px，不做大面积高亮） */
+      --field-bg: #F5F9F7;
       --field-border: 1px solid transparent;
-      --field-radius: 8px;
-      --field-pad: 8px 12px;
+      --field-radius: 14px;
+      --field-pad: 10px 14px;
       --field-font: inherit;
-      --field-focus-shadow: 0 0 0 3px rgba(255, 122, 61, .12);
-      --primary-ring: rgba(255, 122, 61, .12);
+      --field-focus-shadow: 0 0 0 3px rgba(23, 122, 86, .20);
+      --primary-ring: rgba(23, 122, 86, .18);
 
-      /* 结构人格：稳重厚实 —— 深色侧栏 + 白卡柔和阴影浮起 + 实心主按钮 */
-      --sidebar-bg: linear-gradient(180deg, var(--nav), var(--nav-2));
-      --sidebar-color: #C3CBD8;
+      /* 结构人格：松墨绿 —— 深墨绿渐变侧栏 + 松绿渐变胶囊按钮 + 玻璃高光白卡
+         ★ 权威感公式 = 深底 + 白字 + 清晰分组。经典版侧栏近黑（#0f172a→#020617）就赢在这。
+           松墨绿要当所有主题里最权威的一个，侧栏必须比经典版更深沉、文字比它更白：
+           ① 底色压到近黑墨绿 —— 保留绿色相（色弱也认得出是绿系），但亮度压到底，才「沉得住」；
+           ② 选中态用【纯白字】—— 白字 = 权威；金色降级到左竖条做点缀（金显贵，白显权）；
+           ③ 未选中文字提亮到 #C6D3CB，图标文字清晰利落，不发灰发虚 —— 对比度就是权威感 */
+      --sidebar-bg: linear-gradient(165deg, #12322A 0%, #06130E 100%);
+      --sidebar-color: #C6D3CB;
       --sidebar-hover-bg: rgba(255, 255, 255, .08);
       --sidebar-hover-color: #fff;
-      --sidebar-active-bg: rgba(255, 122, 61, .18);
-      --sidebar-active-color: #FFC0A0;
-      --sidebar-tip-color: #7A8798;
+      /* 选中底是「白雾薄块」不是饱和色：侧栏选中是常驻大色块，饱和色看几秒就刺眼。
+         半透明白压在近黑墨绿上 = 经典版那种沉稳的选中块，既分得出选中，又润眼 */
+      --sidebar-active-bg: rgba(255, 255, 255, .10);
+      --sidebar-active-color: #FFFFFF;
+      --sidebar-tip-color: #8FA398;
       --card-border: none;
-      --btn-primary-bg: var(--primary);
-      --btn-primary-color: #fff;
+      /* 白字压松绿渐变：浅端 #177A56 是 5.3:1、深端 #0F5E45 是 8.4:1，正文标准达标 */
+      --btn-primary-bg: linear-gradient(135deg, #177A56 0%, #0F5E45 100%);
+      --btn-primary-color: #FFFFFF;
       --btn-primary-border: none;
       /* 主色透明梯度（光晕 / 投影 / 淡底）：四套主题各自跟随 --primary，
          替换内联样式里写死的经典橙 rgba(255,107,53,...)，解决换肤串色。classic 取值与原来逐项一致 */
-      --p-0: rgba(255, 122, 61, 0); --p-05: rgba(255, 122, 61, .05); --p-06: rgba(255, 122, 61, .06);
-      --p-08: rgba(255, 122, 61, .08); --p-09: rgba(255, 122, 61, .09); --p-1: rgba(255, 122, 61, .1);
-      --p-10: rgba(255, 122, 61, .1); --p-12: rgba(255, 122, 61, .12); --p-14: rgba(255, 122, 61, .14);
-      --p-15: rgba(255, 122, 61, .15); --p-16: rgba(255, 122, 61, .16); --p-18: rgba(255, 122, 61, .18);
-      --p-2: rgba(255, 122, 61, .2); --p-20: rgba(255, 122, 61, .20); --p-25: rgba(255, 122, 61, .25);
-      --p-28: rgba(255, 122, 61, .28); --p-3: rgba(255, 122, 61, .3); --p-30: rgba(255, 122, 61, .30);
-      --p-35: rgba(255, 122, 61, .35); --p-4: rgba(255, 122, 61, .4); --p-40: rgba(255, 122, 61, .40);
-      --p-45: rgba(255, 122, 61, .45); --p-50: rgba(255, 122, 61, .50); --p-55: rgba(255, 122, 61, .55);
+      --p-0: rgba(23, 122, 86, 0); --p-05: rgba(23, 122, 86, .05); --p-06: rgba(23, 122, 86, .06);
+      --p-08: rgba(23, 122, 86, .08); --p-09: rgba(23, 122, 86, .09); --p-1: rgba(23, 122, 86, .1);
+      --p-10: rgba(23, 122, 86, .1); --p-12: rgba(23, 122, 86, .12); --p-14: rgba(23, 122, 86, .14);
+      --p-15: rgba(23, 122, 86, .15); --p-16: rgba(23, 122, 86, .16); --p-18: rgba(23, 122, 86, .18);
+      --p-2: rgba(23, 122, 86, .2); --p-20: rgba(23, 122, 86, .20); --p-25: rgba(23, 122, 86, .25);
+      --p-28: rgba(23, 122, 86, .28); --p-3: rgba(23, 122, 86, .3); --p-30: rgba(23, 122, 86, .30);
+      --p-35: rgba(23, 122, 86, .35); --p-4: rgba(23, 122, 86, .4); --p-40: rgba(23, 122, 86, .40);
+      --p-45: rgba(23, 122, 86, .45); --p-50: rgba(23, 122, 86, .50); --p-55: rgba(23, 122, 86, .55);
     }
 
     /* ---- dark 深色 ---- */
     [data-theme="dark"] {
-      --bg: #0F1419;
-      --card: #182029;
-      --primary: #FF9463;
-      --primary-2: #FFB48C;
+      --bg: #0E1620;
+      --card: #1B2634;
+      --primary: #FFA873;
+      --primary-2: #FFC294;
       --teal: #2DD4BF;
       --blue-base: #4DA3FF;
-      --text: #E3E6EA;
-      --border: #2A3542;
-      --text-2: #CBD2DB;
-      --text-3: #B4BCC7;
+      --text: #C6CDD6;
+      --border: #33465A;
+      --text-2: #BCC4CE;
+      --text-3: #A6AFBA;
       --text-slate: #A7B0BD;
-      --text-sub: #8A94A6;
-      --text-muted: #8A94A6;
+      --text-sub: #9BA5B4;
+      --text-muted: #8A94A3;
       --text-faint: #7A8494;
       --text-slate-400: #94A0B2;
       --text-pale: #6E7787;
       --border-strong: #35424F;
       /* 面层级：背景 #0F1419 → 卡片 #182029 → 悬浮层 #212B36，逐档提亮，卡片才浮得起来 */
-      --surface-2: #212B36;
-      --surface-3: #2A3542;
-      --surface-4: #1E2733;
+      --surface-2: #263648;
+      --surface-3: #33465A;
+      --surface-4: #222E3D;
       --tint-red-100: rgba(248, 113, 113, .16);
       --tint-red-200: rgba(248, 113, 113, .28);
       --tint-red-50: rgba(248, 113, 113, .10);
@@ -311,9 +359,9 @@
       --tint-purple-100: rgba(167, 139, 250, .18);
       --tint-orange-100: rgba(251, 146, 60, .18);
       --tint-orange-50: rgba(251, 146, 60, .10);
-      --tint-orange-25: rgba(255, 138, 76, .12);
-      --tint-warm-50: rgba(255, 138, 76, .10);
-      --tint-warm-hover: rgba(255, 138, 76, .16);
+      --tint-orange-25: rgba(255, 168, 115, .14);
+      --tint-warm-50: rgba(255, 168, 115, .10);
+      --tint-warm-hover: rgba(255, 168, 115, .16);
       --tint-row: rgba(255, 255, 255, .035);
       --tint-divider: rgba(255, 255, 255, .08);
       --tint-head-hover: rgba(255, 255, 255, .07);
@@ -341,8 +389,9 @@
       --radius: 8px;
       --radius-lg: 10px;
       --shadow-sm: 0 1px 3px rgba(0, 0, 0, .40);
-      --shadow: 0 6px 18px rgba(0, 0, 0, .45);
-      --shadow-lg: 0 18px 44px rgba(0, 0, 0, .55);
+      --shadow: 0 8px 24px rgba(0, 0, 0, .50);
+      --shadow-lg: 0 20px 48px rgba(0, 0, 0, .60);
+      --card-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 4px 16px rgba(0, 0, 0, .35);
 
       /* 布局令牌（design/dark.png 设计稿规范值；深色下阴影加深才托得住卡片）
          信息密度：紧凑高效 —— 晚上对账一屏能看更多订单 */
@@ -352,11 +401,16 @@
       --page-pad: 20px 24px 32px;
       --card-pad: 24px;
       --btn-radius: 6px;
+      /* 手感：.12s、只变色不位移（紧凑终端，不要弹跳） */
+      --btn-dur: .12s;
+      --btn-ease: ease;
+      --btn-lift: 0px;
+      --btn-glow: 0 0 0 0 rgba(0, 0, 0, 0);
       --radius-card: 10px;
       /* 深色不用阴影：靠「背景 #0F1419 → 卡片 #182029」色阶 + 顶部 1px 高光分层 */
       --card-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
       --num-size: 30px;
-      --num-color: var(--primary);
+      --num-color: var(--accent);
       --border-w: 0px;
       --row-pad: 16px 16px;
       /* 表格 / 表单令牌 */
@@ -364,90 +418,90 @@
       --row-loss: rgba(255, 77, 79, .10);
       --row-unpriced: rgba(255, 169, 64, .10);
       /* 深色输入框：深底 + 1px 边框 + 6px 圆角 + 等宽字体（精密感），聚焦主色发光 */
-      --field-bg: #212B36;
-      --field-border: 1px solid #2A3542;
+      --field-bg: #263648;
+      --field-border: 1px solid #33465A;
       --field-radius: 6px;
       --field-pad: 8px 12px;
       --field-font: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      --field-focus-shadow: 0 0 0 3px rgba(255, 148, 99, .18);
-      --primary-ring: rgba(255, 148, 99, .12);
+      --field-focus-shadow: 0 0 0 3px rgba(255, 168, 115, .20);
+      --primary-ring: rgba(255, 168, 115, .14);
 
       /* 结构人格：冷静精密 —— 深色侧栏与整体一体 + 描边式主按钮（主色文字、不填充） */
-      --sidebar-bg: var(--card);
+      --sidebar-bg: #151E2B;
       --sidebar-color: var(--text-sub);
       --sidebar-hover-bg: var(--surface-2);
       --sidebar-hover-color: var(--text);
       --sidebar-active-bg: var(--tint-orange-25);
-      --sidebar-active-color: var(--primary);
+      --sidebar-active-color: var(--accent);
       --sidebar-tip-color: var(--text-muted);
       --card-border: none;
       --btn-primary-bg: transparent;
-      --btn-primary-color: var(--primary);
+      --btn-primary-color: var(--accent);
       --btn-primary-border: 1px solid var(--primary);
       /* 主色透明梯度（光晕 / 投影 / 淡底）：四套主题各自跟随 --primary，
          替换内联样式里写死的经典橙 rgba(255,107,53,...)，解决换肤串色。classic 取值与原来逐项一致 */
-      --p-0: rgba(255, 148, 99, 0); --p-05: rgba(255, 148, 99, .05); --p-06: rgba(255, 148, 99, .06);
-      --p-08: rgba(255, 148, 99, .08); --p-09: rgba(255, 148, 99, .09); --p-1: rgba(255, 148, 99, .1);
-      --p-10: rgba(255, 148, 99, .1); --p-12: rgba(255, 148, 99, .12); --p-14: rgba(255, 148, 99, .14);
-      --p-15: rgba(255, 148, 99, .15); --p-16: rgba(255, 148, 99, .16); --p-18: rgba(255, 148, 99, .18);
-      --p-2: rgba(255, 148, 99, .2); --p-20: rgba(255, 148, 99, .20); --p-25: rgba(255, 148, 99, .25);
-      --p-28: rgba(255, 148, 99, .28); --p-3: rgba(255, 148, 99, .3); --p-30: rgba(255, 148, 99, .30);
-      --p-35: rgba(255, 148, 99, .35); --p-4: rgba(255, 148, 99, .4); --p-40: rgba(255, 148, 99, .40);
-      --p-45: rgba(255, 148, 99, .45); --p-50: rgba(255, 148, 99, .50); --p-55: rgba(255, 148, 99, .55);
+      --p-0: rgba(255, 168, 115, 0); --p-05: rgba(255, 168, 115, .05); --p-06: rgba(255, 168, 115, .06);
+      --p-08: rgba(255, 168, 115, .08); --p-09: rgba(255, 168, 115, .09); --p-1: rgba(255, 168, 115, .1);
+      --p-10: rgba(255, 168, 115, .1); --p-12: rgba(255, 168, 115, .12); --p-14: rgba(255, 168, 115, .14);
+      --p-15: rgba(255, 168, 115, .15); --p-16: rgba(255, 168, 115, .16); --p-18: rgba(255, 168, 115, .18);
+      --p-2: rgba(255, 168, 115, .2); --p-20: rgba(255, 168, 115, .20); --p-25: rgba(255, 168, 115, .25);
+      --p-28: rgba(255, 168, 115, .28); --p-3: rgba(255, 168, 115, .3); --p-30: rgba(255, 168, 115, .30);
+      --p-35: rgba(255, 168, 115, .35); --p-4: rgba(255, 168, 115, .4); --p-40: rgba(255, 168, 115, .40);
+      --p-45: rgba(255, 168, 115, .45); --p-50: rgba(255, 168, 115, .50); --p-55: rgba(255, 168, 115, .55);
     }
 
     /* ---- fresh 青绿（按钮渐变第二色即点缀橙 #FF7A3D）---- */
     [data-theme="fresh"] {
-      --bg: #F4F7F7;
-      --card: #FFFFFF;
-      --primary: #00B8A9;
-      --primary-2: #FF7A3D;
-      --teal: #00B8A9;
+      --bg: #F4FAF8;
+      --card: #FCFEFD;
+      --primary: #00A078;
+      --primary-2: #00C9A7;
+      --teal: #00BF9C;
       --blue-base: #1A88FF;
-      --text: #1F2329;
-      --border: #E4EBEA;
-      --text-2: #333A39;
-      --text-3: #4A5251;
-      --text-slate: #4A5251;
-      --text-sub: #6D7775;
-      --text-muted: #9BA5A3;
-      --text-faint: #B4BDBB;
-      --text-slate-400: #97A1A0;
-      --text-pale: #C0C8C6;
-      --border-strong: #D2DBD9;
-      --surface-2: #F7FAFA;
-      --surface-3: #EEF3F2;
-      --surface-4: #FBFCFC;
-      --tint-red-100: #FDE8E6;
-      --tint-red-200: #FBD3D0;
-      --tint-red-50: #FEF4F3;
-      --tint-green-100: #DCF5EC;
-      --tint-green-50: #EFFAF5;
-      --tint-amber-100: #FCF3D8;
-      --tint-amber-200: #F8E5A6;
-      --tint-amber-50: #FFFBEE;
-      --tint-blue-100: #E3EDFA;
-      --tint-blue-200: #CCDEFA;
-      --tint-blue-50: #F1F7FE;
-      --tint-sky-50: #EFF8FD;
-      --tint-sky-200: #C4E4F7;
-      --tint-purple-100: #EBEBFB;
-      --tint-orange-100: #FFE9DB;
-      --tint-orange-50: #FFF6EF;
-      --tint-orange-25: #FFF7F3;
-      --tint-warm-50: #FFF6F2;
-      --tint-warm-hover: #FFFAF8;
-      --tint-row: #F6F9F9;
-      --tint-divider: #EDF2F1;
-      --tint-head-hover: #EAF2F1;
+      --text: #37453F;
+      --border: #E2EDE8;
+      --text-2: #3D4B45;
+      --text-3: #55635C;
+      --text-slate: #55635C;
+      --text-sub: #5E6D66;
+      --text-muted: #8B9993;
+      --text-faint: #A9B5B0;
+      --text-slate-400: #869490;
+      --text-pale: #B7C2BD;
+      --border-strong: #D0DFD9;
+      --surface-2: #F8FCFB;
+      --surface-3: #E8F3F0;
+      --surface-4: #F7FBFA;
+      --tint-red-100: #FBE4E0;
+      --tint-red-200: #F7C9C3;
+      --tint-red-50: #FDF3F1;
+      --tint-green-100: #D2F2EA;
+      --tint-green-50: #EDFAF6;
+      --tint-amber-100: #FAF1D5;
+      --tint-amber-200: #F5E1A2;
+      --tint-amber-50: #FEFAEC;
+      --tint-blue-100: #E1EDFA;
+      --tint-blue-200: #C7DBF8;
+      --tint-blue-50: #F1F7FD;
+      --tint-sky-50: #EEF8FD;
+      --tint-sky-200: #C0E3F6;
+      --tint-purple-100: #E9EBFB;
+      --tint-orange-100: #FFE8DA;
+      --tint-orange-50: #FFF6F0;
+      --tint-orange-25: #FFF8F4;
+      --tint-warm-50: #FFF7F3;
+      --tint-warm-hover: #FFFBFA;
+      --tint-row: #F7FBFA;
+      --tint-divider: #EDF4F2;
+      --tint-head-hover: #E9F3F1;
       --tint-page-alt: #EFF7FB;
       /* 结构人格：清爽轻快 —— 超大圆角、扁平卡片、白色侧栏、胶囊按钮 */
       --radius-sm: 12px;
       --radius: 16px;
       --radius-lg: 20px;
-      --shadow-sm: 0 1px 3px rgba(0, 60, 55, .05);
-      --shadow: 0 4px 16px rgba(0, 60, 55, .07);
-      --shadow-lg: 0 14px 36px rgba(0, 60, 55, .12);
+      --shadow-sm: 0 1px 3px rgba(0, 60, 55, .045);
+      --shadow: 0 4px 16px rgba(0, 60, 55, .065);
+      --shadow-lg: 0 14px 36px rgba(0, 60, 55, .11);
 
       /* 布局令牌（design/fresh.png 设计稿规范值；大数字用青绿主色，橙 #FF7A3D 作点缀）
          信息密度：极松 —— 留白最多，呼吸感 */
@@ -457,11 +511,16 @@
       --page-pad: 36px 40px 56px;
       --card-pad: 24px;
       --btn-radius: 999px;
+      /* 手感：.22s 弹性、上浮 2px + 青绿光晕 */
+      --btn-dur: .22s;
+      --btn-ease: cubic-bezier(.34, 1.4, .64, 1);
+      --btn-lift: 2px;
+      --btn-glow: 0 8px 20px rgba(0, 184, 169, .30);
       --radius-card: 20px;
       /* 扁平：几乎无阴影，靠极淡边框勾勒 */
-      --card-shadow: 0 1px 2px rgba(0, 0, 0, .03);
+      --card-shadow: 0 1px 2px rgba(0, 60, 55, .04);
       --num-size: 34px;
-      --num-color: var(--primary);
+      --num-color: var(--accent);
       --border-w: 0px;
       --row-pad: 16px 16px;
       /* 表格 / 表单令牌 */
@@ -470,35 +529,36 @@
       --row-unpriced: rgba(255, 169, 64, .06);
       /* 青绿输入框：纯白底 + 极淡青绿边框 + 胶囊形，聚焦主色边框 + 淡青绿光晕 */
       --field-bg: #FFFFFF;
-      --field-border: 1px solid #D5E9E7;
+      --field-border: 1px solid #D9ECE7;
       --field-radius: 999px;
       --field-pad: 8px 16px;
       --field-font: inherit;
-      --field-focus-shadow: 0 0 0 3px rgba(0, 184, 169, .12);
-      --primary-ring: rgba(0, 184, 169, .12);
+      --field-focus-shadow: 0 0 0 3px rgba(0, 160, 120, .14);
+      --primary-ring: rgba(0, 160, 120, .14);
 
       /* 结构人格：清爽轻快 —— 白色侧栏 + 胶囊实心主按钮 + 极淡边框卡片 */
       --sidebar-bg: #FFFFFF;
-      --sidebar-color: #5B6B68;
+      /* 侧栏文字对比度：白底上必须一眼看清（2026-09-18 用户批评浅字，硬规矩：正文对比度不够 = bug） */
+      --sidebar-color: #3D4D48;
       --sidebar-hover-bg: var(--tint-green-50);
-      --sidebar-hover-color: #00B8A9;
-      --sidebar-active-bg: var(--tint-green-100);
-      --sidebar-active-color: #00B8A9;
-      --sidebar-tip-color: var(--text-muted);
-      --card-border: 1px solid #E3EDEC;
-      --btn-primary-bg: #00B8A9;
+      --sidebar-hover-color: #00A078;
+      --sidebar-active-bg: var(--primary);
+      --sidebar-active-color: #FFFFFF;
+      --sidebar-tip-color: var(--text-sub);
+      --card-border: 1px solid #E6F0EC;
+      --btn-primary-bg: var(--primary);
       --btn-primary-color: #fff;
       --btn-primary-border: none;
       /* 主色透明梯度（光晕 / 投影 / 淡底）：四套主题各自跟随 --primary，
          替换内联样式里写死的经典橙 rgba(255,107,53,...)，解决换肤串色。classic 取值与原来逐项一致 */
-      --p-0: rgba(0, 184, 169, 0); --p-05: rgba(0, 184, 169, .05); --p-06: rgba(0, 184, 169, .06);
-      --p-08: rgba(0, 184, 169, .08); --p-09: rgba(0, 184, 169, .09); --p-1: rgba(0, 184, 169, .1);
-      --p-10: rgba(0, 184, 169, .1); --p-12: rgba(0, 184, 169, .12); --p-14: rgba(0, 184, 169, .14);
-      --p-15: rgba(0, 184, 169, .15); --p-16: rgba(0, 184, 169, .16); --p-18: rgba(0, 184, 169, .18);
-      --p-2: rgba(0, 184, 169, .2); --p-20: rgba(0, 184, 169, .20); --p-25: rgba(0, 184, 169, .25);
-      --p-28: rgba(0, 184, 169, .28); --p-3: rgba(0, 184, 169, .3); --p-30: rgba(0, 184, 169, .30);
-      --p-35: rgba(0, 184, 169, .35); --p-4: rgba(0, 184, 169, .4); --p-40: rgba(0, 184, 169, .40);
-      --p-45: rgba(0, 184, 169, .45); --p-50: rgba(0, 184, 169, .50); --p-55: rgba(0, 184, 169, .55);
+      --p-0: rgba(0, 160, 120, 0); --p-05: rgba(0, 160, 120, .05); --p-06: rgba(0, 160, 120, .06);
+      --p-08: rgba(0, 160, 120, .08); --p-09: rgba(0, 160, 120, .09); --p-1: rgba(0, 160, 120, .1);
+      --p-10: rgba(0, 160, 120, .1); --p-12: rgba(0, 160, 120, .12); --p-14: rgba(0, 160, 120, .14);
+      --p-15: rgba(0, 160, 120, .15); --p-16: rgba(0, 160, 120, .16); --p-18: rgba(0, 160, 120, .18);
+      --p-2: rgba(0, 160, 120, .2); --p-20: rgba(0, 160, 120, .20); --p-25: rgba(0, 160, 120, .25);
+      --p-28: rgba(0, 160, 120, .28); --p-3: rgba(0, 160, 120, .3); --p-30: rgba(0, 160, 120, .30);
+      --p-35: rgba(0, 160, 120, .35); --p-4: rgba(0, 160, 120, .4); --p-40: rgba(0, 160, 120, .40);
+      --p-45: rgba(0, 160, 120, .45); --p-50: rgba(0, 160, 120, .50); --p-55: rgba(0, 160, 120, .55);
     }
     /* ======THEME-TOKENS-END===== */
 
@@ -554,7 +614,27 @@
       width: 34px; height: 34px; border-radius: 50%;
       font-size: 15px; cursor: pointer; transition: color .15s, background .15s;
     }
-    .theme-close:hover { color: var(--primary); background: var(--tint-warm-50); }
+    .theme-close:hover { color: var(--accent); background: var(--tint-warm-50); }
+
+    /* 手机端：主题弹窗改成从底部升起的抽屉。
+       居中弹窗在竖屏上被四张竖排卡片撑得很高，标题栏（含关闭 ✕）被顶到视口外，
+       想关还得往上滑回去找 ✕ —— 所以改成底部抽屉 + 标题栏吸顶，✕ 任何时候都在眼前。
+       卡片同时改两列：高度减半，基本不用滚。 */
+    @media (max-width: 768px) {
+      .theme-modal { align-items: flex-end; padding: 0; }
+      .theme-panel {
+        max-width: 100%; border-radius: 20px 20px 0 0;
+        max-height: 82vh; padding: 0 16px 22px;
+      }
+      .theme-head {
+        position: sticky; top: 0; z-index: 2;
+        margin: 0 -16px 14px; padding: 16px 16px 12px;
+        background: var(--surface-2); align-items: center;
+      }
+      .theme-head p { display: none; }        /* 竖屏省掉长说明，空间留给卡片 */
+      .theme-head h3 { font-size: 17px; }
+      .theme-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    }
 
     /* 主题卡片：大圆角 + 宽松间距 + 柔和阴影，不用直线分隔 */
     .theme-grid {
@@ -562,34 +642,58 @@
       grid-template-columns: repeat(auto-fill, minmax(238px, 1fr));
       gap: 20px;
     }
-    .theme-card {
+    /* 主题卡片固定一行两张、左右占满：横着的长方形。
+       admin.html 里「店名字体 / 菜单排版」选项卡也有一个 .theme-grid（minmax(150px,1fr)），
+       同名把主题卡压成 4 张窄竖条挤在左侧（就是被吐槽的「四个麻将」），
+       所以这里必须用 .theme-panel / #homeThemeGrid 提权覆盖。
+       #supHomeThemeGrid = 供应商端工作台「界面主题」区块（2026-09-18 新增，同样一行两张）。 */
+    .theme-panel .theme-grid,
+    #homeThemeGrid,
+    #supHomeThemeGrid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 18px;
+    }
+    /* 作用域必须是 .theme-grid > .theme-card：商家端 admin.html 里「店名字体 / 菜单排版」
+       选项卡也用了 .theme-card（.tc-banner 54px 色条 + .tc-check 右上角勾 + 2px 描边），
+       同名直接污染主题弹窗里的卡片，所以这里既提权又显式抵消那套排版卡样式。 */
+    /* 界面主题卡：只作用于主题面板 / 工作台「界面主题」区块。
+       商家端「店铺装修」里有一套同名 .theme-card（装修预览卡），不限定作用域就会互相串。 */
+    .theme-panel .theme-grid > .theme-card,
+    .theme-section .theme-grid > .theme-card {
       text-align: left; cursor: pointer; font-family: inherit;
       background: var(--card); color: var(--text);
-      border: none;
-      border-radius: var(--radius-lg);
+      border: none; border-radius: var(--radius-lg); overflow: visible;
       padding: 22px 22px 20px;
       box-shadow: var(--shadow-sm);
       transition: transform .18s ease, box-shadow .18s ease;
     }
-    .theme-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
-    .theme-card.is-active {
+    .theme-panel .theme-grid > .theme-card:hover,
+    .theme-section .theme-grid > .theme-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+    .theme-panel .theme-grid > .theme-card.is-active,
+    .theme-section .theme-grid > .theme-card.is-active {
       box-shadow: 0 0 0 3px var(--tint-orange-100), var(--shadow);
     }
-    .theme-card .tc-top { display: flex; align-items: center; gap: 10px; }
-    .theme-card .tc-name { font-size: 15.5px; font-weight: 700; }
-    .theme-card .tc-flag {
+    .theme-panel .theme-grid > .theme-card .tc-top,
+    .theme-section .theme-grid > .theme-card .tc-top { display: flex; align-items: center; gap: 10px; }
+    .theme-panel .theme-grid > .theme-card .tc-name,
+    .theme-section .theme-grid > .theme-card .tc-name { font-size: 15.5px; font-weight: 700; }
+    .theme-panel .theme-grid > .theme-card .tc-slogan,
+    .theme-section .theme-grid > .theme-card .tc-slogan {
+      margin-top: 12px; min-height: 44px;
+      font-size: 12.5px; line-height: 1.8; color: var(--text-sub);
+    }
+    .theme-panel .theme-grid > .theme-card .tc-flag,
+    .theme-section .theme-grid > .theme-card .tc-flag {
       margin-left: auto; display: none;
       font-size: 12px; font-weight: 700; color: #fff;
       background: linear-gradient(135deg, var(--primary), var(--primary-2));
       padding: 3px 10px; border-radius: 999px;
     }
-    .theme-card.is-active .tc-flag { display: inline-block; }
-    .theme-card .tc-slogan {
-      margin-top: 12px; min-height: 44px;
-      font-size: 12.5px; line-height: 1.8; color: var(--text-sub);
-    }
-    .theme-swatches { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 18px; }
-    .theme-swatches i {
+    .theme-panel .theme-grid > .theme-card.is-active .tc-flag,
+    .theme-section .theme-grid > .theme-card.is-active .tc-flag { display: inline-block; }
+    .theme-panel .theme-swatches, .theme-section .theme-swatches { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 18px; }
+    .theme-panel .theme-swatches i, .theme-section .theme-swatches i {
       width: 28px; height: 28px; border-radius: 50%;
       box-shadow: inset 0 0 0 1px rgba(0,0,0,.06);
     }
@@ -623,8 +727,9 @@
 
     @media (max-width: 768px) {
       .theme-panel { padding: 20px 18px 22px; border-radius: var(--radius-lg); }
-      .theme-grid { grid-template-columns: 1fr; gap: 16px; }
-      .theme-card .tc-slogan { min-height: 0; }
+      .theme-panel .theme-grid, #homeThemeGrid, #supHomeThemeGrid { grid-template-columns: 1fr; gap: 16px; }
+      .theme-panel .theme-grid > .theme-card .tc-slogan,
+      .theme-section .theme-grid > .theme-card .tc-slogan { min-height: 0; }
       .theme-section { padding: 18px 16px 20px; }
     }
 
@@ -670,8 +775,61 @@
     [data-theme]:not([data-theme="classic"]) .tier-add,
     [data-theme]:not([data-theme="classic"]) .qual-actions-bar .btn-qa-approve,
     [data-theme]:not([data-theme="classic"]) .qual-actions-bar .btn-qa-reject { border-radius: var(--btn-radius); }
-    [data-theme]:not([data-theme="classic"]) .btn { background: var(--surface-3); }
+    /* 只给「裸 .btn」上浅灰底；带修饰类的按钮（主操作 / 次操作 / 危险操作）保留自身配色。
+       ★ 这里曾经不加排除，把 .btn-orange 等一并刷成 --surface-3（极浅灰），
+         而各端 .btn-orange 写的是 color:#fff —— 浅灰底压白字，按钮直接隐形
+         （用户反馈原话：提交工单我都看不见）。任何一套主题下都不许再出现这种组合。 */
+    [data-theme]:not([data-theme="classic"]) .btn:not(.btn-orange):not(.btn-blue):not(.btn-red):not(.btn-green):not(.btn-gray):not(.btn-primary):not(.btn-ghost):not(.btn-add) { background: var(--surface-3); }
     [data-theme]:not([data-theme="classic"]) .btn:hover { background: var(--surface-2); }
+
+    /* ============ 按钮高对比统一层（三端通用：商家端 / 供应商端 / 开发者端）============
+       使用场景是后厨和收银台：光线杂、人忙、还有老花眼 —— 「提交」「保存」必须一眼能被找到。
+         主操作（提交 / 保存 / 确认） = 实心主色底 + 反差最大的字色
+         次操作（取消 / 关闭）       = 卡片底 + 正文色字 + 描边
+         危险操作（删除 / 驳回）     = 卡片底 + 红字 + 红描边，不抢主操作的视觉重心
+       一律引用主题令牌而非写死色值：换到深色主题时自动变成「深底浅字」，不会退化成浅底浅字。
+       本层带 !important —— 因为历史上各端为了压过主题层写过 (0,6,1) 级别的补丁，
+       普通声明压不住；这是对抗同类 hack，不是滥用。 */
+    html .btn { font-weight: 600; }
+    html .btn-orange,
+    html .btn-add,
+    html .btn-primary {
+      background: var(--primary) !important;
+      border: none !important;
+      color: #fff !important;
+    }
+    html .btn-blue { background: var(--c-blue-600) !important; color: #fff !important; border: none !important; }
+    html .btn-green { background: var(--c-green) !important; color: #fff !important; border: none !important; }
+    html .btn-gray,
+    html .btn-ghost {
+      background: var(--card) !important;
+      color: var(--text) !important;
+      border: 1.5px solid var(--text-sub) !important;
+    }
+    html .btn-red {
+      background: var(--card) !important;
+      color: var(--c-red) !important;
+      border: 1.5px solid var(--c-red) !important;
+    }
+    /* 主色本身偏亮的两套主题（dark 亮橙 #FF9463 / fresh 青绿 #00B8A9）：
+       白字压在亮底上反差不够，换成深色字，比白字更清楚 */
+    html[data-theme="dark"] .btn-orange,
+    html[data-theme="dark"] .btn-add,
+    html[data-theme="dark"] .btn-primary { color: #241004 !important; }
+    /* warm 墨绿：白字压在渐变上，浅端 #177A56 是 5.3:1、深端 #0F5E45 是 8.4:1，正文标准达标，
+       所以这里照常用白字 —— 不像亮金那样非得换深色字。
+       背景给成墨绿渐变 —— 经典版这里是纯色 var(--primary)，渐变正是拉开档次的关键。
+       ★ 松绿饱和度低，大面积铺开也不晃眼，这是它比宝蓝更适合做默认版的原因 */
+    html[data-theme="warm"] .btn-orange,
+    html[data-theme="warm"] .btn-add,
+    html[data-theme="warm"] .btn-primary {
+      background: linear-gradient(135deg, #177A56 0%, #0F5E45 100%) !important;
+      color: #FFFFFF !important;
+      box-shadow: 0 2px 8px rgba(23, 122, 86, .26);
+    }
+    html[data-theme="warm"] .btn-orange:hover,
+    html[data-theme="warm"] .btn-add:hover,
+    html[data-theme="warm"] .btn-primary:hover { box-shadow: 0 6px 18px rgba(23, 122, 86, .34); }
     [data-theme]:not([data-theme="classic"]) .pager button {
       border-color: transparent; background: var(--surface-3); box-shadow: var(--shadow-sm);
     }
@@ -692,7 +850,7 @@
     [data-theme="fresh"] .topbar .hamburger { background: var(--surface-3); color: var(--text); }
     [data-theme="warm"] .topbar .theme-icon-btn,
     [data-theme="fresh"] .topbar .theme-icon-btn { background: var(--surface-3); border-color: transparent; color: var(--text); }
-    [data-theme="warm"] .topbar .logout { background: var(--tint-orange-25); border-color: transparent; color: var(--primary); }
+    [data-theme="warm"] .topbar .logout { background: var(--tint-orange-25); border-color: transparent; color: var(--accent); }
     [data-theme="warm"] .topbar .logout:hover { background: var(--tint-orange-100); }
     [data-theme="fresh"] .topbar .logout { background: var(--tint-orange-25); border-color: transparent; color: #FF7A3D; }
     [data-theme="fresh"] .topbar .logout:hover { background: var(--tint-orange-100); }
@@ -718,7 +876,7 @@
     [data-theme="dark"] .todo-item .num,
     [data-theme="dark"] .money-profit,
     [data-theme="dark"] .btn-link {
-      text-shadow: 0 0 12px rgba(255, 148, 99, .25);
+      text-shadow: 0 0 12px rgba(255, 168, 115, .25);
     }
 
     /* ============ 表格与表单现代样式层（仅 warm/dark/fresh；classic 完全不经过） ============ */
@@ -814,7 +972,7 @@
     [data-theme]:not([data-theme="classic"]) input[type="number"]:focus,
     [data-theme]:not([data-theme="classic"]) input[type="password"]:focus {
       outline: none;
-      border-color: var(--primary);
+      border-color: var(--accent);
       box-shadow: var(--field-focus-shadow);
     }
     /* 4) 按钮：去描边，次要按钮浅灰底（圆角仍是 --btn-radius = 10px） */
@@ -866,7 +1024,7 @@
 
     /* —— 3. 颜色克制：中性状态去彩，只留主色 / 红 / 绿 —— */
     [data-theme]:not([data-theme="classic"]) .stat-card.blue,
-    [data-theme]:not([data-theme="classic"]) .stat-card.teal { border-top-color: var(--primary); }
+    [data-theme]:not([data-theme="classic"]) .stat-card.teal { border-top-color: var(--accent); }
     [data-theme]:not([data-theme="classic"]) .stat-card.blue .value,
     [data-theme]:not([data-theme="classic"]) .stat-card.teal .value { color: var(--num-color); }
     [data-theme]:not([data-theme="classic"]) .badge.s-pending,
@@ -897,7 +1055,7 @@
     [data-theme]:not([data-theme="classic"]) .overdue-tag {
       background: var(--tint-red-100); color: var(--c-red-800);
     }
-    [data-theme]:not([data-theme="classic"]) .money-profit { color: var(--primary); }
+    [data-theme]:not([data-theme="classic"]) .money-profit { color: var(--accent); }
     [data-theme]:not([data-theme="classic"]) .preview-link-btn { background: var(--primary); }
     /* 装饰性彩色底转灰阶：表头/合计/提示条不再用橙黄蓝 */
     [data-theme]:not([data-theme="classic"]) .rebate-card-head,
@@ -941,7 +1099,7 @@
     }
     [data-theme="dark"][data-theme] .btn:not(.btn-primary):hover,
     [data-theme="dark"][data-theme] .pager button:not(:disabled):hover {
-      border-color: var(--primary); color: var(--primary); background: transparent;
+      border-color: var(--accent); color: var(--accent); background: transparent;
     }
     [data-theme="dark"][data-theme] .tier-add { border-style: solid; border-color: var(--border); background: transparent; }
     /* fresh：扁平卡片靠极淡边框勾勒（其他主题 --card-border: none，不画框） */
@@ -999,11 +1157,12 @@
     /* 彩色圆块关掉，改用无底色的线性图标；页面内其余主色按钮一律实心、不用渐变 */
     [data-theme="warm"][data-theme] .stat-ico { display: none; }
     [data-theme="warm"][data-theme] .theme-section-head .t-open,
-    [data-theme="warm"][data-theme] .theme-card .tc-flag { background: var(--primary); }
+    [data-theme="warm"][data-theme] .theme-panel .theme-grid > .theme-card .tc-flag,
+    [data-theme="warm"][data-theme] .theme-section .theme-grid > .theme-card .tc-flag { background: var(--primary); }
     [data-theme="warm"][data-theme] .stat-ico-line {
       display: block; position: absolute; top: 26px; right: 26px;
       width: 36px; height: 36px;
-      color: var(--primary); fill: none; stroke: currentColor; stroke-width: 1.5;
+      color: var(--accent); fill: none; stroke: currentColor; stroke-width: 1.5;
       stroke-linecap: round; stroke-linejoin: round;
     }
 
@@ -1026,9 +1185,9 @@
     [data-theme="dark"][data-theme] .stat-card:first-child { border-left: none; }
     [data-theme="dark"][data-theme] .stat-card .label { font-size: 11px; color: var(--text-muted); margin-bottom: 10px; }
     [data-theme="dark"][data-theme] .stat-card .value {
-      font-size: 30px; color: var(--primary);
+      font-size: 30px; color: var(--accent);
       font-variant-numeric: tabular-nums;
-      text-shadow: 0 0 12px rgba(255, 148, 99, .25);
+      text-shadow: 0 0 12px rgba(255, 168, 115, .25);
     }
     [data-theme="dark"][data-theme] .stat-trend:not(:empty) {
       display: block; margin-top: 8px; font-size: 12px; color: var(--text-faint);
@@ -1047,7 +1206,7 @@
     }
     [data-theme="fresh"][data-theme] .stat-card-merchant { grid-column: 2; grid-row: 1; }
     [data-theme="fresh"][data-theme] .stat-card-supplier { grid-column: 2; grid-row: 2; }
-    [data-theme="fresh"][data-theme] .stat-card .value { color: var(--primary); }
+    [data-theme="fresh"][data-theme] .stat-card .value { color: var(--accent); }
     [data-theme="fresh"][data-theme] .stat-card-amount .value { font-size: 40px; }
     [data-theme="fresh"][data-theme] .stat-card-merchant .value,
     [data-theme="fresh"][data-theme] .stat-card-supplier .value { font-size: 28px; }
@@ -1055,7 +1214,7 @@
       display: flex; align-items: center; justify-content: center; flex-shrink: 0;
       width: 48px; height: 48px; border-radius: 50%;
       font-size: 22px; font-style: normal;
-      background: var(--tint-green-50); color: var(--primary);
+      background: var(--tint-green-50); color: var(--accent);
     }
     [data-theme="fresh"][data-theme] .stat-card-amount .stat-ico { width: 64px; height: 64px; font-size: 28px; }
     @media (max-width: 768px) {
@@ -1101,7 +1260,7 @@
        商家端（admin.html / supplier-dashboard.html）补充
        ① 扩展令牌：商家端多一些橙/琥珀/灰阶色阶，这里补齐，经典版取值 = 原字面值
        ② 表格：商家端用 table.data，与开发者端 .dtable 走同一套形态规范
-       ③ 今日数据统计卡 .home-stat：暖橙厚卡 / 深色整块面板 / 青绿扁平大圆角
+       ③ 今日数据统计卡 .home-stat：松墨绿厚卡 / 深色整块面板 / 青绿扁平大圆角
        ④ 主题入口悬浮按钮 .theme-fab（桌面端无顶栏时使用）
        ⑤ 留白：卡片与按钮组不粘连
        禁止：emoji 贴纸图标、彩色圆形图标块、装饰条、渐变
@@ -1118,39 +1277,43 @@
     [data-theme="warm"] {
       --surface-5: #FAFBFC; --surface-6: #F8F9FB; --surface-7: #F1F3F6; --surface-8: #EFF1F5;
       --border-x: #DDE1E6; --text-dark: #16191D; --c-slate: #6E7787; --c-orange: #EE6C2E;
-      --tint-orange-200: #FBD6B6; --tint-warm-100: #FDF1E9; --tint-warm-200: #FFFBF7; --tint-peach: #FFE9DC;
+      /* 文字用的深橙跟着主色转深金：#A85A00 白底 5.1:1，否则会残留偏红的老橙，和新金橙打架 */
+      --c-orange-deep: #A85A00; --c-orange-dark: #6B3A00;
+      --tint-orange-200: #F7DFAE; --tint-warm-100: #FDF2E4; --tint-warm-200: #FFFBF7; --tint-peach: #FFEFD8;
     }
     [data-theme="dark"] {
-      --surface-5: #1F2833; --surface-6: #1D262F; --surface-7: #232D38; --surface-8: #2B3542;
+      --surface-5: #1F2833; --surface-6: #202B3B; --surface-7: #232D38; --surface-8: #2B3542;
       --border-x: #2A3542; --text-dark: #F0F2F5; --slate-400: #7A8494; --c-slate: #8A94A6;
       --c-orange-deep: #F97316; --c-orange-dark: #FDBA74; --c-orange-mid: #FDBA74; --c-orange-light: #FED7AA;
       --c-amber: #FBBF24; --c-amber-400: #FCD34D; --c-amber-300: #FDE68A; --c-amber-600: #FBBF24;
       --c-amber-900: #FEF3C7; --c-amber-brown: #D6BC8A;
-      --tint-orange-200: rgba(251, 146, 60, .26); --tint-warm-100: rgba(255, 148, 99, .14);
-      --tint-warm-200: rgba(255, 148, 99, .08); --tint-peach: rgba(251, 146, 60, .14);
+      --tint-orange-200: rgba(251, 146, 60, .26); --tint-warm-100: rgba(255, 168, 115, .14);
+      --tint-warm-200: rgba(255, 168, 115, .08); --tint-peach: rgba(251, 146, 60, .14);
       --c-green-500: #4ADE80; --c-blue: #60A5FA;
     }
     [data-theme="fresh"] {
-      --surface-5: #F8FBFA; --surface-6: #F6F9F9; --surface-7: #F0F4F4; --surface-8: #EDF2F1;
-      --border-x: #DEE8E6; --text-dark: #121A19; --c-slate: #6E7775; --c-orange: #FF7A3D;
-      --c-orange-deep: #E06A2E; --c-orange-dark: #8A4B2A;
+      --surface-5: #F2F9F7; --surface-6: #EDF6F3; --surface-7: #E5F0EC; --surface-8: #E0ECE7;
+      --border-x: #CFE2DC; --text-dark: #121A19; --c-slate: #6E7775; --c-orange: #F0743A;
+      --c-orange-deep: #D05F22; --c-orange-dark: #7E4527;
       --tint-orange-200: #FBD9C6; --tint-warm-100: #FDF0EA; --tint-warm-200: #FFFAF8; --tint-peach: #FFE7DC;
     }
 
     /* 主题入口：右上角常驻调色盘（桌面端没有顶栏，用悬浮按钮） */
     /* 悬浮在右下角：避免压住页面标题右侧的操作按钮（刷新 / 新增等） */
+    /* 主题入口在右上角（与开发者端顶栏调色盘同一位置），并随演示横幅高度下移避让 */
     .theme-fab {
-      position: fixed; bottom: 24px; right: 24px; top: auto; left: auto; z-index: 120;
+      position: fixed; top: calc(var(--demo-h, 0px) + 18px); right: 24px; bottom: auto; left: auto;
+      z-index: 200;
       width: 40px; height: 40px; border-radius: 12px;
       display: flex; align-items: center; justify-content: center;
       font-size: 18px; cursor: pointer; font-family: inherit;
       background: var(--card); color: var(--text);
       border: var(--card-border); box-shadow: var(--card-shadow);
-      transition: transform .15s ease;
+      transition: transform .15s ease, box-shadow .15s ease;
     }
-    .theme-fab:hover { transform: translateY(-2px); }
-    /* 移动端抬高一点：避开采购商城底部的结算条（position: fixed; bottom: 0; 高约 62px） */
-    @media (max-width: 768px) { .theme-fab { bottom: 78px; right: 16px; } }
+    .theme-fab:hover { transform: scale(1.06); box-shadow: var(--shadow); }
+    /* 移动端回到右下：避开采购商城底部的结算条（position: fixed; bottom: 0; 高约 62px） */
+    @media (max-width: 768px) { .theme-fab { top: auto; bottom: 78px; right: 16px; } }
 
 
     /* =========================================================================
@@ -1160,7 +1323,7 @@
        禁止：竖线、强对比斑马纹、emoji 图标
        ========================================================================= */
     @media (min-width: 901px) {
-      /* —— 暖橙：行高 52px，1px 极淡横线，表头浅灰 13px，无下边框硬线 —— */
+      /* —— 松墨绿：行高 52px，1px 极淡横线，表头浅灰 13px，无下边框硬线 —— */
       [data-theme="warm"][data-theme] table.data th,
       [data-theme="warm"][data-theme] table.data td {
         padding: 16px; border-bottom: 1px solid rgba(0, 0, 0, .05);
@@ -1172,13 +1335,13 @@
       }
       [data-theme="warm"][data-theme] table.data tbody tr:hover { background: transparent; }
 
-      /* —— 深色：行高 44px，不要横线，靠极小色阶差分行（奇数卡片底 / 偶数 #1D262F）；
+      /* —— 深色：行高 44px，不要横线，靠极小色阶差分行（奇数卡片底 / 偶数 #202B3B）；
              表头 11px 全大写 + 0.8px 字距；悬停整行提亮 + 左侧 2px 主色竖线 —— */
       [data-theme="dark"][data-theme] table.data th,
       [data-theme="dark"][data-theme] table.data td { padding: 0 16px; border-bottom: none; }
       [data-theme="dark"][data-theme] table.data tbody tr { height: 44px; }
       [data-theme="dark"][data-theme] table.data tbody tr:nth-child(odd) { background: var(--card); }
-      [data-theme="dark"][data-theme] table.data tbody tr:nth-child(even) { background: #1D262F; }
+      [data-theme="dark"][data-theme] table.data tbody tr:nth-child(even) { background: #202B3B; }
       [data-theme="dark"][data-theme] table.data tbody tr:hover { background: var(--surface-2); }
       [data-theme="dark"][data-theme] table.data tbody tr:hover td:first-child {
         box-shadow: inset 2px 0 0 var(--primary);
@@ -1225,7 +1388,7 @@
     /* =========================================================================
        商家端输入框 / 下拉框：.form-input / .form-select / .si-input /
        .filter-bar 里的 input 与 select —— 形状由 --field-* 令牌决定
-       暖橙：#F2F4F6 填充、无边框、8px、淡橙光晕
+       松墨绿：#F2F4F6 填充、无边框、8px、淡绿光晕
        深色：#212B36 底、1px #2A3542、6px、等宽字体、主色发光
        青绿：白底、1px #D5E9E7、胶囊 999px、淡青绿光晕
        经典版：不参与
@@ -1250,7 +1413,7 @@
     [data-theme]:not([data-theme="classic"]) .filter-bar input:focus,
     [data-theme]:not([data-theme="classic"]) .filter-bar select:focus {
       outline: none;
-      border-color: var(--primary);
+      border-color: var(--accent);
       box-shadow: var(--field-focus-shadow);
     }
 
@@ -1262,7 +1425,7 @@
        商家端统计卡形态：
        ① 工作台 4 张：.home-stats / .home-stat（<b>数字 / <span>标签 / <em>备注）
        ② 数据统计 / 采购监控：.stat-grid / .stat-card
-       暖橙 = 独立厚卡（左侧 3px 主色竖线、32px 深色数字右对齐）
+       松墨绿 = 独立厚卡（左侧 3px 主色竖线、32px 深色数字右对齐）
        深色 = 合并成一整块仪表盘（竖线分隔 + 顶部主色渐变线 + 数字主色发光等宽）
        青绿 = 左大右小不对称（扁平、大圆角 24/20、极淡边框、留白更多）
        经典版 = 不参与，保持原样
@@ -1272,16 +1435,24 @@
     /* 极简线性图标：四套主题都显示（20px、1.5px 描边、主色、无底色） */
     .home-stat .stat-ico-line,
     .hg-ico {
-      display: block; color: var(--primary);
+      display: block; color: var(--accent);
       fill: none; stroke: currentColor; stroke-width: 1.5;
       stroke-linecap: round; stroke-linejoin: round;
     }
-    .home-stat .stat-ico-line { position: absolute; top: 22px; right: 22px; width: 20px; height: 20px; }
+    /* 图标必须走正常流（顶部、左对齐）。原先这里写的是 position:absolute; top:22px; right:22px，
+       而下面松墨绿/深色/青绿把数字设成 32/30/26px 且 text-align:right —— 大号数字被推到右上角，
+       正好压在绝对定位的图标上。经典版数字是 28px 左对齐，所以只有三套新主题暴露这个重叠。 */
+    .home-stat .stat-ico-line { position: static; width: 22px; height: 22px; margin-bottom: 2px; }
+    /* warm 单独把 .stat-ico-line 绝对定位到右上角 36px（开发者端统计卡要的效果），特异性更高，
+       商家端必须再压一次，否则商家端的统计卡依旧图标压数字。作用域 .admin 不影响开发者端。 */
+    [data-theme]:not([data-theme="classic"]) .admin .stat-ico-line {
+      position: static; top: auto; right: auto; width: 22px; height: 22px; margin-bottom: 2px;
+    }
     .hg-ico { width: 20px; height: 20px; margin: 0 auto 8px; }
     .home-grid-item i { display: none; }
     [data-theme]:not([data-theme="classic"]) .home-stat i { display: none; }
 
-    /* —— 暖橙：四张独立厚卡 —— */
+    /* —— 松墨绿：四张独立厚卡 —— */
     [data-theme="warm"][data-theme] .home-stats,
     [data-theme="warm"][data-theme] .stat-grid { display: grid; gap: 20px; }
     [data-theme="warm"][data-theme] .home-stat,
@@ -1294,12 +1465,15 @@
     [data-theme="warm"][data-theme] .home-stat b,
     [data-theme="warm"][data-theme] .stat-card .value {
       font-size: 32px; font-weight: 800; color: #1F2329;
-      text-align: right; font-variant-numeric: tabular-nums; line-height: 1.15;
+      text-align: left; font-variant-numeric: tabular-nums; line-height: 1.15;
     }
-    [data-theme="warm"][data-theme] .home-stat span,
+    [data-theme="warm"][data-theme] .home-stat > span,
     [data-theme="warm"][data-theme] .stat-card .label {
       font-size: 12px; letter-spacing: .5px; color: var(--text-sub);
     }
+    /* 数字段（.int/.dec 是 span）不许被标签规则殃及：跟 b 本体同字号同色 */
+    [data-theme="warm"][data-theme] .home-stat b .int,
+    [data-theme="warm"][data-theme] .home-stat b .dec { font-size: inherit; color: inherit; letter-spacing: normal; }
     [data-theme="warm"][data-theme] .home-stat em { font-size: 11.5px; font-style: normal; color: var(--text-sub); }
 
     /* —— 深色：四张合并成一整块仪表盘 —— */
@@ -1321,16 +1495,18 @@
     }
     [data-theme="dark"][data-theme] .home-stat:first-child,
     [data-theme="dark"][data-theme] .stat-card:first-child { border-left: none; }
-    [data-theme="dark"][data-theme] .home-stat span,
+    [data-theme="dark"][data-theme] .home-stat > span,
     [data-theme="dark"][data-theme] .stat-card .label {
       font-size: 11px; letter-spacing: .5px; color: var(--text-muted);
     }
+    [data-theme="dark"][data-theme] .home-stat b .int,
+    [data-theme="dark"][data-theme] .home-stat b .dec { font-size: inherit; color: inherit; letter-spacing: normal; }
     [data-theme="dark"][data-theme] .home-stat b,
     [data-theme="dark"][data-theme] .stat-card .value {
       font-size: 30px; font-weight: 800; color: #FF9463;
-      text-align: right; font-variant-numeric: tabular-nums;
+      text-align: left; font-variant-numeric: tabular-nums;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      text-shadow: 0 0 12px rgba(255, 148, 99, .25);
+      text-shadow: 0 0 12px rgba(255, 168, 115, .25);
     }
     [data-theme="dark"][data-theme] .home-stat em { font-size: 11.5px; font-style: normal; color: var(--text-muted); }
 
@@ -1341,35 +1517,39 @@
       }
       [data-theme="fresh"][data-theme] .home-stat:first-child { grid-column: 1; grid-row: span 3; }
       [data-theme="fresh"][data-theme] .home-stat:not(:first-child) { grid-column: 2; }
-      [data-theme="fresh"][data-theme] .stat-grid:not(.proc-stat-grid) {
+      /* 注意：以下统计卡规则只属于商家端（.admin），不带作用域会泄漏到开发者端，
+         把开发者端总览的「订单总额卡」与供应商卡压到同一格，造成总览少显示一个框 */
+      [data-theme="fresh"] .admin .stat-grid:not(.proc-stat-grid) {
         display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px;
       }
-      [data-theme="fresh"][data-theme] .stat-grid:not(.proc-stat-grid) .stat-card:first-child { grid-column: 1; grid-row: span 2; }
-      [data-theme="fresh"][data-theme] .stat-grid:not(.proc-stat-grid) .stat-card:not(:first-child) { grid-column: 2; }
-      [data-theme="fresh"][data-theme] .proc-stat-grid { grid-template-columns: 1fr 1fr; gap: 20px; }
+      [data-theme="fresh"] .admin .stat-grid:not(.proc-stat-grid) .stat-card:first-child { grid-column: 1; grid-row: span 2; }
+      [data-theme="fresh"] .admin .stat-grid:not(.proc-stat-grid) .stat-card:not(:first-child) { grid-column: 2; }
+      [data-theme="fresh"] .admin .proc-stat-grid { grid-template-columns: 1fr 1fr; gap: 20px; }
     }
-    [data-theme="fresh"][data-theme] .home-stat,
-    [data-theme="fresh"][data-theme] .stat-card {
+    [data-theme="fresh"] .admin .home-stat,
+    [data-theme="fresh"] .admin .stat-card {
       box-shadow: none; background: var(--card);
       border: 1px solid #E3EDEC; border-radius: 20px; padding: 20px; gap: 8px;
     }
-    [data-theme="fresh"][data-theme] .home-stat:first-child,
-    [data-theme="fresh"][data-theme] .stat-grid:not(.proc-stat-grid) .stat-card:first-child {
+    [data-theme="fresh"] .admin .home-stat:first-child,
+    [data-theme="fresh"] .admin .stat-grid:not(.proc-stat-grid) .stat-card:first-child {
       border-radius: 24px; padding: 32px;
     }
-    [data-theme="fresh"][data-theme] .home-stat b,
-    [data-theme="fresh"][data-theme] .stat-card .value {
-      font-size: 26px; font-weight: 800; color: var(--primary);
-      text-align: right; font-variant-numeric: tabular-nums;
+    [data-theme="fresh"] .admin .home-stat b,
+    [data-theme="fresh"] .admin .stat-card .value {
+      font-size: 26px; font-weight: 800; color: var(--accent);
+      text-align: left; font-variant-numeric: tabular-nums;
     }
-    [data-theme="fresh"][data-theme] .home-stat:first-child b,
-    [data-theme="fresh"][data-theme] .stat-grid:not(.proc-stat-grid) .stat-card:first-child .value {
+    [data-theme="fresh"] .admin .home-stat:first-child b,
+    [data-theme="fresh"] .admin .stat-grid:not(.proc-stat-grid) .stat-card:first-child .value {
       font-size: 40px;
     }
-    [data-theme="fresh"][data-theme] .home-stat span,
-    [data-theme="fresh"][data-theme] .stat-card .label {
+    [data-theme="fresh"] .admin .home-stat > span,
+    [data-theme="fresh"] .admin .stat-card .label {
       font-size: 12px; letter-spacing: .5px; color: var(--text-sub);
     }
+    [data-theme="fresh"] .admin .home-stat b .int,
+    [data-theme="fresh"] .admin .home-stat b .dec { font-size: inherit; color: inherit; letter-spacing: normal; }
     [data-theme="fresh"][data-theme] .home-stat em { font-size: 11.5px; font-style: normal; color: var(--text-sub); }
 
     /* 商家端留白与按钮形状：不粘连（.admin 前缀避免影响开发者端同名类） */
@@ -1388,4 +1568,916 @@
     [data-theme]:not([data-theme="classic"]) .btn-orange,
     [data-theme]:not([data-theme="classic"]) .btn-green,
     [data-theme]:not([data-theme="classic"]) .btn-gray {
-      border-radius: var(--btn-radius); border: none; 
+      border-radius: var(--btn-radius); border: none;
+    }
+
+    /* ============ 开发者端 warm 松墨绿：总览统计卡对齐 design/warm.png ============
+       作用域 [data-page="dev"]：只有 dev-console.html 的 <html> 带该属性，
+       商家端 / 供应商端不经过这一层；classic 不在 warm 下同样不经过。
+       对齐设计稿要点：去掉左侧 3px 主色竖线，纯白卡 + 柔和阴影；
+       标签深色加粗在上，主色大数字左对齐在下，线性图标右上角。 */
+    [data-page="dev"][data-theme="warm"] .stat-card {
+      border: none;
+      border-radius: var(--radius-card);
+      box-shadow: 0 2px 12px rgba(0, 0, 0, .06);
+      padding: 28px;
+    }
+    [data-page="dev"][data-theme="warm"] .stat-card .label {
+      font-size: 13.5px; font-weight: 600; letter-spacing: 0;
+      color: var(--text); margin-bottom: 14px;
+    }
+    [data-page="dev"][data-theme="warm"] .stat-card .value {
+      text-align: left; font-size: 36px; font-weight: 800;
+      color: var(--accent); line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+    [data-page="dev"][data-theme="warm"] .stat-card .value small { font-size: 18px; font-weight: 600; }
+    [data-page="dev"][data-theme="warm"] .stat-ico-line { top: 28px; right: 28px; }
+
+    /* ============ 开发者端 chrome 形态：四套主题由内到外各不相同 ============
+       作用域 [data-page="dev"]：只作用于 dev-console.html，商家端 / 供应商端 / classic 不经过。
+       --chrome-h = 顶栏高度；侧栏 sticky 与移动端抽屉都以它为基准
+       （原先侧栏写死 top:60px，而新主题顶栏是 64px，侧栏顶部被压掉 4px，这里一并修正）。
+       松墨绿 = 稳重厚实：深墨蓝侧栏(与经典版拉开)、10px 圆角、选中态左侧主色竖线、hover 轻微上浮
+       深色 = 紧凑终端：顶栏与侧栏一体同色、方正 4px 圆角、只变色不位移、过渡更快
+       青绿 = 通透轻快：白侧栏、胶囊选中态、顶栏更高更松、过渡带一点弹性 */
+    [data-page="dev"][data-theme="warm"] { --chrome-h: 64px; }
+    [data-page="dev"][data-theme="dark"] { --chrome-h: 56px; }
+    [data-page="dev"][data-theme="fresh"] { --chrome-h: 68px; }
+    [data-page="dev"][data-theme]:not([data-theme="classic"]) .topbar { height: var(--chrome-h); }
+    [data-page="dev"][data-theme]:not([data-theme="classic"]) .sidebar {
+      top: var(--chrome-h); min-height: calc(100vh - var(--chrome-h));
+    }
+
+    /* —— 松墨绿 —— */
+    [data-page="dev"][data-theme="warm"] .sidebar {
+      width: 236px;
+      /* 走令牌（深墨绿渐变），不写死色值 —— 否则主题令牌改了这里纹丝不动 */
+      background: var(--sidebar-bg);
+      box-shadow: inset 1px 0 0 rgba(255, 255, 255, .06);
+    }
+    [data-page="dev"][data-theme="warm"] .nav-item { border-radius: 14px; padding: 13px 16px; }
+    [data-page="dev"][data-theme="warm"] .nav-item.active {
+      background: var(--sidebar-active-bg);
+      color: var(--sidebar-active-color); font-weight: 700;
+      /* 左竖条换成香槟金：白字主权威，金竖条主贵气 —— 权 + 贵一条选中项全占了 */
+      border-left-color: rgba(212, 162, 76, .85);
+    }
+    [data-page="dev"][data-theme="warm"] .btn,
+    [data-page="dev"][data-theme="warm"] .btn-primary { transition: all .18s ease; }
+    [data-page="dev"][data-theme="warm"] .btn:hover,
+    [data-page="dev"][data-theme="warm"] .btn-primary:hover { transform: translateY(-1px); }
+    [data-page="dev"][data-theme="warm"] .btn-primary:hover { box-shadow: 0 6px 16px rgba(23, 122, 86, .34); }
+
+    /* —— 深色 —— */
+    [data-page="dev"][data-theme="dark"] .topbar,
+    [data-page="dev"][data-theme="dark"] .sidebar {
+      background: #151E2B;
+      box-shadow: inset 0 -1px 0 #232D38;
+    }
+    [data-page="dev"][data-theme="dark"] .sidebar { width: 212px; }
+    [data-page="dev"][data-theme="dark"] .nav-item {
+      border-radius: 4px; padding: 10px 14px; font-size: 13.5px;
+      transition: background .12s linear, color .12s linear;
+    }
+    [data-page="dev"][data-theme="dark"] .nav-item.active {
+      background: transparent; color: var(--accent); font-weight: 700;
+      border-left-color: var(--accent);
+    }
+    [data-page="dev"][data-theme="dark"] .btn,
+    [data-page="dev"][data-theme="dark"] .btn-primary { transition: background .12s linear, color .12s linear; }
+    [data-page="dev"][data-theme="dark"] .btn-primary:hover { opacity: 1; background: rgba(255, 168, 115, .14); }
+
+    /* —— 青绿 —— */
+    [data-page="dev"][data-theme="fresh"] .sidebar { width: 224px; box-shadow: inset -1px 0 0 #EDF2F1; }
+    [data-page="dev"][data-theme="fresh"] .nav-item { border-radius: 999px; padding: 12px 18px; }
+    [data-page="dev"][data-theme="fresh"] .nav-item.active {
+      background: var(--primary); color: #FFFFFF; font-weight: 700;
+      box-shadow: 0 4px 12px rgba(0, 160, 120, .28);
+    }
+    [data-page="dev"][data-theme="fresh"] .btn,
+    [data-page="dev"][data-theme="fresh"] .btn-primary,
+    [data-page="dev"][data-theme="fresh"] .nav-item {
+      transition: all .22s cubic-bezier(.34, 1.4, .64, 1);
+    }
+    [data-page="dev"][data-theme="fresh"] .btn-primary:hover { transform: translateY(-2px); }
+
+    /* ============ 商家端 chrome 人格（.admin 作用域；classic 完全不经过） ============
+       沿用与开发者端同一张「四套主题人格表」。商家端侧栏固定 240px（.main 的
+       margin-left / width 都写死 240px），所以差异做在底色质感、导航形态与手感上，
+       不动宽度以免整页错位。
+       顺带修掉白侧栏（fresh）下的隐性 bug：品牌名、退出按钮、运营工具(.nav-tool)
+       悬停态原本写死 #fff，在白色侧栏上等于隐形。 */
+    [data-theme="warm"] .admin .sidebar {
+      /* 走令牌（深墨绿渐变），不再写死色值 —— 否则主题令牌改了这里纹丝不动 */
+      background: var(--sidebar-bg);
+      box-shadow: inset 1px 0 0 rgba(255, 255, 255, .06);
+    }
+    [data-theme="warm"] .admin .nav-item { border-radius: 14px; }
+    [data-theme="warm"] .admin .nav-item.active {
+      background: var(--sidebar-active-bg); color: var(--sidebar-active-color); border-left-color: rgba(212, 162, 76, .85);
+    }
+    [data-theme="warm"] .admin .nav-item,
+    [data-theme="warm"] .admin .nav-tool { transition: all .18s ease; }
+
+    /* ============ 松墨绿质感增强层（只作用于 warm，经典版完全不经过） ============
+       经典版是「实心橙 + 单层阴影 + 小圆角」的老派界面。松墨绿作为它的进化版，
+       除配色外质感也整体升一档：玻璃高光、双层阴影、墨绿内嵌竖条、悬浮上浮。
+       这些差异【不依赖辨色】—— 色弱也能一眼看出这是两套界面。 */
+
+    /* 1) 白卡：顶部 1px 玻璃高光 + 双层阴影托起（经典版是单层、无高光） */
+    [data-theme="warm"] .card {
+      box-shadow: var(--card-shadow), inset 0 1px 0 rgba(255, 255, 255, .75);
+    }
+
+    /* 2) 统计卡：再加一条松绿内嵌竖条（用 inset 而非 border，才跟得上 22px 大圆角），
+          悬浮时整卡轻轻上浮 —— 数字区是门面，提升质感最划算 */
+    [data-theme="warm"] .stat-card {
+      box-shadow: var(--card-shadow), inset 3px 0 0 var(--primary), inset 0 1px 0 rgba(255, 255, 255, .75);
+      transition: box-shadow .2s ease, transform .2s ease;
+    }
+    [data-theme="warm"] .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 2px 6px rgba(20, 46, 38, .06), 0 18px 40px rgba(20, 46, 38, .11),
+                  inset 3px 0 0 var(--primary), inset 0 1px 0 rgba(255, 255, 255, .75);
+    }
+
+    /* 3) 顶栏：毛玻璃 + 底部渐隐线（经典版是实心白 + 硬阴影） */
+    [data-theme="warm"] .topbar {
+      background: rgba(246, 250, 247, .82);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 1px 0 rgba(20, 46, 38, .06), 0 6px 20px rgba(20, 46, 38, .05);
+    }
+
+    /* 4) 大数字：松绿渐变字（经典版是纯橙实心）。
+          渐变两端 #0F5E45(8.4:1) / #177A56(5.3:1)，大文本标准（≥3:1）绰绰有余；
+          color 保留 --accent 兜底 —— 万一浏览器不支持 background-clip:text，字也不会消失 */
+    @supports (-webkit-background-clip: text) or (background-clip: text) {
+      [data-theme="warm"] .stat-card .value,
+      [data-theme="warm"] .home-stat b {
+        background: linear-gradient(135deg, #0F5E45 0%, #177A56 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+    }
+
+    /* 5) 侧栏顶部一道香槟金线：经典版侧栏是 #0f172a→#020617 的近黑蓝，松墨绿是深墨绿，
+          再压一条金线做品牌记忆点 —— 墨绿 + 金，是这套主题「沉稳高级」的来源。
+          ★ 金只出现在这一条线上和选中文字上，不铺面（铺面就回到金橙那个问题了） */
+    [data-theme="warm"] .sidebar,
+    [data-theme="warm"] .admin .sidebar {
+      box-shadow: inset 0 2px 0 rgba(212, 162, 76, .60), inset 1px 0 0 rgba(255, 255, 255, .06);
+    }
+
+    [data-theme="dark"] .admin .sidebar { background: #151E2B; box-shadow: inset -1px 0 0 #253345; }
+    [data-theme="dark"] .admin .nav-item {
+      border-radius: 4px; padding: 10px 14px;
+      transition: background .12s linear, color .12s linear;
+    }
+    [data-theme="dark"] .admin .nav-item.active {
+      background: transparent; color: var(--accent); border-left-color: var(--accent);
+    }
+    [data-theme="dark"] .admin .nav-tool {
+      border-radius: 4px; transition: background .12s linear, color .12s linear;
+    }
+
+    [data-theme="fresh"] .admin .sidebar { background: #FFFFFF; box-shadow: inset -1px 0 0 #EDF2F1; }
+    [data-theme="fresh"] .admin .nav-item { border-radius: 999px; padding: 12px 18px; }
+    [data-theme="fresh"] .admin .nav-item.active {
+      background: var(--primary); color: #FFFFFF; border-left-color: transparent;
+      box-shadow: 0 4px 12px rgba(0, 160, 120, .28);
+    }
+    [data-theme="fresh"] .admin .nav-tool { border-radius: 999px; }
+    [data-theme="fresh"] .admin .nav-item,
+    [data-theme="fresh"] .admin .nav-tool { transition: all .22s cubic-bezier(.34, 1.4, .64, 1); }
+    /* 白侧栏：把写死的白色/浅灰元素换成本主题的深色/主色。
+       ★ 2026-09-18 用户验收批出的硬 bug：底部「预览点餐页 / 后厨看单 / 大屏展示」
+         用的是基础样式写死的 var(--slate-400)（浅灰，给老的深色侧栏配的），
+         「退出登录」用了 --text-sub、「店铺运营」标题用了 --text-muted ——
+         青绿换成白侧栏后全部变成白底浅灰字，得趴上去看。
+         规矩记住：侧栏换成浅底时，凡写死浅色的元素必须逐个过一遍对比度。 */
+    [data-theme="fresh"] .admin .sidebar .brand { color: var(--text); border-bottom-color: #EDF2F1; }
+    [data-theme="fresh"] .admin .sidebar .logout { background: var(--surface-3); color: var(--text); font-weight: 600; }
+    [data-theme="fresh"] .admin .sidebar .logout:hover { background: var(--tint-green-50); color: #00B8A9; }
+    [data-theme="fresh"] .admin .nav-tool { border-radius: 999px; color: var(--text); }
+    [data-theme="fresh"] .admin .nav-tool:hover { background: var(--tint-green-50); color: #00B8A9; }
+    [data-theme="fresh"] .admin .nav-group-title { color: var(--text-sub); }
+
+    /* ============ 演示模式横幅避让（商家端 / 供应商端 / 开发者端通用） ============
+       /js/demo-banner.js 的横幅是 position:fixed + z-index:99999，它只往 <body> 头部
+       插了一个 36px 垫片——那只对普通流元素有效，管不到 position:fixed 的侧栏、
+       sticky 的移动端顶栏和右上角悬浮按钮，所以这些元素顶部会被横幅直接盖住。
+       脚本会同步给 <html> 打上 data-demo-banner，这里统一用 --demo-h 让它们下移。 */
+    :root { --demo-h: 0px; }
+    html[data-demo-banner] { --demo-h: 36px; }
+    /* 供应商端顶栏是 sticky 高 60px，侧栏本体 top:60px 贴在顶栏下沿。
+       有横幅时只让横幅（top: var(--demo-h) ≈ 36px）会把侧栏顶进顶栏背后被完全盖住 ——
+       侧栏第一项「工作台」因此看不见，露出来的第一项成了「待处理订单」。
+       正确算法：横幅和顶栏都要让。 */
+    /* 顶栏高度不再写死 60px：第 4 批给三套主题各定了 chrome 高度（--sup-chrome 64/56/68），
+       classic 没定义这个变量，回退值 60px 与改造前完全一致，不影响出厂默认。 */
+    html[data-demo-banner] .supplier .sidebar {
+      top: calc(var(--demo-h) + var(--sup-chrome, 60px));
+      height: calc(100vh - var(--demo-h) - var(--sup-chrome, 60px));
+    }
+    /* 商家端有常驻顶栏：避让 = 横幅 + 顶栏，两个都要让。
+       之前这里只让了 --demo-h(36px)，侧栏顶部被顶栏整条压住，
+       第一项「工作台」正好落在顶栏底下 → 点不到，只能先点别的栏目再绕回来。 */
+    html[data-demo-banner] .admin .sidebar {
+      top: calc(var(--demo-h) + var(--chrome-h, 56px));
+      height: calc(100vh - var(--demo-h) - var(--chrome-h, 56px));
+    }
+    html[data-demo-banner] .supplier .main {
+      height: calc(100vh - var(--demo-h) - var(--sup-chrome, 60px));
+    }
+    html[data-demo-banner] .admin .main {
+      height: calc(100vh - var(--demo-h) - var(--chrome-h, 56px));
+    }
+    html[data-demo-banner] .admin .topbar,
+    html[data-demo-banner] .supplier .topbar { top: var(--demo-h); }
+    html[data-demo-banner] .theme-fab { top: calc(var(--demo-h) + 18px); }
+
+    /* ============ 商家端顶部横幅（骨架与外观都对齐开发者端） ============
+       商家端原先桌面没有顶栏：侧栏 fixed top:0、主区 height:100vh 直接顶到屏幕最上沿，
+       主题按钮是个右下角悬浮球——跟开发者端「顶栏 + 侧栏」的骨架完全不是一回事，
+       这也是「怎么看都像那个改乱的版本」的根源。现在 admin.html 补上常驻顶栏，
+       这里负责四套主题的高度与配色人格（沿用开发者端同一套数值）。 */
+    [data-theme="warm"] .admin { --chrome-h: 64px; }
+    [data-theme="dark"] .admin { --chrome-h: 56px; }
+    [data-theme="fresh"] .admin { --chrome-h: 68px; }
+
+    [data-theme]:not([data-theme="classic"]) .admin .topbar {
+      background: var(--sidebar-bg); color: var(--sidebar-color);
+      padding: 0 20px;
+      box-shadow: 0 1px 0 rgba(0, 0, 0, .06), 0 2px 10px rgba(0, 0, 0, .05);
+    }
+    [data-theme]:not([data-theme="classic"]) .admin .topbar .brand { color: var(--sidebar-color); }
+    [data-theme]:not([data-theme="classic"]) .admin .topbar .brand .dot { background: var(--primary); color: #fff; }
+    [data-theme]:not([data-theme="classic"]) .admin .topbar .theme-icon-btn,
+    [data-theme]:not([data-theme="classic"]) .admin .topbar .logout {
+      background: transparent; border-color: var(--border); color: var(--text-sub);
+    }
+    [data-theme]:not([data-theme="classic"]) .admin .topbar .theme-icon-btn:hover,
+    [data-theme]:not([data-theme="classic"]) .admin .topbar .logout:hover {
+      background: var(--tint-orange-25); border-color: transparent; color: var(--accent);
+    }
+    /* ============ 开发者端 · 表格形态差异（人格表第 1 批，2026-09-18）============
+       作用域：[data-page="dev"]（只有 dev-console.html 带该属性）+ 非 classic + 桌面 >=769px
+       （<=768px 已是卡片式流式布局，不参与）。
+       横向阅读一律「悬停定位当前行 + 首列主色细条」，禁止斑马纹。 */
+    [data-page="dev"][data-theme]:not([data-theme="classic"]) .dtable tbody tr:hover td {
+      background: var(--tint-warm-hover);
+    }
+    [data-page="dev"][data-theme]:not([data-theme="classic"]) .dtable tbody tr:hover td:first-child {
+      box-shadow: inset 3px 0 0 var(--primary);
+    }
+    @media (min-width: 769px) {
+      /* —— 松墨绿：宽松 52px 行高 + 1px 极淡横线 —— */
+      [data-page="dev"][data-theme="warm"] .dtable tbody td { border-bottom: 1px solid #F4F5F7; }
+      [data-page="dev"][data-theme="warm"] .dtable tbody tr:last-child td { border-bottom: none; }
+
+      /* —— 深色：行条 2px 间隙、无横线、表头大写 —— */
+      [data-page="dev"][data-theme="dark"] .dtable { border-collapse: separate; border-spacing: 0 2px; }
+      [data-page="dev"][data-theme="dark"] .dtable th,
+      [data-page="dev"][data-theme="dark"] .dtable td { border-bottom: none; }
+      [data-page="dev"][data-theme="dark"] .dtable tbody td { background: var(--surface-2); }
+      [data-page="dev"][data-theme="dark"] .dtable tbody td:first-child { border-radius: 5px 0 0 5px; }
+      [data-page="dev"][data-theme="dark"] .dtable tbody td:last-child { border-radius: 0 5px 5px 0; }
+      [data-page="dev"][data-theme="dark"] .dtable thead th {
+        background: var(--card);
+        box-shadow: inset 0 -1px 0 var(--surface-3);
+        text-transform: uppercase; letter-spacing: .06em; font-size: 11.5px;
+      }
+      [data-page="dev"][data-theme="dark"] .dtable tfoot td { border-top: none; border-radius: 5px; }
+
+      /* —— 青绿：独立圆角条 6px 间隙 56px 行高 —— */
+      [data-page="dev"][data-theme="fresh"] .table-wrap { background: transparent; box-shadow: none; }
+      [data-page="dev"][data-theme="fresh"] .dtable { border-collapse: separate; border-spacing: 0 6px; }
+      [data-page="dev"][data-theme="fresh"] .dtable th,
+      [data-page="dev"][data-theme="fresh"] .dtable td { border-bottom: none; }
+      [data-page="dev"][data-theme="fresh"] .dtable tbody td { background: #FFFFFF; }
+      [data-page="dev"][data-theme="fresh"] .dtable tbody td:first-child { border-radius: 12px 0 0 12px; }
+      [data-page="dev"][data-theme="fresh"] .dtable tbody td:last-child { border-radius: 0 12px 12px 0; }
+      [data-page="dev"][data-theme="fresh"][data-theme] .dtable tbody tr:hover td { background: #EAF6F3; }
+      [data-page="dev"][data-theme="fresh"] .dtable thead th {
+        background: transparent; box-shadow: none; color: var(--text-sub);
+      }
+      [data-page="dev"][data-theme="fresh"] .dtable tfoot td {
+        border-top: none; border-radius: 12px; background: #FFFFFF;
+      }
+    }
+
+    /* ============ 商家端 · 表格形态差异（人格表第 1 批，2026-09-18）============
+       作用域：.admin（只有 admin.html 有这个容器）+ 非 classic + 桌面 >=769px。
+       横向阅读一律「悬停定位当前行 + 首列主色细条」，禁止斑马纹。 */
+    [data-theme]:not([data-theme="classic"]) .admin table.data tbody tr:hover td {
+      background: var(--surface-5);
+    }
+    [data-theme]:not([data-theme="classic"]) .admin table.data tbody tr:hover td:first-child {
+      box-shadow: inset 3px 0 0 var(--primary);
+    }
+    @media (min-width: 769px) {
+      /* —— 松墨绿：宽松 52px + 1px 极淡横线 —— */
+      [data-theme="warm"] .admin table.data tbody tr { height: 52px; }
+      [data-theme="warm"] .admin table.data tbody tr:last-child td { border-bottom: none; }
+
+      /* —— 深色：行条 2px 间隙、无横线、表头大写 —— */
+      [data-theme="dark"] .admin table.data { border-collapse: separate; border-spacing: 0 2px; }
+      [data-theme="dark"] .admin table.data th,
+      [data-theme="dark"] .admin table.data td { border-bottom: none; }
+      [data-theme="dark"] .admin table.data tbody td { background: var(--surface-2); }
+      [data-theme="dark"] .admin table.data tbody td:first-child { border-radius: 5px 0 0 5px; }
+      [data-theme="dark"] .admin table.data tbody td:last-child { border-radius: 0 5px 5px 0; }
+      [data-theme="dark"] .admin table.data thead th {
+        background: var(--card);
+        text-transform: uppercase; letter-spacing: .06em; font-size: 12px;
+      }
+
+      /* —— 青绿：独立圆角条 6px 间隙（淡青条浮在白卡底上） —— */
+      [data-theme="fresh"] .admin table.data { border-collapse: separate; border-spacing: 0 6px; }
+      [data-theme="fresh"] .admin table.data th,
+      [data-theme="fresh"] .admin table.data td { border-bottom: none; }
+      [data-theme="fresh"] .admin table.data tbody td { background: var(--surface-5); }
+      [data-theme="fresh"] .admin table.data tbody td:first-child { border-radius: 12px 0 0 12px; }
+      [data-theme="fresh"] .admin table.data tbody td:last-child { border-radius: 0 12px 12px 0; }
+      [data-theme="fresh"] .admin table.data thead th { background: transparent; color: var(--text-sub); }
+      [data-theme="fresh"][data-theme] .admin table.data tbody tr:hover td { background: var(--surface-7); }
+    }
+
+    /* ============ 供应商端 · 表格形态差异（人格表第 1 批，2026-09-18）============
+       作用域：.supplier（只有 supplier-dashboard.html 的 body 带）+ 非 classic + 桌面 >=769px。
+       横向阅读一律「悬停定位当前行 + 首列主色细条」，禁止斑马纹。
+       注意：.pw-table 是「今日改价」流水线表（天天用、逐行录入），只加悬停定位，
+             不加行条间隙 —— 密集录入表加间隙会降低效率，好用优先于好看。 */
+    [data-theme]:not([data-theme="classic"]) .supplier .order-table th {
+      background: var(--surface-2); color: var(--text-sub);
+    }
+    [data-theme]:not([data-theme="classic"]) .supplier .order-table tbody tr:hover td {
+      background: var(--tint-warm-hover);
+    }
+    [data-theme]:not([data-theme="classic"]) .supplier .order-table tbody tr:hover td:first-child {
+      box-shadow: inset 3px 0 0 var(--primary);
+    }
+    [data-theme]:not([data-theme="classic"]) .supplier .pw-table tbody tr:hover td {
+      background: var(--tint-warm-hover);
+    }
+    [data-theme]:not([data-theme="classic"]) .supplier .pw-table tbody tr:hover td:first-child {
+      box-shadow: inset 3px 0 0 var(--primary);
+    }
+    @media (min-width: 769px) {
+      /* —— 松墨绿：宽松 52px + 1px 极淡横线 —— */
+      [data-theme="warm"] .supplier .order-table tbody tr { height: 52px; }
+      [data-theme="warm"] .supplier .order-table tbody tr:last-child td { border-bottom: none; }
+      [data-theme="warm"] .supplier .order-table th,
+      [data-theme="warm"] .supplier .order-table td { border-bottom-color: var(--surface-3); }
+
+      /* —— 深色：行条 2px 间隙、无横线、表头大写 —— */
+      [data-theme="dark"] .supplier .order-table { border-collapse: separate; border-spacing: 0 2px; }
+      [data-theme="dark"] .supplier .order-table th,
+      [data-theme="dark"] .supplier .order-table td { border-bottom: none; }
+      [data-theme="dark"] .supplier .order-table tbody td { background: var(--surface-2); }
+      [data-theme="dark"] .supplier .order-table tbody td:first-child { border-radius: 5px 0 0 5px; }
+      [data-theme="dark"] .supplier .order-table tbody td:last-child { border-radius: 0 5px 5px 0; }
+      [data-theme="dark"] .supplier .order-table th {
+        background: var(--card);
+        text-transform: uppercase; letter-spacing: .06em; font-size: 11.5px;
+      }
+
+      /* —— 青绿：独立圆角条 6px 间隙 —— */
+      [data-theme="fresh"] .supplier .order-table { border-collapse: separate; border-spacing: 0 6px; }
+      [data-theme="fresh"] .supplier .order-table th,
+      [data-theme="fresh"] .supplier .order-table td { border-bottom: none; }
+      [data-theme="fresh"] .supplier .order-table tbody td { background: var(--surface-5); }
+      [data-theme="fresh"] .supplier .order-table tbody td:first-child { border-radius: 12px 0 0 12px; }
+      [data-theme="fresh"] .supplier .order-table tbody td:last-child { border-radius: 0 12px 12px 0; }
+      [data-theme="fresh"] .supplier .order-table th { background: transparent; color: var(--text-sub); }
+      [data-theme="fresh"][data-theme] .supplier .order-table tbody tr:hover td { background: var(--surface-7); }
+    }
+
+    /* ============ 第 2 批 · 卡片边界语言（供应商端落地，2026-09-20）============
+       人格表「卡片」行：warm 纯白卡+柔和阴影无框 / dark 卡面色+顶部1px内高光 /
+       fresh 极淡1px边框+大圆角。
+       商家端已由「松墨绿质感增强层」+ 令牌层覆盖（.card 走 var(--card)/var(--shadow)）；
+       供应商端内联样式把卡片写死 #fff + 浅阴影，而 theme.css 在内联之前加载，
+       想覆盖必须提权 —— 用 html[data-theme] 前缀（本项目老坑，见 1961 注）。
+       规矩：带状态色条的卡片（order-card / tk-card.urgent / tk-card.intervened）
+       和选中态（tk-sum-card.active）是功能不是装饰，边界语言不能吃掉它们。 */
+    html[data-theme="warm"] .supplier :is(.card, .pw-summary, .pw-group, .order-card, .placeholder, .empty-tip, .tk-card) {
+      box-shadow: var(--card-shadow), inset 0 1px 0 rgba(255, 255, 255, .75);
+    }
+    html[data-theme="dark"] .supplier :is(.card, .pw-summary, .pw-group, .order-card, .placeholder, .empty-tip) {
+      background: var(--card);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+    }
+    html[data-theme="dark"] .supplier .tk-card:not(.intervened) { background: var(--card); }
+    html[data-theme="dark"] .supplier .tk-card { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06); }
+    html[data-theme="fresh"] .supplier :is(.card, .pw-summary, .pw-group, .order-card, .placeholder, .empty-tip, .tk-card, .tk-sum-card) {
+      background: var(--card);
+      border-color: #E6F0EC;                 /* 极淡青绿边框（= fresh 的 --card-border） */
+      box-shadow: var(--card-shadow);        /* 几乎无阴影，靠边框勾勒 */
+      border-radius: var(--radius-card);     /* 20px 大圆角 */
+    }
+    /* 状态色条 / 选中态恢复：上面的 border-color 是三条一起刷的，会把功能色吃掉 */
+    html[data-theme="fresh"] .supplier .order-card { border-left-width: 4px; border-left-color: var(--gray); }
+    html[data-theme="fresh"] .supplier .tk-card.urgent { border-left-width: 4px; border-left-color: #ef4444; }
+    html[data-theme="fresh"] .supplier .tk-card.intervened {
+      border-left-width: 4px; border-left-color: #dc2626; background: rgba(220, 38, 38, .04);
+    }
+    html[data-theme="fresh"] .supplier .tk-sum-card.active {
+      border-color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent);
+    }
+
+    /* ============ 第 3 批 · 按钮圆角 + 手感（三端统一，2026-09-20）============
+       人格表「按钮圆角 / 手感」两行，落到开发者端 + 商家端 + 供应商端（classic 不经过，
+       它的手感由「经典版进化层」负责，避免两套动效打架）。
+       圆角 --btn-radius：classic 9px / warm 胶囊 / dark 6px / fresh 胶囊
+       手感：warm .18s 上浮 1px + 主色光晕 · dark .12s 只变色不位移 · fresh .22s 弹性上浮 2px
+       规矩：只动「真按钮」。标签/徽章（.tk-badge 999px 是标签）、圆形图标钮（.theme-icon-btn）、
+             输入框都不在这批范围里 —— 顺手改会把已验收的控件改坏。
+       提权仍用 html[data-theme] 前缀（老坑：theme.css 加载在各端内联样式之前）。 */
+    html[data-theme]:not([data-theme="classic"]) :is(
+      .btn, .btn-primary, .btn-orange, .btn-green, .btn-gray, .btn-red, .btn-blue,
+      .btn-add, .btn-ghost, .btn-cart, .sup-action, .pager button, .tier-add, .tier-del,
+      .qual-actions-bar .btn-qa-approve, .qual-actions-bar .btn-qa-reject,
+      .tk-btn, .pw-act-btn, .pw-carryall-btn, .gate-btn, .qt-btn, .qual-submit-btn, .agm-agree-btn
+    ) {
+      border-radius: var(--btn-radius);
+      transition: background var(--btn-dur) var(--btn-ease),
+                  color var(--btn-dur) var(--btn-ease),
+                  border-color var(--btn-dur) var(--btn-ease),
+                  box-shadow var(--btn-dur) var(--btn-ease),
+                  transform var(--btn-dur) var(--btn-ease);
+    }
+    /* 悬浮抬升：深色的 --btn-lift 是 0，自然变成「只变色不位移」，不用另写一条 */
+    html[data-theme]:not([data-theme="classic"]) :is(
+      .btn, .btn-primary, .btn-orange, .btn-green, .btn-gray, .btn-red, .btn-blue,
+      .btn-add, .btn-ghost, .btn-cart, .sup-action, .pager button, .tier-add, .tier-del,
+      .qual-actions-bar .btn-qa-approve, .qual-actions-bar .btn-qa-reject,
+      .tk-btn, .pw-act-btn, .pw-carryall-btn, .gate-btn, .qt-btn, .qual-submit-btn, .agm-agree-btn
+    ):hover {
+      transform: translateY(calc(var(--btn-lift) * -1));
+    }
+    /* 主操作按钮多一层光晕（面积小，不刺眼）；深色的 --btn-glow 是透明的，等于不发光 */
+    html[data-theme]:not([data-theme="classic"]) :is(
+      .btn-primary, .btn-orange, .btn-add, .gate-btn, .qt-btn, .qual-submit-btn, .agm-agree-btn
+    ):hover { box-shadow: var(--btn-glow); }
+    /* 按下回落：有反馈，但绝不位移过头 */
+    html[data-theme]:not([data-theme="classic"]) :is(
+      .btn, .btn-primary, .btn-orange, .btn-green, .btn-gray, .btn-red, .btn-blue,
+      .btn-add, .btn-ghost, .btn-cart, .sup-action, .pager button, .tier-add, .tier-del,
+      .tk-btn, .pw-act-btn, .pw-carryall-btn, .gate-btn, .qt-btn, .qual-submit-btn, .agm-agree-btn
+    ):active { transform: translateY(0); }
+
+    /* ============ 深色 · 手机端统计框分隔（2026-09-18）============
+       修复：深色手机端四框上下罗列后连成一片乌黑（桌面是竖线分隔的整块仪表盘，
+       竖排后竖线失效；原 border-top 只有 6% 白，肉眼不可见）。
+       分隔线改为主色渐变细线（中间亮、两端暗），与仪表盘顶部的主色渐变线呼应 ——
+       深色主题的气质就是时尚、科技、年轻化。 */
+    @media (max-width: 768px) {
+      [data-theme="dark"][data-theme] .home-stat,
+      [data-theme="dark"][data-theme] .stat-card {
+        border-left: none; border-top: none; position: relative;
+      }
+      [data-theme="dark"][data-theme] .home-stat + .home-stat::before,
+      [data-theme="dark"][data-theme] .stat-card + .stat-card::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(255, 168, 115, .45), transparent);
+      }
+    }
+
+    /* =========================================================================
+       2026-09-18 第三轮（用户验收反馈）：
+       ① 深色手机端统计框分隔线 → 三端统一（供应商端此前是 6% 白底线，太暗）
+       ② 青绿手机端首框要「明显更大更突出」
+       ③ 界面主题弹窗外观恒定（点开顶栏按钮时面板本身不跟着变）
+       ④ 主题卡「默认」标记样式（三端 render() 已给经典版加 .tc-default —— 出厂默认是经典版）
+       ========================================================================= */
+
+    /* ① 深色 · 手机端：分隔线改主色渐变细线（中间亮两端暗），呼应仪表盘顶部渐变线。
+       提权到三重 [data-theme]：供应商端 supplier-dashboard.html 内联样式里有同权重规则
+       （flex column + 6% 白底线，见该文件 1697-1713），theme.css 在它之前加载，
+       不提权压不过。这是本项目的老坑：公共样式想覆盖端内联，必须加权重。 */
+    @media (max-width: 768px) {
+      [data-theme="dark"][data-theme][data-theme] .home-stat,
+      [data-theme="dark"][data-theme][data-theme] .stat-card {
+        border-left: none; border-top: none; border-bottom: none; position: relative;
+      }
+      [data-theme="dark"][data-theme][data-theme] .home-stat + .home-stat::before,
+      [data-theme="dark"][data-theme][data-theme] .stat-card + .stat-card::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(255, 168, 115, .45), transparent);
+      }
+    }
+
+    /* ② 青绿 · 手机端：四框改单列竖排，第一框放大成主指标，其余三框压成一行横条。
+       ★ 坑（2026-09-18 用户实测「没变大」）：商家端手机默认是 2 列 grid，
+         首框和第二框同处一行、被行高拉平 —— 光加大字号/内边距根本看不出差别。
+         必须先强制单列，再把后面三框的高度收窄成横条，主指标才真的「大」。 */
+    @media (max-width: 768px) {
+      [data-theme="fresh"][data-theme][data-theme] .home-stats,
+      [data-theme="fresh"][data-theme][data-theme] .stat-grid {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 12px;
+      }
+      /* 主指标：厚留白 + 2px 主色描边 + 超大数字，整块高度也顶起来 */
+      [data-theme="fresh"][data-theme][data-theme] .home-stat:first-child,
+      [data-theme="fresh"][data-theme][data-theme] .stat-grid > *:first-child {
+        padding: 26px 22px;
+        min-height: 152px;
+        border: 2px solid var(--primary, #00B8A9);
+        border-radius: 24px;
+        box-shadow: 0 6px 18px rgba(0, 160, 120, .12);
+        justify-content: center;
+      }
+      [data-theme="fresh"][data-theme][data-theme] .home-stat:first-child b,
+      [data-theme="fresh"][data-theme][data-theme] .stat-grid > *:first-child .value {
+        font-size: clamp(34px, 11vw, 46px);
+        line-height: 1.15;
+      }
+      [data-theme="fresh"][data-theme][data-theme] .home-stat:first-child > span,
+      [data-theme="fresh"][data-theme][data-theme] .stat-grid > *:first-child .label {
+        font-size: 13.5px; font-weight: 700;
+        color: var(--primary, #00B8A9);
+      }
+      /* 其余三框：压成横条 —— 标签在左、数字在右，上下高度收到最窄 */
+      [data-theme="fresh"][data-theme][data-theme] .home-stat:not(:first-child) {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        gap: 10px;
+        min-height: 0;
+      }
+      [data-theme="fresh"][data-theme][data-theme] .home-stat:not(:first-child) span {
+        order: 1; font-size: 13px;
+      }
+      [data-theme="fresh"][data-theme][data-theme] .home-stat:not(:first-child) b {
+        order: 2; font-size: 20px;
+      }
+      [data-theme="fresh"][data-theme][data-theme] .home-stat:not(:first-child) em { display: none; }
+      [data-theme="fresh"][data-theme][data-theme] .stat-grid > *:not(:first-child) { padding: 12px 16px; }
+      [data-theme="fresh"][data-theme][data-theme] .stat-grid > *:not(:first-child) .value { font-size: 20px; }
+    }
+
+    /* ③ 界面主题弹窗：外观恒定，不随当前主题变化。
+       做法：在弹窗根元素上把主题变量整体重定义为「经典版（出厂默认）」的取值 ——
+       弹窗内部所有 var() 因此恒定，切主题时面板自身纹丝不动。
+       页面内的「界面主题」区块（.theme-section）不在弹窗内，仍跟着主题变。
+       这正是用户要的：该变的变，选主题的那块面板不变。 */
+    .theme-modal {
+      --bg: #F7F8FA; --card: #FFFFFF;
+      --text: #1F2329; --text-2: #1F2329;
+      --text-sub: #6B7280; --text-muted: #9CA3AF; --text-faint: #B0B6BD;
+      --border: #EBEDF0; --line: #EBEDF0;
+      --surface-2: #FAFBFC; --surface-3: #F3F4F6;
+      /* 跟随「经典版（出厂默认）」的取值：橙图形色 + 橙文字色，这里不随当前主题变化 */
+      --primary: #FF6B35; --accent: #FF6B35; --accent-2: #FF8E53;
+      --tint-warm-50: #FFF8F3; --tint-warm-hover: #FFFAF6;
+      --tint-orange-100: #FFEDD5; --tint-head-hover: #EEF2F7;
+      --shadow: 0 4px 16px rgba(0, 0, 0, .08);
+      --card-shadow: 0 4px 16px rgba(0, 0, 0, .08);
+      --card-border: 1px solid #EBEDF0;
+      --radius: 10px; --radius-lg: 16px; --radius-card: 16px; --btn-radius: 10px;
+    }
+
+    /* ④ 「默认」标记：跟着主题名右侧，告诉用户经典版才是出厂默认 */
+    .theme-panel .theme-grid > .theme-card .tc-default,
+    .theme-section .theme-grid > .theme-card .tc-default {
+      font-size: 11px; font-weight: 600; line-height: 1;
+      padding: 3px 7px; border-radius: 6px; white-space: nowrap;
+      background: var(--tint-orange-100, #FFE8DA);
+      color: var(--primary, #FF7A3D);
+    }
+
+    /* ========================================================================
+       经典版进化层（出厂默认）—— 形态不动，只补质感
+       ------------------------------------------------------------------------
+       老板定调：经典版要当默认，但不能停在过去，得和其它三套一样高级、精致、有手感。
+       铁律：骨架一个像素都不改 —— 配色、圆角、间距、卡片尺寸、表格行高全部原样。
+       补的是其它三套主题已经有、经典版还缺的那层东西：
+         ① 阴影分层（近距实影 + 远距柔影）：白卡从「贴上去的纸」变成「浮起来的卡」；
+         ② 微交互（按钮 / 卡片 / 侧栏项的悬浮与按下反馈）：手感；
+         ③ 侧栏顶部一道香槟金细线 + 选中项内高光：权威 + 记忆点（金只在这一条线上）；
+         ④ 顶栏渐隐线、输入控件聚焦过渡：界面不断层、操作有回应；
+         ⑤ 侧栏分组标题提亮一档：原来沿用正文灰压在近黑侧栏上偏暗，权威但不能糊。
+       ★ 只用 box-shadow / transition / 悬浮 transform —— 不动宽高、不动配色、不动布局。
+       ======================================================================== */
+    html[data-theme="classic"] {
+      --shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 8px 24px rgba(15, 23, 42, .06);
+      --shadow-lg: 0 4px 10px rgba(15, 23, 42, .06), 0 20px 48px rgba(15, 23, 42, .12);
+      --card-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 10px 28px rgba(15, 23, 42, .07);
+      --sidebar-tip-color: #94A3B8;
+    }
+
+    /* ① 卡片：分层阴影 + 顶沿内高光（玻璃质感），悬浮轻轻上浮 */
+    html[data-theme="classic"] .stat-card,
+    html[data-theme="classic"] .home-stat {
+      box-shadow: var(--card-shadow), inset 0 1px 0 rgba(255, 255, 255, .75);
+      transition: box-shadow .2s ease, transform .2s ease;
+    }
+    html[data-theme="classic"] .stat-card:hover,
+    html[data-theme="classic"] .home-stat:hover { transform: translateY(-2px); }
+
+    /* ② 按钮手感：悬浮上浮 + 主色光晕（光晕是小面积，不刺眼），按下回落 */
+    html[data-theme="classic"] .btn,
+    html[data-theme="classic"] .btn-primary,
+    html[data-theme="classic"] .btn-orange,
+    html[data-theme="classic"] .btn-add { transition: all .18s ease; }
+    html[data-theme="classic"] .btn-primary:hover,
+    html[data-theme="classic"] .btn-orange:hover,
+    html[data-theme="classic"] .btn-add:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(255, 107, 53, .30);
+    }
+    html[data-theme="classic"] .btn-primary:active,
+    html[data-theme="classic"] .btn-orange:active,
+    html[data-theme="classic"] .btn-add:active { transform: translateY(0); filter: brightness(.97); }
+
+    /* ③ 侧栏：顶部一道香槟金线做品牌记忆点 + 右侧 1px 微光，把侧栏和内容区干净切开 */
+    html[data-theme="classic"] .sidebar,
+    html[data-theme="classic"] .admin .sidebar {
+      box-shadow: inset 0 2px 0 rgba(212, 162, 76, .55), inset 1px 0 0 rgba(255, 255, 255, .06);
+    }
+    html[data-theme="classic"] .nav-item { transition: background .18s ease, color .18s ease; }
+    html[data-theme="classic"] .nav-item.active { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .10); }
+
+    /* ④ 顶栏渐隐线 + 输入控件聚焦过渡 */
+    html[data-theme="classic"] .topbar { box-shadow: 0 1px 0 rgba(15, 23, 42, .06), 0 6px 18px rgba(15, 23, 42, .05); }
+    html[data-theme="classic"] input,
+    html[data-theme="classic"] select,
+    html[data-theme="classic"] textarea { transition: box-shadow .18s ease, border-color .18s ease; }
+
+    /* ========================================================================
+       第 4 批 · 供应商端整体人格化（2026-09-20 一次做完）
+       ------------------------------------------------------------------------
+       此前供应商端只落了「表格形态（第 1 批）+ 卡片边界（第 2 批）+ 按钮（第 3 批）」，
+       而 chrome（顶栏/侧栏）、导航选中、容器底色、间距节奏、手感这五个维度还是经典版的形，
+       换主题只是换色 —— 换皮不换人。这一段按人格表把这五维在三套主题下全部拉开。
+
+       作用域：.supplier（只有 supplier-dashboard.html 的 body 带）+ 非 classic；
+       classic 完全不经过（它是出厂默认，形态由上面的「经典版进化层」负责）。
+       提权：html[data-theme] 前缀 —— theme.css 在本页内联 <style> 之前加载，不提权压不住。
+       回退：整段注释掉即回到「换皮不换人」的旧状态。
+       ======================================================================== */
+
+    /* —— 0. chrome 高度：松墨绿 64 / 深色 56 / 青绿 68（同步顶栏、侧栏、主区三处） —— */
+    html[data-theme="warm"] .supplier { --sup-chrome: 64px; --sup-gap: 20px; --sup-pad: 28px; }
+    html[data-theme="dark"] .supplier { --sup-chrome: 56px; --sup-gap: 14px; --sup-pad: 20px; }
+    html[data-theme="fresh"] .supplier { --sup-chrome: 68px; --sup-gap: 28px; --sup-pad: 36px; }
+    html[data-theme]:not([data-theme="classic"]) .supplier .topbar { height: var(--sup-chrome); }
+    html[data-theme]:not([data-theme="classic"]) .supplier .sidebar {
+      top: var(--sup-chrome); height: calc(100vh - var(--sup-chrome));
+    }
+    html[data-theme]:not([data-theme="classic"]) .supplier .main {
+      height: calc(100vh - var(--sup-chrome));
+    }
+    @media (max-width: 768px) {
+      /* 手机抽屉同样跟着 chrome 高度走（内联里写死的是 60px） */
+      html[data-theme]:not([data-theme="classic"]) .supplier .sidebar {
+        top: var(--sup-chrome); height: calc(100vh - var(--sup-chrome));
+        min-height: calc(100vh - var(--sup-chrome));
+      }
+    }
+
+    /* —— 1. 松墨绿：白顶栏 + 深墨蓝侧栏，导航 10px 圆角 + 左侧主色竖线 —— */
+    html[data-theme="warm"] .supplier { --sidebar-bg: #1A212C; }
+    html[data-theme="warm"] .supplier .topbar {
+      background: var(--card); color: var(--text); box-shadow: 0 2px 12px rgba(0, 0, 0, .05);
+    }
+    html[data-theme="warm"] .supplier .topbar .brand,
+    html[data-theme="warm"] .supplier .topbar .who { color: var(--text); }
+    html[data-theme="warm"] .supplier .topbar .who span { color: var(--accent); }
+    html[data-theme="warm"] .supplier .topbar .hamburger { background: var(--surface-3); color: var(--text); }
+    html[data-theme="warm"] .supplier .topbar .logout {
+      background: rgba(23, 122, 86, .10); border-color: transparent; color: var(--accent);
+    }
+    html[data-theme="warm"] .supplier .topbar .logout.is-back {
+      background: var(--surface-3); border-color: transparent; color: var(--text);
+    }
+    html[data-theme="warm"] .supplier .sidebar {
+      background: linear-gradient(180deg, #242C3A 0%, #1A212C 100%);
+    }
+    html[data-theme="warm"] .supplier .nav-item {
+      border-radius: 10px; transition: all var(--btn-dur) var(--btn-ease);
+    }
+    html[data-theme="warm"] .supplier .nav-item:hover { background: rgba(255, 255, 255, .06); color: #fff; }
+    html[data-theme="warm"] .supplier .nav-item.active {
+      background: rgba(23, 122, 86, .18); border-left: 3px solid var(--accent);
+      color: #fff; font-weight: 600;
+    }
+    html[data-theme="warm"] .supplier .home-hero {
+      background: linear-gradient(120deg, #177A56 0%, #1E9E70 60%, #35B98A 100%);
+    }
+
+    /* —— 2. 深色：顶栏侧栏一体 #131A22，导航方正 4px + 主色字 + 左侧竖线 —— */
+    html[data-theme="dark"] .supplier { --sidebar-bg: #131A22; }
+    html[data-theme="dark"] .supplier .topbar,
+    html[data-theme="dark"] .supplier .sidebar { background: #131A22; }
+    html[data-theme="dark"] .supplier .nav-item { border-radius: 4px; }
+    html[data-theme="dark"] .supplier .nav-item.active {
+      background: transparent; border-left: 3px solid var(--accent);
+      color: var(--accent); font-weight: 600;
+    }
+    html[data-theme="dark"] .supplier .home-hero {
+      background: linear-gradient(120deg, #182029 0%, #202B3B 60%, #2A3542 100%);
+    }
+
+    /* —— 3. 青绿：白顶栏 + 纯白侧栏，导航胶囊 + 淡青底 —— */
+    html[data-theme="fresh"] .supplier { --sidebar-bg: #FFFFFF; }
+    html[data-theme="fresh"] .supplier .topbar {
+      background: var(--card); color: var(--text); box-shadow: 0 2px 12px rgba(0, 0, 0, .05);
+    }
+    html[data-theme="fresh"] .supplier .topbar .brand,
+    html[data-theme="fresh"] .supplier .topbar .who { color: var(--text); }
+    html[data-theme="fresh"] .supplier .topbar .who span { color: var(--accent); }
+    html[data-theme="fresh"] .supplier .topbar .hamburger { background: var(--surface-3); color: var(--text); }
+    html[data-theme="fresh"] .supplier .topbar .logout {
+      background: rgba(0, 184, 169, .10); border-color: transparent; color: var(--accent);
+    }
+    html[data-theme="fresh"] .supplier .topbar .logout.is-back {
+      background: var(--surface-3); border-color: transparent; color: var(--text);
+    }
+    html[data-theme="fresh"] .supplier .sidebar {
+      background: #fff; color: var(--text); box-shadow: 1px 0 0 var(--line);
+    }
+    /* 白侧栏下原来那套灰白字（#cbd5e1 / #94a3b8）会淡到看不见，这里全部换成主题字色 */
+    html[data-theme="fresh"] .supplier .nav-item {
+      color: var(--text-sub); border-radius: 999px;
+      transition: all var(--btn-dur) var(--btn-ease);
+    }
+    html[data-theme="fresh"] .supplier .nav-item:hover { background: var(--surface-3); color: var(--text); }
+    html[data-theme="fresh"] .supplier .nav-item.active {
+      background: rgba(0, 184, 169, .12); border-left-color: transparent;
+      color: var(--accent); font-weight: 600;
+    }
+    html[data-theme="fresh"] .supplier .nav-group-title,
+    html[data-theme="fresh"] .supplier .nav-tip { color: var(--text-sub); }
+    html[data-theme="fresh"] .supplier .nav-divider { background: var(--line); }
+    html[data-theme="fresh"] .supplier .sidebar .nav-item.nav-logout { background: #fff; }
+    html[data-theme="fresh"] .supplier .home-hero {
+      background: linear-gradient(120deg, #00B8A9 0%, #34C9BC 60%, #7FDCD3 100%);
+    }
+
+    /* —— 4. 容器：本页内联把十几处容器写死 #fff，深色下就是一堆白块 —— */
+    html[data-theme]:not([data-theme="classic"]) .supplier :is(
+      .card, .settings-card, .placeholder, .empty-tip, .modal-box, .alert-box,
+      .gate-card, .home-stat, .stat-card, .order-card, .qual-status-card
+    ) {
+      background: var(--card); color: var(--text);
+      border-radius: var(--radius-card, 16px);
+    }
+    /* .table-wrap 单独放桌面端：手机端本页已把它改成 transparent（表格转卡片式），
+       这里跟着刷底色就会在手机上顶出一块多余的板 */
+    @media (min-width: 769px) {
+      html[data-theme]:not([data-theme="classic"]) .supplier .table-wrap {
+        background: var(--card); color: var(--text); border-radius: var(--radius-card, 16px);
+      }
+    }
+    html[data-theme="warm"] .supplier :is(
+      .card, .settings-card, .placeholder, .empty-tip, .modal-box, .alert-box,
+      .gate-card, .home-stat, .stat-card, .order-card, .qual-status-card
+    ) { box-shadow: var(--card-shadow); }
+    html[data-theme="dark"] .supplier :is(
+      .card, .settings-card, .placeholder, .empty-tip, .modal-box, .alert-box,
+      .gate-card, .home-stat, .stat-card, .order-card, .qual-status-card
+    ) {
+      border: 1px solid var(--line, #2A3542);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05);
+    }
+    html[data-theme="fresh"] .supplier :is(
+      .card, .settings-card, .placeholder, .empty-tip, .modal-box, .alert-box,
+      .gate-card, .home-stat, .stat-card, .order-card, .qual-status-card
+    ) { border: 1px solid #E6F0EC; }
+    /* 容器换底后，里面写死的深灰字（#1f2937 / #111827 / #475569）会跟着隐形 —— 统一回主题正文色。
+       状态色（红黄绿 chip）各自带类名有独立配色，不在这一批里动。 */
+    html[data-theme="dark"] .supplier :is(
+      .pane-title, .sub-title, .section-title, .card-head h3, .pw-group-title,
+      .setting-row label, .empty-tip, .placeholder, .qual-status-card,
+      .gate-card, .modal-box, .alert-box
+    ) { color: var(--text); }
+
+    /* —— 5. 间距节奏：松墨绿 20 / 深色 14 / 青绿 28 —— */
+    html[data-theme]:not([data-theme="classic"]) .supplier .main { padding: var(--sup-pad); }
+    html[data-theme]:not([data-theme="classic"]) .supplier .order-list { gap: var(--sup-gap); }
+    html[data-theme]:not([data-theme="classic"]) .supplier .home-cols { gap: var(--sup-gap); }
+    @media (max-width: 768px) {
+      html[data-theme]:not([data-theme="classic"]) .supplier .main { padding: 14px; }
+    }
+
+    /* —— 6. 手感：松墨绿 .18s 上浮 1px / 深色 .12s 只变色 / 青绿 .22s 弹性上浮 2px —— */
+    html[data-theme]:not([data-theme="classic"]) .supplier :is(
+      .card, .order-card, .stat-card, .home-stat
+    ) {
+      transition: transform var(--btn-dur) var(--btn-ease),
+                  box-shadow var(--btn-dur) var(--btn-ease),
+                  background var(--btn-dur) var(--btn-ease);
+    }
+    html[data-theme="warm"] .supplier :is(.card, .order-card, .stat-card, .home-stat):hover {
+      transform: translateY(-1px);
+    }
+    html[data-theme="fresh"] .supplier :is(.card, .order-card, .stat-card, .home-stat):hover {
+      transform: translateY(-2px);
+    }
+    /* 深色：只变色不位移（紧凑终端，不要弹跳） */
+    html[data-theme="dark"] .supplier :is(.card, .order-card, .stat-card, .home-stat):hover {
+      background: var(--surface-2);
+    }
+
+    /* ============ 第 4 批 · 供应商端整体人格化（2026-09-20）============
+       前面几批已经把「骨架」做完：chrome 高度 / 顶栏侧栏 / 导航选中 / 表格形态 /
+       卡片边界 / 按钮圆角手感。这一批补的是**整体感**—— 那些还裸奔在人格体系外的零件：
+       A 换底：内联把十几处容器写死 #fff，深色下就是一堆白块（最伤整体感）；
+       B 统计卡形态：首页四张卡在四套主题下长得不一样（结构级差异，不只是换色）；
+       C 间距节奏与侧栏分组标题等收尾零件。
+       规矩（沿用前几批，别破）：
+       · 作用域 .supplier + html[data-theme] 前缀提权（theme.css 先于本页内联加载，不提权压不住）；
+       · classic 完全不经过（出厂默认，形态由「经典版进化层」负责，两套动效不打架）；
+       · 功能色不吃掉：状态条（.tk-card.urgent / .tk-card.intervened / .order-card 左侧色条）、
+         选中态（.tk-sum-card.active）、小票（.receipt 模拟打印小票，本来就该是白的）一律不动；
+       · 好用优先：布局差异只在桌面做，手机端维持内联已调好的 2×2 / 竖排方案。
+       回退：整段注释掉即回到「骨架有人格、零件没跟上」的上一状态。
+       ======================================================================== */
+
+    /* —— A. 换底：把还在裸奔的白块收进主题 ——
+       这些容器内联写死 #fff：报表头 / 档位卡 / 新手任务卡 / 资质上传格 / 协议正文 /
+       协议弹窗 / 分拣单 / 配送卡 / 首页待办 / 工单汇总。深色下全是刺眼白块。 */
+    html[data-theme]:not([data-theme="classic"]) .supplier :is(
+      .report-hero, .tier-progress-card, .ob-card, .qual-tile, .agreement-text,
+      .agm-modal, .agm-body, .sort-order, .deliver-card, .home-todo-item, .tk-summary
+    ) {
+      background: var(--card); color: var(--text); border-color: var(--line);
+    }
+    /* 资质上传格是虚线框、待办条目是细边框 —— 只换线的颜色，不换线型 */
+    html[data-theme]:not([data-theme="classic"]) .supplier .qual-tile { border-style: dashed; }
+
+    /* 三套各自的边界语言（与第 2 批卡片同一套：warm 阴影无框 / dark 内高光 / fresh 极淡边框） */
+    html[data-theme="warm"] .supplier :is(
+      .report-hero, .tier-progress-card, .ob-card, .sort-order, .deliver-card,
+      .home-todo-item, .tk-summary, .qual-tile
+    ) {
+      box-shadow: var(--card-shadow), inset 0 1px 0 rgba(255, 255, 255, .75);
+    }
+    html[data-theme="dark"] .supplier :is(
+      .report-hero, .tier-progress-card, .ob-card, .sort-order, .deliver-card,
+      .home-todo-item, .tk-summary, .qual-tile
+    ) {
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+    }
+    html[data-theme="fresh"] .supplier :is(
+      .report-hero, .tier-progress-card, .ob-card, .sort-order, .deliver-card,
+      .home-todo-item, .tk-summary, .qual-tile
+    ) {
+      border-color: #E6F0EC; border-radius: var(--radius-card);
+    }
+    /* 深色下标签/副标题的浅灰（#6b7280）会淡到看不见，回主题字色 */
+    html[data-theme="dark"] .supplier :is(.home-stat > span, .stat-card .label) { color: var(--text-sub); }
+
+    /* —— B. 统计卡形态：四套长得不一样（只动桌面，手机端沿用内联方案） —— */
+    @media (min-width: 901px) {
+      /* 松墨绿：纯白卡 + 柔和阴影、无边框（人格表「卡片」行），间距 20 */
+      html[data-theme="warm"] .supplier .home-stats { gap: 20px; }
+      html[data-theme="warm"] .supplier .home-stat {
+        border: none; box-shadow: var(--card-shadow); padding: 20px;
+      }
+
+      /* 深色：四张并成一整块仪表盘，1px 分隔线（与商家端同一形态） */
+      html[data-theme="dark"] .supplier .home-stats {
+        display: flex; gap: 0; background: var(--card);
+        border-radius: var(--radius-card); overflow: hidden;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), var(--card-shadow);
+      }
+      html[data-theme="dark"] .supplier .home-stat {
+        flex: 1; min-width: 0; padding: 20px 24px; border-radius: 0;
+        background: transparent; box-shadow: none;
+        border: none; border-left: 1px solid rgba(255, 255, 255, .06);
+      }
+      html[data-theme="dark"] .supplier .home-stat:first-child { border-left: none; }
+      /* 已经并成一整块了，再上浮就露馅 —— 深色只变色，不位移 */
+      html[data-theme="dark"] .supplier .home-stat:hover {
+        transform: none; background: var(--surface-2);
+      }
+
+      /* 青绿：首卡放大作主指标（占 2/3 宽），其余三张均分两行 */
+      html[data-theme="fresh"] .supplier .home-stats {
+        grid-template-columns: repeat(3, 1fr); gap: 28px;
+      }
+      html[data-theme="fresh"] .supplier .home-stat:first-child {
+        grid-column: span 2; padding: 28px 30px;
+        border: 2px solid var(--primary); border-radius: var(--radius-card);
+      }
+    }
+
+    /* —— C. 间距节奏 / 侧栏分组标题等收尾零件 —— */
+    /* 相邻卡片才补间距：只加在「卡片 + 卡片」之间，避免给唯一一张卡加出多余空白 */
+    html[data-theme]:not([data-theme="classic"]) .supplier .card + .card { margin-top: var(--sup-gap); }
+    html[data-theme="warm"] .supplier .card-head { padding: 18px 22px; }
+    html[data-theme="dark"] .supplier .card-head { padding: 14px 18px; border-bottom-color: var(--line); }
+    html[data-theme="fresh"] .supplier .card-head { padding: 22px 26px; border-bottom-color: #E6F0EC; }
+    /* 侧栏分组标题在两套深色侧栏上提亮一档（经典版进化层同样处理过，口径拉齐） */
+    html[data-theme="warm"] .supplier :is(.nav-group-title, .nav-tip) { color: #9AA6B5; }
+    html[data-theme="warm"] .supplier .nav-divider { background: rgba(255, 255, 255, .10); }
+    html[data-theme="dark"] .supplier :is(.nav-group-title, .nav-tip) { color: var(--text-muted); }
+    html[data-theme="dark"] .supplier .nav-divider { background: rgba(255, 255, 255, .08); }

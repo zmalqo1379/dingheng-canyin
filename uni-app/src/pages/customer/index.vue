@@ -1,5 +1,5 @@
 <template>
-  <view class="customer">
+  <view class="customer" :class="themeClass">
     <!-- 顶部店铺信息 -->
     <view class="header">
       <view class="shop-name">{{ shopName || '鼎恒餐饮' }}</view>
@@ -177,6 +177,10 @@ import { ref, computed } from 'vue';
 import { onLoad, onPullDownRefresh, onShow } from '@dcloudio/uni-app';
 import { get, post } from '@/utils/request.js';
 import { getCart, setCart, clearCart, addPendingOrder, syncPendingOrders } from '@/utils/cart.js';
+// 界面主题：顾客扫码进来的这页也跟着本机主题走（换肤见 src/utils/theme.js）
+import { useThemeClass } from '@/utils/theme.js';
+
+const themeClass = useThemeClass();
 
 // 页面参数：扫码进入 pages/customer/index?tableId=5&shopId=xxx
 const tableId = ref('');

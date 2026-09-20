@@ -183,6 +183,36 @@ const purchaseOrderSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
+  // ============ 券成本倒贴记账（平台补供应商）============
+  // 场景：顾客卡着满减线用大额券时，券抵扣可能把「加价空间」吃光还不够，
+  //       顾客实付 < 供货价 → 供应商这单少收。微信分账最多只能分顾客实付那么多，
+  //       少收的差额进不了分账指令，只能由平台在支付链路之外补给供应商。
+  // 口径：平台倒贴额 = 供应商应收供货价(supplyAmount) − 供应商实收(supplierShare + 过秤补差)
+  // 用途：三端对账留痕（商家端看实付、供应商端看少收、平台端看欠谁多少），
+  //       补给方式为线下/后期冲抵，不占用下单流程、不影响顾客体验。
+  subsidyAmount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  // 补差状态：无（正常单）/ 待补（平台欠供应商，还没补）/ 已补（平台已补给供应商）
+  subsidyStatus: {
+    type: String,
+    enum: ['无', '待补', '已补'],
+    default: '无',
+    index: true
+  },
+  // 平台标记已补的时间（正规流程留痕）
+  subsidySettledAt: {
+    type: Date,
+    default: null
+  },
+  // 补差备注（如：线下对公转账 2026-09-20 / 下期分账冲抵）
+  subsidyNote: {
+    type: String,
+    default: '',
+    trim: true
+  },
   // ============ 云分账：状态机 ============
   // 待分账 →（发起）已发起分账 →（成功）分账成功
   //                        ↘（失败）分账失败 → 重试（splitRetryCount ++）

@@ -36,8 +36,12 @@ const storedValueRouter = require('./routes/storedValue');
 const customerPointsRouter = require('./routes/customerPoints');
 const procurementMonitorRouter = require('./routes/procurementMonitor');
 const supplierPriceRouter = require('./routes/supplierPrice');
+const serviceTicketsRouter = require('./routes/serviceTickets');
 const smartReplenishRouter = require('./routes/smartReplenish');
 const bomRouter = require('./routes/bom');
+const purchaseBrainRouter = require('./routes/purchaseBrain');
+// 拍照上传商品 / 拍照上传菜单：图片或粘贴文字 → 结构化清单（供应商/商家两端共用一套识别服务）
+const aiRouter = require('./routes/ai');
 const { getPointConfig, settlePointsForOrder, isValidPhone } = customerPointsRouter;
 const Admin = require('./models/Admin');
 const { startDhCron } = require('./utils/dhCron');
@@ -547,6 +551,57 @@ app.post('/api/admin/dishes', requireMerchant, async (req, res) => {
       shopId: req.shopId
     });
     res.status(201).json({ success: true, data: dish });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 批量新增菜品（拍照上传菜单 / 粘贴文字后一键新增）
+// 一份纸质菜单几十道菜，一道一道点"新增"太折磨人。识别完在这里一次性落库。
+// 同名菜品自动跳过不报错；价格或分类没填的单独列出来，前端留在表里让他补。
+app.post('/api/admin/dishes/batch', requireMerchant, async (req, res) => {
+  try {
+    const { items } = req.body || {};
+    if (!Array.isArray(items) || !items.length) {
+      return res.status(400).json({ success: false, message: '没有要新增的菜品' });
+    }
+    if (items.length > 200) {
+      return res.status(400).json({ success: false, message: '一次最多新增 200 道菜，请分批来' });
+    }
+
+    // 查重底表：本店已有的菜名
+    const exist = await Dish.find({ shopId: req.shopId }).select('name');
+    const seen = new Set(exist.map(d => String(d.name || '').replace(/\s/g, '').toLowerCase()));
+
+    const created = [], skipped = [], failed = [];
+    for (const raw of items) {
+      const name = String((raw && raw.name) || '').trim();
+      if (!name) { failed.push({ name: '（空行）', reason: '菜名为空' }); continue; }
+      const key = name.replace(/\s/g, '').toLowerCase();
+      if (seen.has(key)) { skipped.push({ name, reason: '已经有同名菜品了' }); continue; }
+      const price = Number(raw && raw.price);
+      if (!isFinite(price) || price < 0) { failed.push({ name, reason: '还没填价格' }); continue; }
+      const category = String((raw && raw.category) || '').trim();
+      if (!category) { failed.push({ name, reason: '还没选分类' }); continue; }
+
+      const dish = await Dish.create({
+        name,
+        price: Number(price),
+        category,
+        image: (raw && raw.image) || '',
+        isAvailable: true,
+        description: (raw && raw.description) || '',
+        shopId: req.shopId
+      });
+      seen.add(key);
+      created.push(dish);
+    }
+
+    res.status(201).json({
+      success: true,
+      data: { created, skipped, failed, count: created.length },
+      message: `已新增 ${created.length} 道` + (skipped.length ? `，跳过 ${skipped.length} 道同名` : '') + (failed.length ? `，${failed.length} 道缺价格或分类` : '')
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -1269,18 +1324,25 @@ app.use('/api/marketing', marketingRouter);
 // 会员现金购卡（线下收款 + 平台确认开通）：商家身份鉴权
 app.use('/api/membership', membershipRouter);
 app.use('/api/points', customerPointsRouter);
+// 采购大脑：本月花了多少 / 省了多少 / 攒了多少币 / 今天要办什么，一屏算完（商家身份 + shopId 隔离，只读）
+app.use('/api/admin/purchase-brain', purchaseBrainRouter);
 // 采购监控（防回扣）：商家身份 + shopId 隔离，全部只读接口
 app.use('/api/admin/procurement-monitor', procurementMonitorRouter);
 // 智能补货（阶段1 MVP）：基于采购历史频率，商家身份 + shopId 隔离，只读建议接口
 app.use('/api/admin/smart-replenish', smartReplenishRouter);
-// 菜品→食材配方（BOM）管理：商家身份 + shopId 隔离
+// 菜品→食材用料（BOM）管理：商家身份 + shopId 隔离
 app.use('/api/admin/bom', bomRouter);
+// AI 识别（拍照上传商品 / 拍照上传菜单）：身份校验在路由内部按接口区分（商家 / 供应商）
+app.use('/api/ai', aiRouter);
 // 经营报表 / 顾客画像 / 损耗分析：商家身份 + 会员等级鉴权（reportBasic / reportAdvanced）
 app.use('/api/admin/reports', reportsRouter);
 // 顾客储值（线下充值记账 + 点餐储值抵扣）
 app.use('/api/stored-value', storedValueRouter);
 // 供应商改价工作台（更新供货价 / 保鲜期提醒）：供应商身份鉴权；平台定价在开发者控制台「定价工作台」
 app.use('/api/supplier/price', supplierPriceRouter);
+// 售后工单中心：商家提交（requireMerchant）/ 供应商处理（requireSupplier）/ 平台裁决（requireDev），
+// 路由内部再按身份校验归属，杜绝跨商家、跨供应商访问
+app.use('/api/service-tickets', serviceTicketsRouter);
 
 // 供应商列表（公开浏览 + 管理端展示，不涉及多商家隔离）
 // 采购商城可见的供应商列表：仅 status=active && agreementSigned && orderEnabled

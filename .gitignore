@@ -1,3 +1,13 @@
 node_modules/
+uni-app/dist/
+
 .env
 uploads/
+
+# 改版过程产生的备份文件，不进仓库
+*.bak-2026*
+*- 副本.*
+*.log
+
+# 含真实数据库密码/API 密钥的生产配置模板，只留在本地，绝不进仓库
+deploy/生产环境.env模板.txt

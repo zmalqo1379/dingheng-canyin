@@ -11,8 +11,10 @@
       "urlCheck": false,
       "es6": true,
       "postcss": true,
-      "minified": true,
-      "lazyload": true
+      "minified": true
+      // 2026-09-19 移除 lazyload(按需注入)：它会在部分版本的开发者工具里引发
+      // __pageframe__ 500 / 页面逻辑不执行，商城页「永远加载中」的元凶之一。
+      // 11 个页面的小程序吃不到这点优化收益，不值得冒这个险。
     },
     "usingComponents": true,
     "darkmode": true,

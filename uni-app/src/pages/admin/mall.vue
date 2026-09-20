@@ -1,5 +1,5 @@
 <template>
-  <view class="page">
+  <view class="page" :class="themeClass">
     <!-- 搜索 -->
     <view class="search">
       <input class="search-input" v-model="keyword" placeholder="搜索商品名 / 供应商" confirm-type="search" @confirm="applyFilter" />
@@ -24,7 +24,11 @@
         <button class="add-btn" @tap="openQty(p)">加购</button>
       </view>
     </view>
-    <view v-else class="empty">{{ loaded ? '暂无在售商品' : '加载中…' }}</view>
+    <view v-else class="empty" @tap="loadProducts">
+      <block v-if="!loaded">加载中…</block>
+      <block v-else-if="loadFailed">加载失败，请检查服务是否启动 · 点我重试</block>
+      <block v-else>暂无在售商品</block>
+    </view>
 
     <!-- 底部采购车 -->
     <view class="cart-bar" v-if="cart.length">
@@ -74,12 +78,18 @@
 import { ref, computed } from 'vue';
 import { onLoad, onPullDownRefresh } from '@dcloudio/uni-app';
 import { get, post, getToken } from '@/utils/request.js';
+// 界面主题：根 view 上挂 class（整套 CSS 变量在 src/styles/theme-vars.css）
+import { useThemeClass } from '@/utils/theme.js';
+
+const themeClass = useThemeClass();
+
 
 const products = ref([]);
 const categories = ref([]);
 const keyword = ref('');
 const cat = ref('');
 const loaded = ref(false);
+const loadFailed = ref(false);
 
 const qtyProduct = ref(null);
 const qty = ref(1);
@@ -112,7 +122,8 @@ const filtered = computed(() => {
 const cartCount = computed(() => cart.value.reduce((s, c) => s + Number(c.quantity || 0), 0));
 const cartTotal = computed(() => cart.value.reduce((s, c) => s + Number(c.quantity || 0) * Number(c.price || 0), 0));
 
-async function load() {
+async function loadProducts() {
+  loadFailed.value = false;
   try {
     const list = await get('/supply-products', {}, { showError: false });
     const arr = Array.isArray(list) ? list : ((list && list.data) || []);
@@ -122,10 +133,14 @@ async function load() {
     categories.value = [...set];
   } catch (e) {
     products.value = [];
+    loadFailed.value = true;
   } finally {
     loaded.value = true;
   }
 }
+
+// 兼容旧调用名
+const load = loadProducts;
 
 function openQty(p) {
   qtyProduct.value = p;
@@ -384,10 +399,5 @@ onPullDownRefresh(async () => {
 .cart-note { font-size: $fs-sm; color: $ink-400; margin-bottom: 16rpx; }
 button::after { border: none; }
 
-@media (prefers-color-scheme: dark) {
-  .page { background: #121212; }
-  .search, .cats, .prod, .sheet { background: #1e1e1e; }
-  .prod-name, .sheet-title { color: #e6e6e6; }
-  .search-input, .cat, .qty-btn { background: #2a2a2a; color: #ddd; }
-}
+/* ★ 手写深色块已删（职责交给 .theme-dark），见 src/utils/theme.js */
 </style>

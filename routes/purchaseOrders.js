@@ -48,6 +48,8 @@ function toSupplierOrderView(order) {
   delete o.actualPayAmount;          // 顾客实付
   delete o.splitAmount;              // 顾客实付（分账口径）
   delete o.supplierShare;            // 分账快照（统一在「我的分账」查看）
+  // subsidyAmount / subsidyStatus 保留：这是「平台欠供应商的补差」，供应商本来就要看到
+  //（「数据统计→平台补差」和订单列表的补差标都靠它），不属于平台商业机密。
   delete o.platformShare;            // 平台服务费
   delete o.compensateAmount;         // 补差总额（卖价口径）
   delete o.compensatePlatformShare;  // 平台补差
@@ -113,6 +115,12 @@ async function initiateOrderSplit(order, supplier) {
   order.splitAmount = r.splitAmount;
   order.supplierShare = r.supplierShare;
   order.platformShare = r.platformShare;
+  // 供货价总额（供应商应收口径）与「平台倒贴额」记账：
+  // 券抵扣吃光加价还不够时，供应商这单少收 subsidyAmount，由平台在支付链路之外补给供应商。
+  // 这里只记账，不改分账金额（微信分账最多只能分顾客实付那么多，差额进不了分账指令）。
+  order.supplyAmount = r.supplyAmount;
+  order.subsidyAmount = r.subsidyAmount;
+  order.subsidyStatus = r.subsidyAmount > 0.005 ? '待补' : '无';
 
   // 资金流模式快照（supplier_first=钱进供应商 / platform_first=钱进平台；utils/payRuntime 动态读取）
   const payRuntime = require('../utils/payRuntime');
@@ -139,12 +147,18 @@ async function initiateOrderSplit(order, supplier) {
       action: 'manual',
       status: split.SPLIT_STATUS.MANUAL,
       message: `供应商 ${r.supplierShare} / 平台 ${r.platformShare}（${order.manualSettleReason}，金额口径不变，资金线下人工结算）`
+        + (r.subsidyAmount > 0.005 ? `｜平台倒贴 ${r.subsidyAmount}（供应商少收，待补）` : '')
     });
     return order;
   }
 
   order.splitStatus = split.SPLIT_STATUS.INITIATED;
-  split.appendSplitLog(order, { action: 'initiate', status: '已发起分账', message: `供应商 ${r.supplierShare} / 平台 ${r.platformShare}` });
+  split.appendSplitLog(order, {
+    action: 'initiate',
+    status: '已发起分账',
+    message: `供应商 ${r.supplierShare} / 平台 ${r.platformShare}`
+      + (r.subsidyAmount > 0.005 ? `｜平台倒贴 ${r.subsidyAmount}（券吃光加价，供应商少收，待补）` : '')
+  });
 
   let res;
   try {
@@ -263,6 +277,119 @@ router.get('/', verifyToken, listOrdersHandler);
 // 供应商专属列表接口：GET /api/purchase-orders/supplier
 // 返回当前供应商收到的所有订单（含商家名称/联系人/电话），支持 ?status=待确认 筛选
 router.get('/supplier', requireSupplier, listOrdersHandler);
+
+// ============ GET /api/purchase-orders/frequently-bought 常购清单（「再来一单」的数据源）============
+// 餐饮采购本质上是重复行为：这周买的菜，下周多半还是那几样。与其每次都重新去商品库里翻，
+// 不如把商家最近真正买过的东西按供应商归好堆，首页勾一勾就能再下一单。
+//
+// 三条必须守住的口径：
+//   ① 只统计「真正买成了」的单 —— 【待支付】只是没付款的草稿、【已取消】压根没买成，
+//      把它们算进「常购」会误导商家，也会让推荐数量虚高；
+//   ② 按供应商分组 —— 系统限制一张采购单只能对应一个供应商，绝不能把两家的货混进同一单；
+//   ③ 商品已下架就不再推荐 —— 推了也下不了单，只会让人白勾一次。
+//
+// 注意：本路由必须写在下面的 '/:id' 之前，否则 'frequently-bought' 会被当成订单 ID 吃掉。
+router.get('/frequently-bought', requireMerchant, async (req, res) => {
+  try {
+    const shopId = req.user.shopId;
+    const days = Math.min(Math.max(parseInt(req.query.days, 10) || 60, 1), 365);
+    const topN = Math.min(Math.max(parseInt(req.query.limit, 10) || 8, 1), 30);
+    const since = new Date(Date.now() - days * 86400000);
+
+    const orders = await PurchaseOrder.find({
+      shopId,
+      createdAt: { $gte: since },
+      status: { $nin: ['待支付', '已取消'] }
+    }).select('supplierId items createdAt').sort({ createdAt: -1 }).lean();
+
+    // 按「供应商 + 商品」聚合：买过几次、累计多少、最后一次买了多少
+    const statMap = new Map();
+    for (const o of orders) {
+      const sid = String(o.supplierId || '');
+      for (const it of (o.items || [])) {
+        if (!it || !it.productId) continue;
+        const pid = String(it.productId);
+        const key = `${sid}|${pid}`;
+        let cur = statMap.get(key);
+        if (!cur) {
+          cur = {
+            supplierId: sid, productId: pid, name: it.name || '', category: it.category || '',
+            times: 0, totalQty: 0, lastQty: 0, lastAt: null, unitPrice: 0
+          };
+          statMap.set(key, cur);
+        }
+        cur.times += 1;
+        cur.totalQty += Number(it.quantity) || 0;
+        if (!cur.lastAt || new Date(o.createdAt) > new Date(cur.lastAt)) {
+          cur.lastAt = o.createdAt;
+          cur.lastQty = Number(it.quantity) || 0;
+          cur.unitPrice = Number(it.unitPrice || it.salePrice || 0);
+        }
+      }
+    }
+    if (statMap.size === 0) {
+      return res.json({ success: true, data: { days, groups: [] } });
+    }
+
+    // 回查商品库：订单明细里没存单位(unit)，还要拿当前卖价、确认是否仍在售
+    const pidList = [...new Set([...statMap.values()].map(x => x.productId))];
+    const products = await SupplyProduct.find({ _id: { $in: pidList } })
+      .select('name unit category salePrice stock status supplierId').lean();
+    const pMap = {};
+    products.forEach(p => { pMap[String(p._id)] = p; });
+
+    const bySid = new Map();
+    for (const it of statMap.values()) {
+      const p = pMap[it.productId];
+      if (!p) continue;                                     // 商品已被删除
+      if (p.status && p.status !== '上架') continue;          // 已下架，推了也下不了单
+      const sid = String(p.supplierId || it.supplierId);
+      if (!bySid.has(sid)) bySid.set(sid, []);
+      bySid.get(sid).push({
+        productId: it.productId,
+        name: p.name || it.name,
+        unit: p.unit || '',
+        category: it.category || p.category || '',
+        price: Number(p.salePrice || 0),
+        times: it.times,
+        totalQty: it.totalQty,
+        lastQty: it.lastQty,
+        lastAt: it.lastAt
+      });
+    }
+    if (bySid.size === 0) {
+      return res.json({ success: true, data: { days, groups: [] } });
+    }
+
+    // 供应商名称 + 能否接单（冻结 / 未签约 / 未开通接单的，推给商家也下不了，要标出来）
+    const sidList = [...bySid.keys()].filter(Boolean);
+    const suppliers = await Supplier.find({ _id: { $in: sidList } })
+      .select('name minOrderAmount status agreementSigned orderEnabled').lean();
+    const sMap = {};
+    suppliers.forEach(s => { sMap[String(s._id)] = s; });
+
+    const groups = [];
+    for (const [sid, items] of bySid.entries()) {
+      const s = sMap[sid];
+      if (!s) continue;
+      items.sort((a, b) => (b.times - a.times) || (b.totalQty - a.totalQty));  // 买得最多的排前面
+      groups.push({
+        supplierId: sid,
+        supplierName: s.name || '未命名供应商',
+        minOrderAmount: Number(s.minOrderAmount) > 0 ? Number(s.minOrderAmount) : 300,
+        orderable: s.status === 'active' && !!s.agreementSigned && !!s.orderEnabled,
+        items: items.slice(0, topN)
+      });
+    }
+    // 常买的供应商排前面
+    const totalTimes = (g) => g.items.reduce((n, x) => n + x.times, 0);
+    groups.sort((a, b) => totalTimes(b) - totalTimes(a));
+
+    res.json({ success: true, data: { days, groups } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 // ============ POST /api/purchase-orders 创建采购订单（草稿） ============
 // 仅商家可下单；shopId/shopName 取自 JWT，前端不可伪造
@@ -1030,6 +1157,26 @@ async function confirmReceiveHandler(req, res) {
       }
     }
 
+    // ============ 券成本倒贴终算（过秤后金额口径已定，这里定稿）============
+    // 供应商应收 = 供货价总额 supplyAmount
+    // 供应商实收 = 下单分账 supplierShare + 过秤补差 compensateSupplierShare（退款时为负）
+    // 差额 > 0 说明券把加价吃光后供应商还少收，这笔钱平台欠供应商（线下或后期冲抵，不进微信分账）
+    const supplyDue = Number(order.supplyAmount || 0);
+    const supplierGot = Number(order.supplierShare || 0) + Number(order.compensateSupplierShare || 0);
+    const subsidyFinal = +(supplyDue - supplierGot).toFixed(2);
+    order.subsidyAmount = subsidyFinal > 0.005 ? subsidyFinal : 0;
+    if (order.subsidyAmount > 0) {
+      // 已标记补过的不再打回待补，避免重复记账
+      if (order.subsidyStatus !== '已补') order.subsidyStatus = '待补';
+      split.appendSplitLog(order, {
+        action: 'subsidy',
+        status: order.subsidyStatus,
+        message: `供应商应收 ${supplyDue} / 实收 ${+supplierGot.toFixed(2)}，平台倒贴 ${order.subsidyAmount}`
+      });
+    } else {
+      order.subsidyStatus = '无';
+    }
+
     const result = await session.withTransaction(async () => {
       // 1) 更新订单：完成 + 发币/积分字段 + 云分账结果（分账指令在下单时已发起）
       const updatedOrder = await PurchaseOrder.findByIdAndUpdate(
@@ -1053,7 +1200,10 @@ async function confirmReceiveHandler(req, res) {
           compensateSupplierShare: order.compensateSupplierShare,
           compensatePlatformShare: order.compensatePlatformShare,
           compensateNo: order.compensateNo,
-          compensateAt: order.compensateAt
+          compensateAt: order.compensateAt,
+          supplyAmount: order.supplyAmount,
+          subsidyAmount: order.subsidyAmount,
+          subsidyStatus: order.subsidyStatus
         },
         { new: true, session }
       );
@@ -1119,7 +1269,9 @@ async function confirmReceiveHandler(req, res) {
           platformShare: order.platformShare,
           compensateAmount: order.compensateAmount,
           compensateSupplierShare: order.compensateSupplierShare,
-          compensatePlatformShare: order.compensatePlatformShare
+          compensatePlatformShare: order.compensatePlatformShare,
+          subsidyAmount: order.subsidyAmount,
+          subsidyStatus: order.subsidyStatus
         }
       };
     });
@@ -1247,7 +1399,7 @@ router.post('/:id/apply-coupon', requireMerchant, async (req, res) => {
 router.get('/:id/split', verifyToken, async (req, res) => {
   try {
     const order = await PurchaseOrder.findById(req.params.id)
-      .select('orderNo shopId supplierId payStatus payNo transactionId splitStatus splitAmount supplierShare platformShare splitNo channelSplitOrderId splitAt splitRetryCount splitError splitLogs compensateAmount compensateSupplierShare compensatePlatformShare compensateNo compensateAt')
+      .select('orderNo shopId supplierId payStatus payNo transactionId splitStatus splitAmount supplierShare platformShare splitNo channelSplitOrderId splitAt splitRetryCount splitError splitLogs compensateAmount compensateSupplierShare compensatePlatformShare compensateNo compensateAt supplyAmount subsidyAmount subsidyStatus subsidySettledAt subsidyNote')
       .lean();
     if (!order) {
       return res.status(404).json({ success: false, message: '采购订单不存在' });
@@ -1277,7 +1429,12 @@ router.get('/:id/split', verifyToken, async (req, res) => {
       compensateSupplierShare: order.compensateSupplierShare,
       compensatePlatformShare: order.compensatePlatformShare,
       compensateNo: order.compensateNo,
-      compensateAt: order.compensateAt
+      compensateAt: order.compensateAt,
+      supplyAmount: Number(order.supplyAmount) || 0,
+      subsidyAmount: Number(order.subsidyAmount) || 0,
+      subsidyStatus: order.subsidyStatus || '无',
+      subsidySettledAt: order.subsidySettledAt || null,
+      subsidyNote: order.subsidyNote || ''
     };
     // 供应商视角：剔除顾客实付/平台分成/补差平台部分（防反推平台毛利）
     if (req.user.role === 'supplier') {

@@ -1,5 +1,5 @@
 <template>
-  <view class="login-page">
+  <view class="login-page" :class="themeClass">
     <view class="brand">
       <view class="deco deco-1"></view>
       <view class="deco deco-2"></view>
@@ -60,6 +60,11 @@
 <script setup>
 import { ref } from 'vue';
 import { post } from '@/utils/request.js';
+// 界面主题：根 view 上挂 class（整套 CSS 变量在 src/styles/theme-vars.css）
+import { useThemeClass } from '@/utils/theme.js';
+
+const themeClass = useThemeClass();
+
 
 const mode = ref('login');
 const submitting = ref(false);
@@ -278,13 +283,5 @@ button::after {
   margin-top: 32rpx;
 }
 
-@media (prefers-color-scheme: dark) {
-  .login-page { background: #121212; }
-  .brand-name, .brand-sub { color: #fff; }
-  .tabs { background: #1e1e1e; box-shadow: none; }
-  .card { background: #1e1e1e; box-shadow: none; }
-  .field { border-color: #2a2a2a; }
-  .fl { color: #e6e6e6; }
-  .fi { color: #e6e6e6; }
-}
+/* ★ 手写深色块已删（职责交给 .theme-dark），见 src/utils/theme.js */
 </style>

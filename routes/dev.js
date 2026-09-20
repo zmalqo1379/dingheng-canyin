@@ -7,6 +7,7 @@ const Supplier = require('../models/Supplier');
 const SupplyProduct = require('../models/SupplyProduct');
 const PriceCheck = require('../models/PriceCheck');
 const PurchaseOrder = require('../models/PurchaseOrder');
+const SubsidySettlement = require('../models/SubsidySettlement');
 const Member = require('../models/Member');
 const CoinRule = require('../models/CoinRule');
 const Marketing = require('../models/Marketing');
@@ -121,8 +122,10 @@ router.get('/merchants/:id', async (req, res) => {
     const shopId = merchant.shopId;
     const [member, orders, dishCount, categoryCount, tableCount, dishSample] = await Promise.all([
       Member.findOne({ shopId }).lean(),
+      // 对账要看到「这单用了哪张券、抵了多少」，券信息一并带出
       PurchaseOrder.find({ shopId })
         .populate('supplierId', 'name')
+        .populate('appliedCouponId', 'type faceValue minOrder name')
         .sort({ createdAt: -1 })
         .limit(50)
         .lean(),
@@ -1990,6 +1993,345 @@ router.get('/notification-logs', async (req, res) => {
     const list = await NotificationLog.find(filter).sort({ createdAt: -1 }).limit(limit).lean();
     res.json({ success: true, data: list });
   } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ GET /api/dev/subsidies 券成本倒贴台账（平台补供应商）============
+// 场景：顾客用券后实付低于供货价，微信分账最多只能分「顾客实付」那么多，
+//       供应商少收的差额进不了分账指令，只能由平台在支付链路之外补给供应商。
+// 这里把这笔账完整记清楚：本月补差总额、全部待结清金额、逐单明细（含用了什么券）。
+// 只做记账与留痕，不触发任何资金操作，不影响下单支付流程。
+router.get('/subsidies', async (req, res) => {
+  try {
+    const month = (req.query.month && /^\d{4}-\d{2}$/.test(req.query.month))
+      ? req.query.month : split.monthKeyOf(new Date());
+    const { start, end } = split.monthRange(month);
+    // status：待补 / 已补 / 空=全部
+    const status = String(req.query.status || '').trim();
+
+    const baseMatch = { subsidyAmount: { $gt: 0.005 } };
+    if (status === '待补' || status === '已补') baseMatch.subsidyStatus = status;
+
+    // —— 口径：补差金额在「收货过秤」那一刻才定稿（见 purchaseOrders 收货确认里的券成本终算）。
+    //    收货前 subsidyAmount 只是下单时按 Q1 数量估的数，过秤后可能变多、变少、甚至归零。
+    //    所以：能结的 = 已收货；未收货的只是预估，不能结、也不该混进待办糊弄人。
+    const [monthOrders, pendingOrders, unreceivedOrders] = await Promise.all([
+      // 本月：按收货时间归月（金额已定稿）
+      PurchaseOrder.find(Object.assign({}, baseMatch, { receiveAt: { $gte: start, $lt: end } }))
+        .populate('supplierId', 'name')
+        .populate('appliedCouponId', 'type faceValue minOrder name')
+        .sort({ receiveAt: -1 }).limit(200).lean(),
+      // 全部待结清（不限月份）：已收货 + 待补，金额都是终稿，今天就能结
+      PurchaseOrder.find({ subsidyStatus: '待补', subsidyAmount: { $gt: 0.005 }, receiveAt: { $ne: null } })
+        .populate('supplierId', 'name')
+        .sort({ receiveAt: -1 }).limit(200).lean(),
+      // 待收货（预估）：货在途，金额待过秤定稿，只能看、不能结
+      PurchaseOrder.find({ subsidyStatus: '待补', subsidyAmount: { $gt: 0.005 }, receiveAt: null })
+        .populate('supplierId', 'name')
+        .sort({ createdAt: -1 }).limit(200).lean()
+    ]);
+
+    const sum = (arr, k) => +arr.reduce((a, o) => a + (Number(o[k]) || 0), 0).toFixed(2);
+    const summary = {
+      month,
+      orderCount: monthOrders.length,
+      subsidyAmount: sum(monthOrders, 'subsidyAmount'),
+      subsidyPending: sum(monthOrders.filter(o => o.subsidyStatus === '待补'), 'subsidyAmount'),
+      subsidySettled: sum(monthOrders.filter(o => o.subsidyStatus === '已补'), 'subsidyAmount'),
+      // 顾客实付与供货价：看这单的钱是怎么走的
+      customerPay: sum(monthOrders, 'splitAmount'),
+      supplyAmount: sum(monthOrders, 'supplyAmount'),
+      // 全部待结清（不限月份，含本月）：都是能结的终稿金额
+      totalPendingAmount: sum(pendingOrders, 'subsidyAmount'),
+      totalPendingCount: pendingOrders.length,
+      // 待收货（预估）：货在途、金额未定稿，只给个数，不进待办
+      unreceivedAmount: sum(unreceivedOrders, 'subsidyAmount'),
+      unreceivedCount: unreceivedOrders.length
+    };
+
+    // 按供应商汇总（可结口径，方便一次性结清）
+    const bySupplierMap = new Map();
+    for (const o of pendingOrders) {
+      const sid = String(o.supplierId && (o.supplierId._id || o.supplierId)) || '';
+      const sname = (o.supplierId && o.supplierId.name) || '未知供应商';
+      const cur = bySupplierMap.get(sid) || { supplierId: sid, supplierName: sname, orderCount: 0, pendingAmount: 0 };
+      cur.orderCount += 1;
+      cur.pendingAmount = +(cur.pendingAmount + (Number(o.subsidyAmount) || 0)).toFixed(2);
+      bySupplierMap.set(sid, cur);
+    }
+    const bySupplier = Array.from(bySupplierMap.values()).sort((a, b) => b.pendingAmount - a.pendingAmount);
+
+    const records = monthOrders.map(o => {
+      const c = o.appliedCouponId && typeof o.appliedCouponId === 'object' ? o.appliedCouponId : null;
+      return {
+        _id: o._id,
+        orderNo: o.orderNo || '',
+        shopName: o.shopName || '',
+        supplierName: (o.supplierId && o.supplierId.name) || '平台直供',
+        createdAt: o.createdAt,
+        receiveAt: o.receiveAt,
+        totalAmount: Number(o.totalAmount) || 0,
+        discountAmount: Number(o.discountAmount) || 0,
+        couponName: c ? (c.name || `${c.type || ''}¥${c.faceValue}`) : '',
+        actualPayAmount: Number(o.actualPayAmount != null ? o.actualPayAmount : o.splitAmount) || 0,
+        supplyAmount: Number(o.supplyAmount) || 0,
+        supplierShare: Number(o.supplierShare) || 0,
+        platformShare: Number(o.platformShare) || 0,
+        subsidyAmount: Number(o.subsidyAmount) || 0,
+        subsidyStatus: o.subsidyStatus || '无',
+        subsidySettledAt: o.subsidySettledAt || null,
+        subsidyNote: o.subsidyNote || ''
+      };
+    });
+
+    // 待收货（预估）清单：让「这笔钱去哪了」有处可查 —— 不混进可结的账里，但也不能凭空消失
+    const unreceived = unreceivedOrders.map(o => ({
+      _id: o._id,
+      orderNo: o.orderNo || '',
+      shopName: o.shopName || '',
+      supplierName: (o.supplierId && o.supplierId.name) || '平台直供',
+      createdAt: o.createdAt,
+      supplyAmount: Number(o.supplyAmount) || 0,
+      subsidyAmount: Number(o.subsidyAmount) || 0
+    }));
+
+    res.json({ success: true, data: { summary, bySupplier, records, unreceived } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ POST /api/dev/subsidies/:id/settle 标记「平台已补给供应商」============
+// 平台线下转账 / 后期冲抵完成后在这里点一下留痕：状态 待补 → 已补，记时间与备注。
+// 只做记账状态流转，不调用任何资金接口。
+router.post('/subsidies/:id/settle', async (req, res) => {
+  try {
+    const order = await PurchaseOrder.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: '采购订单不存在' });
+    }
+    if (!(Number(order.subsidyAmount) > 0.005)) {
+      return res.status(400).json({ success: false, message: '该订单无倒贴金额，无需补差' });
+    }
+    if (order.subsidyStatus === '已补') {
+      return res.json({ success: true, data: { subsidyStatus: '已补', subsidySettledAt: order.subsidySettledAt }, message: '该订单已标记补差' });
+    }
+    const note = String((req.body && req.body.note) || '').trim().slice(0, 100);
+    order.subsidyStatus = '已补';
+    order.subsidySettledAt = new Date();
+    order.subsidyNote = note || '平台已补给供应商';
+    split.appendSplitLog(order, {
+      action: 'subsidy:settle',
+      status: '已补',
+      message: `平台补差 ${order.subsidyAmount}${note ? `（${note}）` : ''}`
+    });
+    await order.save();
+    res.json({
+      success: true,
+      message: `已标记补差 ¥${Number(order.subsidyAmount).toFixed(2)}`,
+      data: { subsidyStatus: order.subsidyStatus, subsidySettledAt: order.subsidySettledAt, subsidyNote: order.subsidyNote }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ GET /api/dev/subsidy-settlements 补差结算台 ============
+// 一次看全两件事：
+//   1) pending：每个供应商现在欠多少（待补单数 / 待补金额 / 结算户是否齐全），按周或按月点一下就结掉
+//   2) settlements：历史结算单（结算单号、周期、金额、状态），可当对账凭证
+router.get('/subsidy-settlements', async (req, res) => {
+  try {
+    const [pendingOrders, settlements] = await Promise.all([
+      PurchaseOrder.find({ subsidyStatus: '待补', subsidyAmount: { $gt: 0.005 } })
+        .populate('supplierId', 'name wechatOnboarding')
+        .sort({ receiveAt: 1 }).limit(500).lean(),
+      SubsidySettlement.find().sort({ settledAt: -1, createdAt: -1 }).limit(100).lean()
+    ]);
+
+    const map = new Map();
+    for (const o of pendingOrders) {
+      const sup = o.supplierId && typeof o.supplierId === 'object' ? o.supplierId : null;
+      const sid = String(sup ? sup._id : (o.supplierId || ''));
+      const sname = (sup && sup.name) || '未知供应商';
+      const cur = map.get(sid) || { supplierId: sid, supplierName: sname, orderCount: 0, amount: 0, earliest: null, latest: null, bankReady: false, orders: [] };
+      cur.orderCount += 1;
+      cur.amount = +(cur.amount + (Number(o.subsidyAmount) || 0)).toFixed(2);
+      const at = o.receiveAt || o.createdAt;
+      if (at && (!cur.earliest || at < cur.earliest)) cur.earliest = at;
+      if (at && (!cur.latest || at > cur.latest)) cur.latest = at;
+      // 结算户是否齐全（有卡号+户名才能出款，缺的先去补资料）
+      const ob = (sup && sup.wechatOnboarding) || {};
+      cur.bankReady = !!(ob.bankAccountNoEnc && ob.bankAccountName);
+      // 每一单明细都能看到：订单号 / 商家 / 应收供货价 / 供应商实收 / 平台补 / 完成时间
+      cur.orders.push({
+        orderId: String(o._id),
+        orderNo: o.orderNo || '',
+        shopName: o.shopName || '',
+        supplyAmount: Number(o.supplyAmount) || 0,
+        supplierShare: Number(o.supplierShare) || 0,
+        subsidyAmount: Number(o.subsidyAmount) || 0,
+        at
+      });
+      map.set(sid, cur);
+    }
+    const pending = Array.from(map.values()).sort((a, b) => b.amount - a.amount);
+
+    res.json({
+      success: true,
+      data: {
+        summary: {
+          supplierCount: pending.length,
+          orderCount: pending.reduce((a, x) => a + x.orderCount, 0),
+          amount: +pending.reduce((a, x) => a + x.amount, 0).toFixed(2)
+        },
+        pending,
+        settlements: settlements.map(s => ({
+          _id: s._id,
+          settleNo: s.settleNo,
+          supplierName: s.supplierName,
+          periodType: s.periodType,
+          periodStart: s.periodStart,
+          periodEnd: s.periodEnd,
+          orderCount: s.orderCount,
+          amount: Number(s.amount) || 0,
+          channel: s.channel,
+          status: s.status,
+          settledAt: s.settledAt || s.createdAt,
+          operator: s.operator || '',
+          note: s.note || '',
+          payee: s.payee || {},
+          // 结算单里每一单的快照（已结算的订单后续状态变化，也不影响这张凭证）
+          items: (s.items || []).map(it => ({
+            orderId: String(it.orderId || ''),
+            orderNo: it.orderNo || '',
+            shopName: it.shopName || '',
+            supplyAmount: Number(it.supplyAmount) || 0,
+            supplierShare: Number(it.supplierShare) || 0,
+            subsidyAmount: Number(it.subsidyAmount) || 0,
+            at: it.receiveAt || null
+          }))
+        }))
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ============ POST /api/dev/subsidy-settlements 一键结算（周结 / 月结 / 手动）============
+// 结算某供应商当前全部「待补」订单：生成结算单凭证 → 订单统一转「已补」→ 供应商端显示「已收」。
+// 整个过程在一个事务里完成，要么全成要么全退，不会出现「单子标了已补但没出结算单」的半截状态。
+// 出款通道目前固定 platform（平台内结算 + 线下出款留痕）；微信「商家转账」产品开通后，
+// 把 channel 切到 wechat_transfer 即可自动出款，字段与流程都已预留好。
+router.post('/subsidy-settlements', async (req, res) => {
+  const session = await mongoose.startSession();
+  try {
+    const supplierId = String((req.body && req.body.supplierId) || '').trim();
+    const periodType = ['周结', '月结', '手动'].includes(req.body && req.body.periodType)
+      ? req.body.periodType : '周结';
+    const note = String((req.body && req.body.note) || '').trim().slice(0, 100);
+    if (!supplierId || !mongoose.Types.ObjectId.isValid(supplierId)) {
+      return res.status(400).json({ success: false, message: '请选择要结算的供应商' });
+    }
+
+    const cryptoBox = require('../utils/cryptoBox');
+    const supplier = await Supplier.findById(supplierId).select('name wechatOnboarding').lean();
+    if (!supplier) {
+      return res.status(404).json({ success: false, message: '供应商不存在' });
+    }
+
+    const orders = await PurchaseOrder.find({ supplierId, subsidyStatus: '待补', subsidyAmount: { $gt: 0.005 } })
+      .sort({ receiveAt: 1 }).limit(500);
+    if (!orders.length) {
+      return res.status(400).json({ success: false, message: '该供应商当前没有待补差订单' });
+    }
+
+    const amount = +orders.reduce((a, o) => a + (Number(o.subsidyAmount) || 0), 0).toFixed(2);
+
+    let settlement = null;
+    await session.withTransaction(async () => {
+      // 结算单号：BS + 日期 + 当天序号（当天第几张）
+      const dayKey = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const todayCount = await SubsidySettlement.countDocuments({ settleNo: new RegExp(`^BS${dayKey}-`) }).session(session);
+      const settleNo = `BS${dayKey}-${String(todayCount + 1).padStart(4, '0')}`;
+
+      const now = new Date();
+      const ob = supplier.wechatOnboarding || {};
+      let accountTail = '';
+      if (ob.bankAccountNoEnc) {
+        try { accountTail = cryptoBox.maskBankAccount(cryptoBox.decrypt(ob.bankAccountNoEnc)); } catch (e) { accountTail = ''; }
+      }
+
+      const [doc] = await SubsidySettlement.create([{
+        settleNo,
+        supplierId,
+        supplierName: supplier.name || '',
+        periodType,
+        periodStart: orders[0].receiveAt || orders[0].createdAt || now,
+        periodEnd: now,
+        orderCount: orders.length,
+        amount,
+        channel: 'platform',
+        status: '已结算',
+        settledAt: now,
+        operator: (req.user && (req.user.account || req.user.username)) || 'dev',
+        note,
+        items: orders.map(o => ({
+          orderId: o._id,
+          orderNo: o.orderNo || '',
+          shopName: o.shopName || '',
+          subsidyAmount: Number(o.subsidyAmount) || 0,
+          supplyAmount: Number(o.supplyAmount) || 0,
+          supplierShare: Number(o.supplierShare) || 0,
+          receiveAt: o.receiveAt || null
+        })),
+        payee: {
+          bankName: ob.bankName || '',
+          bankBranch: ob.bankBranch || '',
+          bankAccountName: ob.bankAccountName || '',
+          bankAccountNoTail: accountTail
+        }
+      }], { session });
+      settlement = doc;
+
+      // 订单转「已补」：供应商端立刻显示已收，备注挂结算单号，可对账追溯到每一单。
+      // 过滤条件里带 subsidyStatus:'待补' —— 这是「绝不可能结两次」的兜底锁：
+      // 就算手抖点两下、或者两个人同时点，第二次匹配到的订单数是 0，直接报错回滚，
+      // 不会出现「同一笔钱结出两张结算单」。
+      const ids = orders.map(o => o._id);
+      const upd = await PurchaseOrder.updateMany(
+        { _id: { $in: ids }, subsidyStatus: '待补' },
+        {
+          $set: {
+            subsidyStatus: '已补',
+            subsidySettledAt: now,
+            subsidyNote: `结算单 ${settleNo}${note ? ` · ${note}` : ''}`
+          }
+        },
+        { session }
+      );
+      if (upd.matchedCount !== ids.length) {
+        throw new Error('这些订单中有一部分已被结算过（请勿重复提交），本次结算已自动取消');
+      }
+    });
+    await session.endSession();
+
+    res.json({
+      success: true,
+      message: `已结算：${supplier.name || '供应商'} ¥${amount.toFixed(2)}（${orders.length} 单，结算单 ${settlement.settleNo}）`,
+      data: {
+        settleNo: settlement.settleNo,
+        supplierName: settlement.supplierName,
+        orderCount: settlement.orderCount,
+        amount: settlement.amount,
+        periodType: settlement.periodType,
+        settledAt: settlement.settledAt
+      }
+    });
+  } catch (err) {
+    await session.endSession().catch(() => {});
     res.status(500).json({ success: false, message: err.message });
   }
 });

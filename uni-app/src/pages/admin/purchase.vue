@@ -1,5 +1,5 @@
 <template>
-  <view class="page">
+  <view class="page" :class="themeClass">
     <!-- 状态筛选 -->
     <scroll-view class="tabs" scroll-x>
       <view
@@ -57,6 +57,11 @@
 import { ref } from 'vue';
 import { onLoad, onPullDownRefresh, onShow } from '@dcloudio/uni-app';
 import { get, post, getToken } from '@/utils/request.js';
+// 界面主题：根 view 上挂 class（整套 CSS 变量在 src/styles/theme-vars.css）
+import { useThemeClass } from '@/utils/theme.js';
+
+const themeClass = useThemeClass();
+
 
 const tabs = [
   { label: '全部', value: '' },
@@ -192,13 +197,5 @@ onPullDownRefresh(async () => {
 }
 button::after { border: none; }
 
-@media (prefers-color-scheme: dark) {
-  .page { background: #121212; }
-  .tabs { background: #1e1e1e; border-color: #2a2a2a; }
-  .tab { background: #2a2a2a; color: #bbb; }
-  .card { background: #1e1e1e; box-shadow: none; }
-  .head { border-color: #2a2a2a; }
-  .value { color: #e6e6e6; }
-  .empty-ico { background: #2a2a2a; }
-}
+/* ★ 手写深色块已删（职责交给 .theme-dark），见 src/utils/theme.js */
 </style>

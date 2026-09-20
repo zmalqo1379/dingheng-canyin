@@ -1,5 +1,5 @@
 <template>
-  <view class="page">
+  <view class="page" :class="themeClass">
     <view class="hero">
       <view class="hero-title">数据统计</view>
       <view class="hero-sub">今日经营概况一览</view>
@@ -55,6 +55,11 @@
 import { ref, computed } from 'vue';
 import { onLoad, onPullDownRefresh } from '@dcloudio/uni-app';
 import { get, getToken } from '@/utils/request.js';
+// 界面主题：根 view 上挂 class（整套 CSS 变量在 src/styles/theme-vars.css）
+import { useThemeClass } from '@/utils/theme.js';
+
+const themeClass = useThemeClass();
+
 
 const stats = ref({
   orderCount: 0,
@@ -167,13 +172,5 @@ onPullDownRefresh(() => {
 }
 button::after { border: none; }
 
-@media (prefers-color-scheme: dark) {
-  .page { background: #121212; }
-  .grid-item .num { background: #1e1e1e; color: #ff8a5c; box-shadow: none; }
-  .grid-item .lbl { color: #888; }
-  .card { background: #1e1e1e; box-shadow: none; }
-  .card-title { color: #e6e6e6; }
-  .bar-lbl { color: #888; }
-  .footer { background: #1e1e1e; }
-}
+/* ★ 手写深色块已删（职责交给 .theme-dark），见 src/utils/theme.js */
 </style>

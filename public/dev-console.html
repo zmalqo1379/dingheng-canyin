@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-page="dev">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -55,10 +55,13 @@
     .topbar .logout:hover { background: var(--accent); }
 
     /* ============ 布局 ============ */
-    .layout { display: flex; align-items: flex-start; }
+    /* 电脑端：左栏与右栏各自独立滚动，且都撑满到视口底部 —— 与商家端、供应商端保持一致。
+       原来只给 min-height，内容一多侧栏背景 / 边框就只画到一半，底部还会溢出。 */
+    .layout { display: flex; align-items: stretch; }
     .sidebar {
       width: 220px;
-      min-height: calc(100vh - 60px);
+      height: calc(100vh - 60px);
+      overflow-y: auto;
       background: linear-gradient(180deg, var(--nav), var(--nav-2));
       color: #cbd5e1;
       position: sticky; top: 60px;
@@ -212,6 +215,8 @@
     /* ============ 内容区 ============ */
     .main {
       flex: 1; min-width: 0;
+      height: calc(100vh - 60px);
+      overflow-y: auto;   /* 右栏独立滚动：鼠标在右侧滚，左栏不动 */
       padding: 26px;
       max-width: 1100px;
       margin: 0 auto;
@@ -497,7 +502,8 @@
         min-height: calc(100vh - 60px);
       }
       .sidebar.open { transform: translateX(0); }
-      .main { padding: 14px; max-width: 100%; }
+      /* 手机端整页一起滚，不做双栏独立滚动（手指操作习惯） */
+      .main { padding: 14px; max-width: 100%; height: auto; overflow-y: visible; }
 
       /* 表格 → 卡片式 */
       .table-wrap {
@@ -577,7 +583,7 @@
     // 主题预加载：首屏渲染前给 <html> 打上 data-theme，避免默认主题闪一下再切换
     (function () {
       var VALID = ['classic', 'warm', 'dark', 'fresh'];
-      var t = 'warm';
+      var t = 'classic';   // 出厂默认 = 经典版
       try {
         var saved = localStorage.getItem('dhDevTheme');
         if (VALID.indexOf(saved) >= 0) t = saved;
@@ -585,6 +591,10 @@
       document.documentElement.setAttribute('data-theme', t);
     })();
   </script>
+  <!-- 通用打磨（数字排版 / 空状态 / 顶栏毛玻璃 / 卡片边界 / 按钮手感）
+       ★ 必须放在本页内联 <style> 之后：本项目各端内联样式权重高、写在后面，
+         打磨规则如果挂在 theme.css 旁边会被内联样式直接压掉（老坑）。 -->
+  <link rel="stylesheet" href="/css/ui-polish.css">
 </head>
 <body>
 
@@ -609,11 +619,19 @@
         <div class="nav-item" data-tab="suppliers"><span class="icon">🚚</span> 供应商管理<span class="nav-red-dot" id="supNavDot">0</span></div>
         <div class="nav-item" data-tab="pricing"><span class="icon">🏷️</span> 定价工作台</div>
         <div class="nav-item" data-tab="revenue"><span class="icon">💹</span> 平台收入</div>
+        <!-- 补差结算中心：平台欠供应商的每一笔钱（台账 / 结算 / 凭证）专门一处，不混在平台收入里 -->
+        <div class="nav-item" data-tab="subsidy"><span class="icon">💰</span> 补差结算中心<span class="nav-red-dot" id="subNavDot" style="display:none;">0</span></div>
         <div class="nav-item" data-tab="coinrules"><span class="icon">🪙</span> 得币倍率</div>
         <div class="nav-item" data-tab="marketing"><span class="icon">🎯</span> 营销活动</div>
         <div class="nav-item" data-tab="membership"><span class="icon">💳</span> 会员购卡<span class="nav-red-dot" id="memNavDot">0</span></div>
         <div class="nav-item" data-tab="notifylog"><span class="icon">📨</span> 通知日志</div>
         <div class="nav-item" data-tab="pricecheck"><span class="icon">⚖️</span> 比价工作台</div>
+        <!-- 工单仲裁：商家与供应商谈不拢、或供应商超 24h 未受理的工单流转到这里，由平台裁决。
+             图标用内联 SVG（项目硬约束：禁止 emoji 图标）。 -->
+        <div class="nav-item" data-tab="tickets">
+          <span class="icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+          工单仲裁<span class="nav-red-dot" id="tkNavDot" style="display:none;">0</span>
+        </div>
         <div class="nav-item" data-tab="system"><span class="icon">⚙️</span> 系统设置</div>
       </nav>
       <div class="nav-tip">第一阶段简版 · 后续阶段完善</div>
@@ -884,7 +902,9 @@
         </div>
         <p style="font-size:12px;color:var(--text-muted);margin-top:8px;line-height:1.7;">
           提示：<b>点列头即可排序</b>（再点一次切换升序 / 降序）——供货价、卖价、加价率、品类、供应商、供货价更新时间；
-          表头已<b>冻结</b>，表格区域自带滚动条，向下 / 左右滚动都不用拖到页面底部。
+          表头已<b>冻结</b>，表格区域自带滚动条，向下 / 左右滚动都不用拖到页面底部。<br>
+          <b style="color:var(--c-amber-700);">券安全线 5%</b>：加价率低于 5% 的商品会标 <b>⚠</b> —— 顾客用满额券（满 4000 减 200，折扣率最高的一档）时
+          加价会被吃光，差额需走补差流程补给供应商。加价率越高（供货价给得越低就越容易做高），越安全。
         </p>
       </section>
 
@@ -985,6 +1005,13 @@
           </table>
         </div>
 
+        <!-- 券成本补差结算：已搬到左侧「补差结算中心」独立栏目，这里只留入口，避免同一笔钱两处维护 -->
+        <div class="section-title" style="margin-top:18px;">券成本 / 补差结算</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--text-muted);line-height:1.8;margin:0 0 12px;">
+          <span>每一笔需要补给供应商的券成本差额，统一在左侧 <b>「💰 补差结算中心」</b> 处理：工作量总览、逐单台账、一键结算、收款凭证，一处办完。</span>
+          <button class="btn btn-primary" id="gotoSubsidyBtn" style="padding:4px 14px;font-size:13px;">去补差结算中心</button>
+        </div>
+
         <!-- 分账失败与重试入口 -->
         <div class="section-title">分账失败订单（可重试）</div>
         <div class="table-wrap">
@@ -1035,6 +1062,214 @@
           说明：云分账在<b>下单付款时即发起分账指令</b>，两笔拆账＝供货价 → 供应商、差价 → 平台；
           到账本质为微信 <b>T+1 结算</b>，界面状态「已发起分账 / 分账成功」表示指令结果，并非资金秒到。
           过秤后数量有差异时会自动补差（补收或退款，含向供应商/平台补分账或追回）。
+        </p>
+      </section>
+
+      <!-- 4.6 补差结算中心（平台欠供应商的钱：算清 → 查账 → 结算 → 留凭证，全流程一处办完） -->
+      <section class="pane" id="pane-subsidy">
+        <div class="pane-title">💰 补差结算中心</div>
+        <!-- 机制说明照实写清楚（这是知识，不能含糊），但定性必须准确：
+             这是券活动的正常成本、按协议走补差流程结清的一笔钱，不是亏损，更不是谁欠谁的债。
+             干活的人看到的是「今天要办几件事」，不是「我又亏了多少」。 -->
+        <p style="font-size:13px;color:var(--c-amber-700);background:var(--tint-amber-100);border:1px solid var(--tint-amber-200);border-radius:8px;padding:10px 14px;margin:0 0 14px;line-height:1.8;">
+          <b>这个栏目只管一件事：顾客用券把加价吃光、导致供货价收不全的那笔钱。</b><br>
+          这笔钱进不了微信分账（微信最多只能分顾客实付那么多），按合作协议由平台在支付链路之外补给供应商 ——
+          这是一笔<b>券活动的正常成本</b>，走补差流程结清即可。<br>
+          这里把「补谁多少、是哪几单、什么时候结、已结多少」全部逐笔记清楚，<b>一分钱都不能含糊</b>，
+          台账、结算、凭证三段都要留痕。<br>
+          <b>什么时候能结：收货过秤之后。</b>收货前金额只是下单时的预估，过秤后重算定稿（可能变多、变少、甚至归零），
+          所以「待结清」只收已收货的单 —— 能结的都是死数，结完不用再改。
+        </p>
+
+        <!-- ① 本月工作量总览：要结几笔、还剩几笔，一眼看清 -->
+        <div class="section-title">① 本月补差总览（要结几笔、还剩几笔，一眼看清）</div>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="label">本月补差订单</div>
+            <div class="value"><span id="subOrderCount">0</span><small> 单</small></div>
+          </div>
+          <div class="stat-card">
+            <div class="label">本月补差金额</div>
+            <div class="value">¥<span id="subAmount">0.00</span></div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:6px;">券活动成本合计</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">待结清</div>
+            <div class="value" style="color:var(--c-amber-700,#b45309);">¥<span id="subPending">0.00</span></div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:6px;">本月待办，结完即清零</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">已结清</div>
+            <div class="value" style="color:var(--c-green,#166534);">¥<span id="subSettled">0.00</span></div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:6px;">本月已办完</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">全部待结清</div>
+            <div class="value">¥<span id="subTotalPending">0.00</span></div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:6px;">含本月 · 共 <span id="subTotalPendingCount">0</span> 单</div>
+          </div>
+        </div>
+
+        <!-- 结清进度：工作量推进看得见，归零就是「这个月的活干完了」。
+             给干活的人一个交代 —— 看得见进度、办得完、办完就干净，比什么安慰话都实在。 -->
+        <div style="margin:14px 0 4px;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--text-muted);margin-bottom:6px;">
+            <span>本月结清进度</span>
+            <span id="subProgressText">—</span>
+          </div>
+          <div style="height:8px;background:var(--surface-3,#F1F6F2);border-radius:999px;overflow:hidden;">
+            <div id="subProgressBar" style="height:100%;width:0;border-radius:999px;background:var(--c-green,#16a34a);transition:width .35s ease;"></div>
+          </div>
+          <div id="subAllClear" style="display:none;font-size:13px;color:var(--c-green,#166534);margin-top:8px;">✅ 本月补差已全部结清，这个月没有待办了</div>
+          <div id="subUnrecvTip" style="display:none;font-size:13px;color:var(--text-muted);margin-top:8px;"></div>
+        </div>
+
+        <!-- ② 补差台账：每一笔钱怎么来的、补多少，逐单查得到 -->
+        <div class="section-title" style="margin-top:18px;">② 补差台账（每一笔的来龙去脉，逐单可查）</div>
+        <div style="font-size:13px;color:var(--text-muted);margin:0 0 12px;line-height:1.7;">
+          顾客用券后实付低于供货价时，供货价收不全的差额<b>进不了分账指令</b>，按协议由平台在支付链路之外补给供应商。
+          顾客侧零感知、下单流程不变。这里只做记账与留痕，钱结完点一下「标记结清」就销账。
+        </div>
+        <div class="filter-bar">
+          <label>月份 <input type="month" id="subMonth"></label>
+          <button class="btn btn-ghost" id="subRefreshBtn">刷新台账</button>
+          <label style="margin-left:8px;">筛选
+            <select id="subStatusFilter" style="padding:6px 8px;border:1px solid var(--border);border-radius:8px;">
+              <option value="">全部</option>
+              <option value="待补">只看待结清</option>
+              <option value="已补">只看已结清</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="section-title">按供应商待结清</div>
+        <div class="table-wrap">
+          <table class="dtable" style="min-width:640px;">
+            <thead>
+              <tr>
+                <th>供应商</th>
+                <th>待结清单数</th>
+                <th>待结清金额</th>
+              </tr>
+            </thead>
+            <tbody id="subSupplierTbody">
+              <tr><td colspan="3" class="no-data">加载中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section-title">补差明细（逐单）</div>
+        <div class="table-wrap">
+          <table class="dtable" style="min-width:1180px;">
+            <thead>
+              <tr>
+                <th>订单号</th>
+                <th>商家</th>
+                <th>供应商</th>
+                <th>用了什么券</th>
+                <th>卖价总额</th>
+                <th>顾客实付</th>
+                <th>供货价</th>
+                <th>供应商实收</th>
+                <th>平台实得</th>
+                <th>补差金额</th>
+                <th>状态 / 操作</th>
+              </tr>
+            </thead>
+            <tbody id="subRecordTbody">
+              <tr><td colspan="11" class="no-data">加载中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 待收货的补差：货还在路上，金额是下单时的预估数，收货过秤后才定稿。
+             单列一块，不混进上面「能结的账」里 —— 免得你盯着一笔现在还不能结、金额还可能变的数。 -->
+        <div id="subUnreceivedWrap" style="display:none;margin-top:16px;">
+          <div class="section-title">② 之二 · 待收货的补差（预估，收货过秤后定稿）</div>
+          <div style="font-size:13px;color:var(--text-muted);margin:0 0 10px;line-height:1.7;">
+            这几单<b>已发货、还没确认收货</b>。下单时的补差只是<b>预估数</b>：收货过秤后金额会重新算，
+            可能变多、变少、甚至归零。所以它们<b>不进上面的待结清</b> —— 收货之后才会进待办，那时候金额是死的、结了不会再改。
+          </div>
+          <div class="table-wrap">
+            <table class="dtable" style="min-width:720px;">
+              <thead>
+                <tr>
+                  <th>下单时间</th>
+                  <th>订单号</th>
+                  <th>商家</th>
+                  <th>供应商</th>
+                  <th>供货价</th>
+                  <th>预估补差</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody id="subUnreceivedTbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ③ 一键结算：选周结 / 月结，点一下就把这家结清 -->
+        <div class="section-title" style="margin-top:18px;">③ 一键结算（按周 / 按月结给供应商）</div>
+        <div style="font-size:13px;color:var(--text-muted);margin:0 0 12px;line-height:1.7;">
+          系统自动算出每个供应商当前<b>待结清合计</b>，你选周结或月结，点一下「一键结算」：
+          生成结算单凭证 → 该供应商所有待结清订单统一转「已结清」→ 供应商端立刻显示<b>已结算</b>。
+          整个过程在一个事务里完成，不会出现「单子标了已结清但没出结算单」的半截状态；
+          同一笔钱<b>不可能结两次</b>（订单一旦转「已结清」，第二次结算会因匹配不到待结清单而自动回滚）。
+        </div>
+        <div class="filter-bar">
+          <label>结算周期
+            <select id="settlePeriod" style="padding:6px 8px;border:1px solid var(--border);border-radius:8px;">
+              <option value="周结">周结</option>
+              <option value="月结">月结</option>
+              <option value="手动">手动结清</option>
+            </select>
+          </label>
+          <button class="btn btn-primary" id="settleRefreshBtn">刷新待结清</button>
+          <span id="settleSummary" style="margin-left:auto;font-size:13px;color:var(--text-muted);"></span>
+        </div>
+        <div class="table-wrap">
+          <table class="dtable" style="min-width:820px;">
+            <thead>
+              <tr>
+                <th>供应商</th>
+                <th>待结清单数</th>
+                <th>待结清金额</th>
+                <th>最早一单</th>
+                <th>结算户</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="settlePendingTbody">
+              <tr><td colspan="6" class="no-data">加载中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ④ 结算凭证：谁家、多少、什么周期、打给哪个账户，白纸黑字 -->
+        <div class="section-title" style="margin-top:18px;">④ 历史结算单（收款凭证）</div>
+        <div class="table-wrap">
+          <table class="dtable" style="min-width:980px;">
+            <thead>
+              <tr>
+                <th>结算单号</th>
+                <th>供应商</th>
+                <th>周期</th>
+                <th>单数</th>
+                <th>结算金额</th>
+                <th>收款户</th>
+                <th>结算时间</th>
+                <th>操作人</th>
+                <th>状态</th>
+              </tr>
+            </thead>
+            <tbody id="settleHistoryTbody">
+              <tr><td colspan="9" class="no-data">加载中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:10px;line-height:1.8;">
+          供应商未<b>进件</b>（没填结算户）时，上方结算列表的「结算户」列显示「未提供」——需要先让他到供应商端「🏦 进件中心」补齐银行卡户名与卡号，
+          再点结算（这样钱打给谁才写得清楚）。缺资料也能结算，平台按线下方式出款，但务必核对户名卡号后再打。
         </p>
       </section>
 
@@ -1213,6 +1448,43 @@
       </section>
 
       <!-- 10. 系统设置 -->
+      <section class="pane" id="pane-tickets">
+        <div class="pane-title">工单仲裁</div>
+        <p style="font-size:13px;color:var(--c-amber-700);background:var(--tint-amber-100);border:1px solid var(--tint-amber-200);border-radius:8px;padding:10px 14px;margin:0 0 14px;line-height:1.7;">
+          商家收货后发现问题可提交工单（带图凭证），供应商需 24 小时内受理；
+          超时未受理或双方谈不拢的工单自动转入此处，由平台裁决。裁决结果为终局，双方均可见依据。
+        </p>
+        <div class="stat-grid" id="tkStatGrid"></div>
+        <div class="filter-bar">
+          <label>状态
+            <select id="tkFilterStatus">
+              <option value="">全部</option>
+              <option value="待受理">待受理</option>
+              <option value="处理中">处理中</option>
+              <option value="待商家确认">待商家确认</option>
+              <option value="平台介入中">平台介入中</option>
+              <option value="已完成">已完成</option>
+              <option value="已驳回">已驳回</option>
+              <option value="已撤销">已撤销</option>
+            </select>
+          </label>
+          <label><input type="checkbox" id="tkOnlyIntervened"> 只看平台介入</label>
+          <button class="btn" id="tkQueryBtn">查询</button>
+        </div>
+        <div class="table-wrap">
+          <table class="dtable">
+            <thead>
+              <tr>
+                <th>工单号</th><th>类型</th><th>商家</th><th>供应商</th><th>状态</th><th>提交时间</th><th>受理时限</th><th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="tkTableBody"></tbody>
+          </table>
+        </div>
+        <div class="section-title" style="margin-top:18px;">供应商投诉排行（工单量 Top 5）</div>
+        <div id="tkTopSuppliers" style="font-size:13px;color:var(--text-2);line-height:1.9;"></div>
+      </section>
+
       <section class="pane" id="pane-system">
         <div class="pane-title">⚙️ 系统设置</div>
         <div class="config-form-row">
@@ -1278,6 +1550,49 @@
   </div>
 
   <!-- 商家详情弹窗 -->
+  <!-- 平台裁决弹窗：纠纷兜底，依据对双方可见 -->
+  <div class="modal" id="tkArbModal">
+    <div class="modal-box" style="max-width:500px;">
+      <h3>
+        <span>平台裁决</span>
+        <button class="modal-close" id="tkArbClose">×</button>
+      </h3>
+      <div style="font-size:13px;line-height:1.8;color:var(--text-2);">
+        <div id="tkArbSummary" style="margin-bottom:12px;padding:10px 12px;background:var(--tint-amber-100);border-radius:8px;"></div>
+        <div style="margin-bottom:10px;">
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:4px;">裁决结果</label>
+          <select id="tkArbResult" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;">
+            <option value="support_merchant">支持商家（供应商担责）</option>
+            <option value="support_supplier">支持供应商（驳回诉求）</option>
+          </select>
+        </div>
+        <div style="margin-bottom:10px;">
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:4px;">裁定金额（元，支持商家时填写）</label>
+          <input type="number" id="tkArbAmount" min="0" step="0.01" placeholder="0.00" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:4px;">裁决依据（必填，双方可见）</label>
+          <textarea id="tkArbNote" maxlength="1000" placeholder="如：商家提供开箱照片显示 8 斤土豆发芽，供应商未在 24 小时内举证，判定供应商补发" style="width:100%;min-height:90px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;"></textarea>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px;">
+        <button class="btn" id="tkArbCancel">取消</button>
+        <button class="btn btn-primary" id="tkArbOk">确认裁决</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 工单详情弹窗：看完整沟通过程再下判断 -->
+  <div class="modal" id="tkDetailModal">
+    <div class="modal-box" style="max-width:560px;">
+      <h3>
+        <span id="tkDetailTitle">工单详情</span>
+        <button class="modal-close" id="tkDetailClose">×</button>
+      </h3>
+      <div id="tkDetailBody" style="font-size:13px;line-height:1.8;color:var(--text-2);max-height:60vh;overflow:auto;"></div>
+    </div>
+  </div>
+
   <div class="modal" id="merchantModal">
     <div class="modal-box">
       <h3>
@@ -1287,18 +1602,23 @@
       <div class="info-grid" id="mmInfo"></div>
       <div class="sub-title">采购历史（最近 50 单）</div>
       <div class="table-wrap">
-        <table class="dtable" style="min-width:640px;">
+        <table class="dtable" style="min-width:980px;">
           <thead>
             <tr>
               <th>订单号</th>
               <th>供应商</th>
-              <th>实付金额</th>
+              <th>卖价总额</th>
+              <th>券抵扣</th>
+              <th>顾客实付</th>
+              <th>供货价（供应商应得）</th>
+              <th>平台实得</th>
+              <th>补差金额（平台补）</th>
               <th>状态</th>
               <th>下单时间</th>
             </tr>
           </thead>
           <tbody id="mmOrders">
-            <tr><td colspan="5" class="no-data">加载中...</td></tr>
+            <tr><td colspan="9" class="no-data">加载中...</td></tr>
           </tbody>
         </table>
       </div>
@@ -1439,6 +1759,185 @@
     }
 
     // 侧边栏导航（切换时按需加载数据）
+    // ============ 工单仲裁（平台兜底）============
+    // 商家与供应商谈不拢、或供应商超 24h 未受理的工单流转到这里，由平台裁决，结果为终局。
+    // 对平台而言这既是纠纷兜底，也是品控抓手：哪家供应商投诉多、哪类问题频发，在这里一目了然。
+    let _tkPlatformList = [];
+    let _tkArbId = '';
+
+    function tkToast(msg, isErr) {
+      if (typeof toast === 'function') { toast(msg, isErr); return; }
+      alert(msg);
+    }
+
+    const TK_TONE_D = {
+      '待受理': ['rgba(234,88,12,.10)', '#c2410c'],
+      '处理中': ['rgba(37,99,235,.10)', '#1d4ed8'],
+      '待商家确认': ['rgba(109,40,217,.10)', '#6d28d9'],
+      '已完成': ['rgba(22,163,74,.10)', '#15803d'],
+      '已驳回': ['rgba(107,114,128,.12)', '#6b7280'],
+      '已撤销': ['rgba(107,114,128,.12)', '#6b7280'],
+      '平台介入中': ['rgba(220,38,38,.10)', '#b91c1c']
+    };
+
+    function tkStatusTag(s) {
+      const tone = TK_TONE_D[s] || ['rgba(107,114,128,.12)', '#6b7280'];
+      return `<span style="font-size:11px;padding:2px 9px;border-radius:999px;background:${tone[0]};color:${tone[1]};font-weight:600;">${esc(s)}</span>`;
+    }
+
+    async function loadPlatformTickets() {
+      const status = $('tkFilterStatus').value;
+      const qs = [];
+      if (status) qs.push('status=' + encodeURIComponent(status));
+      if ($('tkOnlyIntervened').checked) qs.push('intervened=1');
+      const [listRes, statRes] = await Promise.all([
+        api('/api/service-tickets/platform' + (qs.length ? '?' + qs.join('&') : '')),
+        api('/api/service-tickets/platform/stats')
+      ]);
+      _tkPlatformList = (listRes.success && listRes.data && listRes.data.list) || [];
+      renderPlatformStat(statRes);
+      renderPlatformTickets(_tkPlatformList);
+      // 侧栏红点：有待裁决的工单要一眼看见
+      const pending = _tkPlatformList.filter(t => t.status === '平台介入中').length;
+      const dot = $('tkNavDot');
+      if (dot) { dot.textContent = pending; dot.style.display = pending > 0 ? '' : 'none'; }
+    }
+
+    function renderPlatformStat(statRes) {
+      if (!statRes.success || !statRes.data) return;
+      const s = statRes.data;
+      const openCount = (s.byStatus['待受理'] || 0) + (s.byStatus['处理中'] || 0)
+        + (s.byStatus['待商家确认'] || 0) + (s.byStatus['平台介入中'] || 0);
+      const cards = [
+        ['工单总量', s.total || 0, ''],
+        ['未闭环', openCount, '#ea580c'],
+        ['平台介入', s.intervened || 0, '#dc2626'],
+        ['商家平均评分', (s.rating && s.rating.avg) ? (s.rating.avg + ' 分') : '—', '']
+      ];
+      $('tkStatGrid').innerHTML = cards.map(c =>
+        `<div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
+          <div style="font-size:12px;color:var(--text-muted);">${c[0]}</div>
+          <div style="font-size:20px;font-weight:700;margin-top:2px;${c[2] ? 'color:' + c[2] + ';' : ''}">${c[1]}</div>
+        </div>`).join('');
+      const top = s.topSuppliers || [];
+      $('tkTopSuppliers').innerHTML = top.length
+        ? top.map((x, i) => `${i + 1}. ${esc(x.name)}　工单 ${x.total} 单　平均评分 ${x.avgRating || '—'}`).join('<br>')
+        : '暂无数据';
+    }
+
+    function renderPlatformTickets(list) {
+      const body = $('tkTableBody');
+      const now = new Date();
+      if (!list.length) {
+        body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:20px;">暂无工单</td></tr>';
+        return;
+      }
+      body.innerHTML = list.map(t => {
+        const overdue = t.status === '待受理' && t.dueAt && new Date(t.dueAt) < now;
+        const leftH = (t.status === '待受理' && t.dueAt) ? Math.max(0, Math.floor((new Date(t.dueAt) - now) / 3600000)) : null;
+        return `<tr>
+          <td><b>${esc(t.ticketNo)}</b></td>
+          <td>${esc(t.type)}</td>
+          <td>${esc(t.shopName || '—')}</td>
+          <td>${esc(t.supplierName || '—')}</td>
+          <td>${tkStatusTag(t.status)}${t.priority === '紧急' ? ' <span style="font-size:11px;color:#b91c1c;font-weight:600;">紧急</span>' : ''}</td>
+          <td>${fmtTime(t.createdAt)}</td>
+          <td>${overdue ? '<span style="color:#dc2626;font-weight:600;">已超时</span>' : (leftH !== null ? `剩 ${leftH} 小时` : '—')}</td>
+          <td>${t.status === '平台介入中'
+            ? `<button class="btn btn-primary" data-arb="${t._id}">裁决</button> <button class="btn" data-view="${t._id}">详情</button>`
+            : `<button class="btn" data-view="${t._id}">详情</button>`}</td>
+        </tr>`;
+      }).join('');
+      body.querySelectorAll('[data-arb]').forEach(b => { b.onclick = () => openArbitrate(b.dataset.arb); });
+      body.querySelectorAll('[data-view]').forEach(b => { b.onclick = () => openTicketDetail(b.dataset.view); });
+    }
+
+    function openArbitrate(id) {
+      const t = _tkPlatformList.find(x => String(x._id) === String(id));
+      _tkArbId = id;
+      $('tkArbSummary').innerHTML = t
+        ? `<b>${esc(t.ticketNo)}</b>｜${esc(t.type)}｜${esc(t.shopName || '商家')} ↔ ${esc(t.supplierName || '供应商')}<br>
+           商家诉求：${esc(t.expectAction || '')}${t.claimAmount > 0 ? ` ¥${Number(t.claimAmount).toFixed(2)}` : ''}<br>
+           问题描述：${esc(t.description || '')}<br>
+           ${t.escalateReason ? `升级原因：${esc(t.escalateReason)}<br>` : ''}
+           ${(t.resolution && t.resolution.action) ? `供应商方案：${esc(t.resolution.action)}${t.resolution.amount > 0 ? ' ¥' + Number(t.resolution.amount).toFixed(2) : ''}` : ''}`
+        : '';
+      $('tkArbAmount').value = (t && t.claimAmount) ? t.claimAmount : '';
+      $('tkArbNote').value = '';
+      $('tkArbModal').classList.add('show');
+    }
+
+    // 详情：先看完整沟通过程再下判断，别只听一面之词
+    function openTicketDetail(id) {
+      const t = _tkPlatformList.find(x => String(x._id) === String(id));
+      $('tkDetailTitle').textContent = t ? `工单 ${t.ticketNo}` : '工单详情';
+      if (!t) { $('tkDetailBody').innerHTML = '未找到该工单'; }
+      else {
+        const imgs = (t.images || []).length
+          ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;">${t.images.map(u =>
+              `<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--border);"></a>`).join('')}</div>`
+          : '';
+        const items = (t.items || []).length
+          ? `<div>涉事商品：${t.items.map(i => `${esc(i.name)}${i.issueQuantity > 0 ? `（问题 ${i.issueQuantity}${esc(i.unit || '')}／共 ${i.quantity}${esc(i.unit || '')}）` : ` ×${i.quantity}${esc(i.unit || '')}`}`).join('；')}</div>`
+          : '';
+        const logs = (t.logs || []).map(l =>
+          `<div style="padding:4px 0;border-bottom:1px dashed var(--border);">
+            ${fmtTime(l.at)} <b>${esc(l.byName || '')}</b> ${esc(l.action || '')}
+            ${l.to ? `（${esc(l.from || '')} → ${esc(l.to)}）` : ''}
+            ${l.note ? '<br>' + esc(l.note) : ''}
+          </div>`).join('') || '<div style="color:var(--text-muted);">暂无处理记录</div>';
+        $('tkDetailBody').innerHTML = `
+          <div>${tkStatusTag(t.status)} ${esc(t.type)} ${t.priority === '紧急' ? '紧急' : ''}</div>
+          <div style="margin:6px 0;">订单 ${esc(t.orderNo || '—')}｜${esc(t.shopName || '商家')} ↔ ${esc(t.supplierName || '供应商')}</div>
+          <div style="margin:6px 0;">${esc(t.title || '')}</div>
+          <div style="color:var(--text-muted);">${esc(t.description || '')}</div>
+          ${imgs}${items}
+          ${t.resolution && t.resolution.action ? `<div style="margin:8px 0;">供应商方案：${esc(t.resolution.action)}${t.resolution.amount > 0 ? ' ¥' + Number(t.resolution.amount).toFixed(2) : ''}${t.resolution.note ? '｜' + esc(t.resolution.note) : ''}</div>` : ''}
+          ${t.platformNote ? `<div style="margin:8px 0;padding:8px 10px;background:rgba(220,38,38,.06);border-radius:8px;">平台裁决：${esc(t.platformNote)}</div>` : ''}
+          ${t.rating ? `<div style="margin:6px 0;">商家评价：${t.rating}/5${t.ratingNote ? '｜' + esc(t.ratingNote) : ''}</div>` : ''}
+          <div class="sub-title" style="margin-top:14px;">处理记录</div>
+          ${logs}
+        `;
+      }
+      $('tkDetailModal').classList.add('show');
+    }
+
+    $('tkQueryBtn').onclick = () => loadPlatformTickets();
+    $('tkFilterStatus').onchange = () => loadPlatformTickets();
+    $('tkOnlyIntervened').onchange = () => loadPlatformTickets();
+
+    $('tkArbClose').onclick = () => $('tkArbModal').classList.remove('show');
+    $('tkArbCancel').onclick = () => $('tkArbModal').classList.remove('show');
+    $('tkArbModal').onclick = (e) => { if (e.target === $('tkArbModal')) $('tkArbModal').classList.remove('show'); };
+    $('tkArbOk').onclick = async () => {
+      const result = $('tkArbResult').value;
+      const amount = Number($('tkArbAmount').value || 0);
+      const note = $('tkArbNote').value.trim();
+      if (!note) { tkToast('请写明裁决依据（对双方都要有交代）', true); return; }
+      const btn = $('tkArbOk');
+      btn.disabled = true; btn.textContent = '提交中...';
+      try {
+        const res = await api(`/api/service-tickets/${_tkArbId}/arbitrate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ result, amount, note })
+        });
+        if (res.success) {
+          $('tkArbModal').classList.remove('show');
+          tkToast(result === 'support_merchant' ? '已裁决：支持商家' : '已裁决：支持供应商');
+          loadPlatformTickets();
+        } else tkToast(res.message || '裁决失败', true);
+      } finally { btn.disabled = false; btn.textContent = '确认裁决'; }
+    };
+
+    $('tkDetailClose').onclick = () => $('tkDetailModal').classList.remove('show');
+    $('tkDetailModal').onclick = (e) => { if (e.target === $('tkDetailModal')) $('tkDetailModal').classList.remove('show'); };
+
+    // 进页面先拉一次，让侧栏红点准确（不必点进栏目才知道有纠纷待裁）
+    loadPlatformTickets();
+    // 同理：一进控制台就拉一次补差待办概览，只要还有没结清的，侧栏红点就亮着
+    loadSubsidySettlements();
+
     document.querySelectorAll('.nav-item').forEach(t => {
       t.onclick = () => {
         document.querySelectorAll('.nav-item').forEach(x => x.classList.toggle('active', x === t));
@@ -1449,14 +1948,22 @@
         if (tab === 'suppliers') { markTodosRead(); loadSuppliers(); }
         if (tab === 'pricing') initPricingTab();
         if (tab === 'revenue') initRevenueTab();
+        // 补差结算中心：欠供应商多少钱，单独一本账
+        if (tab === 'subsidy') initSubsidyTab();
         if (tab === 'coinrules') loadCoinRules();
         if (tab === 'marketing') loadMarketingDev();
         if (tab === 'membership') loadMembershipOrders();
         if (tab === 'notifylog') loadNotificationLogs();
         if (tab === 'pricecheck') initPriceCheck();
+        if (tab === 'tickets') loadPlatformTickets();
         if (tab === 'system') loadPlatformConfig();
       };
     });
+    // 「平台收入」页的补差入口 → 跳到补差结算中心（同一笔钱只有一个入口，避免两处口径打架）
+    if ($('gotoSubsidyBtn')) {
+      $('gotoSubsidyBtn').onclick = () => document.querySelector('.nav-item[data-tab="subsidy"]').click();
+    }
+
     // 总览待办卡片点击 → 进入供应商管理（同样触发已读）
     $('todoRegItem').onclick = () => document.querySelector('.nav-item[data-tab="suppliers"]').click();
     $('todoQualItem').onclick = () => document.querySelector('.nav-item[data-tab="suppliers"]').click();
@@ -1799,13 +2306,13 @@
     async function openMerchantDetail(id) {
       $('mmTitle').textContent = '商家详情';
       $('mmInfo').innerHTML = '<div style="color:var(--text-muted);font-size:13px;">加载中...</div>';
-      $('mmOrders').innerHTML = '<tr><td colspan="5" class="no-data">加载中...</td></tr>';
+      $('mmOrders').innerHTML = '<tr><td colspan="10" class="no-data">加载中...</td></tr>';
       $('merchantModal').classList.add('show');
 
       const res = await api('/api/dev/merchants/' + id);
       if (!res.success || !res.data) {
         $('mmInfo').innerHTML = `<div style="color:var(--red);font-size:13px;">${esc(res.message || '加载失败')}</div>`;
-        $('mmOrders').innerHTML = '<tr><td colspan="5" class="no-data">—</td></tr>';
+        $('mmOrders').innerHTML = '<tr><td colspan="10" class="no-data">—</td></tr>';
         return;
       }
       const d = res.data;
@@ -1834,15 +2341,36 @@
         </div>
       `;
       const orders = d.orders || [];
-      $('mmOrders').innerHTML = orders.length ? orders.map(o => `
+      // 对账口径一行看全：卖价总额 − 券抵扣 = 顾客实付；实付 − 供货价 = 平台实得。
+      // 平台实得为负 = 券把毛利吃光还不够，差额走补差流程补给供应商，标红提醒。
+      $('mmOrders').innerHTML = orders.length ? orders.map(o => {
+        const total = Number(o.totalAmount || 0);
+        const disc = Number(o.discountAmount || 0);
+        const pay = Number((o.actualPayAmount != null ? o.actualPayAmount : total) || 0);
+        const supply = Number(o.supplyAmount || 0);
+        const plat = (o.platformShare != null) ? Number(o.platformShare) : +(pay - supply).toFixed(2);
+        // 补差：券把加价吃光后，供货价收不全的部分，按协议由平台补给供应商（正常成本，不是亏损）
+        const sub = Number(o.subsidyAmount || 0);
+        const cObj = (o.appliedCouponId && typeof o.appliedCouponId === 'object') ? o.appliedCouponId : null;
+        const cName = cObj ? (cObj.name || `¥${cObj.faceValue}抵用券`) : '';
+        return `
         <tr>
           <td class="mono" data-label="订单号">${esc(o.orderNo || '—')}</td>
           <td data-label="供应商">${esc((o.supplierId && o.supplierId.name) || '平台直供')}</td>
-          <td data-label="实付金额">${fmtMoney(o.actualPayAmount != null ? o.actualPayAmount : o.totalAmount)}</td>
+          <td data-label="卖价总额">${fmtMoney(total)}</td>
+          <td data-label="券抵扣">${disc > 0
+            ? `<span style="color:var(--red);font-weight:600;">${cName ? esc(cName) : '-' + fmtMoney(disc)}</span>`
+            : '—'}</td>
+          <td data-label="顾客实付"><b>${fmtMoney(pay)}</b></td>
+          <td data-label="供货价">${fmtMoney(supply)}</td>
+          <td data-label="平台实得" style="font-weight:700;color:${plat < 0 ? 'var(--red)' : 'var(--accent)'};">${fmtMoney(plat)}${plat < 0 ? '<div style="font-size:11px;">⚠ 实得为负，差额走补差</div>' : ''}</td>
+          <td data-label="补差">${sub > 0.005
+            ? `<span style="font-weight:700;">${fmtMoney(sub)}</span><div style="font-size:11px;color:${o.subsidyStatus === '已补' ? 'var(--c-green, #166534)' : 'var(--c-amber-700, #b45309)'};">${o.subsidyStatus === '已补' ? '已结清' : '待结清'}</div>`
+            : '—'}</td>
           <td data-label="状态"><span class="badge ${statusClass(o.status)}">${esc(o.status)}</span></td>
           <td data-label="下单时间">${fmtTime(o.createdAt)}</td>
-        </tr>
-      `).join('') : '<tr><td colspan="5" class="no-data">暂无采购记录</td></tr>';
+        </tr>`;
+      }).join('') : '<tr><td colspan="10" class="no-data">暂无采购记录</td></tr>';
     }
     $('mmClose').onclick = () => $('merchantModal').classList.remove('show');
     $('merchantModal').onclick = (e) => {
@@ -2324,8 +2852,9 @@
       };
     }
 
-    // 图片灯箱（开发者后台）
+    // 图片灯箱（开发者后台）：统一走三端通用灯箱，关闭方式与商家端 / 供应商端一致
     function showDevImageLightbox(url) {
+      if (typeof window.openImageLightbox === 'function') { window.openImageLightbox(url); return; }
       let lb = $('devLightbox');
       if (!lb) {
         lb = document.createElement('div');
@@ -2599,6 +3128,285 @@
       await loadRevenue($('revMonth').value || curMonth());
       await loadSplitFailures();
       await loadManualSettlements();
+    }
+
+    // ============ 补差结算中心（独立栏目：欠供应商多少 / 逐单台账 / 一键结算 / 收款凭证）============
+    // 与「平台收入」分开理由：平台收入看我赚了多少，这里看我还欠供应商多少 —— 两本账各自清楚，不允许混。
+    let subInited = false;
+    async function initSubsidyTab() {
+      if (!$('subMonth').value) $('subMonth').value = curMonth();
+      if (!subInited) {
+        subInited = true;
+        $('subRefreshBtn').onclick = () => loadSubsidies($('subMonth').value || curMonth());
+        $('subMonth').onchange = () => loadSubsidies($('subMonth').value || curMonth());
+        $('subStatusFilter').onchange = () => loadSubsidies($('subMonth').value || curMonth());
+        $('settleRefreshBtn').onclick = () => loadSubsidySettlements();
+      }
+      await loadSubsidies($('subMonth').value || curMonth());
+      await loadSubsidySettlements();
+    }
+
+    // ============ 补差结算台（按周 / 按月一键结算，/api/dev/subsidy-settlements）============
+    // 结算正在进行中的锁（正在结算时禁止再点，防止重复结算）
+    let settleLock = false;
+
+    async function loadSubsidySettlements() {
+      $('settlePendingTbody').innerHTML = '<tr><td colspan="6" class="no-data">加载中...</td></tr>';
+      $('settleHistoryTbody').innerHTML = '<tr><td colspan="9" class="no-data">加载中...</td></tr>';
+      const res = await api('/api/dev/subsidy-settlements');
+      if (!res.success || !res.data) {
+        const msg = esc(res.message || '加载失败');
+        $('settlePendingTbody').innerHTML = `<tr><td colspan="6" class="no-data">${msg}</td></tr>`;
+        $('settleHistoryTbody').innerHTML = `<tr><td colspan="9" class="no-data">${msg}</td></tr>`;
+        return;
+      }
+      const d = res.data;
+      const s = d.summary || {};
+      $('settleSummary').textContent = `待结清：${s.supplierCount || 0} 家供应商 · ${s.orderCount || 0} 单 · ¥${Number(s.amount || 0).toFixed(2)}`;
+
+      // 侧栏红点：只要还有没结清的就一直亮着，结清了自动消失 —— 待办不能躺在看不见的地方
+      const subDot = $('subNavDot');
+      if (subDot) {
+        if (Number(s.supplierCount || 0) > 0) {
+          subDot.style.display = '';
+          subDot.textContent = `待结清 ¥${Number(s.amount || 0).toFixed(2)}`;
+          subDot.title = `平台共欠 ${s.supplierCount} 家供应商 ¥${Number(s.amount || 0).toFixed(2)}（${s.orderCount} 单）`;
+        } else {
+          subDot.style.display = 'none';
+        }
+      }
+
+      const pend = d.pending || [];
+      $('settlePendingTbody').innerHTML = pend.length ? pend.map((x, i) => `
+        <tr>
+          <td>
+            <b>${esc(x.supplierName || '未命名供应商')}</b>
+            <div style="margin-top:4px;">
+              <button class="btn" style="padding:2px 8px;font-size:12px;" data-toggle="sdPend${i}">▸ 看每一单明细（${x.orderCount} 单）</button>
+            </div>
+          </td>
+          <td>${x.orderCount}</td>
+          <td style="font-weight:700;color:var(--red);">${fmtMoney(x.amount)}</td>
+          <td>${fmtTime(x.earliest)}</td>
+          <td>${x.bankReady
+            ? '<span class="badge s-done">已提供</span>'
+            : '<span class="badge s-pending" title="该供应商还没填结算户，先让他补齐资料再结算">未提供</span>'}</td>
+          <td><button class="btn btn-primary" style="padding:4px 10px;font-size:12px;" data-settle="${esc(String(x.supplierId))}" data-name="${esc(x.supplierName || '')}" data-amount="${Number(x.amount || 0).toFixed(2)}">一键结算</button></td>
+        </tr>
+        <tr id="sdPend${i}" style="display:none;">
+          <td colspan="6" style="background:var(--bg-subtle,#f8fafc);padding:10px 12px;">${settleItemsTable(x.orders)}</td>
+        </tr>`).join('') : '<tr><td colspan="6" class="no-data">✅ 当前没有待结清的补差 —— 这笔账是干净的</td></tr>';
+
+      const hist = d.settlements || [];
+      $('settleHistoryTbody').innerHTML = hist.length ? hist.map((x, i) => `
+        <tr>
+          <td class="mono">${esc(x.settleNo || '—')}
+            <div style="margin-top:4px;">
+              <button class="btn" style="padding:2px 8px;font-size:12px;" data-toggle="sdHist${i}">▸ 看每一单明细（${x.orderCount} 单）</button>
+            </div>
+          </td>
+          <td>${esc(x.supplierName || '—')}</td>
+          <td>${esc(x.periodType || '')}${x.periodStart && x.periodEnd ? `<div style="font-size:11px;color:var(--text-muted);">${fmtTime(x.periodStart).slice(0, 10)} ~ ${fmtTime(x.periodEnd).slice(0, 10)}</div>` : ''}</td>
+          <td>${x.orderCount}</td>
+          <td style="font-weight:700;color:var(--accent);">${fmtMoney(x.amount)}</td>
+          <td style="font-size:12px;">${(x.payee && x.payee.bankAccountName) ? `${esc(x.payee.bankName || '')} ${esc(x.payee.bankAccountName)} <span class="mono">${esc(x.payee.bankAccountNoTail || '')}</span>` : '—'}</td>
+          <td>${fmtTime(x.settledAt)}</td>
+          <td>${esc(x.operator || '—')}</td>
+          <td><span class="badge ${x.status === '已结算' ? 's-done' : 's-pending'}">${esc(x.status || '')}</span>${x.note ? `<div style="font-size:11px;color:var(--text-muted);">${esc(x.note)}</div>` : ''}</td>
+        </tr>
+        <tr id="sdHist${i}" style="display:none;">
+          <td colspan="9" style="background:var(--bg-subtle,#f8fafc);padding:10px 12px;">${settleItemsTable(x.items)}</td>
+        </tr>`).join('') : '<tr><td colspan="9" class="no-data">还没有结算记录</td></tr>';
+
+      // 展开 / 收起明细
+      document.querySelectorAll('#settlePendingTbody button[data-toggle], #settleHistoryTbody button[data-toggle]').forEach(b => {
+        b.onclick = () => {
+          const el = document.getElementById(b.dataset.toggle);
+          if (!el) return;
+          const show = el.style.display === 'none';
+          el.style.display = show ? '' : 'none';
+          b.textContent = (show ? '▾' : '▸') + b.textContent.slice(1);
+        };
+      });
+
+      // 一键结算：点一次就上锁，结完该供应商直接从待结清列表消失（不可能结第二次）
+      $('settlePendingTbody').querySelectorAll('button[data-settle]').forEach(btn => {
+        btn.onclick = async () => {
+          if (settleLock) return;                       // 上锁：正在结算时点别的按钮无效
+          const period = $('settlePeriod').value || '周结';
+          const name = btn.dataset.name || '该供应商';
+          const amount = btn.dataset.amount || '0.00';
+          if (!confirm(`确认结算 ${name} 的补差 ¥${amount}（${period}）？\n\n结算后：该供应商所有待结清订单统一转为「已结清」，供应商端显示「已结算」，并生成结算单凭证。\n这笔钱结完就锁死，不可能再结第二次。`)) return;
+          settleLock = true;
+          // 所有结算按钮一起灰掉，防止手抖点两下
+          $('settlePendingTbody').querySelectorAll('button[data-settle]').forEach(b => { b.disabled = true; b.textContent = '结算中...'; });
+          const r2 = await api('/api/dev/subsidy-settlements', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ supplierId: btn.dataset.settle, periodType: period })
+          });
+          settleLock = false;
+          if (!r2.success) {
+            alert(r2.message || '结算失败');
+            await loadSubsidySettlements();
+            return;
+          }
+          alert((r2.message || '结算完成') + '\n\n该供应商已从待结清列表移除，这笔钱不可能再结第二次。');
+          await loadSubsidySettlements();
+          await loadSubsidies($('subMonth').value || curMonth());
+        };
+      });
+    }
+
+    // 结算明细小表：每一单的 应收供货价 / 供应商实收 / 平台补 / 完成时间，带合计
+    function settleItemsTable(rows) {
+      if (!rows || !rows.length) {
+        return '<div style="font-size:12px;color:var(--text-muted);">暂无明细</div>';
+      }
+      const sum = rows.reduce((a, r) => a + (Number(r.subsidyAmount) || 0), 0);
+      return `<table class="dtable" style="width:100%;min-width:0;font-size:12px;">
+        <thead>
+          <tr>
+            <th>订单号</th><th>商家</th><th>应收供货价</th><th>供应商实收</th><th>平台补</th><th>完成时间</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `<tr>
+            <td class="mono">${esc(r.orderNo || '—')}</td>
+            <td>${esc(r.shopName || '—')}</td>
+            <td>${Number(r.supplyAmount || 0).toFixed(2)}</td>
+            <td>${Number(r.supplierShare || 0).toFixed(2)}</td>
+            <td style="font-weight:700;color:var(--red);">${Number(r.subsidyAmount || 0).toFixed(2)}</td>
+            <td>${fmtTime(r.at)}</td>
+          </tr>`).join('')}
+          <tr>
+            <td colspan="4" style="text-align:right;font-weight:700;">合计 ${rows.length} 单</td>
+            <td style="font-weight:700;color:var(--red);">${sum.toFixed(2)}</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>`;
+    }
+
+    // ============ 券成本补差台账（按协议由平台补供应商，数据来自 /api/dev/subsidies）============
+    // 定性要说准：这是券活动的正常成本、一笔按流程要结清的账，不是亏损，更不是谁欠谁。
+    // 所以这一栏做成「工作量看板」：要办几笔、还剩几笔、办完即清零 —— 事实一个不少，但干活的人不挨骂。
+    async function loadSubsidies(month) {
+      $('subSupplierTbody').innerHTML = '<tr><td colspan="3" class="no-data">加载中...</td></tr>';
+      $('subRecordTbody').innerHTML = '<tr><td colspan="11" class="no-data">加载中...</td></tr>';
+      // 状态筛选（待补 / 已补）由本栏目自己的下拉决定，接口侧已支持 ?status=待补|已补
+      const st = $('subStatusFilter') ? String($('subStatusFilter').value || '') : '';
+      const res = await api('/api/dev/subsidies?month=' + encodeURIComponent(month || curMonth())
+        + (st ? '&status=' + encodeURIComponent(st) : ''));
+      if (!res.success || !res.data) {
+        const msg = esc(res.message || '加载失败');
+        $('subSupplierTbody').innerHTML = `<tr><td colspan="3" class="no-data">${msg}</td></tr>`;
+        $('subRecordTbody').innerHTML = `<tr><td colspan="11" class="no-data">${msg}</td></tr>`;
+        return;
+      }
+      const d = res.data;
+      const s = d.summary || {};
+      $('subOrderCount').textContent = s.orderCount || 0;
+      $('subAmount').textContent = Number(s.subsidyAmount || 0).toFixed(2);
+      $('subPending').textContent = Number(s.subsidyPending || 0).toFixed(2);
+      $('subSettled').textContent = Number(s.subsidySettled || 0).toFixed(2);
+      $('subTotalPending').textContent = Number(s.totalPendingAmount || 0).toFixed(2);
+      $('subTotalPendingCount').textContent = s.totalPendingCount || 0;
+
+      // 结清进度：让工作量一眼有数、办完即清零。
+      // 这是给干活的人看的 —— 推进看得见、办完了有个数，比盯着一笔「还没给的钱」舒服得多。
+      const settledAmt = Number(s.subsidySettled || 0);
+      const pendingAmt = Number(s.subsidyPending || 0);
+      const allAmt = settledAmt + pendingAmt;
+      const bar = $('subProgressBar'), pText = $('subProgressText'), pClear = $('subAllClear');
+      if (bar && pText) {
+        const hasWork = allAmt > 0.005;
+        const pct = hasWork ? Math.round(settledAmt / allAmt * 100) : 100;
+        bar.style.width = pct + '%';
+        pText.textContent = hasWork
+          ? `${pct}% · 已结清 ¥${settledAmt.toFixed(2)} / 共 ¥${allAmt.toFixed(2)}`
+          : '本月没有需要结清的补差';
+      }
+      if (pClear) pClear.style.display = (allAmt > 0.005 && pendingAmt <= 0.005) ? 'block' : 'none';
+
+      // 货在途的预估补差：给个数、说清「收货后才进待办」，别让这笔钱看起来凭空消失了
+      const unrecvTip = $('subUnrecvTip');
+      if (unrecvTip) {
+        const un = Number(s.unreceivedAmount || 0), unCnt = Number(s.unreceivedCount || 0);
+        unrecvTip.style.display = (unCnt > 0 && un > 0.005) ? 'block' : 'none';
+        if (unCnt > 0) {
+          unrecvTip.textContent = `📦 另有 ${unCnt} 单已发货未收货，预估补差 ¥${un.toFixed(2)} —— 收货过秤后金额定稿，那时候才进待办`;
+        }
+      }
+
+      const sups = d.bySupplier || [];
+      $('subSupplierTbody').innerHTML = sups.length ? sups.map(x => `
+        <tr>
+          <td>${esc(x.supplierName || '未命名供应商')}</td>
+          <td>${x.orderCount}</td>
+          <td style="font-weight:700;color:var(--c-amber-700,#b45309);">${fmtMoney(x.pendingAmount)}</td>
+        </tr>`).join('') : '<tr><td colspan="3" class="no-data">✅ 没有待结清的补差，这个月这笔账干净</td></tr>';
+
+      const rows = d.records || [];
+      $('subRecordTbody').innerHTML = rows.length ? rows.map(r => {
+        const settled = r.subsidyStatus === '已补';
+        return `
+        <tr>
+          <td class="mono">${esc(r.orderNo || '—')}</td>
+          <td>${esc(r.shopName || '—')}</td>
+          <td>${esc(r.supplierName || '—')}</td>
+          <td>${r.couponName ? `<span style="color:var(--red);font-weight:600;">${esc(r.couponName)}</span>` : '—'}</td>
+          <td>${fmtMoney(r.totalAmount)}</td>
+          <td><b>${fmtMoney(r.actualPayAmount)}</b></td>
+          <td>${fmtMoney(r.supplyAmount)}</td>
+          <td>${fmtMoney(r.supplierShare)}</td>
+          <td style="color:var(--accent);">${fmtMoney(r.platformShare)}</td>
+          <td style="font-weight:700;">${fmtMoney(r.subsidyAmount)}</td>
+          <td>${settled
+            ? `<span class="badge s-done">已结清</span><div style="font-size:11px;color:var(--text-muted);">${fmtTime(r.subsidySettledAt)}${r.subsidyNote ? ' · ' + esc(r.subsidyNote) : ''}</div>`
+            : `<span class="badge s-pending">待结清</span> <button class="btn btn-sm" data-subsidy="${esc(String(r._id))}" style="margin-left:4px;">标记结清</button>`}</td>
+        </tr>`;
+      }).join('') : '<tr><td colspan="11" class="no-data">本月没有已收货的补差订单（券成本都在加价空间内）</td></tr>';
+
+      // 待收货（预估）：货在途、金额未定稿 —— 单列出来让人知道「这笔钱去哪了」，但不进待办、不进进度
+      const unrecv = d.unreceived || [];
+      const unrecvWrap = $('subUnreceivedWrap');
+      if (unrecvWrap) {
+        unrecvWrap.style.display = unrecv.length ? 'block' : 'none';
+        if (unrecv.length) {
+          $('subUnreceivedTbody').innerHTML = unrecv.map(u => `
+            <tr>
+              <td>${fmtTime(u.createdAt)}</td>
+              <td class="mono">${esc(u.orderNo || '—')}</td>
+              <td>${esc(u.shopName || '—')}</td>
+              <td>${esc(u.supplierName || '—')}</td>
+              <td>${fmtMoney(u.supplyAmount)}</td>
+              <td style="font-weight:700;">${fmtMoney(u.subsidyAmount)}</td>
+              <td><span class="badge s-pending">待收货 · 预估</span></td>
+            </tr>`).join('');
+        }
+      }
+
+      $('subRecordTbody').querySelectorAll('button[data-subsidy]').forEach(btn => {
+        btn.onclick = async () => {
+          const id = btn.dataset.subsidy;
+          btn.disabled = true;
+          btn.textContent = '提交中...';
+          const note = prompt('补差备注（可留空）：如「线下对公转账 2026-09-20」', '') || '';
+          const r2 = await api('/api/dev/subsidies/' + id + '/settle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ note })
+          });
+          if (!r2.success) {
+            alert(r2.message || '标记失败');
+            btn.disabled = false;
+            btn.textContent = '标记结清';
+            return;
+          }
+          await loadSubsidies($('subMonth').value || curMonth());
+        };
+      });
     }
 
     async function loadRevenue(month) {
@@ -3042,8 +3850,16 @@
               rateCell.textContent = '—'; rateCell.style.color = 'var(--text-sub)'; return;
             }
             const rate = d / cost;
-            rateCell.textContent = (rate < 0 ? '-' : '') + (Math.abs(rate) * 100).toFixed(2) + '%';
-            rateCell.style.color = (rate === 0 ? 'var(--text-sub)' : (rate < 0 ? 'var(--c-red)' : 'var(--c-green)'));
+            // 券安全线 5%（满 4000 减 200 是折扣率最高的一档）：
+            // 加价率低于 5% 时顾客用满额券会把加价吃光，差额需走补差流程补给供应商。
+            // 用「⚠ + tooltip」而不是只靠变色标出来（颜色对色弱不友好，必须带符号）。
+            const couponSafeRate = 0.05;
+            const risky = rate >= 0 && rate < couponSafeRate;
+            rateCell.textContent = ((rate < 0 ? '-' : '') + (Math.abs(rate) * 100).toFixed(2) + '%') + (risky ? ' ⚠' : '');
+            rateCell.style.color = (rate === 0 ? 'var(--text-sub)' : (rate < 0 ? 'var(--c-red)' : (risky ? 'var(--c-amber-700)' : 'var(--c-green)')));
+            rateCell.title = risky
+              ? '低于券安全线 5%：顾客用满额券（满4000减200）时加价被吃光，差额需走补差流程补给供应商'
+              : '高于券安全线 5%：券成本在加价空间内，无需补差';
           };
           const v = inp.value.trim();
           if (v === '') { cell.textContent = '—'; cell.style.color = 'var(--text-sub)'; setRate(null); return; }
@@ -3530,24 +4346,24 @@
     // 首屏：总览统计 + 待办红点；红点每 60 秒轮询一次（新申请/新资质实时提醒）
 
     // ============ 界面主题（本地外观设置，不上传服务器） ============
-    // 四套主题：classic 经典版 / warm 暖橙（默认）/ dark 深色 / fresh 青绿
+    // 四套主题：classic 经典版 / warm 松墨绿（默认）/ dark 深色 / fresh 青绿
     // 取值只写 localStorage 的 dhDevTheme（per 浏览器），账号体系与其他端完全不感知
     const THEME_KEY = 'dhDevTheme';
     const THEMES = [
       { key: 'classic', name: '经典版', slogan: '走了很远，也别忘了出发的样子。',
         swatches: ['#f5f6fa', '#ffffff', '#ff6b35', '#1f2937', '#e5e7eb'] },
-      { key: 'warm', name: '暖橙', slogan: '人间烟火气，最抚凡人心。',
-        swatches: ['#F7F8FA', '#FFFFFF', '#FF7A3D', '#1F2329', '#EBEDF0'] },
+      { key: 'warm', name: '松墨绿', slogan: '盯一天，眼睛也不累。',
+        swatches: ['#F4F8F5', '#FFFFFF', '#177A56', '#1F2937', '#E5E9F0'] },
       { key: 'dark', name: '深色', slogan: '夜深了，数字还在替你守着生意。',
         swatches: ['#0F1419', '#182029', '#FF9463', '#E3E6EA', '#2A3542'] },
       { key: 'fresh', name: '青绿', slogan: '新鲜，是这行最贵的品质。',
         swatches: ['#F4F7F7', '#FFFFFF', '#00B8A9', '#1F2329', '#FF7A3D'] }
     ];
-    let _curTheme = 'warm';
+    let _curTheme = 'classic';   // 出厂默认 = 经典版
 
     function currentTheme() {
       const t = document.documentElement.getAttribute('data-theme');
-      return THEMES.some(x => x.key === t) ? t : 'warm';
+      return THEMES.some(x => x.key === t) ? t : 'classic';   // 出厂默认 = 经典版
     }
     function applyTheme(key) {
       const hit = THEMES.filter(x => x.key === key)[0];
@@ -3564,6 +4380,7 @@
         <button type="button" class="theme-card${t.key === _curTheme ? ' is-active' : ''}" data-theme-key="${t.key}">
           <div class="tc-top">
             <span class="tc-name">${t.name}</span>
+            ${t.key === 'classic' ? '<span class="tc-default">默认</span>' : ''}
             <span class="tc-flag">当前在用</span>
           </div>
           <div class="tc-slogan">${t.slogan}</div>
@@ -3599,5 +4416,13 @@
   </script>
   <!-- 演示模式横幅（payMode=mock 时顶部显示橙色提示，切真实支付后自动消失） -->
   <script src="/js/demo-banner.js"></script>
+  <!-- 横向滚动条常驻：宽表不必滚到最底下才能左右拖 -->
+  <script src="/js/sticky-scroll.js"></script>
+  <!-- 图片灯箱：点图放大，Esc / 空格 / 回车 / 减号 / 右键 / 点任意处 都能退回 -->
+  <script src="/js/img-lightbox.js"></script>
+  <!-- 按钮字色按实际背景自动取黑/白：换主题也不会出现「浅得看不见 / 深得看不见」 -->
+  <script src="/js/btn-contrast.js"></script>
+  <!-- 侧栏图标统一：emoji → 线性图标，跟随主题色（currentColor 描边） -->
+  <script src="/js/nav-icons.js"></script>
 </body>
 </html>

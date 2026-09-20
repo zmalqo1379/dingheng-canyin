@@ -1,5 +1,5 @@
 <template>
-  <view class="page">
+  <view class="page" :class="themeClass">
     <view class="hero">
       <view class="hero-name">商家认证</view>
       <view class="hero-sub">补齐门店资料后即可不限额下单，首单也能继续直通</view>
@@ -118,6 +118,11 @@
 import { ref, reactive } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { get, post, getToken, BASE_URL } from '@/utils/request.js';
+// 界面主题：根 view 上挂 class（整套 CSS 变量在 src/styles/theme-vars.css）
+import { useThemeClass } from '@/utils/theme.js';
+
+const themeClass = useThemeClass();
+
 
 const status = ref(null);
 const saving = ref(false);
@@ -359,14 +364,5 @@ onLoad(() => {
 .save { background: $brand-grad; color: #fff; border-radius: $radius-full; font-size: $fs-lg; font-weight: $fw-semibold; height: 80rpx; line-height: 80rpx; box-shadow: $shadow-brand; }
 button::after { border: none; }
 
-@media (prefers-color-scheme: dark) {
-  .page { background: #121212; }
-  .card { background: #1e1e1e; box-shadow: none; }
-  .row, .status-row { border-color: #2a2a2a; }
-  .card-title { border-color: #2a2a2a; }
-  .label { color: #e6e6e6; }
-  .input { color: #e6e6e6; }
-  .upload-empty { border-color: #2a2a2a; }
-  .footer { background: #1e1e1e; }
-}
+/* ★ 手写深色块已删（职责交给 .theme-dark），见 src/utils/theme.js */
 </style>

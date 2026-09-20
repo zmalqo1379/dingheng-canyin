@@ -26,23 +26,59 @@
     .admin { display: none; }
     .admin.show { display: block; }
 
-    /* 顶部栏（移动端） */
+    /* 顶部横幅：桌面 + 移动统一常驻，结构与开发者端一致（左：汉堡 + 品牌；右：🎨 + 退出登录）。
+       --chrome-h = 横幅高度；侧栏 / 内容区 / 移动端抽屉全部按它避让。
+       --demo-h 由 /js/demo-banner.js 打到 <html> 上，演示模式下整体再往下推，不再被横幅压住。 */
+    :root { --chrome-h: 56px; }
     .topbar {
-      display: none;
-      position: sticky; top: 0; z-index: 60;
+      display: flex;
+      position: fixed; top: var(--demo-h, 0px); left: 0; right: 0;
+      height: var(--chrome-h); z-index: 60;
       background: var(--nav);
       color: #fff;
-      padding: 12px 16px;
+      padding: 0 18px;
       align-items: center;
       gap: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,.15);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, .15);
     }
+    .topbar .left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .topbar .brand {
+      display: flex; align-items: center; gap: 9px;
+      font-size: 16px; font-weight: 700; color: #fff; white-space: nowrap;
+    }
+    .topbar .brand .dot {
+      width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--primary), #FF9A6B);
+      color: #fff; font-size: 14px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .topbar .brand-sub { font-size: 13px; font-weight: 500; opacity: .85; }
+    .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .topbar .theme-icon-btn {
+      width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+      background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .22);
+      color: #fff; font-size: 16px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .2s, transform .15s;
+    }
+    .topbar .theme-icon-btn:hover { background: rgba(255, 255, 255, .26); transform: translateY(-1px); }
+    .topbar .logout {
+      height: 34px; padding: 0 14px; border-radius: 10px; flex-shrink: 0;
+      background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .22);
+      color: #fff; font-size: 13px; font-family: inherit; cursor: pointer;
+      transition: background .2s;
+    }
+    .topbar .logout:hover { background: rgba(255, 255, 255, .26); }
+    /* 汉堡只在窄屏出现，用来开合左侧栏目；桌面侧栏常驻，汉堡没有意义。
+       之前这里写的是 display:flex，把上面那条 display:none 覆盖掉了，
+       于是桌面也能看到三条杠，点了却只是在侧栏上加个 .open 类——桌面侧栏没有抽屉动画，
+       看起来就是「一点变黑、再点变白」，没有任何实际作用。 */
     .topbar .hamburger {
       background: rgba(255,255,255,.15);
       border: none; color: #fff;
       width: 38px; height: 38px;
       border-radius: 10px; font-size: 20px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
+      display: none; align-items: center; justify-content: center;
     }
     .topbar .title { font-size: 16px; font-weight: 600; }
 
@@ -50,26 +86,22 @@
     .layout { display: block; }
     .sidebar {
       width: 240px;
-      height: 100vh;
+      /* 先写静态兜底再写 calc：万一变量没解析出来，侧栏也不会退回顶部被横幅压住
+         （「工作台点不到」就是 top 失效、整条侧栏跑到横幅底下造成的） */
+      height: calc(100vh - 56px);
+      height: calc(100vh - var(--demo-h, 0px) - var(--chrome-h, 56px));
       background: linear-gradient(180deg, var(--nav), var(--nav-2));
       color: var(--slate-400);
-      position: fixed; left: 0; top: 0; bottom: 0;
+      position: fixed; left: 0; bottom: 0;
+      top: 56px;
+      top: calc(var(--demo-h, 0px) + var(--chrome-h, 56px));
       overflow-y: auto; overflow-x: hidden;
       display: flex; flex-direction: column;
       flex-shrink: 0;
       z-index: 30;
     }
-    .sidebar .brand {
-      padding: 22px 20px 18px;
-      font-size: 18px; font-weight: 700; color: #fff;
-      display: flex; align-items: center; gap: 10px;
-      border-bottom: 1px solid rgba(255,255,255,.08);
-    }
-    .sidebar .brand .dot {
-      width: 32px; height: 32px; border-radius: 9px;
-      background: var(--primary);
-      display: flex; align-items: center; justify-content: center; font-size: 16px;
-    }
+    /* 品牌已经放到顶部横幅，侧栏不再重复一遍（开发者端侧栏也是直接进导航） */
+    .sidebar .brand { display: none; }
     .nav { padding: 12px 10px; flex: 1; }
     .nav-item {
       display: flex; align-items: center; gap: 12px;
@@ -134,7 +166,10 @@
     .main {
       margin-left: 240px;        /* 左侧菜单宽度 */
       width: calc(100% - 240px); /* 必须占满剩余宽度 */
-      height: 100vh;
+      margin-top: 56px; /* 兜底：让出顶部横幅 */
+      margin-top: calc(var(--demo-h, 0px) + var(--chrome-h, 56px));
+      height: calc(100vh - 56px);
+      height: calc(100vh - var(--demo-h, 0px) - var(--chrome-h, 56px));
       overflow-y: auto;
       overflow-x: hidden;
       padding: 24px;
@@ -308,6 +343,78 @@
       border: none; font-size: 13px; font-weight: 600; cursor: pointer;
     }
     .btn-add:hover { opacity: .9; }
+    /* 「拍照上传菜单」走描边款：跟主按钮并排时，主次一眼分得开 */
+    .btn-add.ghost {
+      background: #fff; color: var(--accent);
+      border: 1.5px solid var(--accent); box-shadow: none;
+    }
+    .btn-add.ghost:hover { opacity: 1; background: var(--surface-3); }
+
+    /* ===== 拍照上传菜单 =====
+       一份纸质菜单几十道菜，一道一道手打太慢。拍一张（或把菜单文字粘进来）
+       → 识别成清单 → 这儿改、那儿删、还能手动加 → 一键整批新增。 */
+    .ai-drop {
+      border: 2px dashed var(--line); border-radius: var(--radius);
+      background: var(--surface-3); text-align: center; cursor: pointer;
+      padding: 20px 16px; transition: all .18s ease;
+    }
+    .ai-drop:hover { border-color: var(--accent); background: #fff; }
+    .ai-drop .big { font-size: 34px; line-height: 1; }
+    .ai-drop .t1 { margin-top: 8px; font-size: 14px; font-weight: 600; color: var(--text); }
+    .ai-drop .t2 { margin-top: 6px; font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+    .ai-preview {
+      display: block; width: 100%; max-height: 220px; object-fit: contain;
+      margin-top: 10px; border: 1px solid var(--line); border-radius: var(--radius);
+    }
+    .ai-or { text-align: center; font-size: 12px; color: var(--text-muted); margin: 14px 0 10px; }
+    .ai-textarea {
+      width: 100%; min-height: 96px; padding: 10px; font-family: inherit; font-size: 13px;
+      color: var(--text); background: #fff; border: 1px solid var(--line);
+      border-radius: var(--radius); resize: vertical;
+    }
+    .ai-textarea:focus { outline: none; border-color: var(--accent); }
+    .ai-loading { padding: 34px 0; text-align: center; font-size: 13px; color: var(--text-sub); }
+    .ai-spin {
+      display: inline-block; width: 26px; height: 26px; border-radius: 50%;
+      border: 3px solid var(--line); border-top-color: var(--accent);
+      animation: ai-spin .8s linear infinite;
+    }
+    @keyframes ai-spin { to { transform: rotate(360deg); } }
+    .ai-sum {
+      padding: 10px 12px; font-size: 13px; line-height: 1.7; color: var(--text-sub);
+      background: var(--surface-3); border-radius: var(--radius);
+    }
+    .ai-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .ai-tbl th {
+      padding: 6px; font-size: 12px; font-weight: 600; text-align: left;
+      color: var(--text-muted); border-bottom: 1px solid var(--line);
+    }
+    .ai-tbl td { padding: 5px 6px; vertical-align: middle; border-bottom: 1px solid var(--line); }
+    .ai-tbl tr.low { background: #fffbeb; }   /* 没把握的那几行：淡黄底让他核一眼 */
+    .ai-f {
+      width: 100%; padding: 6px 8px; font-family: inherit; font-size: 13px; color: var(--text);
+      background: #fff; border: 1px solid var(--line); border-radius: 8px;
+    }
+    .ai-f:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(14,107,78,.12); }
+    .ai-low-tag {
+      display: inline-block; margin-left: 4px; padding: 1px 5px; font-size: 11px;
+      color: #92400e; background: #fef3c7; border-radius: 6px;
+    }
+    .ai-del { padding: 2px 4px; font-size: 14px; color: var(--text-muted); background: none; border: none; cursor: pointer; }
+    .ai-del:hover { color: var(--red); }
+    .ai-result {
+      margin-top: 12px; padding: 10px 12px; font-size: 13px; line-height: 1.7;
+      color: var(--green); background: var(--tint-green-100); border-radius: var(--radius);
+    }
+    .ai-result.warn { color: #92400e; background: #fffbeb; }
+
+    /* 表单弹窗点遮罩时轻轻晃一下：告诉用户"我还在，没关"，别让人以为点死了 */
+    @keyframes tk-nudge {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-6px); }
+      75% { transform: translateX(6px); }
+    }
+    .modal.tk-nudge { animation: tk-nudge .4s ease; }
     .row-actions { display: flex; gap: 8px; }
 
     /* 桌台 */
@@ -488,19 +595,22 @@
       margin-bottom: 12px;
     }
     .deco-label small { font-weight: 400; color: var(--text-muted); margin-left: 8px; }
-    .theme-grid {
+    /* 「店铺装修」的店名字体 / 菜单排版卡：类名和界面主题弹窗的卡片撞了（都叫 .theme-card），
+       两边互相污染——主题卡被压成装修预览卡的窄条，装修卡也会被拉成大卡。
+       统一加 #pane-decorate 作用域，装修归装修、界面主题归界面主题。 */
+    #pane-decorate .theme-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
       gap: 12px;
     }
-    .theme-card {
+    #pane-decorate .theme-card {
       position: relative;
       border: 2px solid var(--line); border-radius: 12px;
       overflow: hidden; cursor: pointer; background: var(--card);
       transition: transform .12s, border-color .15s, box-shadow .15s;
     }
-    .theme-card:hover { transform: translateY(-2px); }
-    .theme-card.active { border-color: var(--accent); box-shadow: 0 6px 16px var(--p-18); }
+    #pane-decorate .theme-card:hover { transform: translateY(-2px); }
+    #pane-decorate .theme-card.active { border-color: var(--accent); box-shadow: 0 6px 16px var(--p-18); }
     .theme-card .tc-banner {
       height: 54px; display: flex; align-items: center; gap: 7px;
       padding: 0 12px; font-size: 12px; font-weight: 700;
@@ -606,11 +716,11 @@
     .deco-layout { display: block; }
     .deco-main { min-width: 0; }
     /* 卡片选中态（区别于已应用的 active） */
-    .theme-card.selected, .opt-card.selected {
+    #pane-decorate .theme-card.selected, .opt-card.selected {
       border-color: var(--c-blue);
       box-shadow: 0 0 0 3px rgba(37,99,235,.18), 0 6px 16px rgba(37,99,235,.18);
     }
-    .theme-card.selected .tc-check, .opt-card.selected .oc-check {
+    #pane-decorate .theme-card.selected .tc-check, .opt-card.selected .oc-check {
       background: var(--c-blue);
     }
     /* 选中卡片下方浮现的操作条 */
@@ -648,16 +758,24 @@
 
     /* ============ 响应式 ============ */
     @media (max-width: 768px) {
-      .topbar { display: flex; position: fixed; top: 0; left: 0; right: 0; }
+      :root { --chrome-h: 52px; } /* 移动端横幅矮一点，把纵向空间留给内容 */
+      .topbar { position: fixed; left: 0; right: 0; padding: 0 12px; top: 0; top: var(--demo-h, 0px); }
+      .topbar .brand-sub { display: none; }
+      .topbar .hamburger { display: flex; }
       .sidebar {
-        position: fixed; top: 0; left: 0; bottom: 0;
+        position: fixed; left: 0; bottom: 0;
+        top: 52px;
+        top: calc(var(--demo-h, 0px) + var(--chrome-h, 52px));
         z-index: 50;
         transform: translateX(-100%);
         transition: transform .25s;
-        height: 100vh;
+        height: calc(100vh - 52px);
+        height: calc(100vh - var(--demo-h, 0px) - var(--chrome-h, 52px));
       }
       .sidebar.open { transform: translateX(0); }
-      .main { margin-left: 0; margin-top: 62px; width: 100%; height: calc(100vh - 62px); overflow-y: auto; padding: 16px; }
+      .main { margin-left: 0; width: 100%; overflow-y: auto; padding: 16px;
+        margin-top: 52px; margin-top: calc(var(--demo-h, 0px) + var(--chrome-h, 52px));
+        height: calc(100vh - 52px); height: calc(100vh - var(--demo-h, 0px) - var(--chrome-h, 52px)); }
       .stat-grid { grid-template-columns: 1fr; }
       .stat-card .value { font-size: clamp(18px, 4.5vw, 34px); }
       .pane-title { font-size: 18px; }
@@ -694,7 +812,7 @@
       .add-row { padding: 12px; flex-wrap: wrap; }
       .add-row input { font-size: 14px; }
       /* 装修卡片网格手机端单列（避免按钮挤压） */
-      .theme-grid, .opt-grid { grid-template-columns: 1fr; }
+      #pane-decorate .theme-grid, .opt-grid { grid-template-columns: 1fr; }
       .deco-uploads { grid-template-columns: 1fr; }
       /* 会员 / 鼎恒币 / 采购商城 padding */
       .membership-grid { gap: 12px; }
@@ -1822,6 +1940,12 @@
     .cart-item-info { flex: 1; min-width: 0; }
     .cart-item-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .cart-item-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    /* 「≈ XX 斤」换算标签：餐饮老板按斤过脑子，一眼看到总重量，不用自己除 500 */
+    .jin-tag {
+      margin-left: 6px; padding: 1px 6px; border-radius: 4px; white-space: nowrap;
+      font-weight: 600; color: var(--accent);
+      background: var(--tint-warm-50, #FFF8F3);
+    }
     .cart-item-price { font-size: 13px; font-weight: 600; color: var(--accent); white-space: nowrap; }
     .cart-item-del {
       background: none; border: none;
@@ -1846,6 +1970,45 @@
       font-size: 16px; font-weight: 700;
     }
     .cart-total-row .cart-total { color: var(--accent); font-size: 20px; }
+    /* ==== 实付金额对比区：用券时应付金额划掉变灰，实付金额放大加粗 + 已省小标 ====
+       不浮夸，但让老板一眼看到「这单真少花了钱」——对比本身就是最好的促销 */
+    .cart-total-row.is-strike { padding-top: 8px; margin-top: 2px; }
+    .cart-total-row.is-strike > span:first-child { color: var(--text-3); font-weight: 400; }
+    .cart-total-row.is-strike .cart-total {
+      color: var(--text-3); font-weight: 400; font-size: 14px;
+      text-decoration: line-through; text-decoration-thickness: 2px;
+    }
+    .cart-actual-row {
+      display: flex; justify-content: space-between;
+      align-items: baseline;
+      margin-top: 6px; padding-top: 8px;
+      border-top: 1px dashed var(--border);
+    }
+    .cart-actual-label { font-size: 14px; font-weight: 700; color: var(--text-1, #1F2937); }
+    .cart-actual-num {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 24px; font-weight: 800; letter-spacing: .3px;
+      color: var(--accent);
+    }
+    .cart-save-tag {
+      font-style: normal; font-size: 11px; font-weight: 600;
+      padding: 2px 8px; border-radius: 999px;
+      color: var(--green); background: var(--tint-green-50);
+    }
+    /* ==== 有可用券但没选用 → 券选择框呼吸光晕 + 一句提醒 ====
+       券是留客的钩子：老板每单都把券用掉，就多一分理由把采购全放在平台上 */
+    .form-group.coupon-glow {
+      border: 1.5px solid var(--accent);
+      border-radius: 10px;
+      padding: 8px 10px;
+      animation: couponGlow 1.8s ease-in-out infinite;
+    }
+    .form-group.coupon-glow .form-select { border-color: var(--accent); font-weight: 600; }
+    .coupon-glow-tip { margin-top: 6px; font-size: 12px; font-weight: 700; color: var(--accent); }
+    @keyframes couponGlow {
+      0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 30%, transparent); }
+      50%      { box-shadow: 0 0 0 7px color-mix(in srgb, var(--accent) 10%, transparent); }
+    }
     .cart-submit {
       width: 100%; margin-top: 14px; padding: 12px;
       font-size: 14px;
@@ -2406,6 +2569,7 @@
       padding: 10px 14px;
       max-width: 420px;
     }
+
     .home-stats {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -2436,6 +2600,31 @@
     .home-stat[data-go] { cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
     .home-stat[data-go]:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
     .home-stat[data-go]:active { transform: scale(.97); }
+    /* 库存告急条：横向一行，够醒目但不做成大块凸起；没有告急时整条不显示 */
+    .home-stock-alert {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 16px; margin: 0 0 14px;
+      border: 1px solid rgba(239, 68, 68, .28);
+      border-radius: var(--radius);
+      background: linear-gradient(90deg, rgba(239, 68, 68, .08) 0%, var(--card) 60%);
+    }
+    .home-stock-alert.warn {
+      border-color: rgba(245, 158, 11, .34);
+      background: linear-gradient(90deg, rgba(245, 158, 11, .09) 0%, var(--card) 60%);
+    }
+    .home-stock-alert .hsa-icon { font-size: 16px; flex-shrink: 0; }
+    .home-stock-alert .hsa-text {
+      flex: 1; min-width: 0; font-size: 13.5px; font-weight: 600; color: var(--text-2);
+    }
+    .home-stock-alert .hsa-text small {
+      display: block; font-weight: 500; font-size: 12px; color: var(--text-sub);
+      margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .home-stock-alert .btn { flex-shrink: 0; }
+    @media (max-width: 900px) {
+      .home-stock-alert { padding: 11px 13px; gap: 8px; }
+      .home-stock-alert .hsa-text { font-size: 13px; }
+    }
     .home-cols {
       display: grid;
       grid-template-columns: 1.2fr 1fr;
@@ -2501,6 +2690,37 @@
     .home-coin-tag b { color: var(--c-amber-600); }
     .home-coin-tag.mult1 { background: var(--surface-6); border-color: var(--line); color: var(--text-sub); }
     .home-coin-tag.mult1 b { color: var(--text-2); }
+    /* 常购清单（再来一单）：按供应商分组的复购区。
+       商品做成可点的圆角标签，勾选后才出现数量框 —— 默认就摆一排输入框太吵，
+       老板只想勾几样常买的，不想一上来填一堆数字。 */
+    .rebuy-group { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+    .rebuy-group:last-child { margin-bottom: 0; }
+    .rebuy-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    .rebuy-sup { font-weight: 700; font-size: 13.5px; }
+    .rebuy-min { font-size: 12px; color: var(--text-muted); }
+    .rebuy-items { display: flex; flex-wrap: wrap; gap: 8px; }
+    .rebuy-item {
+      display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;
+      border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px;
+      font-size: 13px; background: var(--surface-6);
+    }
+    .rebuy-item.on { border-color: var(--c-amber-600); background: var(--tint-amber-50); }
+    .rebuy-item.locked { opacity: .5; cursor: not-allowed; }
+    .rebuy-item .nm { font-weight: 600; }
+    .rebuy-item .pr, .rebuy-item .tm { color: var(--text-muted); font-size: 12px; }
+    .rebuy-item.on .tm { color: var(--c-amber-600); }
+    .rebuy-qty {
+      width: 46px; text-align: center; border: 1px solid var(--line); border-radius: 6px;
+      padding: 2px 4px; font-size: 12px; display: none;
+    }
+    .rebuy-item.on .rebuy-qty { display: inline-block; }
+    .rebuy-bar { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+    .rebuy-sum { font-size: 12.5px; color: var(--text-muted); }
+    .rebuy-btn {
+      border: none; border-radius: 8px; padding: 7px 16px; font-size: 13px; font-weight: 700;
+      background: var(--c-amber-600); color: #fff; cursor: pointer;
+    }
+    .rebuy-btn:disabled { background: var(--line); color: var(--text-muted); cursor: not-allowed; }
     @media (max-width: 900px) {
       .home-stats { grid-template-columns: repeat(2, 1fr); }
       .home-cols { grid-template-columns: 1fr; }
@@ -2510,11 +2730,15 @@
     }
 
   </style>
+  <!-- 高端视觉层（黄金比例 / 质感 / 响应式密度）：必须排在内联 <style> 之后，
+       内联样式写在 theme.css 之前，若不放在这里就会被内联覆盖掉。
+       本层只改外观令牌与质感，不碰 .sidebar / .main 的 top、height、margin-top。 -->
+  <link rel="stylesheet" href="/theme-pro.css">
   <script>
     // 主题预加载：首屏渲染前打上 data-theme，避免默认主题闪一下再切换
     (function () {
       var VALID = ['classic', 'warm', 'dark', 'fresh'];
-      var t = 'warm';
+      var t = 'classic';   // 出厂默认 = 经典版
       try {
         var saved = localStorage.getItem('dhAdminTheme');
         if (VALID.indexOf(saved) >= 0) t = saved;
@@ -2522,19 +2746,28 @@
       document.documentElement.setAttribute('data-theme', t);
     })();
   </script>
+  <!-- 通用打磨（数字排版 / 空状态 / 顶栏毛玻璃 / 卡片边界 / 按钮手感）
+       ★ 必须放在本页内联 <style> 之后：本项目各端内联样式权重高、写在后面，
+         打磨规则如果挂在 theme.css 旁边会被内联样式直接压掉（老坑）。 -->
+  <link rel="stylesheet" href="/css/ui-polish.css">
 </head>
 <body>
 
 <!-- ============ 管理主界面（JWT 鉴权，未登录由 js 跳转商家登录页） ============ -->
 <div class="admin" id="adminPage">
-  <!-- 移动端顶部栏 -->
+  <!-- 顶部横幅：与开发者端同一套结构（左：汉堡 + 品牌；右：🎨 主题 + 退出登录）
+       原先商家端桌面没有顶栏、只有一个右下角悬浮 🎨，跟开发者端完全不像。 -->
   <div class="topbar">
-    <button class="hamburger" id="menuToggle">☰</button>
-    <span class="title">🛒 采购管家</span>
+    <div class="left">
+      <button class="hamburger" id="menuToggle">☰</button>
+      <div class="brand"><span class="dot">鼎</span> <span class="brand-sub">鼎恒餐饮·</span>采购管家</div>
+    </div>
+    <div class="topbar-right">
+      <button class="theme-icon-btn" id="themeFab" title="界面主题" aria-label="界面主题">🎨</button>
+      <!-- 小后退：不在起始页时是「返回」，一步一步往回退；退到工作台（起始页）自动变成「退出登录」 -->
+      <button class="logout" id="topBackBtn" title="返回上一页">返回</button>
+    </div>
   </div>
-
-  <!-- 主题入口 1：右上角常驻调色盘（只影响当前浏览器） -->
-  <button class="theme-fab" id="themeFab" title="界面主题" aria-label="界面主题">🎨</button>
 
   <div class="layout">
     <!-- 侧边栏 -->
@@ -2544,12 +2777,30 @@
         <div class="nav-item active" data-tab="home"><span class="icon">🏠</span> 工作台</div>
         <div class="nav-divider"></div>
         <div class="nav-group-title">采购管家</div>
+        <!-- 采购大脑：本月花了多少 / 省了多少 / 攒了多少币 / 今天要办什么，一屏看完。
+             这些数字原本散在四个栏目里，来回点四五次才拼得出全貌。
+             图标用内联 SVG（项目硬约束：禁止 emoji 图标）。 -->
+        <div class="nav-item" data-tab="brain">
+          <span class="icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M12 14.5l3.8-3.8"/><path d="M3.2 19a9 9 0 1 1 17.6 0"/></svg></span>
+          采购大脑
+        </div>
         <div class="nav-item" data-tab="mall"><span class="icon">🛒</span> 采购商城</div>
         <div class="nav-item" data-tab="smartReplenish"><span class="icon">🤖</span> 智能补货</div>
         <div class="nav-item" data-tab="purchase" id="navPurchase"><span class="icon">📑</span> 采购订单<span class="nav-badge dot" id="navPurchaseBadge" style="display:none;"></span></div>
         <div class="nav-item" data-tab="procurement"><span class="icon">📈</span> 采购监控</div>
+        <!-- 售后管理：收货发现问题在这里提（带图凭证），供应商 24h 内受理，超时自动转平台。
+             图标用内联 SVG（项目硬约束：禁止 emoji 图标）。
+             红点只在该老板动手时才亮（供应商给了方案等他确认）——
+             提交之后在等供应商受理的阶段不亮：这时候他要的是安心等，不是被数字追着看。 -->
+        <div class="nav-item" data-tab="aftersale" id="navAftersale">
+          <span class="icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span>
+          售后管理<span class="nav-badge" id="navAftersaleBadge" style="display:none;">0</span>
+        </div>
         <div class="nav-divider"></div>
-        <div class="nav-group-title">门店经营</div>
+        <!-- 组名直接写「扫码点餐」而不是「门店经营」：
+             老板线下还有自己的门店生意，写"经营"容易跟那套混为一谈；
+             这一组干的就是扫码点餐这一件事，说到哪儿是哪儿。 -->
+        <div class="nav-group-title">扫码点餐</div>
         <div class="nav-item" data-tab="dishes"><span class="icon">📋</span> 菜单管理</div>
         <div class="nav-item" data-tab="tables"><span class="icon">🪑</span> 桌台管理</div>
         <div class="nav-item" data-tab="orders"><span class="icon">📦</span> 订单管理</div>
@@ -2598,47 +2849,49 @@
             <div class="home-greet" id="homeGreet">你好</div>
             <div class="home-date" id="homeDate"></div>
           </div>
-          <div class="home-tip" id="homeTip"></div>
+          <!-- 整句话本身就是去采购商城的入口（和下面几张数据卡一样，点了就走），
+               不再额外套一颗凸起按钮，保持原来「一句话」的轻盈感 -->
+          <div class="home-tip" id="homeTip" data-go="mall" role="button" tabindex="0" title="去采购商城"></div>
         </div>
 
-        <!-- 今日数据（可点击直达对应栏目） -->
+        <!-- 新手任务：开张五步曲（全部完成自动消失，可手动"不再显示"）
+             这张卡原本被挂在「菜单管理」里面 —— 刚注册的商家打开后台看到的全是 0，
+             却不知道第一步该干什么。挪回工作台首页，让它第一眼就看得见。 -->
+        <div class="ob-card" id="onboardCard" style="display:none;">
+          <!-- 金色欢迎语：仅注册赠送的首月体验（进阶版 + 采购省钱卡）生效期间显示 -->
+          <div class="ob-gift" id="obGiftLine" style="display:none;">🎁 欢迎礼：首月进阶版 + 采购省钱卡（体验）已免费开通，正在生效中！</div>
+          <div class="ob-head">
+            <span class="ob-title">🎯 新手任务 · 开张五步曲</span>
+            <span class="ob-count" id="obCount">0/5</span>
+            <button class="ob-hide" id="obHideBtn" type="button">不再显示</button>
+          </div>
+          <div id="obTaskList"></div>
+        </div>
+
+        <!-- 今日数据（可点击直达对应栏目）
+             不放图标：卡片里再塞小图标既没有信息量，又把数字挤到一边，只留「数字 + 标签 + 备注」 -->
         <div class="home-stats">
-          <!-- 图标一律用 .stat-ico-line 线性图标（1.5px 描边、主色、无底色），不使用 emoji -->
-          <div class="home-stat" data-go="procurement" title="查看采购监控">
-            <svg class="stat-ico-line" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 7h16v10H4z"></path><path d="M4 11h16"></path><path d="M8 15h8"></path>
-            </svg>
-            <b id="hsTodayAmount">¥0.00</b><span>今日采购额</span><em id="hsAmountTrend"></em>
+          <!-- 主打位：放「今天赚了多少」——商家打开后台第一眼该看到这套系统带给他的收入，
+               而不是他今天花了多少采购款。没用过扫码点餐时，这张卡换成「鼎恒币余额」，
+               同样是"我得到了什么"，不是"我掏了多少"。 -->
+          <div class="home-stat" id="hsMainCard" data-go="orders" title="查看扫码点餐订单">
+            <b id="hsTodayAmount">¥0.00</b><span id="hsMainLabel">今日营业额</span><em id="hsAmountTrend"></em>
           </div>
           <div class="home-stat" data-go="purchase" title="查看采购订单">
-            <svg class="stat-ico-line" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"></path><path d="M9 8h6"></path><path d="M9 12h6"></path>
-            </svg>
             <b id="hsTodayOrders">0</b><span>今日采购单</span><em id="hsOrdersTrend"></em>
           </div>
           <div class="home-stat" data-go="purchase" title="去确认 / 收货">
-            <svg class="stat-ico-line" viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path>
-            </svg>
             <b id="hsTodoCount">0</b><span>待处理订单</span><em id="hsTodoHint">确认 / 收货</em>
           </div>
-          <div class="home-stat" data-go="coin" title="去鼎恒币中心">
-            <svg class="stat-ico-line" viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="12" r="9"></circle><path d="M9 8.5l3 4 3-4"></path><path d="M12 12.5V17"></path>
-            </svg>
-            <b id="hsCoin">0</b><span>鼎恒币余额</span><em style="color:var(--c-amber-600);">可兑换会员</em>
+          <!-- 末位卡随主打位联动，避免两张卡显示同一个数字 -->
+          <div class="home-stat" id="hsTailCard" data-go="coin" title="去鼎恒币中心">
+            <b id="hsCoin">0</b><span id="hsTailLabel">鼎恒币余额</span><em id="hsCoinHint" style="color:var(--c-amber-600);">可兑换会员</em>
           </div>
         </div>
 
-        <!-- 主题入口 2：工作台「界面主题」区块（显眼，可直接切换） -->
-        <div class="theme-section">
-          <div class="theme-section-head">
-            <span class="t-title">🎨 界面主题</span>
-            <span class="t-sub">只影响当前浏览器，不上传服务器，不影响其他账号</span>
-            <button type="button" class="t-open" id="themeOpenBtn">打开主题面板</button>
-          </div>
-          <div class="theme-grid" id="homeThemeGrid"></div>
-        </div>
+        <!-- 库存告急条：老板掏手机最急着看的是「今天哪个菜要断货」，
+             必须摆在显眼处，不能只藏在下面的待办清单里。没有告急时整条不占位。 -->
+        <div class="home-stock-alert" id="homeStockAlert" style="display:none;"></div>
 
         <div class="home-cols">
           <!-- 待办清单：调动积极性的核心，清空待办即清空红点 -->
@@ -2687,6 +2940,30 @@
           </div>
         </div>
 
+        <!-- 主题入口 2：工作台「界面主题」区块
+             位置在「今日待办 + 快捷入口」下面（2026-09-18 按老板要求下移）：
+             第一屏是做生意的地方 —— 先看今天要办什么、要去哪儿，
+             「界面主题」纯粹是外观设置，不该挤在待办前面抢位置。 -->
+        <div class="theme-section">
+          <div class="theme-section-head">
+            <span class="t-title">🎨 界面主题</span>
+            <span class="t-sub">只影响当前浏览器，不上传服务器，不影响其他账号</span>
+            <button type="button" class="t-open" id="themeOpenBtn">打开主题面板</button>
+          </div>
+          <div class="theme-grid" id="homeThemeGrid"></div>
+        </div>
+
+        <!-- 常购清单（再来一单）：餐饮采购是重复行为 —— 这周买的菜，下周多半还是那几样。
+             把最近真正买过的按供应商归好堆，勾一勾就能再下一单，省得每次重新去商品库里翻。
+             没有采购历史时整块不占位，不拿空卡片占地方。 -->
+        <div class="card" id="homeRebuyCard" style="display:none;margin-top:14px;">
+          <div class="card-head">
+            <h3>🛒 常购清单</h3>
+            <span style="font-size:12.5px;color:var(--text-muted);">按供应商分组 · 勾选后再来一单</span>
+          </div>
+          <div id="homeRebuyList"></div>
+        </div>
+
         <!-- 得币攻略：高倍率品类引导（激励多采购多赚币） -->
         <div class="card" style="margin-top:14px;">
           <div class="card-head"><h3>🪙 今日得币攻略</h3><span style="font-size:12.5px;color:var(--text-muted);">采购高倍率品类，得币更多</span></div>
@@ -2696,31 +2973,21 @@
 
       <!-- 1. 菜单管理 -->
       <section class="pane" id="pane-dishes">
-        <!-- 新手任务：开张五步曲（全部完成自动消失，可手动"不再显示"） -->
-        <div class="ob-card" id="onboardCard" style="display:none;">
-          <!-- 金色欢迎语：仅注册赠送的首月体验（进阶版 + 采购省钱卡）生效期间显示 -->
-          <div class="ob-gift" id="obGiftLine" style="display:none;">🎁 欢迎礼：首月进阶版 + 采购省钱卡（体验）已免费开通，正在生效中！</div>
-          <div class="ob-head">
-            <span class="ob-title">🎯 新手任务 · 开张五步曲</span>
-            <span class="ob-count" id="obCount">0/5</span>
-            <button class="ob-hide" id="obHideBtn" type="button">不再显示</button>
-          </div>
-          <div id="obTaskList"></div>
-        </div>
-
-        <!-- 低库存菜品提醒（有配方 + 库存时显示，缺货即补货入口） -->
+        <!-- 低库存菜品提醒（有用料 + 库存时显示，缺货即补货入口） -->
         <div class="card" id="lowStockBanner" style="display:none;">
           <div class="card-head">
             <h3>⚠️ 快断货了</h3>
             <span class="proc-alert-sub" id="lowStockSub"></span>
           </div>
           <div id="lowStockBody" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
-          <div style="margin-top:10px;font-size:12px;color:var(--text-muted);">按配方（BOM）与当前库存反算可售份数，提醒只作参考</div>
+          <div style="margin-top:10px;font-size:12px;color:var(--text-muted);">按菜品用料与当前库存反算可售份数，提醒只作参考</div>
         </div>
 
         <div class="pane-title">
           <span>📋 菜单管理</span>
           <button class="btn-add" id="addDishBtn">+ 新增菜品</button>
+          <!-- 拍照上传菜单：纸质菜单拍一张，识别成清单，改改就能整批新增 -->
+          <button class="btn-add ghost" id="aiDishBtn">📷 拍照上传菜单</button>
         </div>
         <div class="card">
           <div class="card-head"><h3>菜品列表</h3></div>
@@ -3361,14 +3628,7 @@
           <div class="coupon-grid" id="couponGrid"></div>
         </div>
 
-        <!-- 币兑增值包（限时功能包，阶段3） -->
-        <div class="card" style="margin-top:16px;">
-          <div class="card-head"><h3>💎 币兑增值包</h3></div>
-          <div class="ez-cards" id="addonGrid" style="margin-top:8px;"></div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:8px;">小额鼎恒币兑换限时功能包，到期自动失效，不影响会员等级</div>
-        </div>
-
-        <!-- 我的抵用券 -->
+        <!-- 我的抵用券（紧跟兑换区：兑了立马就能看到券到账，中间不隔任何东西） -->
         <div class="card" style="margin-top:16px;">
           <div class="card-head"><h3>🎟️ 我的抵用券</h3></div>
           <div class="table-wrap">
@@ -3379,6 +3639,13 @@
               <tbody id="couponsBody"></tbody>
             </table>
           </div>
+        </div>
+
+        <!-- 币兑增值包（限时功能包，阶段3） -->
+        <div class="card" style="margin-top:16px;">
+          <div class="card-head"><h3>💎 币兑增值包</h3></div>
+          <div class="ez-cards" id="addonGrid" style="margin-top:8px;"></div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:8px;">小额鼎恒币兑换限时功能包，到期自动失效，不影响会员等级</div>
         </div>
 
         <!-- 会员续费（两条产品线独立兑换） -->
@@ -3532,9 +3799,14 @@
                   <span>-¥<span id="cartDiscount">0.00</span></span>
                 </div>
 
-                <div class="cart-total-row">
+                <div class="cart-total-row" id="cartOldRow">
                   <span>应付金额</span>
                   <span class="cart-total">¥<span id="cartTotal">0.00</span></span>
+                </div>
+
+                <div class="cart-actual-row" id="cartActualRow" style="display:none;">
+                  <span class="cart-actual-label">实付金额</span>
+                  <span class="cart-actual-num">¥<span id="cartActual">0.00</span><em class="cart-save-tag" id="cartSaveTag">已省 ¥0</em></span>
                 </div>
 
                 <div class="cart-coin-total" id="cartCoinTotal"></div>
@@ -3587,9 +3859,14 @@
               <span>-¥<span id="mCartDiscount">0.00</span></span>
             </div>
 
-            <div class="cart-total-row">
+            <div class="cart-total-row" id="mCartOldRow">
               <span>应付金额</span>
               <span class="cart-total">¥<span id="mCartTotal">0.00</span></span>
+            </div>
+
+            <div class="cart-actual-row" id="mCartActualRow" style="display:none;">
+              <span class="cart-actual-label">实付金额</span>
+              <span class="cart-actual-num">¥<span id="mCartActual">0.00</span><em class="cart-save-tag" id="mCartSaveTag">已省 ¥0</em></span>
             </div>
 
             <div class="cart-coin-total" id="mCartCoinTotal"></div>
@@ -3619,13 +3896,68 @@
           <div class="table-wrap" id="purchaseTableWrap">
             <table class="data">
               <thead>
-                <tr><th>订单号</th><th>供应商</th><th>商品摘要</th><th>总金额</th><th>状态</th><th>返币</th><th>操作</th></tr>
+                <tr><th>订单号</th><th>供应商</th><th>商品摘要</th><th>总金额 / 实付金额</th><th>状态</th><th>返币</th><th>操作</th></tr>
               </thead>
               <tbody id="purchaseOrdersBody"></tbody>
             </table>
           </div>
           <!-- 手机端卡片式订单列表（<768px 显示，替代表格，避免横向滑动） -->
           <div class="purchase-card-list" id="purchaseCardList"></div>
+        </div>
+      </section>
+
+      <!-- 8.0 采购大脑：一屏看清采购这本账 —— 花了多少 / 省了多少 / 攒了多少币 / 今天要办什么。
+           数字全部由后端算好下发给前端，算不出来的（比如没有参考价）宁可空着也不编。 -->
+      <section class="pane" id="pane-brain">
+        <div class="pane-title"><span>采购大脑</span></div>
+        <div class="card">
+          <div class="card-head">
+            <h3>这个月采购的账</h3>
+            <span style="font-size:12px;color:var(--text-3);" id="brainUpdated"></span>
+          </div>
+          <div class="stat-grid proc-stat-grid" id="brainStats"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h3>今天要办</h3>
+            <span style="font-size:12px;color:var(--text-3);">只列真正需要您动手的事</span>
+          </div>
+          <div id="brainTodo"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h3>价格提醒</h3>
+            <button class="btn btn-gray" onclick="switchTab('procurement')">去采购监控</button>
+          </div>
+          <div id="brainAlerts"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h3>这个月的钱给了谁</h3>
+            <span style="font-size:12px;color:var(--text-3);">按本月已收货金额</span>
+          </div>
+          <div id="brainSuppliers"></div>
+        </div>
+      </section>
+
+      <!-- 8.6 售后管理：收货发现问题在这里提（带图凭证），供应商 24h 内受理，
+           超时自动转平台；谈不拢可申请平台裁决 —— 双方都有据可依 -->
+      <section class="pane" id="pane-aftersale">
+        <div class="pane-title"><span>售后管理</span></div>
+        <div class="card">
+          <div class="card-head">
+            <h3>我的售后申请</h3>
+            <button class="btn btn-orange" onclick="openTicketModal('')">+ 申请售后</button>
+          </div>
+          <div class="filter-tabs" id="tkMerchantFilters">
+            <button class="filter-tab active" data-status="">全部</button>
+            <button class="filter-tab" data-status="待受理">待受理</button>
+            <button class="filter-tab" data-status="处理中">处理中</button>
+            <button class="filter-tab" data-status="待商家确认">待我确认</button>
+            <button class="filter-tab" data-status="平台介入中">平台介入中</button>
+            <button class="filter-tab" data-status="已完成">已完成</button>
+          </div>
+          <div id="tkMerchantList"><div style="text-align:center;color:var(--text-3);padding:24px;">加载中...</div></div>
         </div>
       </section>
 
@@ -4022,6 +4354,78 @@
   </div>
 </div>
 
+<!-- ============ 售后工单提交弹窗 ============ -->
+<div class="mask" id="ticketModal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-head">
+      <h3 id="tkModalTitle">申请售后</h3>
+      <button class="x" id="tkCloseBtn">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="tkOrderId">
+      <div class="form-group">
+        <label>关联订单<span style="color:#e11d48;">*</span></label>
+        <select class="form-select" id="tkOrderSelect"></select>
+      </div>
+      <div class="form-group">
+        <label>问题类型<span style="color:#e11d48;">*</span></label>
+        <select class="form-select" id="tkType">
+          <option value="品质问题">品质问题（不新鲜 / 腐烂 / 变质）</option>
+          <option value="数量短缺">数量短缺（少件 / 少称）</option>
+          <option value="规格不符">规格不符（品种 / 等级 / 产地不符）</option>
+          <option value="配送延误">配送延误</option>
+          <option value="包装破损">包装破损</option>
+          <option value="退换货">退换货</option>
+          <option value="账款争议">账款争议</option>
+          <option value="其他">其他</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>问题商品（可勾选，不选视为整单问题）</label>
+        <div id="tkItemList" style="max-height:150px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;font-size:13px;"></div>
+      </div>
+      <div class="form-group">
+        <label>问题描述<span style="color:#e11d48;">*</span></label>
+        <textarea class="form-input" id="tkDesc" maxlength="1000" placeholder="如：土豆到了 50 斤，其中 8 斤发芽无法使用" style="min-height:70px;"></textarea>
+      </div>
+      <div class="form-group">
+        <label>凭证图片（最多 6 张，有图更好判定）</label>
+        <input type="file" id="tkImages" accept="image/*" multiple>
+        <div id="tkImgPreview" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;"></div>
+      </div>
+      <div class="form-group">
+        <label>诉求</label>
+        <select class="form-select" id="tkExpect">
+          <option value="仅反馈">仅反馈（请供应商说明）</option>
+          <option value="补发">补发</option>
+          <option value="换货">换货</option>
+          <option value="退款">退款</option>
+          <option value="折让">折让</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>诉求金额（元）</label>
+        <input type="number" class="form-input" id="tkClaimAmount" min="0" step="0.01" placeholder="申请退款或折让的金额">
+      </div>
+      <div class="form-group">
+        <label>紧急程度</label>
+        <select class="form-select" id="tkPriority">
+          <option value="普通">普通</option>
+          <option value="紧急">紧急（当天要用，请尽快处理）</option>
+        </select>
+      </div>
+      <div style="font-size:12px;color:var(--text-3);">供应商需在 24 小时内受理，超时自动转平台介入</div>
+      <!-- 提交前先把"我的售后信誉"亮出来：真出问题的照提不误；
+           无凭证、经核实的无理申请会被驳回并计入信誉，过多将限制提交。 -->
+      <div id="tkCreditTip" style="font-size:12px;color:var(--text-3);margin-top:6px;padding:8px 10px;background:var(--surface-3);border-radius:8px;line-height:1.7;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-gray" id="tkCancelBtn">取消</button>
+      <button class="btn btn-orange" id="tkSaveBtn">提交申请</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ 营销活动弹窗 ============ -->
 <div class="mask" id="mktModal">
   <div class="modal">
@@ -4157,17 +4561,84 @@
   </div>
 </div>
 
+<!-- ============ 拍照上传菜单 ============
+     一份纸质菜单几十道菜，一道一道点「新增」太折磨人。
+     拍照（或把菜单文字粘进来）→ 识别成清单 → 这儿改、那儿删、还能手动加 → 一键整批新增。
+     识别出来的每一行都能改，绝不是"认出来是什么就是什么"的黑盒。 -->
+<div class="mask" id="aiDishModal">
+  <div class="modal" style="max-width: 720px;">
+    <div class="modal-head">
+      <h3>📷 拍照上传菜单</h3>
+      <button class="x" id="aiDishClose">×</button>
+    </div>
+    <div class="modal-body">
+      <!-- 第一步：给素材（拍照 / 选图 / 粘贴文字） -->
+      <div id="aiDishStepInput">
+        <div class="ai-drop" id="aiDishDrop">
+          <div class="big">📷</div>
+          <div class="t1">点这里拍照，或选一张菜单的照片</div>
+          <div class="t2">纸质的、手写的、电子菜单截图都认得<br>镜头正对着拍、别太远，认得更准</div>
+        </div>
+        <img class="ai-preview" id="aiDishPreview" style="display:none;" alt="">
+        <input type="file" id="aiDishFile" accept="image/*" hidden>
+
+        <div class="ai-or">或者</div>
+        <div class="form-group">
+          <label>把菜单的文字直接粘进来（微信里收到的最省事）</label>
+          <textarea class="ai-textarea" id="aiDishText" placeholder="例如：&#10;宫保鸡丁  38元&#10;鱼香肉丝  32元&#10;拍黄瓜    12元"></textarea>
+        </div>
+      </div>
+
+      <!-- 识别中 -->
+      <div class="ai-loading" id="aiDishLoading" style="display:none;">
+        <span class="ai-spin"></span>
+        <div style="margin-top:12px;">正在识别，请稍等几秒…</div>
+      </div>
+
+      <!-- 第二步：核对清单 -->
+      <div id="aiDishStepList" style="display:none;">
+        <div class="ai-sum" id="aiDishSum"></div>
+        <div style="overflow-x:auto;margin-top:8px;">
+          <table class="ai-tbl">
+            <thead>
+              <tr>
+                <th style="width:32px;"><input type="checkbox" id="aiDishAll" checked title="全选 / 全不选"></th>
+                <th>菜名</th>
+                <th style="width:130px;">分类</th>
+                <th style="width:110px;">价格（必填）</th>
+                <th style="width:32px;"></th>
+              </tr>
+            </thead>
+            <tbody id="aiDishTbody"></tbody>
+          </table>
+        </div>
+        <button class="btn btn-gray" id="aiDishAddRowBtn" type="button" style="margin-top:10px;">＋ 再加一行</button>
+        <div class="ai-result" id="aiDishResult" style="display:none;"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-gray" id="aiDishAgainBtn" type="button" style="display:none;">重新识别</button>
+      <button class="btn btn-gray" id="aiDishCancelBtn">取消</button>
+      <button class="btn btn-orange" id="aiDishGoBtn">开始识别</button>
+    </div>
+  </div>
+</div>
+
 <!-- 菜品食材配方（BOM）弹窗：配置菜品消耗哪些食材，点餐后自动扣库存 -->
 <div class="mask" id="bomModal">
   <div class="modal" style="max-width: 560px;">
     <div class="modal-head">
-      <h3>🍲 食材配方</h3>
+      <h3>🍲 菜品用料</h3>
       <button class="x" id="bomCloseBtn">×</button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="bomDishName">
       <div class="form-group" style="margin-bottom:10px;">
-        <label style="color:var(--text-3);font-size:13px;">配置「<b id="bomDishLabel"></b>」消耗的食材（点餐后自动扣减库存，未配置则不影响库存）</label>
+        <!-- 说清楚"填这个对他有什么好处"，而不是"把做法交出来"：
+             用料只用来自动扣库存、算还能卖几份、缺货前提醒补货。
+             措辞刻意避开"配方/秘方"这类词 —— 那是人家的立身之本，我们不碰。 -->
+        <label style="color:var(--text-3);font-size:13px;">「<b id="bomDishLabel"></b>」每份用了哪些食材、各用多少<br>
+          <span style="color:var(--text-muted);">填好后：顾客点一单自动扣库存，还能算出"还剩的料够卖几份"，缺货前提醒你补货</span></label>
       </div>
       <div id="bomItemsList"></div>
       <div style="display:flex;gap:8px;margin-top:12px;">
@@ -4179,7 +4650,7 @@
     </div>
     <div class="modal-foot">
       <button class="btn btn-gray" id="bomCancelBtn">取消</button>
-      <button class="btn btn-orange" id="bomSaveBtn">保存配方</button>
+      <button class="btn btn-orange" id="bomSaveBtn">保存用料</button>
     </div>
   </div>
 </div>
@@ -4490,6 +4961,14 @@
 <!-- Chart.js：采购监控价格折线图 / 采购结构饼图 -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="/js/admin.js"></script>
+<!-- 横向滚动条常驻：宽表不必滚到最底下才能左右拖 -->
+<script src="/js/sticky-scroll.js"></script>
+<!-- 图片灯箱：点图放大，Esc / 空格 / 回车 / 减号 / 右键 / 点任意处 都能退回 -->
+<script src="/js/img-lightbox.js"></script>
+<!-- 按钮字色按实际背景自动取黑/白：换主题也不会出现「浅得看不见 / 深得看不见」 -->
+<script src="/js/btn-contrast.js"></script>
+<!-- 侧栏图标统一：emoji → 线性图标，跟随主题色（currentColor 描边） -->
+<script src="/js/nav-icons.js"></script>
 <!-- 演示模式横幅（payMode=mock 时顶部显示橙色提示，切真实支付后自动消失） -->
 <script src="/js/demo-banner.js"></script>
 
@@ -4504,7 +4983,9 @@
       </div>
       <button class="theme-close" id="themeClose" title="关闭">✕</button>
     </div>
-    <div class="theme-grid" id="themeGrid"></div>
+    <!-- 注意：这里的 id 不能再用 themeGrid——「店铺装修」栏里已经有一个 #themeGrid，
+         同 id 时 getElementById 只会拿到装修那个，主题卡会被渲染进装修页、弹窗里只剩一句说明。 -->
+    <div class="theme-grid" id="themeModalGrid"></div>
   </div>
 </div>
 
@@ -4515,8 +4996,8 @@
     var THEMES = [
       { key: 'classic', name: '经典版', slogan: '走了很远，也别忘了出发的样子。',
         swatches: ['#f5f6fa', '#ffffff', '#ff6b35', '#1f2937', '#e5e7eb'] },
-      { key: 'warm', name: '暖橙', slogan: '人间烟火气，最抚凡人心。',
-        swatches: ['#F7F8FA', '#FFFFFF', '#FF7A3D', '#1F2329', '#EBEDF0'] },
+      { key: 'warm', name: '松墨绿', slogan: '盯一天，眼睛也不累。',
+        swatches: ['#F4F8F5', '#FFFFFF', '#177A56', '#1F2937', '#E5E9F0'] },
       { key: 'dark', name: '深色', slogan: '夜深了，数字还在替你守着生意。',
         swatches: ['#0F1419', '#182029', '#FF9463', '#E3E6EA', '#2A3542'] },
       { key: 'fresh', name: '青绿', slogan: '新鲜，是这行最贵的品质。',
@@ -4527,7 +5008,7 @@
     function currentTheme() {
       var t = document.documentElement.getAttribute('data-theme');
       for (var i = 0; i < THEMES.length; i++) if (THEMES[i].key === t) return t;
-      return 'warm';
+      return 'classic';   // 出厂默认 = 经典版
     }
     function applyTheme(key) {
       var hit = null;
@@ -4548,11 +5029,13 @@
           dots += '<i style="background:' + t.swatches[j] + '"></i>';
         }
         html += '<button type="button" class="theme-card' + (t.key === cur ? ' is-active' : '') + '" data-theme-key="' + t.key + '">'
-          + '<div class="tc-top"><span class="tc-name">' + t.name + '</span><span class="tc-flag">当前在用</span></div>'
+          + '<div class="tc-top"><span class="tc-name">' + t.name + '</span>'
+          + (t.key === 'classic' ? '<span class="tc-default">默认</span>' : '')
+          + '<span class="tc-flag">当前在用</span></div>'
           + '<div class="tc-slogan">' + t.slogan + '</div>'
           + '<div class="theme-swatches">' + dots + '</div></button>';
       }
-      ['themeGrid', 'homeThemeGrid'].forEach(function (id) {
+      ['themeModalGrid', 'homeThemeGrid'].forEach(function (id) {
         var host = $(id);
         if (!host) return;
         host.innerHTML = html;
@@ -4572,6 +5055,8 @@
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') closePanel();
     });
+
+    // 顶栏右侧「返回 / 退出登录」由 admin.js 统一处理（小后退历史栈 + 退到起始页才退出）
 
     applyTheme(currentTheme());
   })();
